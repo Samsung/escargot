@@ -284,6 +284,16 @@ enum class TemporalDirectionOption : uint8_t {
     Previous
 };
 
+enum class TemporalKind : uint8_t {
+    PlainDate,
+    PlainYearMonth,
+    PlainMonthDay,
+    PlainTime,
+    PlainDateTime,
+    Instant,
+    ZonedDateTime
+};
+
 class Temporal {
 public:
     static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
@@ -529,6 +539,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
     static double totalRelativeDuration(ExecutionState& state, const ISO8601::InternalDuration& duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, ISO8601::DateTimeUnit unit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimevalue
+    static std::pair<double, Optional<TemporalKind>> handleDateTimeValue(ExecutionState& state, IntlDateTimeFormatObject* format, Value x, bool allowZonedDateTime = false);
 };
 
 } // namespace Escargot

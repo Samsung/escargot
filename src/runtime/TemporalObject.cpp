@@ -58,6 +58,7 @@
 #include "runtime/TemporalPlainYearMonthObject.h"
 #include "runtime/TemporalZonedDateTimeObject.h"
 #include "intl/Intl.h"
+#include "intl/IntlDateTimeFormat.h"
 
 namespace Escargot {
 
@@ -3556,6 +3557,65 @@ double Temporal::totalRelativeDuration(ExecutionState& state, const ISO8601::Int
     auto timeDuration = add24HourDaysToTimeDuration(state, duration.time(), duration.dateDuration().days());
     // Return TotalTimeDuration(timeDuration, unit).
     return totalTimeDuration(state, timeDuration, toTemporalUnit(unit));
+}
+
+std::pair<double, Optional<TemporalKind>> Temporal::handleDateTimeValue(ExecutionState& state, IntlDateTimeFormatObject* format, Value x, bool allowZonedDateTime)
+{
+    if (x.isObject()) {
+        auto obj = x.asObject();
+        auto formatCalendar = Calendar::fromString(format->calendar());
+        if (obj->isTemporalPlainDateObject()) {
+            auto objCalendar = obj->asTemporalPlainDateObject()->calendarID();
+            if (!formatCalendar || (formatCalendar.value() != objCalendar && !objCalendar.isISO8601())) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
+            }
+            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
+            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainDate);
+        } else if (obj->isTemporalPlainYearMonthObject()) {
+            auto objCalendar = obj->asTemporalPlainYearMonthObject()->calendarID();
+            if (!formatCalendar || formatCalendar.value() != objCalendar) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
+            }
+            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
+            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainYearMonthObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainYearMonth);
+        } else if (obj->isTemporalPlainMonthDayObject()) {
+            auto objCalendar = obj->asTemporalPlainMonthDayObject()->calendarID();
+            if (!formatCalendar || formatCalendar.value() != objCalendar) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
+            }
+            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
+            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainMonthDayObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainMonthDay);
+        } else if (obj->isTemporalPlainTimeObject()) {
+            auto plainTime = obj->asTemporalPlainTimeObject()->plainTime();
+            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
+            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(ISO8601::PlainDate(1970, 1, 1), plainTime), TemporalDisambiguationOption::Compatible);
+            return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainTime);
+        } else if (obj->isTemporalPlainDateTimeObject()) {
+            auto objCalendar = obj->asTemporalPlainDateTimeObject()->calendarID();
+            if (!formatCalendar || (formatCalendar.value() != objCalendar && !objCalendar.isISO8601())) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
+            }
+            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
+            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateTimeObject()->computeISODate(state), obj->asTemporalPlainDateTimeObject()->plainTime()), TemporalDisambiguationOption::Compatible);
+            return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainDateTime);
+        } else if (obj->isTemporalInstantObject()) {
+            return std::make_pair(ISO8601::ExactTime(obj->asTemporalInstantObject()->epochNanoseconds()).floorEpochMilliseconds(), TemporalKind::Instant);
+        } else if (obj->isTemporalZonedDateTimeObject()) {
+            if (allowZonedDateTime) {
+                auto objCalendar = obj->asTemporalZonedDateTimeObject()->calendarID();
+                if (!formatCalendar || (formatCalendar.value() != objCalendar && !objCalendar.isISO8601())) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
+                }
+                return std::make_pair(ISO8601::ExactTime(obj->asTemporalZonedDateTimeObject()->epochNanoseconds()).floorEpochMilliseconds(), TemporalKind::ZonedDateTime);
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid Temporal value");
+            }
+        }
+    }
+    return std::make_pair(x.toNumber(state), NullOption);
 }
 
 } // namespace Escargot

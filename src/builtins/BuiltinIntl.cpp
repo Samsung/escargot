@@ -198,13 +198,8 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
     }
 
     IntlDateTimeFormatObject* dateTimeFormat = callee->internalSlot()->asIntlDateTimeFormatObject();
-    double value;
-    if (argc == 0 || argv[0].isUndefined()) {
-        value = DateObject::currentTime();
-    } else {
-        value = argv[0].toNumber(state);
-    }
-    auto result = dateTimeFormat->format(state, value);
+    Value value = argc ? argv[0] : Value();
+    UTF16StringDataNonGCStd result = dateTimeFormat->format(state, value);
 
     return Value(new UTF16String(result.data(), result.length()));
 }

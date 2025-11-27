@@ -318,17 +318,6 @@
     <test id="intl402/Temporal/ZonedDateTime/prototype/since/dst-balancing-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/since/dst-rounding-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/startOfDay/dst-skipped-cross-midnight"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/calendar-mismatch"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle-timeStyle-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/default-includes-time-and-time-zone-name"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/locales-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/lone-options-accepted"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-conflict"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-timeZone"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-timeZoneName-affects-instance-time-zone"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/time-zone-canonicalized"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/dst-balancing-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/dst-rounding-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/with/non-iso-calendar-fields"><reason>TODO</reason></test>

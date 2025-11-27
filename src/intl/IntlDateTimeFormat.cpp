@@ -54,6 +54,10 @@
 #include "Intl.h"
 #include "IntlDateTimeFormat.h"
 
+#if defined(ENABLE_TEMPORAL)
+#include "runtime/TemporalObject.h"
+#endif
+
 namespace Escargot {
 
 static const char* const intlDateTimeFormatRelevantExtensionKeys[3] = { "ca", "nu", "hc" };
@@ -474,14 +478,16 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
     }
 }
 
-IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options)
-    : IntlDateTimeFormatObject(state, state.context()->globalObject()->intlDateTimeFormatPrototype(), locales, options)
+IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone)
+    : IntlDateTimeFormatObject(state, state.context()->globalObject()->intlDateTimeFormatPrototype(), locales, options, toLocaleStringTimeZone)
 {
 }
 
-IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
+IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone)
     : DerivedObject(state, proto)
+    , m_wasThereNoFormatOption(false)
     , m_locale(String::emptyString())
+    , m_dataLocale(String::emptyString())
     , m_calendar(String::emptyString())
     , m_numberingSystem(String::emptyString())
     , m_timeZone(String::emptyString())
@@ -490,7 +496,9 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
-    options = toDateTimeOptions(state, options, state.context()->staticStrings().lazyAny().string(), state.context()->staticStrings().lazyDate().string());
+    auto toDateTimeOptionsResult = toDateTimeOptions(state, options, state.context()->staticStrings().lazyAny().string(), state.context()->staticStrings().lazyDate().string());
+    options = toDateTimeOptionsResult.first;
+    m_wasThereNoFormatOption = toDateTimeOptionsResult.second;
     // Let opt be a new Record.
     StringMap opt;
     // Let matcher be ? GetOption(options, "localeMatcher", "string", « "lookup", "best fit" », "best fit").
@@ -575,9 +583,21 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     Value timeZone = options.asObject()->get(state, state.context()->staticStrings().lazyTimeZone()).value(state, options.asObject());
     // If timeZone is undefined, then
     if (timeZone.isUndefined()) {
-        // Let timeZone be DefaultTimeZone().
-        timeZone = defaultTimeZone(state);
+        // If toLocaleStringTimeZone is present, then
+        if (toLocaleStringTimeZone) {
+            // Set timeZone to toLocaleStringTimeZone.
+            timeZone = toLocaleStringTimeZone.value();
+        } else {
+            // Else,
+            // Let timeZone be DefaultTimeZone().
+            timeZone = defaultTimeZone(state);
+        }
     } else {
+        // If toLocaleStringTimeZone is present, throw a TypeError exception.
+        if (toLocaleStringTimeZone) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got invalid timezone value");
+        }
+
         // Else,
         // Let timeZone be ? ToString(timeZone).
         // If the result of IsValidTimeZoneName(timeZone) is false, then Throw a RangeError exception.
@@ -610,18 +630,9 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // [[Second]]  "second"    "2-digit", "numeric"
     // [[FractionalSecondDigits]]  "fractionalSecondDigits"    1𝔽, 2𝔽, 3𝔽
     // [[TimeZoneName]]    "timeZoneName"  "short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"
-
-    std::function<void(String * prop, Value * values, size_t valuesSize)> doTable4 = [&](String* prop, Value* values, size_t valuesSize) {
-        Value value = Intl::getOption(state, options.asObject(), prop, Intl::StringValue, values, valuesSize, Value());
-        // Set opt.[[<prop>]] to value.
-        if (!value.isUndefined()) {
-            opt.insert(std::make_pair(prop->toNonGCUTF8StringData(), value.toString(state)));
-        }
-    };
-
     StringBuilder skeletonBuilder;
 
-    String* hour = initDateTimeFormatMainHelper(state, opt, options, hour12, doTable4, skeletonBuilder);
+    String* hour = initDateTimeFormatMainHelper(state, opt, options.asObject(), hour12, skeletonBuilder);
 
     // Let dataLocaleData be localeData.[[<dataLocale>]].
 
@@ -639,11 +650,32 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     m_timeStyle = timeStyle;
 
-    initDateTimeFormatOtherHelper(state, String::fromUTF8(dataLocaleWithExtensions.data(), dataLocaleWithExtensions.size()), dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
+    m_dataLocale = String::fromUTF8(dataLocaleWithExtensions.data(), dataLocaleWithExtensions.size());
+
+    auto result = initDateTimeFormatOtherHelper(state, this, m_dataLocale, m_timeZone, dateStyle, timeStyle, hourCycle, m_hourCycle, hour12, hour, opt, skeletonBuilder);
+    m_hourCycle = result.newHourCycle;
+    m_timeZoneICU = result.timeZoneICU.value();
+    m_icuDateFormat = result.icuDateFormat.value();
+
+    addFinalizer([](PointerValue* obj, void* data) {
+        IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
+        udat_close(self->m_icuDateFormat);
+        if (self->m_icuDateIntervalFormat) {
+            udtitvfmt_close(self->m_icuDateIntervalFormat.value());
+        }
+    },
+                 nullptr);
 }
 
-String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, const Value& options, const Value& hour12, std::function<void(String* prop, Value* values, size_t valuesSize)>& doTable4, StringBuilder& skeletonBuilder)
+String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder)
 {
+    std::function<void(String * prop, Value * values, size_t valuesSize)> doTable4 = [&](String* prop, Value* values, size_t valuesSize) {
+        Value value = Intl::getOption(state, options, prop, Intl::StringValue, values, valuesSize, Value());
+        // Set opt.[[<prop>]] to value.
+        if (!value.isUndefined()) {
+            opt.insert(std::make_pair(prop->toNonGCUTF8StringData(), value.toString(state)));
+        }
+    };
     // For each row of Table 4, except the header row, in table order, do
     // Let prop be the name given in the Property column of the row.
     // If prop is "fractionalSecondDigits", then
@@ -767,7 +799,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
         skeletonBuilder.appendString("s");
     }
 
-    Value fractionalSecondDigits = Intl::getNumberOption(state, options.asObject(), state.context()->staticStrings().lazyFractionalSecondDigits().string(), 1, 3, Value());
+    Value fractionalSecondDigits = Intl::getNumberOption(state, options, state.context()->staticStrings().lazyFractionalSecondDigits().string(), 1, 3, Value());
     if (!fractionalSecondDigits.isUndefined()) {
         for (double i = 0; i < fractionalSecondDigits.asNumber(); i++) {
             skeletonBuilder.appendString("S");
@@ -801,17 +833,19 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
     return hour;
 }
 
-void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder)
+IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder)
 {
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringData skeleton;
     UTF16StringDataNonGCStd patternBuffer;
 
-    LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(dataLocale.toString(state)->toUTF8StringData().data(), &status),
+    auto u8DataLocale = dataLocale.toString(state)->toUTF8StringData();
+
+    LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(u8DataLocale.data(), &status),
                                                               [](UDateTimePatternGenerator* d) { udatpg_close(d); });
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-        return;
+        return {};
     }
 
     // If dateStyle is not undefined or timeStyle is not undefined, then
@@ -848,12 +882,12 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
 
         status = U_ZERO_ERROR;
         LocalResourcePointer<UDateFormat> dateFormatFromStyle(
-            udat_open(convertFormatStyle(m_timeStyle), convertFormatStyle(m_dateStyle), dataLocaleWithExtensions.data(), m_timeZone->toUTF16StringData().data(), m_timeZone->length(), nullptr, -1, &status),
+            udat_open(convertFormatStyle(timeStyle), convertFormatStyle(dateStyle), u8DataLocale.data(), timeZone->toUTF16StringData().data(), timeZone->length(), nullptr, -1, &status),
             [](UDateFormat* fmt) { udat_close(fmt); });
 
         if (U_FAILURE(status)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-            return;
+            return {};
         }
 
         auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, dateFormatFromStyle.get(), false);
@@ -861,7 +895,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
         if (U_FAILURE(toPatternResult.first)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-            return;
+            return {};
         }
 
         // It is possible that timeStyle includes dayPeriod, which is sensitive to hour-cycle.
@@ -874,8 +908,8 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         // We do not care about h11 vs. h12 and h23 vs. h24 difference here since this will be later adjusted by replaceHourCycleInPattern.
         //
         // test262/test/intl402/DateTimeFormat/prototype/format/timedatestyle-en.js includes the test for this behavior.
-        if (!Value(m_timeStyle).isUndefined() && (!hourCycle.isUndefinedOrNull() || !hour12.isUndefined())) {
-            bool isHour12 = hourCycle.isString() && (hourCycle.asString()->equals("h11") || hourCycle.asString()->equals("h12"));
+        if (!timeStyle.isUndefined() && (!computedHourCycle.isUndefinedOrNull() || !hour12.isUndefined())) {
+            bool isHour12 = computedHourCycle.isString() && (computedHourCycle.asString()->equals("h11") || computedHourCycle.asString()->equals("h12"));
             bool specifiedHour12 = false;
             // If hour12 is specified, we prefer it and ignore hourCycle.
             if (!hour12.isUndefined()) {
@@ -888,7 +922,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
                 auto getSkeletonResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getSkeleton, nullptr, (UChar*)patternBuffer.data(), patternBuffer.size());
                 if (U_FAILURE(getSkeletonResult.first)) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-                    return;
+                    return {};
                 }
 
                 UTF16StringDataNonGCStd skeleton = std::move(getSkeletonResult.second);
@@ -906,7 +940,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
                 auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
                 if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-                    return;
+                    return {};
                 }
                 patternBuffer = std::move(getBestPatternWithOptionsResult.second);
                 replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
@@ -924,13 +958,14 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
         if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-            return;
+            return {};
         }
         patternBuffer = std::move(getBestPatternWithOptionsResult.second);
         replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
     }
 
-    Value hourCycleBefore = m_hourCycle;
+    Value hourCycleBefore = hourCycle;
+    Value hourCycleAfter = hourCycleBefore;
     // If dateTimeFormat.[[Hour]] is not undefined, then
     bool hasHourOption = hour->length();
     if (hasHourOption) {
@@ -942,7 +977,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
         auto hcDefault = readHourCycleFromPattern(patternBuffer);
         // Let hc be dateTimeFormat.[[HourCycle]].
-        auto hc = m_hourCycle;
+        auto hc = hourCycle;
         // If hc is null, then
         if (Value(hc).isUndefined()) {
             // Set hc to hcDefault.
@@ -981,18 +1016,18 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         // Else,
         //   Let pattern be bestFormat.[[pattern]].
         //   Let rangePatterns be bestFormat.[[rangePatterns]].
-        m_hourCycle = hc;
+        hourCycleAfter = hc;
     } else {
         // Set dateTimeFormat.[[HourCycle]] to undefined.
         // Let pattern be bestFormat.[[pattern]].
         // Let rangePatterns be bestFormat.[[rangePatterns]].
-        m_hourCycle = Value();
+        hourCycleAfter = Value();
     }
 
     // Set dateTimeFormat.[[Pattern]] to pattern.
     // Set dateTimeFormat.[[RangePatterns]] to rangePatterns.
     // Return dateTimeFormat.
-    Value hc = m_hourCycle;
+    Value hc = hourCycleAfter;
     if (hour12.isUndefined()) {
         if (!hc.isString() && hourCycleBefore.isString()) {
             hc = hourCycleBefore.asString();
@@ -1010,10 +1045,12 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
     // If bestFormat has a field [[<prop>]], then
     // Let p be bestFormat.[[<prop>]].
     // Set dateTimeFormat's internal slot whose name is the Internal Slot column of the row to p.
-    setDateFromPattern(state, patternBuffer, hasHourOption);
+    if (dateObject) {
+        dateObject->setDateFromPattern(state, patternBuffer, hasHourOption);
+    }
 
     status = U_ZERO_ERROR;
-    UTF16StringData timeZoneView = m_timeZone->toUTF16StringData();
+    UTF16StringData timeZoneView = timeZone->toUTF16StringData();
     if (auto offset = parseUTCOffsetInMinutes((UTF16String(timeZoneView.data(), timeZoneView.length())).bufferAccessData())) {
         int64_t minutes = offset.value();
         int64_t absMinutes = std::abs(minutes);
@@ -1021,29 +1058,26 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
             + pad('0', 2, std::to_string(absMinutes / 60)) + pad('0', 2, std::to_string(absMinutes % 60));
         timeZoneView = utf8StringToUTF16String(timeZoneForICU.data(), timeZoneForICU.length());
     }
-    m_timeZoneICU = new UTF16String(std::move(timeZoneView));
-    m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), m_timeZoneICU->bufferAccessData().bufferAs16Bit,
-                                m_timeZoneICU->length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
+    auto timeZoneICU = new UTF16String(std::move(timeZoneView));
+    auto icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, u8DataLocale.data(), timeZoneICU->bufferAccessData().bufferAs16Bit,
+                                   timeZoneICU->length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
-        return;
+        return {};
     }
 
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
-        udat_close(self->m_icuDateFormat);
-        if (self->m_icuDateIntervalFormat) {
-            udtitvfmt_close(self->m_icuDateIntervalFormat.value());
-        }
-    },
-                 nullptr);
-
     status = U_ZERO_ERROR;
-    UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(m_icuDateFormat));
+    UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(icuDateFormat));
     std::string type(ucal_getType(cal, &status));
     if (status == U_ZERO_ERROR && std::string("gregorian") == type) {
         ucal_setGregorianChange(cal, minECMAScriptTime, &status);
     }
+
+    return {
+        icuDateFormat,
+        hourCycleAfter,
+        timeZoneICU
+    };
 }
 
 void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption)
@@ -1187,7 +1221,84 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime)
+{
+    LocalResourcePointer<UDateFormat> newFormatHolder(nullptr, [](UDateFormat* fmt) {
+        udat_close(fmt);
+    });
+
+    auto icuFormat = m_icuDateFormat;
+    double x;
+    if (value.isUndefined()) {
+        x = DateObject::currentTime();
+    } else {
+#if defined(ENABLE_TEMPORAL)
+        auto dateTimeValue = Temporal::handleDateTimeValue(state, this, value, allowZonedDateTime);
+        x = dateTimeValue.first;
+        if (dateTimeValue.second && m_wasThereNoFormatOption && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+            StringMap opt;
+            StringBuilder skeletonBuilder;
+            Object* options = new Object(state, Object::PrototypeIsNull);
+            String* numeric = state.context()->staticStrings().lazyNumeric().string();
+            String* shortString = state.context()->staticStrings().lazyShort().string();
+            if (dateTimeValue.second.value() == TemporalKind::Instant) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+            } else if (dateTimeValue.second.value() == TemporalKind::ZonedDateTime) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName.isUndefined() ? shortString : Value(m_timeZoneName)));
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainDate) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainTime) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainDateTime) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainMonthDay) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainYearMonth) {
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+            } else {
+                ASSERT_NOT_REACHED();
+            }
+
+            String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder);
+            newFormatHolder.reset(result.icuDateFormat.value());
+            icuFormat = newFormatHolder.get();
+        }
+#else
+        x = value.toNumber(state);
+#endif
+    }
+    return format(state, icuFormat, x);
+}
+
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, double x)
+{
+    return format(state, m_icuDateFormat, x);
+}
+
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, UDateFormat* dateFormat, double x)
 {
     // If x is not a finite Number, then throw a RangeError exception.
     // If x is NaN, throw a RangeError exception
@@ -1199,7 +1310,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     x = Value(Value::DoubleToIntConvertibleTestNeeds, x).toInteger(state);
 
     // Delegate remaining steps to ICU.
-    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
+    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, dateFormat, x);
     if (U_FAILURE(formatResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format date value");
     }
@@ -1319,8 +1430,10 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
     return result;
 }
 
-Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults)
+std::pair<Value, bool> IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults)
 {
+    bool wasThereNoFormatOption = false;
+
     // If options is undefined, then let options be null, else let options be ToObject(options).
     if (options.isUndefined()) {
         options = Value(Value::Null);
@@ -1356,6 +1469,10 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
         toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyMinute(), needDefaults);
         toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazySecond(), needDefaults);
         toDateTimeOptionsTest(state, options, state.context()->staticStrings().lazyFractionalSecondDigits(), needDefaults);
+    }
+
+    if (needDefaults) {
+        wasThereNoFormatOption = true;
     }
 
     // Let dateStyle be ? Get(options, "dateStyle").
@@ -1401,7 +1518,7 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySecond()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
     }
 
-    return options;
+    return std::make_pair(options, wasThereNoFormatOption);
 }
 
 void IntlDateTimeFormatObject::initICUIntervalFormatIfNecessary(ExecutionState& state)

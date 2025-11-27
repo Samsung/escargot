@@ -223,6 +223,11 @@ public:
         m_data.payload = (intptr_t)v;
     }
 
+    bool isUndefined() const
+    {
+        return m_data.payload == (intptr_t)(ValueUndefined);
+    }
+
     bool isStoredInHeap() const
     {
         if (HAS_SMI_TAG(m_data.payload)) {
