@@ -23,9 +23,12 @@
 #include "runtime/VMInstance.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/IteratorObject.h"
+#include "runtime/AsyncFromSyncIteratorObject.h"
 #include "runtime/ToStringRecursionPreventer.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/ExtendedNativeFunctionObject.h"
+#include "runtime/PromiseObject.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
@@ -325,6 +328,403 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(len), A);
     // Return A.
     return A;
+}
+
+struct ArrayFromAsyncRecord : public PointerValue {
+    bool m_mapping;
+    int m_awaitResumeStage;
+    EncodedValue m_mapper;
+    EncodedValue m_thisArg;
+    EncodedValue m_a;
+    int64_t m_k;
+    IteratorRecord* m_iteratorRecord;
+    EncodedValue m_asyncCloseReturnValue;
+    EncodedValue m_asyncCloseInnerResult;
+    EncodedValue m_throwCompletion;
+    EncodedValue m_awaitResult;
+    EncodedValue m_nextResult;
+    EncodedValue m_nextValue;
+    EncodedValue m_mappedValue;
+
+    PromiseReaction::Capability m_promiseCapability;
+
+    ArrayFromAsyncRecord(bool mapping, EncodedValue mapper, EncodedValue thisArg, EncodedValue a, IteratorRecord* record, PromiseReaction::Capability promiseCapability)
+        : m_mapping(mapping)
+        , m_awaitResumeStage(0)
+        , m_mapper(mapper)
+        , m_thisArg(thisArg)
+        , m_a(a)
+        , m_k(0)
+        , m_iteratorRecord(record)
+        , m_promiseCapability(promiseCapability)
+    {
+    }
+
+    virtual bool isArrayFromAsyncRecord() const override
+    {
+        return true;
+    }
+};
+
+static PromiseObject* arrayFromAsyncAsyncAwaitOperation(ExecutionState& state, const Value& awaitValue, ArrayFromAsyncRecord* data, size_t stage);
+
+#define ASYNCITERATOR_CLOSE(iteratorRecord, stage, completion, completionHasThrownRecord)                                                                         \
+    try {                                                                                                                                                         \
+        data->m_asyncCloseReturnValue = Object::getMethod(state, iteratorRecord->m_iterator, state.context()->staticStrings().stringReturn);                      \
+    } catch (const Value& error) {                                                                                                                                \
+        if (completionHasThrownRecord) {                                                                                                                          \
+            data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion);                                                                    \
+        }                                                                                                                                                         \
+        data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);                                                                             \
+        return;                                                                                                                                                   \
+    }                                                                                                                                                             \
+    if (!data->m_asyncCloseReturnValue.isUndefined()) {                                                                                                           \
+        try {                                                                                                                                                     \
+            data->m_asyncCloseInnerResult = Object::call(state, data->m_asyncCloseReturnValue, iteratorRecord->m_iterator, 0, nullptr);                           \
+        } catch (const Value& error) {                                                                                                                            \
+            if (completionHasThrownRecord) {                                                                                                                      \
+                data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion);                                                                \
+            }                                                                                                                                                     \
+            data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);                                                                         \
+            return;                                                                                                                                               \
+        }                                                                                                                                                         \
+        arrayFromAsyncAsyncAwaitOperation(state, data->m_asyncCloseInnerResult, data, stage);                                                                     \
+        return;                                                                                                                                                   \
+    }                                                                                                                                                             \
+    ArrayFromAsyncAsyncWorkerStage##stage : if (completionHasThrownRecord) { data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion); } \
+    return;
+
+static void builtinArrayFromAsyncAsyncWorker(ExecutionState& state, ArrayFromAsyncRecord* data)
+{
+    if (data->m_awaitResumeStage == 1) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage1;
+    } else if (data->m_awaitResumeStage == 2) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage2;
+    } else if (data->m_awaitResumeStage == 3) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage3;
+    } else if (data->m_awaitResumeStage == 4) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage4;
+    } else if (data->m_awaitResumeStage == 5) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage5;
+    }
+    // Repeat,
+    while (true) {
+        // If k ≥ 2**53 - 1, then
+        if (data->m_k >= ((1LL << 53) - 1)) {
+            // Let error be ThrowCompletion(a newly created TypeError object).
+            data->m_throwCompletion = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Got invalid index"));
+            // Return ? AsyncIteratorClose(iteratorRecord, error).
+            ASYNCITERATOR_CLOSE(data->m_iteratorRecord, 1, data->m_throwCompletion, true);
+        }
+        // Let Pk be ! ToString(𝔽(k)).
+        // Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        data->m_nextResult = Object::call(state, data->m_iteratorRecord->m_nextMethod, data->m_iteratorRecord->m_iterator, 0, nullptr);
+        // Set nextResult to ? Await(nextResult).
+        arrayFromAsyncAsyncAwaitOperation(state, data->m_nextResult, data, 2);
+        return;
+    ArrayFromAsyncAsyncWorkerStage2:
+        data->m_nextResult = data->m_awaitResult;
+        // If nextResult is not an Object, throw a TypeError excetion.
+        if (!data->m_nextResult.toValue().isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "iterator result is not Object");
+        }
+        // Let done be ? IteratorComplete(nextResult).
+        // If done is true, then
+        if (IteratorObject::iteratorComplete(state, data->m_nextResult.toValue().asObject())) {
+            // Perform ? Set(A, "length", 𝔽(k), true).
+            try {
+                data->m_a.toValue().toObject(state)->setThrowsException(state, state.context()->staticStrings().length, Value(data->m_k), data->m_a.toValue());
+            } catch (const Value& error) {
+                data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);
+                return;
+            }
+            // Return A.
+            data->m_promiseCapability.m_promise->asPromiseObject()->fulfill(state, data->m_a);
+            return;
+        }
+        // Let nextValue be ? IteratorValue(nextResult)
+        data->m_nextValue = IteratorObject::iteratorValue(state, data->m_nextResult.toValue().asObject());
+
+        // If mapping is true, then
+        if (data->m_mapping) {
+            // Let mappedValue be Completion(Call(mapper, thisArg, « nextValue, 𝔽(k) »)).
+            // IfAbruptCloseAsyncIterator(mappedValue, iteratorRecord).
+            try {
+                data->m_throwCompletion = Value(Value::EmptyValue);
+                Value arg[2] = { data->m_nextValue, Value(data->m_k) };
+                data->m_mappedValue = Object::call(state, data->m_mapper, data->m_thisArg, 2, arg);
+            } catch (const Value& error) {
+                data->m_throwCompletion = error;
+            }
+            if (!data->m_throwCompletion.isEmpty()) {
+                ASYNCITERATOR_CLOSE(data->m_iteratorRecord, 3, data->m_throwCompletion, true);
+            }
+            // Set mappedValue to Completion(Await(mappedValue)).
+            // IfAbruptCloseAsyncIterator(mappedValue, iteratorRecord).
+            arrayFromAsyncAsyncAwaitOperation(state, data->m_mappedValue, data, 4);
+            return;
+        ArrayFromAsyncAsyncWorkerStage4:
+            data->m_mappedValue = data->m_awaitResult;
+        } else {
+            data->m_mappedValue = data->m_nextValue;
+        }
+
+        // Let defineStatus be Completion(CreateDataPropertyOrThrow(A, Pk, mappedValue)).
+        // IfAbruptCloseAsyncIterator(defineStatus, iteratorRecord).
+        try {
+            data->m_throwCompletion = Value(Value::EmptyValue);
+            data->m_a.toValue().toObject(state)->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, data->m_k),
+                                                                                  ObjectPropertyDescriptor(data->m_mappedValue, ObjectPropertyDescriptor::AllPresent));
+        } catch (const Value& error) {
+            data->m_throwCompletion = error;
+        }
+        if (!data->m_throwCompletion.isEmpty()) {
+            ASYNCITERATOR_CLOSE(data->m_iteratorRecord, 5, data->m_throwCompletion, true);
+        }
+        // Set k to k + 1.
+        data->m_k++;
+    }
+}
+
+static Value arrayFromAsyncAsyncAwaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
+    auto data = s->internalSlot(0).asPointerValue()->asArrayFromAsyncRecord();
+    data->m_awaitResult = argv[0];
+    builtinArrayFromAsyncAsyncWorker(state, data);
+    return Value();
+}
+
+static Value arrayFromAsyncAsyncAwaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
+    auto data = s->internalSlot(0).asPointerValue()->asArrayFromAsyncRecord();
+    data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, *argv);
+    return Value();
+}
+
+static PromiseObject* arrayFromAsyncAsyncAwaitOperation(ExecutionState& state, const Value& awaitValue, ArrayFromAsyncRecord* source, size_t stage)
+{
+    source->m_awaitResumeStage = stage;
+    PromiseObject* promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), awaitValue)->asPromiseObject();
+    ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), arrayFromAsyncAsyncAwaitFulfilledFunction, 1));
+    onFulfilled->setInternalSlot(0, source);
+    ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), arrayFromAsyncAsyncAwaitRejectedFunction, 1));
+    onRejected->setInternalSlot(0, source);
+    promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
+    return promise;
+}
+
+struct ArrayFromAsyncSyncRecord : public PointerValue {
+    bool m_mapping;
+    int m_awaitResumeStage;
+    EncodedValue m_mapper;
+    EncodedValue m_thisArg;
+    EncodedValue m_a;
+    int64_t m_len;
+    Object* m_arrayLike;
+    int64_t m_k;
+    EncodedValue m_awaitResult;
+    EncodedValue m_kValue;
+    EncodedValue m_mappedValue;
+
+    PromiseReaction::Capability m_promiseCapability;
+
+    ArrayFromAsyncSyncRecord(bool mapping, EncodedValue mapper, EncodedValue thisArg, EncodedValue a, int64_t len, Object* arrayLike, PromiseReaction::Capability promiseCapability)
+        : m_mapping(mapping)
+        , m_awaitResumeStage(0)
+        , m_mapper(mapper)
+        , m_thisArg(thisArg)
+        , m_a(a)
+        , m_len(len)
+        , m_arrayLike(arrayLike)
+        , m_k(0)
+        , m_promiseCapability(promiseCapability)
+    {
+    }
+
+    virtual bool isArrayFromAsyncSyncRecord() const override
+    {
+        return true;
+    }
+};
+
+static PromiseObject* arrayFromAsyncSyncAwaitOperation(ExecutionState& state, const Value& awaitValue, ArrayFromAsyncSyncRecord* data, size_t stage);
+
+static void builtinArrayFromSyncAsyncWorker(ExecutionState& state, ArrayFromAsyncSyncRecord* data)
+{
+    if (data->m_awaitResumeStage == 1) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncSyncWorkerStage1;
+    } else if (data->m_awaitResumeStage == 2) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncSyncWorkerStage2;
+    }
+    // Let k be 0.
+    // Repeat, while k < len,
+    while (data->m_k < data->m_len) {
+        // Let Pk be ! ToString(𝔽(k)).
+        // Let kValue be ? Get(arrayLike, Pk).
+        try {
+            data->m_kValue = data->m_arrayLike->get(state, ObjectPropertyName(state, data->m_k)).value(state, data->m_arrayLike);
+        } catch (const Value& error) {
+            data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);
+            return;
+        }
+        // Set kValue to ? Await(kValue).
+        arrayFromAsyncSyncAwaitOperation(state, data->m_kValue, data, 1);
+        return;
+    ArrayFromAsyncSyncWorkerStage1:
+        data->m_kValue = data->m_awaitResult;
+
+        // If mapping is true, then
+        if (data->m_mapping) {
+            // Let mappedValue be ? Call(mapper, thisArg, « kValue, 𝔽(k) »).
+            try {
+                Value arg[2] = { data->m_kValue, Value(data->m_k) };
+                data->m_mappedValue = Object::call(state, data->m_mapper, data->m_thisArg, 2, arg);
+            } catch (const Value& error) {
+                data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);
+                return;
+            }
+            // Set mappedValue to ? Await(mappedValue).
+            arrayFromAsyncSyncAwaitOperation(state, data->m_mappedValue, data, 2);
+            return;
+        ArrayFromAsyncSyncWorkerStage2:
+            data->m_mappedValue = data->m_awaitResult;
+        } else {
+            // Else,
+            // Let mappedValue be kValue.
+            data->m_mappedValue = data->m_kValue;
+        }
+        // Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+        data->m_a.toValue().toObject(state)->defineOwnPropertyThrowsException(
+            state, ObjectPropertyName(state, data->m_k), ObjectPropertyDescriptor(data->m_mappedValue, ObjectPropertyDescriptor::AllPresent));
+        // Set k to k + 1.
+        data->m_k++;
+    }
+    // Perform ? Set(A, "length", 𝔽(len), true).
+    // Return A.
+    try {
+        data->m_a.toValue().toObject(state)->setThrowsException(state, state.context()->staticStrings().length, Value(data->m_k), data->m_a.toValue());
+    } catch (const Value& error) {
+        data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);
+        return;
+    }
+    data->m_promiseCapability.m_promise->asPromiseObject()->fulfill(state, data->m_a);
+}
+
+static Value arrayFromAsyncSyncAwaitFulfilledFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
+    auto data = s->internalSlot(0).asPointerValue()->asArrayFromAsyncSyncRecord();
+    data->m_awaitResult = argv[0];
+    builtinArrayFromSyncAsyncWorker(state, data);
+    return Value();
+}
+
+static Value arrayFromAsyncSyncAwaitRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
+    auto data = s->internalSlot(0).asPointerValue()->asArrayFromAsyncSyncRecord();
+    data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, *argv);
+    return Value();
+}
+
+static PromiseObject* arrayFromAsyncSyncAwaitOperation(ExecutionState& state, const Value& awaitValue, ArrayFromAsyncSyncRecord* source, size_t stage)
+{
+    source->m_awaitResumeStage = stage;
+    PromiseObject* promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), awaitValue)->asPromiseObject();
+    ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), arrayFromAsyncSyncAwaitFulfilledFunction, 1));
+    onFulfilled->setInternalSlot(0, source);
+    ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), arrayFromAsyncSyncAwaitRejectedFunction, 1));
+    onRejected->setInternalSlot(0, source);
+    promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
+    return promise;
+}
+
+
+// Array.fromAsync ( asyncItems [ , mapper [ , thisArg ] ] )
+static Value builtinArrayFromAsync(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let C be the this value.
+    const Value& C = thisValue;
+    Value mapper = argc < 2 ? Value() : argv[1];
+    Value thisArg = argc < 3 ? Value() : argv[2];
+    // If mapper is undefined, then
+    bool mapping = false;
+    if (mapper.isUndefined()) {
+        // Let mapping be false.
+    } else {
+        // Else,
+        // If IsCallable(mapper) is false, throw a TypeError exception.
+        if (!mapper.isCallable()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "argument mapper is not callable nor undefined");
+        }
+        // Let mapping be true.
+        mapping = true;
+    }
+    // Let usingAsyncIterator be ? GetMethod(asyncItems, %Symbol.asyncIterator%).
+    auto usingAsyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().asyncIterator);
+    // If usingAsyncIterator is undefined, then
+    Value usingSyncIterator;
+    if (usingAsyncIterator.isUndefined()) {
+        // Let usingSyncIterator be ? GetMethod(asyncItems, %Symbol.iterator%).
+        usingSyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().iterator);
+    }
+    // Let iteratorRecord be undefined.
+    Optional<IteratorRecord*> iteratorRecord;
+    // If usingAsyncIterator is not undefined, then
+    if (!usingAsyncIterator.isUndefined()) {
+        // Set iteratorRecord to ? GetIteratorFromMethod(asyncItems, usingAsyncIterator).
+        iteratorRecord = IteratorObject::getIteratorFromMethod(state, argv[0], usingAsyncIterator);
+    } else if (!usingSyncIterator.isUndefined()) {
+        // Else if usingSyncIterator is not undefined, then
+        // Set iteratorRecord to CreateAsyncFromSyncIterator(? GetIteratorFromMethod(asyncItems, usingSyncIterator)).
+        iteratorRecord = AsyncFromSyncIteratorObject::createAsyncFromSyncIterator(state, IteratorObject::getIteratorFromMethod(state, argv[0], usingSyncIterator));
+    }
+    // If iteratorRecord is not undefined, then
+    if (iteratorRecord) {
+        // If IsConstructor(C) is true, then
+        Value A;
+        if (C.isConstructor()) {
+            // Let A be ? Construct(C).
+            A = Object::construct(state, C, 0, nullptr);
+        } else {
+            // Else,
+            // Let A be ! ArrayCreate(0).
+            A = new ArrayObject(state);
+        }
+        // Let k be 0.
+        auto record = new ArrayFromAsyncRecord(mapping, mapper, thisArg, A, iteratorRecord.value(), PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise()));
+        arrayFromAsyncAsyncAwaitOperation(state, Value(), record, 0);
+        return record->m_promiseCapability.m_promise;
+    } else {
+        // Let arrayLike be ! ToObject(asyncItems).
+        auto arrayLike = argv[0].toObject(state);
+        // Let len be ? LengthOfArrayLike(arrayLike).
+        int64_t len = static_cast<int64_t>(arrayLike->length(state));
+        Value A;
+        // If IsConstructor(C) is true, then
+        if (C.isConstructor()) {
+            // Let A be ? Construct(C, « 𝔽(len) »).
+            Value v(len);
+            A = Object::construct(state, C, 1, &v);
+        } else {
+            // Else,
+            // Let A be ? ArrayCreate(len).
+            A = new ArrayObject(state, len);
+        }
+
+        auto record = new ArrayFromAsyncSyncRecord(mapping, mapper, thisArg, A, len, arrayLike, PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise()));
+        arrayFromAsyncSyncAwaitOperation(state, Value(), record, 0);
+        return record->m_promiseCapability.m_promise;
+    }
 }
 
 // Array.of ( ...items )
@@ -2100,6 +2500,9 @@ void GlobalObject::installArray(ExecutionState& state)
     m_array->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().from),
                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().from, builtinArrayFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_array->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fromAsync),
+                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fromAsync, builtinArrayFromAsync, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_array->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().of),
                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().of, builtinArrayOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -2176,6 +2579,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findLast, builtinArrayFindLast, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findLastIndex),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findLastIndex, builtinArrayFindLastIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fromAsync),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().fromAsync, builtinArrayFromAsync, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     Object* blackList = new Object(state, Object::PrototypeIsNull);
     blackList->markThisObjectDontNeedStructureTransitionTable();

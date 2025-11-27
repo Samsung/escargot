@@ -76,6 +76,8 @@ class GlobalObjectProxyObject;
 class DisposableStackObject;
 class AsyncDisposableStackObject;
 struct DisposableResourceRecord;
+struct ArrayFromAsyncRecord;
+struct ArrayFromAsyncSyncRecord;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
 class TemporalPlainTimeObject;
@@ -528,6 +530,16 @@ public:
     }
 
     virtual bool isAsyncDisposableStackObject() const
+    {
+        return false;
+    }
+
+    virtual bool isArrayFromAsyncRecord() const
+    {
+        return false;
+    }
+
+    virtual bool isArrayFromAsyncSyncRecord() const
     {
         return false;
     }
@@ -1007,6 +1019,18 @@ public:
     {
         ASSERT(isAsyncDisposableStackObject());
         return (AsyncDisposableStackObject*)this;
+    }
+
+    ArrayFromAsyncRecord* asArrayFromAsyncRecord()
+    {
+        ASSERT(isArrayFromAsyncRecord());
+        return (ArrayFromAsyncRecord*)this;
+    }
+
+    ArrayFromAsyncSyncRecord* asArrayFromAsyncSyncRecord()
+    {
+        ASSERT(isArrayFromAsyncSyncRecord());
+        return (ArrayFromAsyncSyncRecord*)this;
     }
 
 #if defined(ENABLE_THREADING)

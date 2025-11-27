@@ -232,6 +232,7 @@ namespace Escargot {
     F(forEach)                    \
     F(freeze)                     \
     F(from)                       \
+    F(fromAsync)                  \
     F(fromBase64)                 \
     F(fromCharCode)               \
     F(fromCodePoint)              \
