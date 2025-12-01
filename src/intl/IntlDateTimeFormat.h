@@ -36,7 +36,7 @@ public:
         return true;
     }
 
-    UTF16StringDataNonGCStd format(ExecutionState& state, Value x, bool allowZonedDateTime = false, bool ignoreDay = false, bool ignoreYear = false);
+    UTF16StringDataNonGCStd format(ExecutionState& state, Value x, bool allowZonedDateTime = false);
     UTF16StringDataNonGCStd format(ExecutionState& state, double x);
     ArrayObject* formatToParts(ExecutionState& state, double x);
     UTF16StringDataNonGCStd formatRange(ExecutionState& state, double startDate, double endDate);
@@ -146,13 +146,14 @@ public:
     bool allOptionsUndefined();
 
 protected:
+    std::pair<double, LocalResourcePointer<UDateFormat>> icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime);
     static String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder);
     struct DateTimeFormatOtherHelperResult {
         Optional<UDateFormat*> icuDateFormat;
         Value newHourCycle;
         Optional<String*> timeZoneICU;
     };
-    static DateTimeFormatOtherHelperResult initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay = false, bool ignoreYear = false);
+    static DateTimeFormatOtherHelperResult initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay = false, bool ignoreYear = false, bool ignoreTimeZone = false);
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
     void initICUIntervalFormatIfNecessary(ExecutionState& state);
     UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x);
@@ -173,6 +174,7 @@ protected:
     EncodedValue m_weekday;
     EncodedValue m_day;
     EncodedValue m_dayPeriod;
+    EncodedValue m_dayPeriodInput;
     EncodedValue m_hour;
     EncodedValue m_hourCycle;
     EncodedValue m_minute;
