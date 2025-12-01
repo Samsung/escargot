@@ -177,14 +177,6 @@
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRange/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRange/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRange/to-datetime-formattable-with-different-arg-kinds"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/to-datetime-formattable-with-different-arg-kinds"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-timeStyle"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-basic"><reason>TODO</reason></test>

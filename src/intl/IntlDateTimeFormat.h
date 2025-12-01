@@ -38,9 +38,9 @@ public:
 
     UTF16StringDataNonGCStd format(ExecutionState& state, Value x, bool allowZonedDateTime = false);
     UTF16StringDataNonGCStd format(ExecutionState& state, double x);
-    ArrayObject* formatToParts(ExecutionState& state, double x);
-    UTF16StringDataNonGCStd formatRange(ExecutionState& state, double startDate, double endDate);
-    ArrayObject* formatRangeToParts(ExecutionState& state, double startDate, double endDate);
+    ArrayObject* formatToParts(ExecutionState& state, Value x);
+    UTF16StringDataNonGCStd formatRange(ExecutionState& state, Value startDate, Value endDate);
+    ArrayObject* formatRangeToParts(ExecutionState& state, Value startDate, Value endDate);
     static std::pair<Value, bool> toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults);
     static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString);
     String* locale() const
@@ -146,7 +146,7 @@ public:
     bool allOptionsUndefined();
 
 protected:
-    std::pair<double, LocalResourcePointer<UDateFormat>> icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime);
+    std::tuple<double, LocalResourcePointer<UDateFormat>> icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime);
     static String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder);
     struct DateTimeFormatOtherHelperResult {
         Optional<UDateFormat*> icuDateFormat;
@@ -156,6 +156,7 @@ protected:
     static DateTimeFormatOtherHelperResult initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay = false, bool ignoreYear = false, bool ignoreTimeZone = false);
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
     void initICUIntervalFormatIfNecessary(ExecutionState& state);
+    std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointer<UCalendar>, LocalResourcePointer<UDateIntervalFormat>> prepareFormatRangeArguments(ExecutionState& state, Value startDateInput, Value endDateInput);
     UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x);
 
     bool m_wasThereNoFormatOption;
