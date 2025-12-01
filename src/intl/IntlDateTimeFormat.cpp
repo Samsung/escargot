@@ -1307,7 +1307,7 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
-std::pair<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime)
+std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime)
 {
     LocalResourcePointer<UDateFormat> newFormatHolder(nullptr, [](UDateFormat* fmt) {
         udat_close(fmt);
@@ -1478,14 +1478,14 @@ std::pair<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::i
         x = value.toNumber(state);
 #endif
     }
-    return std::make_pair(x, std::move(newFormatHolder));
+    return std::make_tuple(x, std::move(newFormatHolder));
 }
 
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime)
 {
     auto utilResult = icuFormatTemporalHelper(state, value, allowZonedDateTime);
-    double x = utilResult.first;
-    auto icuFormat = utilResult.second.get() ? utilResult.second.get() : m_icuDateFormat;
+    double x = std::get<0>(utilResult);
+    auto icuFormat = std::get<1>(utilResult).get() ? std::get<1>(utilResult).get() : m_icuDateFormat;
     return format(state, icuFormat, x);
 }
 
@@ -1516,8 +1516,11 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     return formatResult.second;
 }
 
-ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, double x)
+ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, Value xInput)
 {
+    auto utilResult = icuFormatTemporalHelper(state, xInput, false);
+    double x = std::get<0>(utilResult);
+    auto icuFormat = std::get<1>(utilResult) ? std::get<1>(utilResult).get() : m_icuDateFormat;
     // If x is not a finite Number, then throw a RangeError exception.
     // If x is NaN, throw a RangeError exception
     // If abs(time) > 8.64 × 10^15, return NaN.
@@ -1535,7 +1538,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
     fpositer = ufieldpositer_open(&status);
     ASSERT(U_SUCCESS(status));
 
-    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_formatForFields, fpositer, m_icuDateFormat, x);
+    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_formatForFields, fpositer, icuFormat, x);
     UTF16StringDataNonGCStd resultString = std::move(formatResult.second);
     replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(resultString);
 
@@ -1717,45 +1720,58 @@ std::pair<Value, bool> IntlDateTimeFormatObject::toDateTimeOptions(ExecutionStat
     return std::make_pair(options, wasThereNoFormatOption);
 }
 
-void IntlDateTimeFormatObject::initICUIntervalFormatIfNecessary(ExecutionState& state)
+static LocalResourcePointer<UDateIntervalFormat> initICUIntervalFormat(ExecutionState& state, UDateFormat* icuDateFormat,
+                                                                       String* localeInput, String* calendar, String* numberingSystem, Value hourCycle, String* timeZoneICU)
 {
-    if (m_icuDateIntervalFormat) {
-        return;
-    }
-
-    auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, m_icuDateFormat, false);
+    LocalResourcePointer<UDateIntervalFormat> ret(nullptr, [](UDateIntervalFormat* format) {
+        udtitvfmt_close(format);
+    });
+    auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, icuDateFormat, false);
     if (U_FAILURE(toPatternResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
-        return;
+        return ret;
     }
     auto pattern(std::move(toPatternResult.second));
 
     auto getSkeletonResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getSkeleton, nullptr, pattern.data(), pattern.size());
     if (U_FAILURE(getSkeletonResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
-        return;
+        return ret;
     }
     auto skeleton(std::move(getSkeletonResult.second));
 
     // While the pattern is including right HourCycle patterns, UDateIntervalFormat does not follow.
     // We need to enforce HourCycle by setting "hc" extension if it is specified.
-    std::string locale = m_locale->toNonGCUTF8StringData();
+    std::string locale = localeInput->toNonGCUTF8StringData();
     locale += "-u-ca-";
-    locale += m_calendar->asString()->toNonGCUTF8StringData();
+    locale += calendar->asString()->toNonGCUTF8StringData();
     locale += "-nu-";
-    locale += m_numberingSystem->asString()->toNonGCUTF8StringData();
-    if (!m_hourCycle.toValue().isUndefined()) {
+    locale += numberingSystem->asString()->toNonGCUTF8StringData();
+    if (!hourCycle.isUndefined()) {
         locale += "-hc-";
-        locale += m_hourCycle.toValue().asString()->toNonGCUTF8StringData();
+        locale += hourCycle.asString()->toNonGCUTF8StringData();
     }
 
     UErrorCode status = U_ZERO_ERROR;
 
-    m_icuDateIntervalFormat = udtitvfmt_open(locale.data(), skeleton.data(), skeleton.size(), m_timeZoneICU->bufferAccessData().bufferAs16Bit, m_timeZoneICU->length(), &status);
+    auto icuDateIntervalFormat = udtitvfmt_open(locale.data(), skeleton.data(), skeleton.size(), timeZoneICU->bufferAccessData().bufferAs16Bit, timeZoneICU->length(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
+    }
+
+    ret.reset(icuDateIntervalFormat);
+
+    return ret;
+}
+
+void IntlDateTimeFormatObject::initICUIntervalFormatIfNecessary(ExecutionState& state)
+{
+    if (m_icuDateIntervalFormat) {
         return;
     }
+
+    auto fmt = initICUIntervalFormat(state, m_icuDateFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, m_timeZoneICU);
+    m_icuDateIntervalFormat = fmt.release();
 }
 
 static LocalResourcePointer<UFormattedDateInterval> formattedValueFromDateRange(ExecutionState& state, UDateIntervalFormat* dateIntervalFormat,
@@ -1859,8 +1875,85 @@ static bool dateFieldsPracticallyEqual(const UFormattedValue* formattedValue, UE
     return !hasSpan;
 }
 
-UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& state, double startDate, double endDate)
+#if defined(ENABLE_TEMPORAL)
+static std::pair<bool, bool> checkTemporalType(Value t1, Value t2)
 {
+    bool isKindDiffer = false;
+    bool isTemporalObject = false;
+    if (t1.isObject() && t1.asObject()->isTemporalInstantObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalInstantObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalPlainDateObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalPlainDateObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalPlainYearMonthObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalPlainYearMonthObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalPlainMonthDayObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalPlainMonthDayObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalPlainTimeObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalPlainTimeObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalPlainDateTimeObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalPlainDateTimeObject()) {
+            isKindDiffer = true;
+        }
+    } else if (t1.isObject() && t1.asObject()->isTemporalZonedDateTimeObject()) {
+        isTemporalObject = true;
+        if (!t2.isObject() || !t2.asObject()->isTemporalZonedDateTimeObject()) {
+            isKindDiffer = true;
+        }
+    }
+    return std::make_pair(isKindDiffer, isTemporalObject);
+}
+#endif
+
+std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointer<UCalendar>, LocalResourcePointer<UDateIntervalFormat>> IntlDateTimeFormatObject::
+    prepareFormatRangeArguments(ExecutionState& state, Value startDateInput, Value endDateInput)
+{
+#if defined(ENABLE_TEMPORAL)
+    auto t1 = checkTemporalType(startDateInput, endDateInput);
+    auto t2 = checkTemporalType(endDateInput, startDateInput);
+    bool isKindDiffer = t1.first || t2.first;
+    bool isTemporalObject = t1.second;
+
+    if (isKindDiffer) {
+        if (!t1.second && !startDateInput.isUndefined()) {
+            startDateInput.toNumber(state);
+        }
+        if (!t2.second && !endDateInput.isUndefined()) {
+            endDateInput.toNumber(state);
+        }
+
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get invalid date value");
+    }
+#endif
+
+    auto utilResult1 = icuFormatTemporalHelper(state, startDateInput, false);
+    auto utilResult2 = icuFormatTemporalHelper(state, endDateInput, false);
+
+    auto icuFormat = std::get<1>(utilResult1).get() ? std::get<1>(utilResult1).get() : m_icuDateFormat;
+    LocalResourcePointer<UCalendar> tempICUFormatHolder(nullptr, [](UCalendar* format) {
+        udat_close(format);
+    });
+    if (std::get<1>(utilResult1).get()) {
+        tempICUFormatHolder = std::move(std::get<1>(utilResult1));
+    }
+
+    double startDate = std::get<0>(utilResult1);
+    double endDate = std::get<0>(utilResult2);
     startDate = DateObject::timeClip(startDate);
     endDate = DateObject::timeClip(endDate);
 
@@ -1868,10 +1961,93 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& st
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
     }
 
+    UDateIntervalFormat* icuDateIntervalFormat;
+    LocalResourcePointer<UDateIntervalFormat> tempICUIntervalFormatHolder(nullptr, [](UDateIntervalFormat* format) {
+        udtitvfmt_close(format);
+    });
+
+#if defined(ENABLE_TEMPORAL)
+    if (!isTemporalObject) {
+        initICUIntervalFormatIfNecessary(state);
+        icuDateIntervalFormat = m_icuDateIntervalFormat.value();
+    } else {
+        auto fmt = initICUIntervalFormat(state, icuFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, m_timeZoneICU);
+        tempICUIntervalFormatHolder = std::move(fmt);
+        icuDateIntervalFormat = tempICUIntervalFormatHolder.get();
+    }
+#else
     initICUIntervalFormatIfNecessary(state);
+    icuDateIntervalFormat = m_icuDateIntervalFormat.value();
+#endif
+
+    return std::make_tuple(startDate, endDate, icuFormat, icuDateIntervalFormat,
+                           std::move(tempICUFormatHolder), std::move(tempICUIntervalFormatHolder));
+}
+
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& state, Value startDateInput, Value endDateInput)
+{
+    /*
+#if defined(ENABLE_TEMPORAL)
+    auto t1 = checkTemporalType(startDateInput, endDateInput);
+    auto t2 = checkTemporalType(endDateInput, startDateInput);
+    bool isKindDiffer = t1.first || t2.first;
+    bool isTemporalObject = t1.second;
+
+    if (isKindDiffer) {
+        if (!t1.second && !startDateInput.isUndefined()) {
+            startDateInput.toNumber(state);
+        }
+        if (!t2.second && !endDateInput.isUndefined()) {
+            endDateInput.toNumber(state);
+        }
+
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get invalid date value");
+    }
+#endif
+
+    auto utilResult1 = icuFormatTemporalHelper(state, startDateInput, false);
+    auto utilResult2 = icuFormatTemporalHelper(state, endDateInput, false);
+
+    auto icuFormat = std::get<1>(utilResult1).get() ? std::get<1>(utilResult1).get() : m_icuDateFormat;
+
+    double startDate = std::get<0>(utilResult1);
+    double endDate = std::get<0>(utilResult2);
+    startDate = DateObject::timeClip(startDate);
+    endDate = DateObject::timeClip(endDate);
+
+    if (std::isnan(startDate) || std::isnan(endDate)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
+    }
+
+    UDateIntervalFormat* icuDateIntervalFormat;
+    LocalResourcePointer<UDateIntervalFormat> tempFormatHolder(nullptr, [](UDateIntervalFormat* format) {
+        udtitvfmt_close(format);
+    });
+
+#if defined(ENABLE_TEMPORAL)
+    if (!isTemporalObject) {
+        initICUIntervalFormatIfNecessary(state);
+        icuDateIntervalFormat = m_icuDateIntervalFormat.value();
+    } else {
+        auto fmt = initICUIntervalFormat(state, icuFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, m_timeZoneICU);
+        tempFormatHolder = std::move(fmt);
+        icuDateIntervalFormat = tempFormatHolder.get();
+    }
+#else
+    initICUIntervalFormatIfNecessary(state);
+    icuDateIntervalFormat = m_icuDateIntervalFormat.value();
+#endif
+
+    */
+
+    auto args = prepareFormatRangeArguments(state, startDateInput, endDateInput);
+    double startDate = std::get<0>(args);
+    double endDate = std::get<1>(args);
+    UCalendar* icuFormat = std::get<2>(args);
+    UDateIntervalFormat* icuDateIntervalFormat = std::get<3>(args);
 
     UErrorCode status = U_ZERO_ERROR;
-    auto result = formattedValueFromDateRange(state, m_icuDateIntervalFormat.value(), m_icuDateFormat, startDate, endDate, status);
+    auto result = formattedValueFromDateRange(state, icuDateIntervalFormat, icuFormat, startDate, endDate, status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
         return UTF16StringDataNonGCStd();
@@ -1895,7 +2071,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& st
     }
 
     if (equal) {
-        return format(state, startDate);
+        return format(state, startDateInput);
     }
 
     int32_t formattedStringLength = 0;
@@ -1910,20 +2086,17 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& st
     return buffer;
 }
 
-ArrayObject* IntlDateTimeFormatObject::formatRangeToParts(ExecutionState& state, double startDate, double endDate)
+ArrayObject* IntlDateTimeFormatObject::formatRangeToParts(ExecutionState& state, Value startDateInput, Value endDateInput)
 {
-    startDate = DateObject::timeClip(startDate);
-    endDate = DateObject::timeClip(endDate);
-
-    if (std::isnan(startDate) || std::isnan(endDate)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
-    }
-
-    initICUIntervalFormatIfNecessary(state);
+    auto args = prepareFormatRangeArguments(state, startDateInput, endDateInput);
+    double startDate = std::get<0>(args);
+    double endDate = std::get<1>(args);
+    UCalendar* icuFormat = std::get<2>(args);
+    UDateIntervalFormat* icuDateIntervalFormat = std::get<3>(args);
 
     ArrayObject* parts = new ArrayObject(state);
     UErrorCode status = U_ZERO_ERROR;
-    auto result = formattedValueFromDateRange(state, m_icuDateIntervalFormat.value(), m_icuDateFormat, startDate, endDate, status);
+    auto result = formattedValueFromDateRange(state, icuDateIntervalFormat, icuFormat, startDate, endDate, status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
         return parts;

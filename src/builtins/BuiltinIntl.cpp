@@ -230,19 +230,7 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
-    Value date = argv[0];
-    double x;
-    // If date is undefined, then
-    if (date.isUndefined()) {
-        // Let x be Call(%Date_now%, undefined).
-        x = DateObject::currentTime();
-    } else {
-        // Else,
-        // Let x be ? ToNumber(date).
-        x = date.toNumber(state);
-    }
-    // Return ? FormatDateTimeToParts(dtf, x).
-    return dtf->formatToParts(state, x);
+    return dtf->formatToParts(state, argv[0]);
 }
 
 static Value builtinIntlDateTimeFormatFormatRange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -256,9 +244,7 @@ static Value builtinIntlDateTimeFormatFormatRange(ExecutionState& state, Value t
     }
 
     IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
-    double x = argv[0].toNumber(state);
-    double y = argv[1].toNumber(state);
-    auto result = dtf->formatRange(state, x, y);
+    auto result = dtf->formatRange(state, argv[0], argv[1]);
     return Value(new UTF16String(result.data(), result.length()));
 }
 
@@ -273,9 +259,7 @@ static Value builtinIntlDateTimeFormatFormatRangeToParts(ExecutionState& state, 
     }
 
     IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
-    double x = argv[0].toNumber(state);
-    double y = argv[1].toNumber(state);
-    return dtf->formatRangeToParts(state, x, y);
+    return dtf->formatRangeToParts(state, argv[0], argv[1]);
 }
 
 
