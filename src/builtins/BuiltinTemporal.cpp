@@ -582,7 +582,24 @@ static Value builtinTemporalPlainDateToJSON(ExecutionState& state, Value thisVal
 static Value builtinTemporalPlainDateToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINDATE2(plainDate, toLocaleString);
-    return plainDate->toString(state, Value());
+
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+
+    /*
+    1. If dateStyle is not undefined or timeStyle is not undefined, then
+       a. For each row in Table 7, except the header row, do
+         i. Let prop be the name given in the Property column of the row.
+         ii. Let p be opt.[[<prop>]].
+         iii. If p is not undefined, then
+           1. Throw a TypeError exception.
+    */
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    if (!dateFormat->timeStyle().isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
+    }
+    auto result = dateFormat->format(state, plainDate);
+    return new UTF16String(result.data(), result.length());
 }
 
 static Value builtinTemporalPlainDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -963,7 +980,23 @@ static Value builtinTemporalPlainYearMonthToJSON(ExecutionState& state, Value th
 static Value builtinTemporalPlainYearMonthToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINYEARMONTH2(plainYearMonth, toLocaleString);
-    return plainYearMonth->toString(state, Value());
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+
+    /*
+    1. If dateStyle is not undefined or timeStyle is not undefined, then
+       a. For each row in Table 7, except the header row, do
+         i. Let prop be the name given in the Property column of the row.
+         ii. Let p be opt.[[<prop>]].
+         iii. If p is not undefined, then
+           1. Throw a TypeError exception.
+    */
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    if (!dateFormat->timeStyle().isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
+    }
+    auto result = dateFormat->format(state, plainYearMonth, false, true, false);
+    return new UTF16String(result.data(), result.length());
 }
 
 static Value builtinTemporalPlainYearMonthToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1104,7 +1137,23 @@ static Value builtinTemporalPlainMonthDayToJSON(ExecutionState& state, Value thi
 static Value builtinTemporalPlainMonthDayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toLocaleString);
-    return plainMonthDay->toString(state, Value());
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+
+    /*
+    1. If dateStyle is not undefined or timeStyle is not undefined, then
+       a. For each row in Table 7, except the header row, do
+         i. Let prop be the name given in the Property column of the row.
+         ii. Let p be opt.[[<prop>]].
+         iii. If p is not undefined, then
+           1. Throw a TypeError exception.
+    */
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    if (!dateFormat->timeStyle().isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
+    }
+    auto result = dateFormat->format(state, plainMonthDay, false, false, true);
+    return new UTF16String(result.data(), result.length());
 }
 
 static Value builtinTemporalPlainMonthDayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

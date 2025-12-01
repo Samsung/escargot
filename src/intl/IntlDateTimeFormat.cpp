@@ -833,7 +833,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
     return hour;
 }
 
-IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder)
+IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay, bool ignoreYear)
 {
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringData skeleton;
@@ -1058,6 +1058,81 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
             + pad('0', 2, std::to_string(absMinutes / 60)) + pad('0', 2, std::to_string(absMinutes % 60));
         timeZoneView = utf8StringToUTF16String(timeZoneForICU.data(), timeZoneForICU.length());
     }
+
+    auto replacePattern = [](UTF16StringDataNonGCStd& patternBuffer, char16_t big, char16_t small) -> UTF16StringDataNonGCStd {
+        auto replaceString = [](UTF16StringDataNonGCStd& subject, const UTF16StringDataNonGCStd& search, const UTF16StringDataNonGCStd& replace) -> UTF16StringDataNonGCStd {
+            size_t pos = 0;
+            while ((pos = subject.find(search, pos)) != UTF16StringDataNonGCStd::npos) {
+                subject.replace(pos, search.length(), replace);
+                pos += replace.length();
+            }
+            return subject;
+        };
+
+        patternBuffer = replaceString(patternBuffer, UTF16StringDataNonGCStd(&big, 1), UTF16StringDataNonGCStd(&small, 1));
+
+        Optional<size_t> removeStart;
+        Optional<size_t> removeEnd;
+
+        int patternLength = patternBuffer.size();
+        for (int i = 0; i < patternLength; i++) {
+            auto c = patternBuffer[i];
+            if (c == small) {
+                removeStart = i;
+                removeEnd = i + 1;
+
+                for (int j = i - 1; j >= 0; j--) {
+                    auto c = patternBuffer[j];
+                    if (c == '/' || c == ',' || c == '.') {
+                        removeStart = j;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+
+                for (int j = i + 1; j < patternLength; j++) {
+                    auto c = patternBuffer[j];
+                    if (c == ' ') {
+                        removeEnd = j + 1;
+                        break;
+                    } else if (c == small) {
+                        removeEnd = j + 1;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (removeStart && removeEnd) {
+            patternBuffer.replace(removeStart.value(), removeEnd.value() - removeStart.value(), u"");
+        }
+
+        patternBuffer = replaceString(patternBuffer, u"  ", u" ");
+        while (patternBuffer.size() && (patternBuffer.back() == ' ' || patternBuffer.back() == ',' || patternBuffer.back() == '/' || patternBuffer.back() == '.')) {
+            patternBuffer.pop_back();
+        }
+
+        while (patternBuffer.size() && patternBuffer.front() == ' ') {
+            patternBuffer.erase(patternBuffer.begin());
+        }
+
+        return patternBuffer;
+    };
+
+    if (ignoreDay) {
+        patternBuffer = replacePattern(patternBuffer, 'D', 'd');
+        patternBuffer = replacePattern(patternBuffer, 'E', 'e');
+        patternBuffer = replacePattern(patternBuffer, 'C', 'c');
+    }
+
+    if (ignoreYear) {
+        patternBuffer = replacePattern(patternBuffer, 'Y', 'y');
+        patternBuffer = replacePattern(patternBuffer, 'U', 'u');
+        patternBuffer = replacePattern(patternBuffer, 'G', 'g');
+        patternBuffer = replacePattern(patternBuffer, 'R', 'r');
+    }
+
     auto timeZoneICU = new UTF16String(std::move(timeZoneView));
     auto icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, u8DataLocale.data(), timeZoneICU->bufferAccessData().bufferAs16Bit,
                                    timeZoneICU->length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
@@ -1221,7 +1296,7 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
-UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime)
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime, bool ignoreDay, bool ignoreYear)
 {
     LocalResourcePointer<UDateFormat> newFormatHolder(nullptr, [](UDateFormat* fmt) {
         udat_close(fmt);
@@ -1241,6 +1316,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
             Object* options = new Object(state, Object::PrototypeIsNull);
             String* numeric = state.context()->staticStrings().lazyNumeric().string();
             String* shortString = state.context()->staticStrings().lazyShort().string();
+            String* noneString = state.context()->staticStrings().lazyNone().string();
             if (dateTimeValue.second.value() == TemporalKind::Instant) {
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
@@ -1285,7 +1361,15 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
             }
 
             String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
-            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder);
+            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear);
+            newFormatHolder.reset(result.icuDateFormat.value());
+            icuFormat = newFormatHolder.get();
+        } else if (dateTimeValue.second && (dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
+            StringMap opt;
+            StringBuilder skeletonBuilder;
+            Object* options = new Object(state, Object::PrototypeIsNull);
+            String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear);
             newFormatHolder.reset(result.icuDateFormat.value());
             icuFormat = newFormatHolder.get();
         }
