@@ -54,6 +54,11 @@
 #include "IntlDurationFormat.h"
 #include "IntlNumberFormat.h"
 
+#if defined(ENABLE_TEMPORAL)
+#include "runtime/TemporalObject.h"
+#include "runtime/TemporalDurationObject.h"
+#endif
+
 #if defined(ENABLE_INTL_DURATIONFORMAT)
 
 namespace Escargot {
@@ -369,6 +374,17 @@ Object* IntlDurationFormatObject::resolvedOptions(ExecutionState& state)
 
 static DurationRecord toDurationRecord(ExecutionState& state, const Value& input)
 {
+#if defined(ENABLE_TEMPORAL)
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
+    if (input.isObject() && input.asObject()->isTemporalDurationObject()) {
+        auto t = input.asObject()->asTemporalDurationObject();
+        return t->duration();
+    } else if (input.isString()) {
+        auto t = Temporal::toTemporalDuration(state, input);
+        return t->duration();
+    }
+#endif
+
     // If input is not an Object, then
     if (!input.isObject()) {
         // If input is a String, throw a RangeError exception.
@@ -378,6 +394,7 @@ static DurationRecord toDurationRecord(ExecutionState& state, const Value& input
         // Throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid input for ToDurationRecord");
     }
+
     // Let result be a new Duration Record with each field set to 0.
     DurationRecord result;
 

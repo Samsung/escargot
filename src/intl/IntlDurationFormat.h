@@ -29,7 +29,7 @@
 namespace Escargot {
 
 // https://tc39.es/ecma402/#sec-todurationrecord
-class DurationRecord : public ISO8601::Duration {};
+using DurationRecord = ISO8601::Duration;
 
 class IntlDurationFormatObject : public DerivedObject {
 public:
