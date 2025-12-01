@@ -633,6 +633,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     StringBuilder skeletonBuilder;
 
     String* hour = initDateTimeFormatMainHelper(state, opt, options.asObject(), hour12, skeletonBuilder);
+    auto dp = opt.at("dayPeriod");
+    if (dp->length()) {
+        m_dayPeriodInput = dp;
+    }
 
     // Let dataLocaleData be localeData.[[<dataLocale>]].
 
@@ -833,7 +837,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
     return hour;
 }
 
-IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay, bool ignoreYear)
+IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder, bool ignoreDay, bool ignoreYear, bool ignoreTimeZone)
 {
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringData skeleton;
@@ -1133,6 +1137,13 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
         patternBuffer = replacePattern(patternBuffer, 'R', 'r');
     }
 
+    if (ignoreTimeZone) {
+        patternBuffer = replacePattern(patternBuffer, 'Z', 'z');
+        patternBuffer = replacePattern(patternBuffer, 'O', 'o');
+        patternBuffer = replacePattern(patternBuffer, 'V', 'v');
+        patternBuffer = replacePattern(patternBuffer, 'X', 'x');
+    }
+
     auto timeZoneICU = new UTF16String(std::move(timeZoneView));
     auto icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, u8DataLocale.data(), timeZoneICU->bufferAccessData().bufferAs16Bit,
                                    timeZoneICU->length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
@@ -1296,13 +1307,12 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
-UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime, bool ignoreDay, bool ignoreYear)
+std::pair<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime)
 {
     LocalResourcePointer<UDateFormat> newFormatHolder(nullptr, [](UDateFormat* fmt) {
         udat_close(fmt);
     });
 
-    auto icuFormat = m_icuDateFormat;
     double x;
     if (value.isUndefined()) {
         x = DateObject::currentTime();
@@ -1310,73 +1320,172 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
 #if defined(ENABLE_TEMPORAL)
         auto dateTimeValue = Temporal::handleDateTimeValue(state, this, value, allowZonedDateTime);
         x = dateTimeValue.first;
-        if (dateTimeValue.second && m_wasThereNoFormatOption && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
-            StringMap opt;
-            StringBuilder skeletonBuilder;
-            Object* options = new Object(state, Object::PrototypeIsNull);
-            String* numeric = state.context()->staticStrings().lazyNumeric().string();
-            String* shortString = state.context()->staticStrings().lazyShort().string();
-            String* noneString = state.context()->staticStrings().lazyNone().string();
-            if (dateTimeValue.second.value() == TemporalKind::Instant) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
-                if (!m_timeZoneName.isUndefined()) {
-                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName));
-                }
-            } else if (dateTimeValue.second.value() == TemporalKind::ZonedDateTime) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName.isUndefined() ? shortString : Value(m_timeZoneName)));
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainDate) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainTime) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainDateTime) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainMonthDay) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainYearMonth) {
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
-                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
-            } else {
-                ASSERT_NOT_REACHED();
-            }
 
-            String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
-            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear);
-            newFormatHolder.reset(result.icuDateFormat.value());
-            icuFormat = newFormatHolder.get();
-        } else if (dateTimeValue.second && (dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
-            StringMap opt;
-            StringBuilder skeletonBuilder;
-            Object* options = new Object(state, Object::PrototypeIsNull);
-            String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
-            auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear);
-            newFormatHolder.reset(result.icuDateFormat.value());
-            icuFormat = newFormatHolder.get();
+        if (dateTimeValue.second) {
+            bool ignoreDay = dateTimeValue.second.value() == TemporalKind::PlainYearMonth;
+            bool ignoreYear = dateTimeValue.second.value() == TemporalKind::PlainMonthDay;
+            bool ignoreTimeZone = dateTimeValue.second.value() != TemporalKind::ZonedDateTime && dateTimeValue.second.value() != TemporalKind::Instant;
+            if (m_wasThereNoFormatOption && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                String* numeric = state.context()->staticStrings().lazyNumeric().string();
+                String* shortString = state.context()->staticStrings().lazyShort().string();
+                String* noneString = state.context()->staticStrings().lazyNone().string();
+
+                if (dateTimeValue.second.value() == TemporalKind::Instant) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                    if (!m_timeZoneName.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName));
+                    }
+                } else if (dateTimeValue.second.value() == TemporalKind::ZonedDateTime) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName.isUndefined() ? shortString : Value(m_timeZoneName)));
+                } else if (dateTimeValue.second.value() == TemporalKind::PlainDate) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                } else if (dateTimeValue.second.value() == TemporalKind::PlainTime) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                } else if (dateTimeValue.second.value() == TemporalKind::PlainDateTime) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                } else if (dateTimeValue.second.value() == TemporalKind::PlainMonthDay) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                } else if (dateTimeValue.second.value() == TemporalKind::PlainYearMonth) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                } else {
+                    ASSERT_NOT_REACHED();
+                }
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_wasThereNoFormatOption && m_year.isUndefined() && m_month.isUndefined() && m_day.isUndefined() && m_weekday.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to YearMonth");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth) && !m_wasThereNoFormatOption && m_year.isUndefined() && m_month.isUndefined() && m_weekday.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to YearMonth");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_wasThereNoFormatOption && m_month.isUndefined() && m_day.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to MonthDay");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_wasThereNoFormatOption && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined() && m_fractionalSecondDigits.isUndefined() && m_dayPeriod.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to PlainTime");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainTime && m_wasThereNoFormatOption && !m_timeStyle.isUndefined()) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), m_timeStyle, Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option dateStyle for time formats");
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainDate && m_wasThereNoFormatOption && !m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainDateTime && m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, m_timeStyle, Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(m_year));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(m_month));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(m_day));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyWeekday(), ObjectPropertyDescriptor(m_weekday));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(m_year));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(m_month));
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(m_month));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(m_day));
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(m_hour));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(m_minute));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(m_second));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyFractionalSecondDigits(), ObjectPropertyDescriptor(m_fractionalSecondDigits));
+                if (!m_dayPeriodInput.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDayPeriod(), ObjectPropertyDescriptor(m_dayPeriodInput));
+                }
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            }
         }
 #else
         x = value.toNumber(state);
 #endif
     }
+    return std::make_pair(x, std::move(newFormatHolder));
+}
+
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime)
+{
+    auto utilResult = icuFormatTemporalHelper(state, value, allowZonedDateTime);
+    double x = utilResult.first;
+    auto icuFormat = utilResult.second.get() ? utilResult.second.get() : m_icuDateFormat;
     return format(state, icuFormat, x);
 }
 

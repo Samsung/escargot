@@ -477,19 +477,7 @@ static Value builtinTemporalPlainTimeToLocaleString(ExecutionState& state, Value
     RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-
-    /*
-    1. If dateStyle is not undefined or timeStyle is not undefined, then
-       a. For each row in Table 7, except the header row, do
-         i. Let prop be the name given in the Property column of the row.
-         ii. Let p be opt.[[<prop>]].
-         iii. If p is not undefined, then
-           1. Throw a TypeError exception.
-    */
     auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
-    if (!dateFormat->dateStyle().isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option dateStyle for time formats");
-    }
     auto result = dateFormat->format(state, plainTime);
     return new UTF16String(result.data(), result.length());
 }
@@ -611,19 +599,7 @@ static Value builtinTemporalPlainDateToLocaleString(ExecutionState& state, Value
 
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-
-    /*
-    1. If dateStyle is not undefined or timeStyle is not undefined, then
-       a. For each row in Table 7, except the header row, do
-         i. Let prop be the name given in the Property column of the row.
-         ii. Let p be opt.[[<prop>]].
-         iii. If p is not undefined, then
-           1. Throw a TypeError exception.
-    */
     auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
-    if (!dateFormat->timeStyle().isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
-    }
     auto result = dateFormat->format(state, plainDate);
     return new UTF16String(result.data(), result.length());
 }
@@ -1012,20 +988,8 @@ static Value builtinTemporalPlainYearMonthToLocaleString(ExecutionState& state, 
     RESOLVE_THIS_BINDING_TO_PLAINYEARMONTH2(plainYearMonth, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-
-    /*
-    1. If dateStyle is not undefined or timeStyle is not undefined, then
-       a. For each row in Table 7, except the header row, do
-         i. Let prop be the name given in the Property column of the row.
-         ii. Let p be opt.[[<prop>]].
-         iii. If p is not undefined, then
-           1. Throw a TypeError exception.
-    */
     auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
-    if (!dateFormat->timeStyle().isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
-    }
-    auto result = dateFormat->format(state, plainYearMonth, false, true, false);
+    auto result = dateFormat->format(state, plainYearMonth);
     return new UTF16String(result.data(), result.length());
 }
 
@@ -1169,20 +1133,8 @@ static Value builtinTemporalPlainMonthDayToLocaleString(ExecutionState& state, V
     RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-
-    /*
-    1. If dateStyle is not undefined or timeStyle is not undefined, then
-       a. For each row in Table 7, except the header row, do
-         i. Let prop be the name given in the Property column of the row.
-         ii. Let p be opt.[[<prop>]].
-         iii. If p is not undefined, then
-           1. Throw a TypeError exception.
-    */
     auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
-    if (!dateFormat->timeStyle().isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
-    }
-    auto result = dateFormat->format(state, plainMonthDay, false, false, true);
+    auto result = dateFormat->format(state, plainMonthDay);
     return new UTF16String(result.data(), result.length());
 }
 
