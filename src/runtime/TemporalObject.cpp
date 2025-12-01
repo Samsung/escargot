@@ -852,7 +852,7 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
 
         // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
         auto calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, item);
-        // Let fields be ? PrepareCalendarFields(calendar, item, « year, month, month-code », «», «»).
+        // Let fields be ? PrepareCalendarFields(calendar, item, « year, month, month-code, day », «», «»).
         CalendarField f[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
         auto fields = prepareCalendarFields(state, calendar, item.asObject(), f, 4, nullptr, 0, nullptr, 0);
         // Let resolvedOptions be ? GetOptionsObject(options).
@@ -2376,8 +2376,12 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
 // https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
 std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
+    bool shouldTestUnder1972Year = false;
     if (mode == CalendarDateFromFieldsMode::MonthDay && calendar.isISO8601() && !fields.year) {
         fields.year = 1972;
+    } else if (mode == CalendarDateFromFieldsMode::MonthDay && !calendar.isISO8601() && fields.monthCode && fields.day) {
+        fields.year = 1972;
+        shouldTestUnder1972Year = true;
     }
 
     if (calendar.isISO8601() || !calendar.isEraRelated()) {
@@ -2494,6 +2498,29 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
         if (test != fields.month.value() - 1 || (fields.monthCode && testLeap != fields.monthCode.value().isLeapMonth)) {
             ucal_close(icuCalendar);
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid month or monthCode value");
+        }
+    }
+
+    // test262/test/staging/sm/Temporal/PlainMonthDay/result-not-after-1972-dec-31.js
+    if (shouldTestUnder1972Year) {
+        int32_t diff = 0;
+        while (true) {
+            auto isoDate = computeISODate(state, icuCalendar);
+            diff += isoDate.year() - 1972;
+            if (isoDate.year() - 1972 <= 0) {
+                break;
+            }
+
+            if (calendar.shouldUseICUExtendedYear()) {
+                ucal_set(icuCalendar, UCAL_EXTENDED_YEAR, fields.year.value() - diff);
+            } else {
+                ucal_set(icuCalendar, UCAL_YEAR, fields.year.value() - diff);
+            }
+            ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
+            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+            if (fields.monthCode && fields.monthCode.value().isLeapMonth) {
+                ucal_set(icuCalendar, UCAL_IS_LEAP_MONTH, 1);
+            }
         }
     }
 
