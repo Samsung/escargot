@@ -36,6 +36,9 @@
 #include "runtime/ArrayObject.h"
 
 #include "intl/IntlDateTimeFormat.h"
+#if defined(ENABLE_INTL_DURATIONFORMAT)
+#include "intl/IntlDurationFormat.h"
+#endif
 
 namespace Escargot {
 
@@ -160,7 +163,14 @@ static Value builtinTemporalDurationToJSON(ExecutionState& state, Value thisValu
 static Value builtinTemporalDurationToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DURATION2(duration, toLocaleString);
-    return duration->toString(state, Value());
+#if defined(ENABLE_INTL_DURATIONFORMAT)
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+    auto durationFormat = new IntlDurationFormatObject(state, locales, options);
+    return durationFormat->format(state, duration);
+#else
+    return duration->toString(state, argc ? argv[0] : Value());
+#endif
 }
 
 static Value builtinTemporalDurationNegated(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

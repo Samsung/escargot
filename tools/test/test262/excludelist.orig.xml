@@ -202,10 +202,6 @@
     <test id="intl402/DisplayNames/prototype/of/type-calendar-invalid"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/of/type-language-invalid"><reason>TODO</reason></test>
     <test id="intl402/DurationFormat/prototype/format/precision-exact-mathematical-values"><reason>TODO</reason></test>
-    <test id="intl402/DurationFormat/prototype/format/taint-temporal-duration-prototype"><reason>TODO</reason></test>
-    <test id="intl402/DurationFormat/prototype/format/temporal-duration-string-arg"><reason>TODO</reason></test>
-    <test id="intl402/DurationFormat/prototype/formatToParts/taint-temporal-duration-prototype"><reason>TODO</reason></test>
-    <test id="intl402/DurationFormat/prototype/formatToParts/temporal-duration-string-arg"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/transformed-ext-canonical"><reason>TODO</reason></test>
@@ -231,7 +227,6 @@
     <test id="intl402/Temporal/Duration/prototype/round/dst-rounding-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/round/relativeto-string-datetime"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/round/relativeto-sub-minute-offset"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Duration/prototype/toLocaleString/returns-same-results-as-DurationFormat"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/total/dst-day-length"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/total/dst-rounding-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/total/relativeto-sub-minute-offset"><reason>TODO</reason></test>
