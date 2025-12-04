@@ -55,6 +55,7 @@ T intFloor(T x, int64_t y)
     }
 }
 
+// https://github.com/tc39/proposal-intl-era-monthcode
 class Calendar {
 public:
     // sync with 'canonicalCodeForDisplayNames'
@@ -112,6 +113,18 @@ public:
 
     bool isEraRelated() const;
     bool shouldUseICUExtendedYear() const;
+    bool hasLeapMonths() const;
+    bool hasEpagomenalMonths() const;
+    bool sameAsGregoryExceptHandlingEraAndYear() const;
+
+    // https://tc39.es/proposal-intl-era-monthcode/#table-epoch-years
+    int32_t epochISOYear() const;
+
+    // icu4c base year of chinese, dangi, roc are differ with icu4x
+    int diffYearDueToICU4CAndSpecDiffer() const;
+
+    // in icu4c, hebrew calendar needs UCAL_ORIDINAL_CODE for everywhere
+    UCalendarDateFields icuNonOridnalMonthCode() const;
 
     static Optional<Calendar> fromString(ISO8601::CalendarID);
     static Optional<Calendar> fromString(String* str);
@@ -120,7 +133,15 @@ public:
     UCalendar* createICUCalendar(ExecutionState& state);
     void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
 
+    void setYear(ExecutionState& state, UCalendar* calendar, int32_t year);
+    void setYear(ExecutionState& state, UCalendar* calendar, String* era, int32_t year);
+
+    int32_t year(ExecutionState& state, UCalendar* calendar);
+    int32_t eraYear(ExecutionState& state, UCalendar* calendar);
+    String* era(ExecutionState& state, UCalendar* calendar);
+
 private:
+    UCalendar* createICUCalendar(ExecutionState& state, const std::string& name);
     ID m_id;
 };
 

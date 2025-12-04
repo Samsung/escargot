@@ -90,14 +90,8 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     ASSERT(underMicrosecondValue < 1000 * 1000);
     UErrorCode status = U_ZERO_ERROR;
 
-    int32_t y;
-    if (calendar.shouldUseICUExtendedYear()) {
-        y = ucal_get(m_icuCalendar, UCAL_EXTENDED_YEAR, &status);
-    } else {
-        y = ucal_get(m_icuCalendar, UCAL_YEAR, &status);
-    }
-    CHECK_ICU()
-    auto m = ucal_get(m_icuCalendar, UCAL_MONTH, &status) + 1;
+    auto y = calendar.year(state, m_icuCalendar);
+    auto m = ucal_get(m_icuCalendar, UCAL_ORDINAL_MONTH, &status) + 1;
     CHECK_ICU()
     auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
     CHECK_ICU()
