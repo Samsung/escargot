@@ -223,16 +223,15 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         auto nextMonth = Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, intermediateDate.get()), intermediateDate.get(), oneMonthDuration, TemporalOverflowOption::Constrain).first;
         // Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
         UErrorCode status = U_ZERO_ERROR;
-        auto year = ucal_get(nextMonth, UCAL_YEAR, &status);
-        CHECK_ICU();
-        auto month = ucal_get(nextMonth, UCAL_MONTH, &status) + 1;
+        auto year = calendar.year(state, nextMonth);
+        auto month = ucal_get(nextMonth, UCAL_ORDINAL_MONTH, &status) + 1;
         CHECK_ICU();
         auto day = ucal_get(nextMonth, UCAL_DAY_OF_MONTH, &status);
         CHECK_ICU();
         auto balancedDate = Temporal::balanceISODate(state, year, month, day - 1);
         // Assert: ISODateWithinLimits(date) is true.
-        ucal_set(nextMonth, UCAL_YEAR, balancedDate.year());
-        ucal_set(nextMonth, UCAL_MONTH, balancedDate.month() - 1);
+        calendar.setYear(state, nextMonth, balancedDate.year());
+        ucal_set(nextMonth, UCAL_ORDINAL_MONTH, balancedDate.month() - 1);
         ucal_set(nextMonth, UCAL_DAY_OF_MONTH, balancedDate.day());
 
         date.reset(nextMonth);

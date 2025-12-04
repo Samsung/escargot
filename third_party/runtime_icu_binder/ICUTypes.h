@@ -41,7 +41,7 @@ typedef double UDate;
  * @stable ICU 2.4
  */
 #define U_IS_UNICODE_NONCHAR(c) \
-    ((c) >= 0xfdd0 && ((c) <= 0xfdef || ((c)&0xfffe) == 0xfffe) && (c) <= 0x10ffff)
+    ((c) >= 0xfdd0 && ((c) <= 0xfdef || ((c) & 0xfffe) == 0xfffe) && (c) <= 0x10ffff)
 
 /**
  * Is c a Unicode code point value (0..U+10ffff)
@@ -77,7 +77,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.8
  */
-#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c)-0x10000) <= 0xfffff)
+#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c) - 0x10000) <= 0xfffff)
 
 /**
  * Is this code point a lead surrogate (U+d800..U+dbff)?
@@ -85,7 +85,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_LEAD(c) (((c)&0xfffffc00) == 0xd800)
+#define U_IS_LEAD(c) (((c) & 0xfffffc00) == 0xd800)
 
 /**
  * Is this code point a trail surrogate (U+dc00..U+dfff)?
@@ -93,7 +93,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_TRAIL(c) (((c)&0xfffffc00) == 0xdc00)
+#define U_IS_TRAIL(c) (((c) & 0xfffffc00) == 0xdc00)
 
 /**
  * Is this code point a surrogate (U+d800..U+dfff)?
@@ -101,7 +101,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_SURROGATE(c) (((c)&0xfffff800) == 0xd800)
+#define U_IS_SURROGATE(c) (((c) & 0xfffff800) == 0xd800)
 
 /**
  * Assuming c is a surrogate code point (U_IS_SURROGATE(c)),
@@ -110,7 +110,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_SURROGATE_LEAD(c) (((c)&0x400) == 0)
+#define U_IS_SURROGATE_LEAD(c) (((c) & 0x400) == 0)
 
 /**
  * Assuming c is a surrogate code point (U_IS_SURROGATE(c)),
@@ -119,7 +119,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 4.2
  */
-#define U_IS_SURROGATE_TRAIL(c) (((c)&0x400) != 0)
+#define U_IS_SURROGATE_TRAIL(c) (((c) & 0x400) != 0)
 
 /**
  * Does this code unit alone encode a code point (BMP, not a surrogate)?
@@ -135,7 +135,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U16_IS_LEAD(c) (((c)&0xfffffc00) == 0xd800)
+#define U16_IS_LEAD(c) (((c) & 0xfffffc00) == 0xd800)
 
 /**
  * Is this code unit a trail surrogate (U+dc00..U+dfff)?
@@ -143,7 +143,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U16_IS_TRAIL(c) (((c)&0xfffffc00) == 0xdc00)
+#define U16_IS_TRAIL(c) (((c) & 0xfffffc00) == 0xdc00)
 
 /**
  * Is this code unit a surrogate (U+d800..U+dfff)?
@@ -160,7 +160,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U16_IS_SURROGATE_LEAD(c) (((c)&0x400) == 0)
+#define U16_IS_SURROGATE_LEAD(c) (((c) & 0x400) == 0)
 
 /**
  * Assuming c is a surrogate code point (U16_IS_SURROGATE(c)),
@@ -169,7 +169,7 @@ typedef double UDate;
  * @return TRUE or FALSE
  * @stable ICU 4.2
  */
-#define U16_IS_SURROGATE_TRAIL(c) (((c)&0x400) != 0)
+#define U16_IS_SURROGATE_TRAIL(c) (((c) & 0x400) != 0)
 
 /**
  * Helper constant for U16_GET_SUPPLEMENTARY.
@@ -189,7 +189,7 @@ typedef double UDate;
  * @stable ICU 2.4
  */
 #define U16_GET_SUPPLEMENTARY(lead, trail) \
-    (((UChar32)(lead) << 10UL) + (UChar32)(trail)-U16_SURROGATE_OFFSET)
+    (((UChar32)(lead) << 10UL) + (UChar32)(trail) - U16_SURROGATE_OFFSET)
 
 
 /**
@@ -208,7 +208,7 @@ typedef double UDate;
  * @return trail surrogate (U+dc00..U+dfff) for supplementary
  * @stable ICU 2.4
  */
-#define U16_TRAIL(supplementary) (UChar)(((supplementary)&0x3ff) | 0xdc00)
+#define U16_TRAIL(supplementary) (UChar)(((supplementary) & 0x3ff) | 0xdc00)
 
 /**
  * How many 16-bit code units are used to encode this Unicode code point? (1 or 2)
@@ -250,7 +250,7 @@ typedef double UDate;
             if (U16_IS_SURROGATE_LEAD(c)) {                     \
                 (c) = U16_GET_SUPPLEMENTARY((c), (s)[(i) + 1]); \
             } else {                                            \
-                (c) = U16_GET_SUPPLEMENTARY((s)[(i)-1], (c));   \
+                (c) = U16_GET_SUPPLEMENTARY((s)[(i) - 1], (c)); \
             }                                                   \
         }                                                       \
     }
@@ -288,7 +288,7 @@ typedef double UDate;
                     (c) = U16_GET_SUPPLEMENTARY((c), __c2);                     \
                 }                                                               \
             } else {                                                            \
-                if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i)-1])) {          \
+                if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i) - 1])) {        \
                     (c) = U16_GET_SUPPLEMENTARY(__c2, (c));                     \
                 }                                                               \
             }                                                                   \
@@ -330,7 +330,7 @@ typedef double UDate;
                     (c) = 0xfffd;                                               \
                 }                                                               \
             } else {                                                            \
-                if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i)-1])) {          \
+                if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i) - 1])) {        \
                     (c) = U16_GET_SUPPLEMENTARY(__c2, (c));                     \
                 } else {                                                        \
                     (c) = 0xfffd;                                               \
@@ -447,14 +447,14 @@ typedef double UDate;
  * @see U16_APPEND
  * @stable ICU 2.4
  */
-#define U16_APPEND_UNSAFE(s, i, c)                         \
-    {                                                      \
-        if ((uint32_t)(c) <= 0xffff) {                     \
-            (s)[(i)++] = (uint16_t)(c);                    \
-        } else {                                           \
-            (s)[(i)++] = (uint16_t)(((c) >> 10) + 0xd7c0); \
-            (s)[(i)++] = (uint16_t)(((c)&0x3ff) | 0xdc00); \
-        }                                                  \
+#define U16_APPEND_UNSAFE(s, i, c)                           \
+    {                                                        \
+        if ((uint32_t)(c) <= 0xffff) {                       \
+            (s)[(i)++] = (uint16_t)(c);                      \
+        } else {                                             \
+            (s)[(i)++] = (uint16_t)(((c) >> 10) + 0xd7c0);   \
+            (s)[(i)++] = (uint16_t)(((c) & 0x3ff) | 0xdc00); \
+        }                                                    \
     }
 
 /**
@@ -480,7 +480,7 @@ typedef double UDate;
             (s)[(i)++] = (uint16_t)(c);                                 \
         } else if ((uint32_t)(c) <= 0x10ffff && (i) + 1 < (capacity)) { \
             (s)[(i)++] = (uint16_t)(((c) >> 10) + 0xd7c0);              \
-            (s)[(i)++] = (uint16_t)(((c)&0x3ff) | 0xdc00);              \
+            (s)[(i)++] = (uint16_t)(((c) & 0x3ff) | 0xdc00);            \
         } else /* c>0x10ffff or not enough space */ {                   \
             (isError) = TRUE;                                           \
         }                                                               \
@@ -602,11 +602,11 @@ typedef double UDate;
  * @see U16_SET_CP_START_UNSAFE
  * @stable ICU 2.4
  */
-#define U16_SET_CP_START(s, start, i)                                           \
-    {                                                                           \
-        if (U16_IS_TRAIL((s)[i]) && (i) > (start) && U16_IS_LEAD((s)[(i)-1])) { \
-            --(i);                                                              \
-        }                                                                       \
+#define U16_SET_CP_START(s, start, i)                                             \
+    {                                                                             \
+        if (U16_IS_TRAIL((s)[i]) && (i) > (start) && U16_IS_LEAD((s)[(i) - 1])) { \
+            --(i);                                                                \
+        }                                                                         \
     }
 
 /* definitions with backward iteration -------------------------------------- */
@@ -659,16 +659,16 @@ typedef double UDate;
  * @see U16_PREV_UNSAFE
  * @stable ICU 2.4
  */
-#define U16_PREV(s, start, i, c)                                   \
-    {                                                              \
-        (c) = (s)[--(i)];                                          \
-        if (U16_IS_TRAIL(c)) {                                     \
-            uint16_t __c2;                                         \
-            if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i)-1])) { \
-                --(i);                                             \
-                (c) = U16_GET_SUPPLEMENTARY(__c2, (c));            \
-            }                                                      \
-        }                                                          \
+#define U16_PREV(s, start, i, c)                                     \
+    {                                                                \
+        (c) = (s)[--(i)];                                            \
+        if (U16_IS_TRAIL(c)) {                                       \
+            uint16_t __c2;                                           \
+            if ((i) > (start) && U16_IS_LEAD(__c2 = (s)[(i) - 1])) { \
+                --(i);                                               \
+                (c) = U16_GET_SUPPLEMENTARY(__c2, (c));              \
+            }                                                        \
+        }                                                            \
     }
 
 /**
@@ -691,18 +691,18 @@ typedef double UDate;
  * @see U16_PREV_UNSAFE
  * @draft ICU 60
  */
-#define U16_PREV_OR_FFFD(s, start, i, c)                                                        \
-    {                                                                                           \
-        (c) = (s)[--(i)];                                                                       \
-        if (U16_IS_SURROGATE(c)) {                                                              \
-            uint16_t __c2;                                                                      \
-            if (U16_IS_SURROGATE_TRAIL(c) && (i) > (start) && U16_IS_LEAD(__c2 = (s)[(i)-1])) { \
-                --(i);                                                                          \
-                (c) = U16_GET_SUPPLEMENTARY(__c2, (c));                                         \
-            } else {                                                                            \
-                (c) = 0xfffd;                                                                   \
-            }                                                                                   \
-        }                                                                                       \
+#define U16_PREV_OR_FFFD(s, start, i, c)                                                          \
+    {                                                                                             \
+        (c) = (s)[--(i)];                                                                         \
+        if (U16_IS_SURROGATE(c)) {                                                                \
+            uint16_t __c2;                                                                        \
+            if (U16_IS_SURROGATE_TRAIL(c) && (i) > (start) && U16_IS_LEAD(__c2 = (s)[(i) - 1])) { \
+                --(i);                                                                            \
+                (c) = U16_GET_SUPPLEMENTARY(__c2, (c));                                           \
+            } else {                                                                              \
+                (c) = 0xfffd;                                                                     \
+            }                                                                                     \
+        }                                                                                         \
     }
 
 /**
@@ -735,11 +735,11 @@ typedef double UDate;
  * @see U16_BACK_1_UNSAFE
  * @stable ICU 2.4
  */
-#define U16_BACK_1(s, start, i)                                                     \
-    {                                                                               \
-        if (U16_IS_TRAIL((s)[--(i)]) && (i) > (start) && U16_IS_LEAD((s)[(i)-1])) { \
-            --(i);                                                                  \
-        }                                                                           \
+#define U16_BACK_1(s, start, i)                                                       \
+    {                                                                                 \
+        if (U16_IS_TRAIL((s)[--(i)]) && (i) > (start) && U16_IS_LEAD((s)[(i) - 1])) { \
+            --(i);                                                                    \
+        }                                                                             \
     }
 
 /**
@@ -800,11 +800,11 @@ typedef double UDate;
  * @see U16_SET_CP_LIMIT
  * @stable ICU 2.4
  */
-#define U16_SET_CP_LIMIT_UNSAFE(s, i)  \
-    {                                  \
-        if (U16_IS_LEAD((s)[(i)-1])) { \
-            ++(i);                     \
-        }                              \
+#define U16_SET_CP_LIMIT_UNSAFE(s, i)    \
+    {                                    \
+        if (U16_IS_LEAD((s)[(i) - 1])) { \
+            ++(i);                       \
+        }                                \
     }
 
 /**
@@ -824,11 +824,11 @@ typedef double UDate;
  * @see U16_SET_CP_LIMIT_UNSAFE
  * @stable ICU 2.4
  */
-#define U16_SET_CP_LIMIT(s, start, i, length)                                                                       \
-    {                                                                                                               \
-        if ((start) < (i) && ((i) < (length) || (length) < 0) && U16_IS_LEAD((s)[(i)-1]) && U16_IS_TRAIL((s)[i])) { \
-            ++(i);                                                                                                  \
-        }                                                                                                           \
+#define U16_SET_CP_LIMIT(s, start, i, length)                                                                         \
+    {                                                                                                                 \
+        if ((start) < (i) && ((i) < (length) || (length) < 0) && U16_IS_LEAD((s)[(i) - 1]) && U16_IS_TRAIL((s)[i])) { \
+            ++(i);                                                                                                    \
+        }                                                                                                             \
     }
 
 
@@ -1223,8 +1223,8 @@ enum UDisplayContextType {
     UDISPCTX_TYPE_SUBSTITUTE_HANDLING = 3
 };
 /**
-*  @stable ICU 51
-*/
+ *  @stable ICU 51
+ */
 typedef enum UDisplayContextType UDisplayContextType;
 
 /**
@@ -1334,8 +1334,8 @@ enum UDisplayContext {
 
 };
 /**
-*  @stable ICU 51
-*/
+ *  @stable ICU 51
+ */
 typedef enum UDisplayContext UDisplayContext;
 
 // udat.h
@@ -2140,19 +2140,19 @@ typedef struct UDateFormatSymbols UDateFormatSymbols;
  */
 typedef struct UFieldPosition {
     /**
-   * The field
-   * @stable ICU 2.0
-   */
+     * The field
+     * @stable ICU 2.0
+     */
     int32_t field;
     /**
-   * The start of the text range containing field
-   * @stable ICU 2.0
-   */
+     * The start of the text range containing field
+     * @stable ICU 2.0
+     */
     int32_t beginIndex;
     /**
-   * The limit of the text range containing field
-   * @stable ICU 2.0
-   */
+     * The limit of the text range containing field
+     * @stable ICU 2.0
+     */
     int32_t endIndex;
 } UFieldPosition;
 
@@ -4746,8 +4746,8 @@ struct UEnumeration;
 
 // ucol.h
 /** A collator.
-*  For usage in C programs.
-*/
+ *  For usage in C programs.
+ */
 struct UCollator;
 /** structure representing a collator object instance
  * @stable ICU 2.0
@@ -4842,58 +4842,58 @@ typedef enum {
  */
 typedef enum {
     /**
-    * A special reordering code that is used to specify the default
-    * reordering codes for a locale.
-    * @stable ICU 4.8
-    */
+     * A special reordering code that is used to specify the default
+     * reordering codes for a locale.
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_DEFAULT = -1,
     /**
-    * A special reordering code that is used to specify no reordering codes.
-    * @stable ICU 4.8
-    */
+     * A special reordering code that is used to specify no reordering codes.
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_NONE = USCRIPT_UNKNOWN,
     /**
-    * A special reordering code that is used to specify all other codes used for
-    * reordering except for the codes lised as UColReorderCode values and those
-    * listed explicitly in a reordering.
-    * @stable ICU 4.8
-    */
+     * A special reordering code that is used to specify all other codes used for
+     * reordering except for the codes lised as UColReorderCode values and those
+     * listed explicitly in a reordering.
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_OTHERS = USCRIPT_UNKNOWN,
     /**
-    * Characters with the space property.
-    * This is equivalent to the rule value "space".
-    * @stable ICU 4.8
-    */
+     * Characters with the space property.
+     * This is equivalent to the rule value "space".
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_SPACE = 0x1000,
     /**
-    * The first entry in the enumeration of reordering groups. This is intended for use in
-    * range checking and enumeration of the reorder codes.
-    * @stable ICU 4.8
-    */
+     * The first entry in the enumeration of reordering groups. This is intended for use in
+     * range checking and enumeration of the reorder codes.
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_FIRST = UCOL_REORDER_CODE_SPACE,
     /**
-    * Characters with the punctuation property.
-    * This is equivalent to the rule value "punct".
-    * @stable ICU 4.8
-    */
+     * Characters with the punctuation property.
+     * This is equivalent to the rule value "punct".
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_PUNCTUATION = 0x1001,
     /**
-    * Characters with the symbol property.
-    * This is equivalent to the rule value "symbol".
-    * @stable ICU 4.8
-    */
+     * Characters with the symbol property.
+     * This is equivalent to the rule value "symbol".
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_SYMBOL = 0x1002,
     /**
-    * Characters with the currency property.
-    * This is equivalent to the rule value "currency".
-    * @stable ICU 4.8
-    */
+     * Characters with the currency property.
+     * This is equivalent to the rule value "currency".
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_CURRENCY = 0x1003,
     /**
-    * Characters with the digit property.
-    * This is equivalent to the rule value "digit".
-    * @stable ICU 4.8
-    */
+     * Characters with the digit property.
+     * This is equivalent to the rule value "digit".
+     * @stable ICU 4.8
+     */
     UCOL_REORDER_CODE_DIGIT = 0x1004,
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -4938,105 +4938,105 @@ typedef UColAttributeValue UCollationStrength;
  */
 typedef enum {
     /** Attribute for direction of secondary weights - used in Canadian French.
-      * Acceptable values are UCOL_ON, which results in secondary weights
-      * being considered backwards and UCOL_OFF which treats secondary
-      * weights in the order they appear.
-      * @stable ICU 2.0
-      */
+     * Acceptable values are UCOL_ON, which results in secondary weights
+     * being considered backwards and UCOL_OFF which treats secondary
+     * weights in the order they appear.
+     * @stable ICU 2.0
+     */
     UCOL_FRENCH_COLLATION,
     /** Attribute for handling variable elements.
-      * Acceptable values are UCOL_NON_IGNORABLE (default)
-      * which treats all the codepoints with non-ignorable
-      * primary weights in the same way,
-      * and UCOL_SHIFTED which causes codepoints with primary
-      * weights that are equal or below the variable top value
-      * to be ignored on primary level and moved to the quaternary
-      * level.
-      * @stable ICU 2.0
-      */
+     * Acceptable values are UCOL_NON_IGNORABLE (default)
+     * which treats all the codepoints with non-ignorable
+     * primary weights in the same way,
+     * and UCOL_SHIFTED which causes codepoints with primary
+     * weights that are equal or below the variable top value
+     * to be ignored on primary level and moved to the quaternary
+     * level.
+     * @stable ICU 2.0
+     */
     UCOL_ALTERNATE_HANDLING,
     /** Controls the ordering of upper and lower case letters.
-      * Acceptable values are UCOL_OFF (default), which orders
-      * upper and lower case letters in accordance to their tertiary
-      * weights, UCOL_UPPER_FIRST which forces upper case letters to
-      * sort before lower case letters, and UCOL_LOWER_FIRST which does
-      * the opposite.
-      * @stable ICU 2.0
-      */
+     * Acceptable values are UCOL_OFF (default), which orders
+     * upper and lower case letters in accordance to their tertiary
+     * weights, UCOL_UPPER_FIRST which forces upper case letters to
+     * sort before lower case letters, and UCOL_LOWER_FIRST which does
+     * the opposite.
+     * @stable ICU 2.0
+     */
     UCOL_CASE_FIRST,
     /** Controls whether an extra case level (positioned before the third
-      * level) is generated or not. Acceptable values are UCOL_OFF (default),
-      * when case level is not generated, and UCOL_ON which causes the case
-      * level to be generated. Contents of the case level are affected by
-      * the value of UCOL_CASE_FIRST attribute. A simple way to ignore
-      * accent differences in a string is to set the strength to UCOL_PRIMARY
-      * and enable case level.
-      * @stable ICU 2.0
-      */
+     * level) is generated or not. Acceptable values are UCOL_OFF (default),
+     * when case level is not generated, and UCOL_ON which causes the case
+     * level to be generated. Contents of the case level are affected by
+     * the value of UCOL_CASE_FIRST attribute. A simple way to ignore
+     * accent differences in a string is to set the strength to UCOL_PRIMARY
+     * and enable case level.
+     * @stable ICU 2.0
+     */
     UCOL_CASE_LEVEL,
     /** Controls whether the normalization check and necessary normalizations
-      * are performed. When set to UCOL_OFF (default) no normalization check
-      * is performed. The correctness of the result is guaranteed only if the
-      * input data is in so-called FCD form (see users manual for more info).
-      * When set to UCOL_ON, an incremental check is performed to see whether
-      * the input data is in the FCD form. If the data is not in the FCD form,
-      * incremental NFD normalization is performed.
-      * @stable ICU 2.0
-      */
+     * are performed. When set to UCOL_OFF (default) no normalization check
+     * is performed. The correctness of the result is guaranteed only if the
+     * input data is in so-called FCD form (see users manual for more info).
+     * When set to UCOL_ON, an incremental check is performed to see whether
+     * the input data is in the FCD form. If the data is not in the FCD form,
+     * incremental NFD normalization is performed.
+     * @stable ICU 2.0
+     */
     UCOL_NORMALIZATION_MODE,
     /** An alias for UCOL_NORMALIZATION_MODE attribute.
-      * @stable ICU 2.0
-      */
+     * @stable ICU 2.0
+     */
     UCOL_DECOMPOSITION_MODE = UCOL_NORMALIZATION_MODE,
     /** The strength attribute. Can be either UCOL_PRIMARY, UCOL_SECONDARY,
-      * UCOL_TERTIARY, UCOL_QUATERNARY or UCOL_IDENTICAL. The usual strength
-      * for most locales (except Japanese) is tertiary.
-      *
-      * Quaternary strength
-      * is useful when combined with shifted setting for alternate handling
-      * attribute and for JIS X 4061 collation, when it is used to distinguish
-      * between Katakana and Hiragana.
-      * Otherwise, quaternary level
-      * is affected only by the number of non-ignorable code points in
-      * the string.
-      *
-      * Identical strength is rarely useful, as it amounts
-      * to codepoints of the NFD form of the string.
-      * @stable ICU 2.0
-      */
+     * UCOL_TERTIARY, UCOL_QUATERNARY or UCOL_IDENTICAL. The usual strength
+     * for most locales (except Japanese) is tertiary.
+     *
+     * Quaternary strength
+     * is useful when combined with shifted setting for alternate handling
+     * attribute and for JIS X 4061 collation, when it is used to distinguish
+     * between Katakana and Hiragana.
+     * Otherwise, quaternary level
+     * is affected only by the number of non-ignorable code points in
+     * the string.
+     *
+     * Identical strength is rarely useful, as it amounts
+     * to codepoints of the NFD form of the string.
+     * @stable ICU 2.0
+     */
     UCOL_STRENGTH,
 #ifndef U_HIDE_DEPRECATED_API
     /** When turned on, this attribute positions Hiragana before all
-      * non-ignorables on quaternary level This is a sneaky way to produce JIS
-      * sort order.
-      *
-      * This attribute was an implementation detail of the CLDR Japanese tailoring.
-      * Since ICU 50, this attribute is not settable any more via API functions.
-      * Since CLDR 25/ICU 53, explicit quaternary relations are used
-      * to achieve the same Japanese sort order.
-      *
-      * @deprecated ICU 50 Implementation detail, cannot be set via API, was removed from implementation.
-      */
+     * non-ignorables on quaternary level This is a sneaky way to produce JIS
+     * sort order.
+     *
+     * This attribute was an implementation detail of the CLDR Japanese tailoring.
+     * Since ICU 50, this attribute is not settable any more via API functions.
+     * Since CLDR 25/ICU 53, explicit quaternary relations are used
+     * to achieve the same Japanese sort order.
+     *
+     * @deprecated ICU 50 Implementation detail, cannot be set via API, was removed from implementation.
+     */
     UCOL_HIRAGANA_QUATERNARY_MODE = UCOL_STRENGTH + 1,
 #endif /* U_HIDE_DEPRECATED_API */
     /**
-      * When turned on, this attribute makes
-      * substrings of digits sort according to their numeric values.
-      *
-      * This is a way to get '100' to sort AFTER '2'. Note that the longest
-      * digit substring that can be treated as a single unit is
-      * 254 digits (not counting leading zeros). If a digit substring is
-      * longer than that, the digits beyond the limit will be treated as a
-      * separate digit substring.
-      *
-      * A "digit" in this sense is a code point with General_Category=Nd,
-      * which does not include circled numbers, roman numerals, etc.
-      * Only a contiguous digit substring is considered, that is,
-      * non-negative integers without separators.
-      * There is no support for plus/minus signs, decimals, exponents, etc.
-      *
-      * @stable ICU 2.8
-      */
+     * When turned on, this attribute makes
+     * substrings of digits sort according to their numeric values.
+     *
+     * This is a way to get '100' to sort AFTER '2'. Note that the longest
+     * digit substring that can be treated as a single unit is
+     * 254 digits (not counting leading zeros). If a digit substring is
+     * longer than that, the digits beyond the limit will be treated as a
+     * separate digit substring.
+     *
+     * A "digit" in this sense is a code point with General_Category=Nd,
+     * which does not include circled numbers, roman numerals, etc.
+     * Only a contiguous digit substring is considered, that is,
+     * non-negative integers without separators.
+     * There is no support for plus/minus signs, decimals, exponents, etc.
+     *
+     * @stable ICU 2.8
+     */
     UCOL_NUMERIC_COLLATION = UCOL_STRENGTH + 2,
 
     /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
@@ -5053,18 +5053,18 @@ typedef enum {
  */
 typedef enum {
     /**
-   * Retrieves the tailoring rules only.
-   * Same as calling the version of getRules() without UColRuleOption.
-   * @stable ICU 2.0
-   */
+     * Retrieves the tailoring rules only.
+     * Same as calling the version of getRules() without UColRuleOption.
+     * @stable ICU 2.0
+     */
     UCOL_TAILORING_ONLY,
     /**
-   * Retrieves the "UCA rules" concatenated with the tailoring rules.
-   * The "UCA rules" are an <i>approximation</i> of the root collator's sort order.
-   * They are almost never used or useful at runtime and can be removed from the data.
-   * See http://userguide.icu-project.org/collation/customization#TOC-Building-on-Existing-Locales
-   * @stable ICU 2.0
-   */
+     * Retrieves the "UCA rules" concatenated with the tailoring rules.
+     * The "UCA rules" are an <i>approximation</i> of the root collator's sort order.
+     * They are almost never used or useful at runtime and can be removed from the data.
+     * See http://userguide.icu-project.org/collation/customization#TOC-Building-on-Existing-Locales
+     * @stable ICU 2.0
+     */
     UCOL_FULL_RULES
 } UColRuleOption;
 
@@ -5496,291 +5496,317 @@ typedef void *UCalendar;
  */
 enum UCalendarType {
     /**
-   * Despite the name, UCAL_TRADITIONAL designates the locale's default calendar,
-   * which may be the Gregorian calendar or some other calendar.
-   * @stable ICU 2.0
-   */
+     * Despite the name, UCAL_TRADITIONAL designates the locale's default calendar,
+     * which may be the Gregorian calendar or some other calendar.
+     * @stable ICU 2.0
+     */
     UCAL_TRADITIONAL,
     /**
-   * A better name for UCAL_TRADITIONAL.
-   * @stable ICU 4.2
-   */
+     * A better name for UCAL_TRADITIONAL.
+     * @stable ICU 4.2
+     */
     UCAL_DEFAULT = UCAL_TRADITIONAL,
     /**
-   * Unambiguously designates the Gregorian calendar for the locale.
-   * @stable ICU 2.0
-   */
+     * Unambiguously designates the Gregorian calendar for the locale.
+     * @stable ICU 2.0
+     */
     UCAL_GREGORIAN
 };
 
 /** @stable ICU 2.0 */
 typedef enum UCalendarType UCalendarType;
-
 /** Possible fields in a UCalendar
  * @stable ICU 2.0
  */
 enum UCalendarDateFields {
     /**
-   * Field number indicating the era, e.g., AD or BC in the Gregorian (Julian) calendar.
-   * This is a calendar-specific value.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the era, e.g., AD or BC in the Gregorian (Julian) calendar.
+     * This is a calendar-specific value.
+     * @stable ICU 2.6
+     */
     UCAL_ERA,
 
     /**
-   * Field number indicating the year. This is a calendar-specific value.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the year. This is a calendar-specific value.
+     * @stable ICU 2.6
+     */
     UCAL_YEAR,
 
     /**
-   * Field number indicating the month. This is a calendar-specific value.
-   * The first month of the year is
-   * <code>JANUARY</code>; the last depends on the number of months in a year.
-   * @see #UCAL_JANUARY
-   * @see #UCAL_FEBRUARY
-   * @see #UCAL_MARCH
-   * @see #UCAL_APRIL
-   * @see #UCAL_MAY
-   * @see #UCAL_JUNE
-   * @see #UCAL_JULY
-   * @see #UCAL_AUGUST
-   * @see #UCAL_SEPTEMBER
-   * @see #UCAL_OCTOBER
-   * @see #UCAL_NOVEMBER
-   * @see #UCAL_DECEMBER
-   * @see #UCAL_UNDECIMBER
-   * @stable ICU 2.6
-   */
+     * Field number indicating the month. This is a calendar-specific value.
+     * The first month of the year is
+     * <code>JANUARY</code>; the last depends on the number of months in a year.
+     * @see #UCAL_JANUARY
+     * @see #UCAL_FEBRUARY
+     * @see #UCAL_MARCH
+     * @see #UCAL_APRIL
+     * @see #UCAL_MAY
+     * @see #UCAL_JUNE
+     * @see #UCAL_JULY
+     * @see #UCAL_AUGUST
+     * @see #UCAL_SEPTEMBER
+     * @see #UCAL_OCTOBER
+     * @see #UCAL_NOVEMBER
+     * @see #UCAL_DECEMBER
+     * @see #UCAL_UNDECIMBER
+     * @stable ICU 2.6
+     */
     UCAL_MONTH,
 
     /**
-   * Field number indicating the
-   * week number within the current year.  The first week of the year, as
-   * defined by <code>UCAL_FIRST_DAY_OF_WEEK</code> and <code>UCAL_MINIMAL_DAYS_IN_FIRST_WEEK</code>
-   * attributes, has value 1.  Subclasses define
-   * the value of <code>UCAL_WEEK_OF_YEAR</code> for days before the first week of
-   * the year.
-   * @see ucal_getAttribute
-   * @see ucal_setAttribute
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * week number within the current year.  The first week of the year, as
+     * defined by <code>UCAL_FIRST_DAY_OF_WEEK</code> and <code>UCAL_MINIMAL_DAYS_IN_FIRST_WEEK</code>
+     * attributes, has value 1.  Subclasses define
+     * the value of <code>UCAL_WEEK_OF_YEAR</code> for days before the first week of
+     * the year.
+     * @see ucal_getAttribute
+     * @see ucal_setAttribute
+     * @stable ICU 2.6
+     */
     UCAL_WEEK_OF_YEAR,
 
     /**
-   * Field number indicating the
-   * week number within the current month.  The first week of the month, as
-   * defined by <code>UCAL_FIRST_DAY_OF_WEEK</code> and <code>UCAL_MINIMAL_DAYS_IN_FIRST_WEEK</code>
-   * attributes, has value 1.  Subclasses define
-   * the value of <code>WEEK_OF_MONTH</code> for days before the first week of
-   * the month.
-   * @see ucal_getAttribute
-   * @see ucal_setAttribute
-   * @see #UCAL_FIRST_DAY_OF_WEEK
-   * @see #UCAL_MINIMAL_DAYS_IN_FIRST_WEEK
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * week number within the current month.  The first week of the month, as
+     * defined by <code>UCAL_FIRST_DAY_OF_WEEK</code> and <code>UCAL_MINIMAL_DAYS_IN_FIRST_WEEK</code>
+     * attributes, has value 1.  Subclasses define
+     * the value of <code>WEEK_OF_MONTH</code> for days before the first week of
+     * the month.
+     * @see ucal_getAttribute
+     * @see ucal_setAttribute
+     * @see #UCAL_FIRST_DAY_OF_WEEK
+     * @see #UCAL_MINIMAL_DAYS_IN_FIRST_WEEK
+     * @stable ICU 2.6
+     */
     UCAL_WEEK_OF_MONTH,
 
     /**
-   * Field number indicating the
-   * day of the month. This is a synonym for <code>DAY_OF_MONTH</code>.
-   * The first day of the month has value 1.
-   * @see #UCAL_DAY_OF_MONTH
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * day of the month. This is a synonym for <code>DAY_OF_MONTH</code>.
+     * The first day of the month has value 1.
+     * @see #UCAL_DAY_OF_MONTH
+     * @stable ICU 2.6
+     */
     UCAL_DATE,
 
     /**
-   * Field number indicating the day
-   * number within the current year.  The first day of the year has value 1.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the day
+     * number within the current year.  The first day of the year has value 1.
+     * @stable ICU 2.6
+     */
     UCAL_DAY_OF_YEAR,
 
     /**
-   * Field number indicating the day
-   * of the week.  This field takes values <code>SUNDAY</code>,
-   * <code>MONDAY</code>, <code>TUESDAY</code>, <code>WEDNESDAY</code>,
-   * <code>THURSDAY</code>, <code>FRIDAY</code>, and <code>SATURDAY</code>.
-   * @see #UCAL_SUNDAY
-   * @see #UCAL_MONDAY
-   * @see #UCAL_TUESDAY
-   * @see #UCAL_WEDNESDAY
-   * @see #UCAL_THURSDAY
-   * @see #UCAL_FRIDAY
-   * @see #UCAL_SATURDAY
-   * @stable ICU 2.6
-   */
+     * Field number indicating the day
+     * of the week.  This field takes values <code>SUNDAY</code>,
+     * <code>MONDAY</code>, <code>TUESDAY</code>, <code>WEDNESDAY</code>,
+     * <code>THURSDAY</code>, <code>FRIDAY</code>, and <code>SATURDAY</code>.
+     * @see #UCAL_SUNDAY
+     * @see #UCAL_MONDAY
+     * @see #UCAL_TUESDAY
+     * @see #UCAL_WEDNESDAY
+     * @see #UCAL_THURSDAY
+     * @see #UCAL_FRIDAY
+     * @see #UCAL_SATURDAY
+     * @stable ICU 2.6
+     */
     UCAL_DAY_OF_WEEK,
 
     /**
-   * Field number indicating the
-   * ordinal number of the day of the week within the current month. Together
-   * with the <code>DAY_OF_WEEK</code> field, this uniquely specifies a day
-   * within a month.  Unlike <code>WEEK_OF_MONTH</code> and
-   * <code>WEEK_OF_YEAR</code>, this field's value does <em>not</em> depend on
-   * <code>getFirstDayOfWeek()</code> or
-   * <code>getMinimalDaysInFirstWeek()</code>.  <code>DAY_OF_MONTH 1</code>
-   * through <code>7</code> always correspond to <code>DAY_OF_WEEK_IN_MONTH
-   * 1</code>; <code>8</code> through <code>15</code> correspond to
-   * <code>DAY_OF_WEEK_IN_MONTH 2</code>, and so on.
-   * <code>DAY_OF_WEEK_IN_MONTH 0</code> indicates the week before
-   * <code>DAY_OF_WEEK_IN_MONTH 1</code>.  Negative values count back from the
-   * end of the month, so the last Sunday of a month is specified as
-   * <code>DAY_OF_WEEK = SUNDAY, DAY_OF_WEEK_IN_MONTH = -1</code>.  Because
-   * negative values count backward they will usually be aligned differently
-   * within the month than positive values.  For example, if a month has 31
-   * days, <code>DAY_OF_WEEK_IN_MONTH -1</code> will overlap
-   * <code>DAY_OF_WEEK_IN_MONTH 5</code> and the end of <code>4</code>.
-   * @see #UCAL_DAY_OF_WEEK
-   * @see #UCAL_WEEK_OF_MONTH
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * ordinal number of the day of the week within the current month. Together
+     * with the <code>DAY_OF_WEEK</code> field, this uniquely specifies a day
+     * within a month.  Unlike <code>WEEK_OF_MONTH</code> and
+     * <code>WEEK_OF_YEAR</code>, this field's value does <em>not</em> depend on
+     * <code>getFirstDayOfWeek()</code> or
+     * <code>getMinimalDaysInFirstWeek()</code>.  <code>DAY_OF_MONTH 1</code>
+     * through <code>7</code> always correspond to <code>DAY_OF_WEEK_IN_MONTH
+     * 1</code>; <code>8</code> through <code>15</code> correspond to
+     * <code>DAY_OF_WEEK_IN_MONTH 2</code>, and so on.
+     * <code>DAY_OF_WEEK_IN_MONTH 0</code> indicates the week before
+     * <code>DAY_OF_WEEK_IN_MONTH 1</code>.  Negative values count back from the
+     * end of the month, so the last Sunday of a month is specified as
+     * <code>DAY_OF_WEEK = SUNDAY, DAY_OF_WEEK_IN_MONTH = -1</code>.  Because
+     * negative values count backward they will usually be aligned differently
+     * within the month than positive values.  For example, if a month has 31
+     * days, <code>DAY_OF_WEEK_IN_MONTH -1</code> will overlap
+     * <code>DAY_OF_WEEK_IN_MONTH 5</code> and the end of <code>4</code>.
+     * @see #UCAL_DAY_OF_WEEK
+     * @see #UCAL_WEEK_OF_MONTH
+     * @stable ICU 2.6
+     */
     UCAL_DAY_OF_WEEK_IN_MONTH,
 
     /**
-   * Field number indicating
-   * whether the <code>HOUR</code> is before or after noon.
-   * E.g., at 10:04:15.250 PM the <code>AM_PM</code> is <code>PM</code>.
-   * @see #UCAL_AM
-   * @see #UCAL_PM
-   * @see #UCAL_HOUR
-   * @stable ICU 2.6
-   */
+     * Field number indicating
+     * whether the <code>HOUR</code> is before or after noon.
+     * E.g., at 10:04:15.250 PM the <code>AM_PM</code> is <code>PM</code>.
+     * @see #UCAL_AM
+     * @see #UCAL_PM
+     * @see #UCAL_HOUR
+     * @stable ICU 2.6
+     */
     UCAL_AM_PM,
 
     /**
-   * Field number indicating the
-   * hour of the morning or afternoon. <code>HOUR</code> is used for the 12-hour
-   * clock.
-   * E.g., at 10:04:15.250 PM the <code>HOUR</code> is 10.
-   * @see #UCAL_AM_PM
-   * @see #UCAL_HOUR_OF_DAY
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * hour of the morning or afternoon. <code>HOUR</code> is used for the 12-hour
+     * clock.
+     * E.g., at 10:04:15.250 PM the <code>HOUR</code> is 10.
+     * @see #UCAL_AM_PM
+     * @see #UCAL_HOUR_OF_DAY
+     * @stable ICU 2.6
+     */
     UCAL_HOUR,
 
     /**
-   * Field number indicating the
-   * hour of the day. <code>HOUR_OF_DAY</code> is used for the 24-hour clock.
-   * E.g., at 10:04:15.250 PM the <code>HOUR_OF_DAY</code> is 22.
-   * @see #UCAL_HOUR
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * hour of the day. <code>HOUR_OF_DAY</code> is used for the 24-hour clock.
+     * E.g., at 10:04:15.250 PM the <code>HOUR_OF_DAY</code> is 22.
+     * @see #UCAL_HOUR
+     * @stable ICU 2.6
+     */
     UCAL_HOUR_OF_DAY,
 
     /**
-   * Field number indicating the
-   * minute within the hour.
-   * E.g., at 10:04:15.250 PM the <code>UCAL_MINUTE</code> is 4.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * minute within the hour.
+     * E.g., at 10:04:15.250 PM the <code>UCAL_MINUTE</code> is 4.
+     * @stable ICU 2.6
+     */
     UCAL_MINUTE,
 
     /**
-   * Field number indicating the
-   * second within the minute.
-   * E.g., at 10:04:15.250 PM the <code>UCAL_SECOND</code> is 15.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * second within the minute.
+     * E.g., at 10:04:15.250 PM the <code>UCAL_SECOND</code> is 15.
+     * @stable ICU 2.6
+     */
     UCAL_SECOND,
 
     /**
-   * Field number indicating the
-   * millisecond within the second.
-   * E.g., at 10:04:15.250 PM the <code>UCAL_MILLISECOND</code> is 250.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * millisecond within the second.
+     * E.g., at 10:04:15.250 PM the <code>UCAL_MILLISECOND</code> is 250.
+     * @stable ICU 2.6
+     */
     UCAL_MILLISECOND,
 
     /**
-   * Field number indicating the
-   * raw offset from GMT in milliseconds.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * raw offset from GMT in milliseconds.
+     * @stable ICU 2.6
+     */
     UCAL_ZONE_OFFSET,
 
     /**
-   * Field number indicating the
-   * daylight savings offset in milliseconds.
-   * @stable ICU 2.6
-   */
+     * Field number indicating the
+     * daylight savings offset in milliseconds.
+     * @stable ICU 2.6
+     */
     UCAL_DST_OFFSET,
 
     /**
-   * Field number
-   * indicating the extended year corresponding to the
-   * <code>UCAL_WEEK_OF_YEAR</code> field.  This may be one greater or less
-   * than the value of <code>UCAL_EXTENDED_YEAR</code>.
-   * @stable ICU 2.6
-   */
+     * Field number
+     * indicating the extended year corresponding to the
+     * <code>UCAL_WEEK_OF_YEAR</code> field.  This may be one greater or less
+     * than the value of <code>UCAL_EXTENDED_YEAR</code>.
+     * @stable ICU 2.6
+     */
     UCAL_YEAR_WOY,
 
     /**
-   * Field number
-   * indicating the localized day of week.  This will be a value from 1
-   * to 7 inclusive, with 1 being the localized first day of the week.
-   * @stable ICU 2.6
-   */
+     * Field number
+     * indicating the localized day of week.  This will be a value from 1
+     * to 7 inclusive, with 1 being the localized first day of the week.
+     * @stable ICU 2.6
+     */
     UCAL_DOW_LOCAL,
 
     /**
-   * Year of this calendar system, encompassing all supra-year fields. For example,
-   * in Gregorian/Julian calendars, positive Extended Year values indicate years AD,
-   *  1 BC = 0 extended, 2 BC = -1 extended, and so on.
-   * @stable ICU 2.8
-   */
+     * Year of this calendar system, encompassing all supra-year fields. For example,
+     * in Gregorian/Julian calendars, positive Extended Year values indicate years AD,
+     *  1 BC = 0 extended, 2 BC = -1 extended, and so on.
+     * @stable ICU 2.8
+     */
     UCAL_EXTENDED_YEAR,
 
     /**
-   * Field number
-   * indicating the modified Julian day number.  This is different from
-   * the conventional Julian day number in two regards.  First, it
-   * demarcates days at local zone midnight, rather than noon GMT.
-   * Second, it is a local number; that is, it depends on the local time
-   * zone.  It can be thought of as a single number that encompasses all
-   * the date-related fields.
-   * @stable ICU 2.8
-   */
+     * Field number
+     * indicating the modified Julian day number.  This is different from
+     * the conventional Julian day number in two regards.  First, it
+     * demarcates days at local zone midnight, rather than noon GMT.
+     * Second, it is a local number; that is, it depends on the local time
+     * zone.  It can be thought of as a single number that encompasses all
+     * the date-related fields.
+     * @stable ICU 2.8
+     */
     UCAL_JULIAN_DAY,
 
     /**
-   * Ranges from 0 to 23:59:59.999 (regardless of DST).  This field behaves <em>exactly</em>
-   * like a composite of all time-related fields, not including the zone fields.  As such,
-   * it also reflects discontinuities of those fields on DST transition days.  On a day
-   * of DST onset, it will jump forward.  On a day of DST cessation, it will jump
-   * backward.  This reflects the fact that it must be combined with the DST_OFFSET field
-   * to obtain a unique local time value.
-   * @stable ICU 2.8
-   */
+     * Ranges from 0 to 23:59:59.999 (regardless of DST).  This field behaves <em>exactly</em>
+     * like a composite of all time-related fields, not including the zone fields.  As such,
+     * it also reflects discontinuities of those fields on DST transition days.  On a day
+     * of DST onset, it will jump forward.  On a day of DST cessation, it will jump
+     * backward.  This reflects the fact that it must be combined with the DST_OFFSET field
+     * to obtain a unique local time value.
+     * @stable ICU 2.8
+     */
     UCAL_MILLISECONDS_IN_DAY,
 
     /**
-   * Whether or not the current month is a leap month (0 or 1). See the Chinese calendar for
-   * an example of this.
-   */
+     * Whether or not the current month is a leap month (0 or 1). See the Chinese calendar for
+     * an example of this.
+     */
     UCAL_IS_LEAP_MONTH,
 
-    /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
-     * it is needed for layout of Calendar, DateFormat, and other objects */
+    /**
+     * Field number indicating the month. This is a calendar-specific value.
+     * Differ from UCAL_MONTH, this value is continuous and unique within a
+     * year and range from 0 to 11 or 0 to 12 depending on how many months in a
+     * year, the calendar system has leap month or not, and in leap year or not.
+     * It is the ordinal position of that month in the corresponding year of
+     * the calendar. For Chinese, Dangi, and Hebrew calendar, the range is
+     * 0 to 11 in non-leap years and 0 to 12 in leap years. For Coptic and Ethiopian
+     * calendar, the range is always 0 to 12. For other calendars supported by
+     * ICU now, the range is 0 to 11. When the number of months in a year of the
+     * identified calendar is variable, a different UCAL_ORDINAL_MONTH value can
+     * be used for dates that are part of the same named month in different years.
+     * For example, in the Hebrew calendar, "1 Nisan 5781" is associated with
+     * UCAL_ORDINAL_MONTH value 6 while "1 Nisan 5782" is associated with
+     * UCAL_ORDINAL_MONTH value 7 because 5782 is a leap year and Nisan follows
+     * the insertion of Adar I. In Chinese calendar, "Year 4664 Month 6 Day 2"
+     * is associated with UCAL_ORDINAL_MONTH value 5 while "Year 4665 Month 6 Day 2"
+     * is associated with UCAL_ORDINAL_MONTH value 6 because 4665 is a leap year
+     * and there is an extra "Leap Month 5" which associated with UCAL_ORDINAL_MONTH
+     * value 5 before "Month 6" of year 4664.
+     *
+     * @stable ICU 73
+     */
+    UCAL_ORDINAL_MONTH,
+
+/* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
+ * it is needed for layout of Calendar, DateFormat, and other objects */
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UCalendarDateFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCAL_FIELD_COUNT,
+    UCAL_FIELD_COUNT = UCAL_ORDINAL_MONTH + 1,
+
+#endif // U_FORCE_HIDE_DEPRECATED_API
 
     /**
-   * Field number indicating the
-   * day of the month. This is a synonym for <code>UCAL_DATE</code>.
-   * The first day of the month has value 1.
-   * @see #UCAL_DATE
-   * Synonym for UCAL_DATE
-   * @stable ICU 2.8
-   **/
+     * Field number indicating the
+     * day of the month. This is a synonym for <code>UCAL_DATE</code>.
+     * The first day of the month has value 1.
+     * @see #UCAL_DATE
+     * Synonym for UCAL_DATE
+     * @stable ICU 2.8
+     **/
     UCAL_DAY_OF_MONTH = UCAL_DATE
 };
-
 /**
  * Possible formats for a UCalendar's display name
  * @stable ICU 2.0
@@ -5802,10 +5828,10 @@ typedef enum UCalendarDisplayNameType UCalendarDisplayNameType;
 /** @stable ICU 2.0 */
 typedef enum UCalendarDateFields UCalendarDateFields;
 /**
-     * Useful constant for days of week. Note: Calendar day-of-week is 1-based. Clients
-     * who create locale resources for the field of first-day-of-week should be aware of
-     * this. For instance, in US locale, first-day-of-week is set to 1, i.e., UCAL_SUNDAY.
-     */
+ * Useful constant for days of week. Note: Calendar day-of-week is 1-based. Clients
+ * who create locale resources for the field of first-day-of-week should be aware of
+ * this. For instance, in US locale, first-day-of-week is set to 1, i.e., UCAL_SUNDAY.
+ */
 /** Possible days of the week in a UCalendar
  * @stable ICU 2.0
  */
@@ -5858,9 +5884,9 @@ enum UCalendarMonths {
     /** December */
     UCAL_DECEMBER,
     /** Value of the <code>UCAL_MONTH</code> field indicating the
-    * thirteenth month of the year. Although the Gregorian calendar
-    * does not use this value, lunar calendars do.
-    */
+     * thirteenth month of the year. Although the Gregorian calendar
+     * does not use this value, lunar calendars do.
+     */
     UCAL_UNDECIMBER
 };
 
@@ -5913,31 +5939,31 @@ typedef enum USystemTimeZoneType USystemTimeZoneType;
  */
 enum UCalendarAttribute {
     /**
-   * Lenient parsing
-   * @stable ICU 2.0
-   */
+     * Lenient parsing
+     * @stable ICU 2.0
+     */
     UCAL_LENIENT,
     /**
-   * First day of week
-   * @stable ICU 2.0
-   */
+     * First day of week
+     * @stable ICU 2.0
+     */
     UCAL_FIRST_DAY_OF_WEEK,
     /**
-   * Minimum number of days in first week
-   * @stable ICU 2.0
-   */
+     * Minimum number of days in first week
+     * @stable ICU 2.0
+     */
     UCAL_MINIMAL_DAYS_IN_FIRST_WEEK,
     /**
-   * The behavior for handling wall time repeating multiple times
-   * at negative time zone offset transitions
-   * @stable ICU 49
-   */
+     * The behavior for handling wall time repeating multiple times
+     * at negative time zone offset transitions
+     * @stable ICU 49
+     */
     UCAL_REPEATED_WALL_TIME,
     /**
-   * The behavior for handling skipped wall time at positive time
-   * zone offset transitions.
-   * @stable ICU 49
-   */
+     * The behavior for handling skipped wall time at positive time
+     * zone offset transitions.
+     * @stable ICU 49
+     */
     UCAL_SKIPPED_WALL_TIME
 };
 
@@ -5979,26 +6005,26 @@ typedef enum UCalendarWallTimeOption UCalendarWallTimeOption;
  */
 enum UCalendarWeekdayType {
     /**
-   * Designates a full weekday (no part of the day is included in the weekend).
-   * @stable ICU 4.4
-   */
+     * Designates a full weekday (no part of the day is included in the weekend).
+     * @stable ICU 4.4
+     */
     UCAL_WEEKDAY,
     /**
-   * Designates a full weekend day (the entire day is included in the weekend).
-   * @stable ICU 4.4
-   */
+     * Designates a full weekend day (the entire day is included in the weekend).
+     * @stable ICU 4.4
+     */
     UCAL_WEEKEND,
     /**
-   * Designates a day that starts as a weekday and transitions to the weekend.
-   * Call ucal_getWeekendTransition() to get the time of transition.
-   * @stable ICU 4.4
-   */
+     * Designates a day that starts as a weekday and transitions to the weekend.
+     * Call ucal_getWeekendTransition() to get the time of transition.
+     * @stable ICU 4.4
+     */
     UCAL_WEEKEND_ONSET,
     /**
-   * Designates a day that starts as the weekend and transitions to a weekday.
-   * Call ucal_getWeekendTransition() to get the time of transition.
-   * @stable ICU 4.4
-   */
+     * Designates a day that starts as the weekend and transitions to a weekday.
+     * Call ucal_getWeekendTransition() to get the time of transition.
+     * @stable ICU 4.4
+     */
     UCAL_WEEKEND_CEASE
 };
 
@@ -6292,9 +6318,9 @@ typedef enum UNumberFormatRoundingMode {
     UNUM_ROUND_HALFDOWN = UNUM_ROUND_HALFEVEN + 1,
     UNUM_ROUND_HALFUP,
     /**
-      * ROUND_UNNECESSARY reports an error if formatted result is not exact.
-      * @stable ICU 4.8
-      */
+     * ROUND_UNNECESSARY reports an error if formatted result is not exact.
+     * @stable ICU 4.8
+     */
     UNUM_ROUND_UNNECESSARY
 } UNumberFormatRoundingMode;
 
@@ -6444,22 +6470,22 @@ typedef enum UNumberFormatTextAttribute {
     /** The ISO currency code */
     UNUM_CURRENCY_CODE,
     /**
-   * The default rule set, such as "%spellout-numbering-year:", "%spellout-cardinal:",
-   * "%spellout-ordinal-masculine-plural:", "%spellout-ordinal-feminine:", or
-   * "%spellout-ordinal-neuter:". The available public rulesets can be listed using
-   * unum_getTextAttribute with UNUM_PUBLIC_RULESETS. This is only available with
-   * rule-based formatters.
-   * @stable ICU 3.0
-   */
+     * The default rule set, such as "%spellout-numbering-year:", "%spellout-cardinal:",
+     * "%spellout-ordinal-masculine-plural:", "%spellout-ordinal-feminine:", or
+     * "%spellout-ordinal-neuter:". The available public rulesets can be listed using
+     * unum_getTextAttribute with UNUM_PUBLIC_RULESETS. This is only available with
+     * rule-based formatters.
+     * @stable ICU 3.0
+     */
     UNUM_DEFAULT_RULESET,
     /**
-   * The public rule sets.  This is only available with rule-based formatters.
-   * This is a read-only attribute.  The public rulesets are returned as a
-   * single string, with each ruleset name delimited by ';' (semicolon). See the
-   * CLDR LDML spec for more information about RBNF rulesets:
-   * http://www.unicode.org/reports/tr35/tr35-numbers.html#Rule-Based_Number_Formatting
-   * @stable ICU 3.0
-   */
+     * The public rule sets.  This is only available with rule-based formatters.
+     * This is a read-only attribute.  The public rulesets are returned as a
+     * single string, with each ruleset name delimited by ';' (semicolon). See the
+     * CLDR LDML spec for more information about RBNF rulesets:
+     * http://www.unicode.org/reports/tr35/tr35-numbers.html#Rule-Based_Number_Formatting
+     * @stable ICU 3.0
+     */
     UNUM_PUBLIC_RULESETS
 } UNumberFormatTextAttribute;
 
@@ -6516,87 +6542,87 @@ typedef enum UNumberFormatAttribute {
     /** Secondary grouping size */
     UNUM_SECONDARY_GROUPING_SIZE,
     /** Use significant digits
-   * @stable ICU 3.0 */
+     * @stable ICU 3.0 */
     UNUM_SIGNIFICANT_DIGITS_USED,
     /** Minimum significant digits
-   * @stable ICU 3.0 */
+     * @stable ICU 3.0 */
     UNUM_MIN_SIGNIFICANT_DIGITS,
     /** Maximum significant digits
-   * @stable ICU 3.0 */
+     * @stable ICU 3.0 */
     UNUM_MAX_SIGNIFICANT_DIGITS,
     /** Lenient parse mode used by rule-based formats.
-   * @stable ICU 3.0
-   */
+     * @stable ICU 3.0
+     */
     UNUM_LENIENT_PARSE,
 #if UCONFIG_HAVE_PARSEALLINPUT
     /** Consume all input. (may use fastpath). Set to UNUM_YES (require fastpath), UNUM_NO (skip fastpath), or UNUM_MAYBE (heuristic).
-   * This is an internal ICU API. Do not use.
-   * @internal
-   */
+     * This is an internal ICU API. Do not use.
+     * @internal
+     */
     UNUM_PARSE_ALL_INPUT = 20,
 #endif
     /**
-    * Scale, which adjusts the position of the
-    * decimal point when formatting.  Amounts will be multiplied by 10 ^ (scale)
-    * before they are formatted.  The default value for the scale is 0 ( no adjustment ).
-    *
-    * <p>Example: setting the scale to 3, 123 formats as "123,000"
-    * <p>Example: setting the scale to -4, 123 formats as "0.0123"
-    *
-   * @stable ICU 51 */
+     * Scale, which adjusts the position of the
+     * decimal point when formatting.  Amounts will be multiplied by 10 ^ (scale)
+     * before they are formatted.  The default value for the scale is 0 ( no adjustment ).
+     *
+     * <p>Example: setting the scale to 3, 123 formats as "123,000"
+     * <p>Example: setting the scale to -4, 123 formats as "0.0123"
+     *
+     * @stable ICU 51 */
     UNUM_SCALE = 21,
 #ifndef U_HIDE_INTERNAL_API
     /**
-   * Minimum grouping digits, technology preview.
-   * See DecimalFormat::getMinimumGroupingDigits().
-   *
-   * @internal technology preview
-   */
+     * Minimum grouping digits, technology preview.
+     * See DecimalFormat::getMinimumGroupingDigits().
+     *
+     * @internal technology preview
+     */
     UNUM_MINIMUM_GROUPING_DIGITS = 22,
 /* TODO: test C API when it becomes @draft */
 #endif /* U_HIDE_INTERNAL_API */
 
     /**
-   * if this attribute is set to 0, it is set to UNUM_CURRENCY_STANDARD purpose,
-   * otherwise it is UNUM_CURRENCY_CASH purpose
-   * Default: 0 (UNUM_CURRENCY_STANDARD purpose)
-   * @stable ICU 54
-   */
+     * if this attribute is set to 0, it is set to UNUM_CURRENCY_STANDARD purpose,
+     * otherwise it is UNUM_CURRENCY_CASH purpose
+     * Default: 0 (UNUM_CURRENCY_STANDARD purpose)
+     * @stable ICU 54
+     */
     UNUM_CURRENCY_USAGE = 23,
 
     /* The following cannot be #ifndef U_HIDE_INTERNAL_API, needed in .h file variable declararions */
     /** One below the first bitfield-boolean item.
-   * All items after this one are stored in boolean form.
-   * @internal */
+     * All items after this one are stored in boolean form.
+     * @internal */
     UNUM_MAX_NONBOOLEAN_ATTRIBUTE = 0x0FFF,
 
     /** If 1, specifies that if setting the "max integer digits" attribute would truncate a value, set an error status rather than silently truncating.
-   * For example,  formatting the value 1234 with 4 max int digits would succeed, but formatting 12345 would fail. There is no effect on parsing.
-   * Default: 0 (not set)
-   * @stable ICU 50
-   */
+     * For example,  formatting the value 1234 with 4 max int digits would succeed, but formatting 12345 would fail. There is no effect on parsing.
+     * Default: 0 (not set)
+     * @stable ICU 50
+     */
     UNUM_FORMAT_FAIL_IF_MORE_THAN_MAX_DIGITS = 0x1000,
     /**
-   * if this attribute is set to 1, specifies that, if the pattern doesn't contain an exponent, the exponent will not be parsed. If the pattern does contain an exponent, this attribute has no effect.
-   * Has no effect on formatting.
-   * Default: 0 (unset)
-   * @stable ICU 50
-   */
+     * if this attribute is set to 1, specifies that, if the pattern doesn't contain an exponent, the exponent will not be parsed. If the pattern does contain an exponent, this attribute has no effect.
+     * Has no effect on formatting.
+     * Default: 0 (unset)
+     * @stable ICU 50
+     */
     UNUM_PARSE_NO_EXPONENT,
 
     /**
-   * if this attribute is set to 1, specifies that, if the pattern contains a
-   * decimal mark the input is required to have one. If this attribute is set to 0,
-   * specifies that input does not have to contain a decimal mark.
-   * Has no effect on formatting.
-   * Default: 0 (unset)
-   * @stable ICU 54
-   */
+     * if this attribute is set to 1, specifies that, if the pattern contains a
+     * decimal mark the input is required to have one. If this attribute is set to 0,
+     * specifies that input does not have to contain a decimal mark.
+     * Has no effect on formatting.
+     * Default: 0 (unset)
+     * @stable ICU 54
+     */
     UNUM_PARSE_DECIMAL_MARK_REQUIRED = 0x1002,
 
     /* The following cannot be #ifndef U_HIDE_INTERNAL_API, needed in .h file variable declararions */
     /** Limit of boolean attributes.
-   * @internal */
+     * @internal */
     UNUM_LIMIT_BOOLEAN_ATTRIBUTE = 0x1003
 } UNumberFormatAttribute;
 
@@ -6697,10 +6723,10 @@ typedef enum UNumberFormatMinimumGroupingDigits {
 #define ULOC_KEYWORD_SEPARATOR '@'
 
 /**
-  * Unicode code point for '@' separating keywords from the locale string.
-  * @see ULOC_KEYWORD_SEPARATOR
-  * @stable ICU 4.6
-  */
+ * Unicode code point for '@' separating keywords from the locale string.
+ * @see ULOC_KEYWORD_SEPARATOR
+ * @stable ICU 4.6
+ */
 #define ULOC_KEYWORD_SEPARATOR_UNICODE 0x40
 
 /**
@@ -6710,10 +6736,10 @@ typedef enum UNumberFormatMinimumGroupingDigits {
 #define ULOC_KEYWORD_ASSIGN '='
 
 /**
-  * Unicode code point for '=' for assigning value to a keyword.
-  * @see ULOC_KEYWORD_ASSIGN
-  * @stable ICU 4.6
-  */
+ * Unicode code point for '=' for assigning value to a keyword.
+ * @see ULOC_KEYWORD_ASSIGN
+ * @stable ICU 4.6
+ */
 #define ULOC_KEYWORD_ASSIGN_UNICODE 0x3D
 
 /**
@@ -6723,10 +6749,10 @@ typedef enum UNumberFormatMinimumGroupingDigits {
 #define ULOC_KEYWORD_ITEM_SEPARATOR ';'
 
 /**
-  * Unicode code point for ';' separating keywords
-  * @see ULOC_KEYWORD_ITEM_SEPARATOR
-  * @stable ICU 4.6
-  */
+ * Unicode code point for ';' separating keywords
+ * @see ULOC_KEYWORD_ITEM_SEPARATOR
+ * @stable ICU 4.6
+ */
 #define ULOC_KEYWORD_ITEM_SEPARATOR_UNICODE 0x3B
 
 /**
@@ -6745,18 +6771,18 @@ typedef enum UNumberFormatMinimumGroupingDigits {
  */
 typedef enum {
     /** This is locale the data actually comes from
-   * @stable ICU 2.1
-   */
+     * @stable ICU 2.1
+     */
     ULOC_ACTUAL_LOCALE = 0,
     /** This is the most specific locale supported by ICU
-   * @stable ICU 2.1
-   */
+     * @stable ICU 2.1
+     */
     ULOC_VALID_LOCALE = 1,
 
 #ifndef U_HIDE_DEPRECATED_API
     /** This is the requested locale
-   *  @deprecated ICU 2.8
-   */
+     *  @deprecated ICU 2.8
+     */
     ULOC_REQUESTED_LOCALE = 2,
 
     /**
@@ -6796,13 +6822,13 @@ typedef enum UBreakIteratorType {
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
-   * Title Case breaks
-   * The iterator created using this type locates title boundaries as described for
-   * Unicode 3.2 only. For Unicode 4.0 and above title boundary iteration,
-   * please use Word Boundary iterator.
-   *
-   * @deprecated ICU 2.8 Use the word break iterator for titlecasing for Unicode 4 and later.
-   */
+     * Title Case breaks
+     * The iterator created using this type locates title boundaries as described for
+     * Unicode 3.2 only. For Unicode 4.0 and above title boundary iteration,
+     * please use Word Boundary iterator.
+     *
+     * @deprecated ICU 2.8 Use the word break iterator for titlecasing for Unicode 4 and later.
+     */
     UBRK_TITLE = 4,
     /**
      * One more than the highest normal UBreakIteratorType value.
@@ -6828,7 +6854,7 @@ typedef enum UBreakIteratorType {
  * The numeric values of all of these constants are stable (will not change).
  *
  * @stable ICU 2.2
-*/
+ */
 typedef enum UWordBreak {
     /** Tag value for "words" that do not fit into any of other categories.
      *  Includes spaces and most punctuation. */
@@ -6864,10 +6890,10 @@ typedef enum UWordBreak {
  * The numeric values of all of these constants are stable (will not change).
  *
  * @stable ICU 2.8
-*/
+ */
 typedef enum ULineBreakTag {
     /** Tag value for soft line breaks, positions at which a line break
-      *  is acceptable but not required                */
+     *  is acceptable but not required                */
     UBRK_LINE_SOFT = 0,
     /** Upper bound for soft line breaks.              */
     UBRK_LINE_SOFT_LIMIT = 100,
@@ -6888,19 +6914,19 @@ typedef enum ULineBreakTag {
  * The numeric values of all of these constants are stable (will not change).
  *
  * @stable ICU 2.8
-*/
+ */
 typedef enum USentenceBreakTag {
     /** Tag value for for sentences  ending with a sentence terminator
-      * ('.', '?', '!', etc.) character, possibly followed by a
-      * hard separator (CR, LF, PS, etc.)
-      */
+     * ('.', '?', '!', etc.) character, possibly followed by a
+     * hard separator (CR, LF, PS, etc.)
+     */
     UBRK_SENTENCE_TERM = 0,
     /** Upper bound for tags for sentences ended by sentence terminators.    */
     UBRK_SENTENCE_TERM_LIMIT = 100,
     /** Tag value for for sentences that do not contain an ending
-      * sentence terminator ('.', '?', '!', etc.) character, but
-      * are ended only by a hard separator (CR, LF, PS, etc.) or end of input.
-      */
+     * sentence terminator ('.', '?', '!', etc.) character, but
+     * are ended only by a hard separator (CR, LF, PS, etc.) or end of input.
+     */
     UBRK_SENTENCE_SEP = 100,
     /** Upper bound for tags for sentences ended by a separator.              */
     UBRK_SENTENCE_SEP_LIMIT = 200
@@ -7151,17 +7177,17 @@ typedef enum {
 
 struct UCharsetDetector;
 /**
-  * Structure representing a charset detector
-  * @stable ICU 3.6
-  */
+ * Structure representing a charset detector
+ * @stable ICU 3.6
+ */
 typedef struct UCharsetDetector UCharsetDetector;
 
 struct UCharsetMatch;
 /**
-  *  Opaque structure representing a match that was identified
-  *  from a charset detection operation.
-  *  @stable ICU 3.6
-  */
+ *  Opaque structure representing a match that was identified
+ *  from a charset detection operation.
+ *  @stable ICU 3.6
+ */
 typedef struct UCharsetMatch UCharsetMatch;
 
 // ubidi.h
@@ -7295,42 +7321,42 @@ typedef uint8_t UBiDiLevel;
  */
 enum UBiDiDirection {
     /** Left-to-right text. This is a 0 value.
-   * <ul>
-   * <li>As return value for <code>ubidi_getDirection()</code>, it means
-   *     that the source string contains no right-to-left characters, or
-   *     that the source string is empty and the paragraph level is even.
-   * <li> As return value for <code>ubidi_getBaseDirection()</code>, it
-   *      means that the first strong character of the source string has
-   *      a left-to-right direction.
-   * </ul>
-   * @stable ICU 2.0
-   */
+     * <ul>
+     * <li>As return value for <code>ubidi_getDirection()</code>, it means
+     *     that the source string contains no right-to-left characters, or
+     *     that the source string is empty and the paragraph level is even.
+     * <li> As return value for <code>ubidi_getBaseDirection()</code>, it
+     *      means that the first strong character of the source string has
+     *      a left-to-right direction.
+     * </ul>
+     * @stable ICU 2.0
+     */
     UBIDI_LTR,
     /** Right-to-left text. This is a 1 value.
-   * <ul>
-   * <li>As return value for <code>ubidi_getDirection()</code>, it means
-   *     that the source string contains no left-to-right characters, or
-   *     that the source string is empty and the paragraph level is odd.
-   * <li> As return value for <code>ubidi_getBaseDirection()</code>, it
-   *      means that the first strong character of the source string has
-   *      a right-to-left direction.
-   * </ul>
-   * @stable ICU 2.0
-   */
+     * <ul>
+     * <li>As return value for <code>ubidi_getDirection()</code>, it means
+     *     that the source string contains no left-to-right characters, or
+     *     that the source string is empty and the paragraph level is odd.
+     * <li> As return value for <code>ubidi_getBaseDirection()</code>, it
+     *      means that the first strong character of the source string has
+     *      a right-to-left direction.
+     * </ul>
+     * @stable ICU 2.0
+     */
     UBIDI_RTL,
     /** Mixed-directional text.
-   * <p>As return value for <code>ubidi_getDirection()</code>, it means
-   *    that the source string contains both left-to-right and
-   *    right-to-left characters.
-   * @stable ICU 2.0
-   */
+     * <p>As return value for <code>ubidi_getDirection()</code>, it means
+     *    that the source string contains both left-to-right and
+     *    right-to-left characters.
+     * @stable ICU 2.0
+     */
     UBIDI_MIXED,
     /** No strongly directional text.
-   * <p>As return value for <code>ubidi_getBaseDirection()</code>, it means
-   *    that the source string is missing or empty, or contains neither left-to-right
-   *    nor right-to-left characters.
-   * @stable ICU 4.6
-   */
+     * <p>As return value for <code>ubidi_getBaseDirection()</code>, it means
+     *    that the source string is missing or empty, or contains neither left-to-right
+     *    nor right-to-left characters.
+     * @stable ICU 4.6
+     */
     UBIDI_NEUTRAL
 };
 
@@ -7931,7 +7957,7 @@ typedef enum UNumberRangeIdentityResult {
      * @internal
      */
     UNUM_IDENTITY_RESULT_COUNT
-#endif  /* U_HIDE_INTERNAL_API */
+#endif /* U_HIDE_INTERNAL_API */
 
 } UNumberRangeIdentityResult;
 
@@ -8080,7 +8106,7 @@ typedef enum UFieldCategory {
 #ifndef U_HIDE_INTERNAL_API
     /** @internal */
     UFIELD_CATEGORY_COUNT,
-#endif  /* U_HIDE_INTERNAL_API */
+#endif /* U_HIDE_INTERNAL_API */
     /**
      * Category for spans in a list.
      *
@@ -8133,21 +8159,21 @@ typedef struct UFormattedValue UFormattedValue;
  */
 typedef enum UDateRelativeDateTimeFormatterStyle {
     /**
-   * Everything spelled out.
-   * @stable ICU 54
-   */
+     * Everything spelled out.
+     * @stable ICU 54
+     */
     UDAT_STYLE_LONG,
 
     /**
-   * Abbreviations used when possible.
-   * @stable ICU 54
-   */
+     * Abbreviations used when possible.
+     * @stable ICU 54
+     */
     UDAT_STYLE_SHORT,
 
     /**
-   * Use the shortest possible form.
-   * @stable ICU 54
-   */
+     * Use the shortest possible form.
+     * @stable ICU 54
+     */
     UDAT_STYLE_NARROW,
 
 #ifndef U_HIDE_DEPRECATED_API
@@ -8442,7 +8468,7 @@ typedef enum UListFormatterWidth {
  * @stable ICU 4.8
  */
 struct UDateIntervalFormat;
-typedef struct UDateIntervalFormat UDateIntervalFormat;  /**< C typedef for struct UDateIntervalFormat. @stable ICU 4.8 */
+typedef struct UDateIntervalFormat UDateIntervalFormat; /**< C typedef for struct UDateIntervalFormat. @stable ICU 4.8 */
 
 struct UFormattedDateInterval;
 /**

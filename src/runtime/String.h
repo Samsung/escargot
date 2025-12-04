@@ -1020,6 +1020,12 @@ public:
         m_bufferData.has8BitContent = false;
     }
 
+    template <const size_t srcLen>
+    UTF16StringFromExternalMemory(const char16_t (&src)[srcLen])
+        : UTF16StringFromExternalMemory(src, srcLen - 1)
+    {
+    }
+
     virtual bool hasExternalMemory() override
     {
         return true;
