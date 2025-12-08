@@ -114,6 +114,15 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
         if (fn(1, "am")) {
             return;
         }
+    } else if (id() >= ID::Islamic && id() <= ID::IslamicUmmAlQura) {
+        // for old-icu(~77)
+        if (fn(0, "ah")) {
+            return;
+        }
+        if (fn(0, "bh")) {
+            return;
+        }
+        return;
     }
 
     std::string s = "root/calendar/";
@@ -369,8 +378,18 @@ void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, String* er
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid era value");
     }
 
-    ucal_set(icuCalendar, UCAL_ERA, eraIdx.value());
-    ucal_set(icuCalendar, UCAL_YEAR, year + diffYearDueToICU4CAndSpecDiffer());
+    if (id() >= ID::Islamic && id() <= ID::IslamicUmmAlQura) {
+        // for old-icu(~77)
+        ucal_set(icuCalendar, UCAL_ERA, 0);
+        if (era->equals("ah")) {
+            ucal_set(icuCalendar, UCAL_YEAR, year);
+        } else {
+            ucal_set(icuCalendar, UCAL_YEAR, (-year + 1));
+        }
+    } else {
+        ucal_set(icuCalendar, UCAL_ERA, eraIdx.value());
+        ucal_set(icuCalendar, UCAL_YEAR, year + diffYearDueToICU4CAndSpecDiffer());
+    }
 
     if (sameAsGregoryExceptHandlingEraAndYear()) {
         auto isoDate = Temporal::computeISODate(state, icuCalendar);
@@ -428,6 +447,14 @@ int32_t Calendar::eraYear(ExecutionState& state, UCalendar* icuCalendar)
         ucal_setMillis(newCal.get(), epochTime, &status);
         y = ucal_get(newCal.get(), UCAL_YEAR, &status);
         CHECK_ICU_CALENDAR();
+    } else if (id() >= ID::Islamic && id() <= ID::IslamicUmmAlQura) {
+        // for old-icu(~77)
+        UErrorCode status = U_ZERO_ERROR;
+        y = ucal_get(icuCalendar, UCAL_YEAR, &status);
+        CHECK_ICU_CALENDAR();
+        if (y < 1) {
+            y = -(y - 1);
+        }
     } else {
         UErrorCode status = U_ZERO_ERROR;
         y = ucal_get(icuCalendar, UCAL_YEAR, &status);
@@ -465,6 +492,42 @@ String* Calendar::era(ExecutionState& state, UCalendar* icuCalendar)
         ucal_setMillis(newCal.get(), epochTime, &status);
         CHECK_ICU_CALENDAR();
         icuCalendar = newCal.get();
+    } else if (id() >= ID::Islamic && id() <= ID::IslamicUmmAlQura) {
+        // for old-icu(~77)
+        auto y = ucal_get(icuCalendar, UCAL_YEAR, &status);
+        CHECK_ICU_CALENDAR();
+        if (y < 1) {
+            return new ASCIIStringFromExternalMemory("bh");
+        } else {
+            return new ASCIIStringFromExternalMemory("ah");
+        }
+
+        /*
+
+static int64_t islamicStartDay(Calendar::ID cal)
+{
+    switch (cal) {
+    case Calendar::ID::IslamicTabular:
+        return ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(622, 7, 29)).epochMilliseconds();
+    case Calendar::ID::Islamic:
+    case Calendar::ID::IslamicCivil:
+    case Calendar::ID::IslamicCivilLegacy:
+    case Calendar::ID::IslamicRGSA:
+    case Calendar::ID::IslamicUmmAlQura:
+    default:
+        return ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(622, 7, 16)).epochMilliseconds();
+    }
+}
+
+        int64_t startDate = islamicStartDay(id());
+        auto epochTime = ucal_getMillis(icuCalendar, &status);
+
+        if (startDate >= epochTime) {
+            return new ASCIIStringFromExternalMemory("ah");
+        } else {
+            return new ASCIIStringFromExternalMemory("bh");
+        }
+        */
     }
 
     auto ucalEra = ucal_get(icuCalendar, UCAL_ERA, &status);

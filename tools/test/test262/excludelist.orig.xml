@@ -411,9 +411,6 @@
     <test id="intl402/Temporal/Duration/prototype/total/relativeto-sub-minute-offset"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Instant/prototype/toLocaleString/era"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/calc-epoch-year-hebrew"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/era-boundary-islamic-civil"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/era-boundary-islamic-tbla"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/era-boundary-islamic-umalqura"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/extreme-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/from-iso-string-indian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/hebrew-keviah"><reason>TODO</reason></test>
@@ -445,9 +442,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/add/constrain-day-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/constrain-day-roc"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/era-boundary-islamic-civil"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/era-boundary-islamic-tbla"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/era-boundary-islamic-umalqura"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-months-chinese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-months-dangi"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-months-hebrew"><reason>TODO</reason></test>
@@ -541,9 +535,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/subtract/constrain-day-roc"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/dangi-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/era-boundary-islamic-civil"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/era-boundary-islamic-tbla"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/era-boundary-islamic-umalqura"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/leap-months-chinese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/leap-months-dangi"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/leap-months-hebrew"><reason>TODO</reason></test>
