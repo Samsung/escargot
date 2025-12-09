@@ -55,6 +55,20 @@ T intFloor(T x, int64_t y)
     }
 }
 
+struct MonthCode {
+    unsigned monthNumber = 0;
+    bool isLeapMonth = false;
+    bool operator==(const MonthCode& src) const
+    {
+        return monthNumber == src.monthNumber && isLeapMonth == src.isLeapMonth;
+    }
+
+    bool operator!=(const MonthCode& src) const
+    {
+        return !operator==(src);
+    }
+};
+
 // https://github.com/tc39/proposal-intl-era-monthcode
 class Calendar {
 public:
@@ -123,9 +137,6 @@ public:
     // icu4c base year of chinese, dangi, roc are differ with icu4x
     int diffYearDueToICU4CAndSpecDiffer() const;
 
-    // in icu4c, hebrew calendar needs UCAL_ORIDINAL_CODE for everywhere
-    UCalendarDateFields icuNonOridnalMonthCode() const;
-
     static Optional<Calendar> fromString(ISO8601::CalendarID);
     static Optional<Calendar> fromString(String* str);
     String* toString() const;
@@ -139,6 +150,13 @@ public:
     int32_t year(ExecutionState& state, UCalendar* calendar);
     int32_t eraYear(ExecutionState& state, UCalendar* calendar);
     String* era(ExecutionState& state, UCalendar* calendar);
+
+    void setOrdinalMonth(UCalendar* calendar, int32_t month);
+    void setMonth(UCalendar* calendar, MonthCode mc);
+
+    int32_t ordinalMonth(ExecutionState& state, UCalendar* calendar);
+    MonthCode monthCode(ExecutionState& state, UCalendar* calendar);
+    bool inLeapMonth(ExecutionState& state, UCalendar* calendar);
 
 private:
     UCalendar* createICUCalendar(ExecutionState& state, const std::string& name);
@@ -216,11 +234,6 @@ inline TemporalUnit toTemporalUnit(ISO8601::DateTimeUnit u)
 {
     return static_cast<TemporalUnit>(u);
 }
-
-struct MonthCode {
-    unsigned monthNumber = 0;
-    bool isLeapMonth = false;
-};
 
 #define CALENDAR_FIELD_RECORDS(F)                   \
     F(era, Era, Optional<String*>)                  \

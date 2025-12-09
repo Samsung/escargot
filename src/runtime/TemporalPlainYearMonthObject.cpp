@@ -224,14 +224,14 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         // Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
         UErrorCode status = U_ZERO_ERROR;
         auto year = calendar.year(state, nextMonth);
-        auto month = ucal_get(nextMonth, UCAL_ORDINAL_MONTH, &status) + 1;
+        auto month = calendar.ordinalMonth(state, nextMonth);
         CHECK_ICU();
         auto day = ucal_get(nextMonth, UCAL_DAY_OF_MONTH, &status);
         CHECK_ICU();
         auto balancedDate = Temporal::balanceISODate(state, year, month, day - 1);
         // Assert: ISODateWithinLimits(date) is true.
         calendar.setYear(state, nextMonth, balancedDate.year());
-        ucal_set(nextMonth, UCAL_ORDINAL_MONTH, balancedDate.month() - 1);
+        calendar.setOrdinalMonth(nextMonth, balancedDate.month());
         ucal_set(nextMonth, UCAL_DAY_OF_MONTH, balancedDate.day());
 
         date.reset(nextMonth);
