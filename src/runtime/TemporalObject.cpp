@@ -123,6 +123,19 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
             return;
         }
         return;
+    } else if (id() == ID::Coptic) {
+        // for old-icu(~77)
+        // 0 is not AM
+        if (fn(1, "am")) {
+            return;
+        }
+        return;
+    } else if (id() == ID::EthiopianAmeteAlem) {
+        // for old-icu(~77)
+         if (fn(0, "aa")) {
+            return;
+        }
+        return;
     }
 
     std::string s = "root/calendar/";
@@ -359,6 +372,9 @@ void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, String* er
         if (id() == Calendar::ID::Japanese && (era->equals("ad") || era->equals("bc") || era->equals("ce") || era->equals("bce"))) {
             Calendar(ID::Gregorian).setYear(state, icuCalendar, era, year);
             return;
+        } else if (id() == Calendar::ID::Buddhist && era->equals("be")) {
+            Calendar(ID::ISO8601).setYear(state, icuCalendar, year + epochISOYear());
+            return;
         }
         newCal.reset(createICUCalendar(state, "en@calendar=" + toICUString()));
         icuCalendar = newCal.get();
@@ -408,6 +424,9 @@ int32_t Calendar::year(ExecutionState& state, UCalendar* icuCalendar)
         } else if (id() == ID::ROC) {
             y -= 1911;
         }
+    } else if (id() == ID::EthiopianAmeteAlem) {
+        // exceptional cases
+        y = ucal_get(icuCalendar, UCAL_YEAR, &status) - diffYearDueToICU4CAndSpecDiffer();
     } else {
         if (shouldUseICUExtendedYear()) {
             y = ucal_get(icuCalendar, UCAL_EXTENDED_YEAR, &status) - diffYearDueToICU4CAndSpecDiffer();
@@ -453,6 +472,14 @@ int32_t Calendar::eraYear(ExecutionState& state, UCalendar* icuCalendar)
         y = ucal_get(icuCalendar, UCAL_YEAR, &status);
         CHECK_ICU_CALENDAR();
         if (y < 1) {
+            y = -(y - 1);
+        }
+    } else if (id() == ID::Coptic) {
+        UErrorCode status = U_ZERO_ERROR;
+        y = ucal_get(icuCalendar, UCAL_YEAR, &status);
+        CHECK_ICU_CALENDAR();
+        auto isoYear = Temporal::computeISODate(state, icuCalendar).year();
+        if (isoYear <= epochISOYear()) {
             y = -(y - 1);
         }
     } else {
@@ -501,33 +528,12 @@ String* Calendar::era(ExecutionState& state, UCalendar* icuCalendar)
         } else {
             return new ASCIIStringFromExternalMemory("ah");
         }
-
-        /*
-
-static int64_t islamicStartDay(Calendar::ID cal)
-{
-    switch (cal) {
-    case Calendar::ID::IslamicTabular:
-        return ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(622, 7, 29)).epochMilliseconds();
-    case Calendar::ID::Islamic:
-    case Calendar::ID::IslamicCivil:
-    case Calendar::ID::IslamicCivilLegacy:
-    case Calendar::ID::IslamicRGSA:
-    case Calendar::ID::IslamicUmmAlQura:
-    default:
-        return ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(622, 7, 16)).epochMilliseconds();
-    }
-}
-
-        int64_t startDate = islamicStartDay(id());
-        auto epochTime = ucal_getMillis(icuCalendar, &status);
-
-        if (startDate >= epochTime) {
-            return new ASCIIStringFromExternalMemory("ah");
-        } else {
-            return new ASCIIStringFromExternalMemory("bh");
-        }
-        */
+    } else if (id() == ID::Coptic) {
+        // for old-icu(~77)
+        return new ASCIIStringFromExternalMemory("am");
+    } else if (id() == ID::EthiopianAmeteAlem) {
+        // for old-icu(~77)
+        return new ASCIIStringFromExternalMemory("aa");
     }
 
     auto ucalEra = ucal_get(icuCalendar, UCAL_ERA, &status);

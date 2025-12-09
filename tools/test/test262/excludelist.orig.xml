@@ -412,16 +412,13 @@
     <test id="intl402/Temporal/Instant/prototype/toLocaleString/era"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/calc-epoch-year-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/from-iso-string-indian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/hebrew-keviah"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/invalid-month-codes-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/islamic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/leap-months-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/leap-year-hebrew"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/non-positive-single-era-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/basic-chinese"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/basic-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/basic-dangi"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/basic-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/basic-hebrew"><reason>TODO</reason></test>
@@ -459,9 +456,7 @@
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-year-roc"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-buddhist"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-chinese"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-dangi"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-gregory"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/month-boundary-indian"><reason>TODO</reason></test>
@@ -512,7 +507,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/since/wrapping-at-end-of-month-islamic-umalqura"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/since/wrapping-at-end-of-month-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/basic-chinese"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/basic-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/basic-dangi"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/basic-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/basic-hebrew"><reason>TODO</reason></test>
@@ -552,9 +546,7 @@
     <test id="intl402/Temporal/PlainDate/prototype/subtract/leap-year-roc"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-buddhist"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-chinese"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-dangi"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-gregory"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/month-boundary-indian"><reason>TODO</reason></test>
@@ -654,7 +646,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/with/wrapping-at-end-of-month-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/with/wrapping-at-end-of-month-ethiopic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/withCalendar/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/year/arithmetic-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/year/epoch-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/from/basic-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/from/calendar-not-supporting-eras"><reason>TODO</reason></test>
@@ -975,7 +966,6 @@
     <test id="intl402/Temporal/PlainYearMonth/prototype/until/chinese-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/until/dangi-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/with/non-iso-calendar-fields"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/prototype/year/arithmetic-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/year/epoch-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/from/basic-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes"><reason>TODO</reason></test>
@@ -1876,7 +1866,6 @@
     <test id="staging/Temporal/v8/duration-constructor"><reason>TODO</reason></test>
     <test id="staging/Temporal/v8/duration-to-json-boundary-cases"><reason>TODO</reason></test>
     <test id="staging/Temporal/v8/plain-date-time-with-plain-time"><reason>TODO</reason></test>
-    <test id="staging/Temporal/v8/plain-date-with"><reason>TODO</reason></test>
     <test id="staging/built-ins/Object/preventExtensions/preventExtensions-variable-length-typed-arrays"><reason>TODO</reason></test>
     <test id="staging/built-ins/Object/seal/seal-variable-length-typed-arrays"><reason>TODO</reason></test>
     <test id="staging/built-ins/Reflect/preventExtensions/preventExtensions-variable-length-typed-arrays"><reason>TODO</reason></test>
@@ -1988,7 +1977,6 @@
     <test id="staging/sm/Symbol/as-base-value"><reason>TODO</reason></test>
     <test id="staging/sm/Symbol/property-nonwritable"><reason>TODO</reason></test>
     <test id="staging/sm/Symbol/property-reflection"><reason>TODO</reason></test>
-    <test id="staging/sm/Temporal/PlainDate/from-indian"><reason>TODO</reason></test>
     <test id="staging/sm/Temporal/PlainDate/from-islamic-umalqura"><reason>TODO</reason></test>
     <test id="staging/sm/Temporal/PlainMonthDay/from-chinese-leap-month-uncommon"><reason>TODO</reason></test>
     <test id="staging/sm/Temporal/ZonedDateTime/zones-and-links"><reason>TODO</reason></test>

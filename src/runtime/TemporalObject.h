@@ -66,7 +66,7 @@ public:
     F(Coptic, "coptic", "coptic", "coptic")                                         \
     F(Dangi, "dangi", "dangi", "dangi")                                             \
     F(Ethiopian, "ethiopic", "ethiopic", "ethiopic")                                \
-    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethiopic-amete-alem")  \
+    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethioaa")              \
     F(Gregorian, "gregory", "gregorian", "gregory")                                 \
     F(Hebrew, "hebrew", "hebrew", "hebrew")                                         \
     F(Indian, "indian", "indian", "indian")                                         \
