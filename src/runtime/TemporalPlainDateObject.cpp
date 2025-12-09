@@ -38,20 +38,30 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
-TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar, bool checkBoundery)
+TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoDate, Calendar calendar, bool checkBoundery)
     : DerivedObject(state, proto)
-    , m_plainDate(new(PointerFreeGC) ISO8601::PlainDate(plainDate))
+    , m_plainDate(new(PointerFreeGC) ISO8601::PlainDate(isoDate))
     , m_calendarID(calendar)
 {
-    if (checkBoundery && !ISO8601::isoDateTimeWithinLimits(plainDate.year(), plainDate.month(), plainDate.day())) {
+    if (checkBoundery && !ISO8601::isoDateTimeWithinLimits(isoDate.year(), isoDate.month(), isoDate.day())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
     }
 
     m_icuCalendar = calendar.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(plainDate).floorEpochMilliseconds(), &status);
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(isoDate).floorEpochMilliseconds(), &status);
     CHECK_ICU()
+
+    if (!calendar.isISO8601()) {
+        auto y = calendar.year(state, m_icuCalendar);
+        auto m = ucal_get(m_icuCalendar, UCAL_ORDINAL_MONTH, &status) + 1;
+        CHECK_ICU()
+        auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU()
+
+        *m_plainDate = ISO8601::PlainDate(y, m, d);
+    }
 
     addFinalizer([](PointerValue* obj, void* data) {
         TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
