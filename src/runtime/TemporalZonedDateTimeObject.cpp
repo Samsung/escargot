@@ -69,13 +69,18 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
 {
     m_timeZone = timeZone;
     Int128 timezoneAppliedEpochNanoseconds = *m_epochNanoseconds + timeZone.offset();
-    *m_plainDateTime = Temporal::toPlainDateTime(timezoneAppliedEpochNanoseconds);
 
     if (!ISO8601::isValidEpochNanoseconds(*m_epochNanoseconds)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
     }
 
     m_icuCalendar = m_calendarID.createICUCalendar(state);
+
+    addFinalizer([](PointerValue* obj, void* data) {
+        TemporalZonedDateTimeObject* self = (TemporalZonedDateTimeObject*)obj;
+        ucal_close(self->m_icuCalendar);
+    },
+                 nullptr);
 
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime(*m_epochNanoseconds).floorEpochMilliseconds(), &status);
@@ -85,11 +90,28 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
     ucal_setTimeZone(m_icuCalendar, tz.data(), tz.length(), &status);
     CHECK_ICU()
 
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalZonedDateTimeObject* self = (TemporalZonedDateTimeObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
+    auto calendar = calendarID();
+    if (calendar.isISO8601()) {
+        *m_plainDateTime = Temporal::toPlainDateTime(timezoneAppliedEpochNanoseconds);
+    } else {
+        int64_t underMicrosecondValue = int64_t(timezoneAppliedEpochNanoseconds % 1000000);
+        auto y = calendar.year(state, m_icuCalendar);
+        auto m = calendar.ordinalMonth(state, m_icuCalendar);
+        CHECK_ICU()
+        auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU()
+
+        auto h = ucal_get(m_icuCalendar, UCAL_HOUR_OF_DAY, &status);
+        CHECK_ICU()
+        auto mm = ucal_get(m_icuCalendar, UCAL_MINUTE, &status);
+        CHECK_ICU()
+        auto s = ucal_get(m_icuCalendar, UCAL_SECOND, &status);
+        CHECK_ICU()
+        auto ms = ucal_get(m_icuCalendar, UCAL_MILLISECOND, &status);
+        CHECK_ICU()
+
+        *m_plainDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(y, m, d), ISO8601::PlainTime(h, mm, s, ms, underMicrosecondValue / 1000, underMicrosecondValue % 1000));
+    }
 }
 
 TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar)
