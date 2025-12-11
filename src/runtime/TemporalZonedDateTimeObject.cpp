@@ -556,7 +556,7 @@ ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTime(E
     // Let dateLargestUnit be LargerOfTwoTemporalUnits(largestUnit, day).
     auto dateLargestUnit = Temporal::largerOfTwoTemporalUnits(largestUnit, ISO8601::DateTimeUnit::Day);
     // Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
-    auto dateDifference = Temporal::calendarDateUntil(calendar, startDateTime.plainDate(), intermediateDateTime.plainDate(), toTemporalUnit(dateLargestUnit));
+    auto dateDifference = Temporal::calendarDateUntil(state, calendar, startDateTime.plainDate(), intermediateDateTime.plainDate(), toTemporalUnit(dateLargestUnit));
     // Return CombineDateAndTimeDuration(dateDifference, timeDuration).
     return ISO8601::InternalDuration(dateDifference, timeDuration);
 }

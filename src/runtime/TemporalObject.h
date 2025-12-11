@@ -145,13 +145,13 @@ public:
     void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
 
     void setYear(ExecutionState& state, UCalendar* calendar, int32_t year);
-    void setYear(ExecutionState& state, UCalendar* calendar, String* era, int32_t year);
+    void setYear(ExecutionState& state, UCalendar* calendar, const String* era, int32_t year);
 
     int32_t year(ExecutionState& state, UCalendar* calendar);
     int32_t eraYear(ExecutionState& state, UCalendar* calendar);
     String* era(ExecutionState& state, UCalendar* calendar);
 
-    void setOrdinalMonth(UCalendar* calendar, int32_t month);
+    void setOrdinalMonth(ExecutionState& state, UCalendar* calendar, int32_t month);
     void setMonth(UCalendar* calendar, MonthCode mc);
 
     int32_t ordinalMonth(ExecutionState& state, UCalendar* calendar);
@@ -513,7 +513,7 @@ public:
     static std::pair<UCalendar*, ISO8601::PlainDate> calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
-    static ISO8601::Duration calendarDateUntil(Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);
+    static ISO8601::Duration calendarDateUntil(ExecutionState& state, Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-balanceisoyearmonth
     static ISO8601::PlainYearMonth balanceISOYearMonth(double year, double month);

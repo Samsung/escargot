@@ -231,7 +231,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         auto balancedDate = Temporal::balanceISODate(state, year, month, day - 1);
         // Assert: ISODateWithinLimits(date) is true.
         calendar.setYear(state, nextMonth, balancedDate.year());
-        calendar.setOrdinalMonth(nextMonth, balancedDate.month());
+        calendar.setOrdinalMonth(state, nextMonth, balancedDate.month());
         ucal_set(nextMonth, UCAL_DAY_OF_MONTH, balancedDate.day());
 
         date.reset(nextMonth);
@@ -303,7 +303,7 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
     auto otherDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
                                                  Temporal::calendarDateFromFields(state, calendar, otherFields, TemporalOverflowOption::Constrain), calendar);
     // Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
-    auto dateDifference = Temporal::calendarDateUntil(calendar, thisDate->computeISODate(state), otherDate->computeISODate(state), toTemporalUnit(settings.largestUnit));
+    auto dateDifference = Temporal::calendarDateUntil(state, calendar, thisDate->computeISODate(state), otherDate->computeISODate(state), toTemporalUnit(settings.largestUnit));
 
     // Let yearsMonthsDifference be ! AdjustDateDurationRecord(dateDifference, 0, 0).
     auto yearsMonthsDifference = Temporal::adjustDateDurationRecord(state, dateDifference, 0, 0, NullOption);

@@ -355,16 +355,37 @@ Value TemporalPlainDateGetter::monthsInYear(ExecutionState& state, ISO8601::Plai
     CHECK_ICU()
 
     ucal_set(newCal.get(), UCAL_DAY_OF_MONTH, 1);
-    int monthCount;
-    for (monthCount = 1;; monthCount++) {
-        calendarID.setOrdinalMonth(newCal.get(), monthCount);
-        if (calendarID.ordinalMonth(state, newCal.get()) != monthCount) {
-            CHECK_ICU()
-            break;
+
+    int monthCount = 0;
+    if (calendarID.id() == Calendar::ID::Chinese || calendarID.id() == Calendar::ID::Dangi) {
+        // NOTE there is a bug in icu4c Chinese and Dangi calendar with 2033(ce) year
+        // 2033 has 13 months but we cannot set 13th ordinal month through UCAL_ORDINAL_MONTH
+        for (unsigned i = 1; i <= 13; i++) {
+            MonthCode mc;
+            mc.monthNumber = i;
+            mc.isLeapMonth = false;
+
+            calendarID.setMonth(newCal.get(), mc);
+            if (mc == calendarID.monthCode(state, newCal.get())) {
+                monthCount++;
+            }
+            mc.isLeapMonth = true;
+            calendarID.setMonth(newCal.get(), mc);
+            if (mc == calendarID.monthCode(state, newCal.get())) {
+                monthCount++;
+            }
+        }
+    } else {
+        for (int32_t i = 1;; i++) {
+            calendarID.setOrdinalMonth(state, newCal.get(), i);
+            if (calendarID.ordinalMonth(state, newCal.get()) != i) {
+                break;
+            }
+            monthCount++;
         }
     }
 
-    return Value(monthCount - 1);
+    return Value(monthCount);
 }
 
 Value TemporalPlainDateGetter::inLeapYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
@@ -546,7 +567,7 @@ ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(Execution
     }
 
     // Let dateDifference be CalendarDateUntil(temporalDate.[[Calendar]], temporalDate.[[ISODate]], other.[[ISODate]], settings.[[LargestUnit]]).
-    auto dateDifference = Temporal::calendarDateUntil(m_calendarID, computeISODate(state), other->computeISODate(state), toTemporalUnit(settings.largestUnit));
+    auto dateDifference = Temporal::calendarDateUntil(state, m_calendarID, computeISODate(state), other->computeISODate(state), toTemporalUnit(settings.largestUnit));
 
     // Let duration be CombineDateAndTimeDuration(dateDifference, 0).
     auto duration = ISO8601::InternalDuration::combineDateAndTimeDuration(dateDifference, {});
