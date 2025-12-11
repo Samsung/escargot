@@ -352,7 +352,7 @@ void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, int32_t ye
     CHECK_ICU_CALENDAR();
 }
 
-void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, String* era, int32_t year)
+void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, const String* era, int32_t year)
 {
     ASSERT(isEraRelated());
     UCalendar* targetCalendar = icuCalendar;
@@ -548,8 +548,45 @@ String* Calendar::era(ExecutionState& state, UCalendar* icuCalendar)
     return String::fromASCII(result.value().data(), result.value().length());
 }
 
-void Calendar::setOrdinalMonth(UCalendar* icuCalendar, int32_t month)
+void Calendar::setOrdinalMonth(ExecutionState& state, UCalendar* icuCalendar, int32_t month)
 {
+    if (id() == Calendar::ID::Chinese || id() == Calendar::ID::Dangi) {
+        // there is some bugs compute UCAL_ORDINAL_MONTH in icu4c :(
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UCalendar> calHolder(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
+            ucal_close(r);
+        });
+        CHECK_ICU_CALENDAR();
+        int32_t monthCount = 0;
+        MonthCode lastMatchedMonth;
+        for (unsigned i = 1; i <= 13; i++) {
+            MonthCode mc;
+            mc.monthNumber = i;
+            mc.isLeapMonth = false;
+
+            setMonth(calHolder.get(), mc);
+            if (mc == monthCode(state, calHolder.get())) {
+                monthCount++;
+                lastMatchedMonth = mc;
+                if (monthCount == month) {
+                    setMonth(icuCalendar, mc);
+                    return;
+                }
+            }
+            mc.isLeapMonth = true;
+            setMonth(calHolder.get(), mc);
+            if (mc == monthCode(state, calHolder.get())) {
+                monthCount++;
+                lastMatchedMonth = mc;
+                if (monthCount == month) {
+                    setMonth(icuCalendar, mc);
+                    return;
+                }
+            }
+        }
+        setMonth(icuCalendar, lastMatchedMonth);
+        return;
+    }
     ucal_set(icuCalendar, UCAL_ORDINAL_MONTH, month - 1);
 }
 
@@ -576,6 +613,40 @@ void Calendar::setMonth(UCalendar* icuCalendar, MonthCode mc)
 
 int32_t Calendar::ordinalMonth(ExecutionState& state, UCalendar* icuCalendar)
 {
+    if (id() == Calendar::ID::Chinese || id() == Calendar::ID::Dangi) {
+        // there is some bugs compute UCAL_ORDINAL_MONTH in icu4c :(
+        auto target = monthCode(state, icuCalendar);
+
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UCalendar> calHolder(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
+            ucal_close(r);
+        });
+        CHECK_ICU_CALENDAR();
+        int32_t monthCount = 0;
+        for (unsigned i = 1; i <= 13; i++) {
+            MonthCode mc;
+            mc.monthNumber = i;
+            mc.isLeapMonth = false;
+
+            setMonth(calHolder.get(), mc);
+            if (mc == monthCode(state, calHolder.get())) {
+                monthCount++;
+                if (mc == target) {
+                    break;
+                }
+            }
+            mc.isLeapMonth = true;
+            setMonth(calHolder.get(), mc);
+            if (mc == monthCode(state, calHolder.get())) {
+                monthCount++;
+                if (mc == target) {
+                    break;
+                }
+            }
+        }
+
+        return monthCount;
+    }
     UErrorCode status = U_ZERO_ERROR;
     unsigned m = ucal_get(icuCalendar, UCAL_ORDINAL_MONTH, &status);
     CHECK_ICU_CALENDAR();
@@ -2949,10 +3020,19 @@ static uint8_t daysInMonth(Calendar calendar, uint8_t month, bool isLeapMonth)
     }
 }
 
-static void setICUMonth(Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
+static void setICUYear(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
+{
+    if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
+        calendar.setYear(state, icuCalendar, fields.era.value(), fields.eraYear.value());
+    } else if (fields.year) {
+        calendar.setYear(state, icuCalendar, fields.year.value());
+    }
+}
+
+static void setICUMonth(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
 {
     if (fields.month) {
-        calendar.setOrdinalMonth(icuCalendar, fields.month.value());
+        calendar.setOrdinalMonth(state, icuCalendar, fields.month.value());
     }
     if (fields.monthCode) {
         calendar.setMonth(icuCalendar, fields.monthCode.value());
@@ -2967,9 +3047,9 @@ static void setICUMonthDay(ExecutionState& state, Calendar calendar, const Calen
             UErrorCode status = U_ZERO_ERROR;
 
             ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
-            setICUMonth(calendar, fields, icuCalendar);
+            setICUYear(state, calendar, fields, icuCalendar);
+            setICUMonth(state, calendar, fields, icuCalendar);
             ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, day);
-            auto epochTime = ucal_getMillis(icuCalendar, &status);
             if (fields.month) {
                 unsigned test = calendar.ordinalMonth(state, icuCalendar);
                 CHECK_ICU_CALENDAR();
@@ -2995,7 +3075,7 @@ static void setICUMonthDay(ExecutionState& state, Calendar calendar, const Calen
         }
     } else {
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
-        setICUMonth(calendar, fields, icuCalendar);
+        setICUMonth(state, calendar, fields, icuCalendar);
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
     }
 }
@@ -3075,7 +3155,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
         isoDateIfExist = ISO8601::PlainDate(fields.year.value(), month, fields.day.value());
 
         calendar.setYear(state, icuCalendar, fields.year.value());
-        calendar.setOrdinalMonth(icuCalendar, month);
+        calendar.setOrdinalMonth(state, icuCalendar, month);
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
 
     } else {
@@ -3112,7 +3192,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
         }
 
         if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
-            calendar.setYear(state, icuCalendar, fields.era.value(), fields.eraYear.value());
+            setICUYear(state, calendar, fields, icuCalendar);
             setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::Date ? overflow : TemporalOverflowOption::Reject);
 
             if (fields.year) {
@@ -3125,7 +3205,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
                 }
             }
         } else {
-            calendar.setYear(state, icuCalendar, fields.year.value());
+            setICUYear(state, calendar, fields, icuCalendar);
             setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::Date ? overflow : TemporalOverflowOption::Reject);
         }
     }
@@ -3166,7 +3246,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             }
 
             calendar.setYear(state, icuCalendar, fields.year.value() - diff);
-            setICUMonth(calendar, fields, icuCalendar);
+            setICUMonth(state, calendar, fields, icuCalendar);
             ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
         }
     }
@@ -3558,50 +3638,85 @@ static inline double makeDay(double year, double month, double date)
     return days + date - 1;
 }
 
-ISO8601::Duration Temporal::calendarDateUntil(Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit)
+ISO8601::Duration Temporal::calendarDateUntil(ExecutionState& state, Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit)
 {
-    // TODO non-iso8601 calendar
+    double years = 0;
+    double months = 0;
+    double weeks = 0;
+    double days = 0;
     auto sign = -1 * one.compare(two);
     if (!sign)
         return {};
 
-    double years = 0;
-    double months = 0;
+    if (calendar.isISO8601() || calendar.sameAsGregoryExceptHandlingEraAndYear() || calendar.id() == Calendar::ID::Gregorian) {
+        if (largestUnit == TemporalUnit::Year || largestUnit == TemporalUnit::Month) {
+            auto candidateYears = two.year() - one.year();
+            if (candidateYears)
+                candidateYears -= sign;
+            while (!isoDateSurpasses(sign, one.year() + candidateYears, one.month(), one.day(), two)) {
+                years = candidateYears;
+                candidateYears += sign;
+            }
 
-    if (largestUnit == TemporalUnit::Year || largestUnit == TemporalUnit::Month) {
-        auto candidateYears = two.year() - one.year();
-        if (candidateYears)
-            candidateYears -= sign;
-        while (!isoDateSurpasses(sign, one.year() + candidateYears, one.month(), one.day(), two)) {
-            years = candidateYears;
-            candidateYears += sign;
+            auto candidateMonths = sign;
+            auto intermediate = balanceISOYearMonth(one.year() + years, one.month() + candidateMonths);
+            while (!isoDateSurpasses(sign, intermediate.year(), intermediate.month(), one.day(), two)) {
+                months = candidateMonths;
+                candidateMonths += sign;
+                intermediate = balanceISOYearMonth(intermediate.year(), intermediate.month() + sign);
+            }
+
+            if (largestUnit == TemporalUnit::Month) {
+                months += years * 12;
+                years = 0;
+            }
         }
 
-        auto candidateMonths = sign;
-        auto intermediate = balanceISOYearMonth(one.year() + years, one.month() + candidateMonths);
-        while (!isoDateSurpasses(sign, intermediate.year(), intermediate.month(), one.day(), two)) {
-            months = candidateMonths;
-            candidateMonths += sign;
-            intermediate = balanceISOYearMonth(intermediate.year(), intermediate.month() + sign);
+        auto intermediate = balanceISOYearMonth(one.year() + years, one.month() + months);
+        auto constrained = regulateISODate(intermediate.year(), intermediate.month(), one.day(), TemporalOverflowOption::Constrain);
+
+        days = makeDay(two.year(), two.month() - 1, two.day()) - makeDay(constrained->year(), constrained->month() - 1, constrained->day());
+    } else {
+        LocalResourcePointer<UCalendar> calOne(calendar.createICUCalendar(state), [](UCalendar* r) {
+            ucal_close(r);
+        });
+
+        auto oneEpoch = ISO8601::ExactTime::fromPlainDate(one).epochMilliseconds();
+        auto twoEpoch = ISO8601::ExactTime::fromPlainDate(two).epochMilliseconds();
+
+        UErrorCode status = U_ZERO_ERROR;
+        ucal_setMillis(calOne.get(), oneEpoch, &status);
+        CHECK_ICU_CALENDAR();
+
+        if (largestUnit == TemporalUnit::Year) {
+            years = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_YEAR, &status);
+            CHECK_ICU_CALENDAR();
+            if (years) {
+                oneEpoch = ucal_getMillis(calOne.get(), &status);
+                CHECK_ICU_CALENDAR();
+            }
         }
 
-        if (largestUnit == TemporalUnit::Month) {
-            months += years * 12;
-            years = 0;
+        if (largestUnit <= TemporalUnit::Month) {
+            months = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_ORDINAL_MONTH, &status);
+            CHECK_ICU_CALENDAR();
+            if (months) {
+                oneEpoch = ucal_getMillis(calOne.get(), &status);
+                CHECK_ICU_CALENDAR();
+            }
+        }
+
+        if (largestUnit <= TemporalUnit::Day) {
+            days = std::floor((twoEpoch - oneEpoch) / static_cast<double>(ISO8601::TimeConstants::msPerDay));
         }
     }
-
-    auto intermediate = balanceISOYearMonth(one.year() + years, one.month() + months);
-    auto constrained = regulateISODate(intermediate.year(), intermediate.month(), one.day(), TemporalOverflowOption::Constrain);
-
-    double weeks = 0;
-    double days = makeDay(two.year(), two.month() - 1, two.day()) - makeDay(constrained->year(), constrained->month() - 1, constrained->day());
 
     if (largestUnit == TemporalUnit::Week) {
         weeks = std::trunc(std::abs(days) / 7.0);
         days = std::trunc((double)(((Int128)std::trunc(days)) % 7));
-        if (weeks)
+        if (weeks) {
             weeks *= sign; // Avoid -0
+        }
     }
 
     return { years, months, weeks, days, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -3832,7 +3947,7 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
         auto yearsMonths = adjustDateDurationRecord(state, duration.dateDuration(), 0, 0, NullOption);
         auto weeksStart = Temporal::isoDateAdd(state, isoDateTime.plainDate(), yearsMonths, TemporalOverflowOption::Constrain);
         auto weeksEnd = Temporal::balanceISODate(state, weeksStart.year(), weeksStart.month(), weeksStart.day() + duration.dateDuration().days());
-        auto untilResult = Temporal::calendarDateUntil(calendar, weeksStart, weeksEnd, TemporalUnit::Week);
+        auto untilResult = Temporal::calendarDateUntil(state, calendar, weeksStart, weeksEnd, TemporalUnit::Week);
         Int128 weeks = roundNumberToIncrementInt128((Int128)(duration.dateDuration().weeks() + untilResult.weeks()),
                                                     (Int128)increment, ISO8601::RoundingMode::Trunc);
         r1 = (double)weeks;
@@ -4110,7 +4225,7 @@ ISO8601::InternalDuration Temporal::differenceISODateTime(ExecutionState& state,
     // Let dateLargestUnit be LargerOfTwoTemporalUnits(day, largestUnit).
     auto dateLargestUnit = largerOfTwoTemporalUnits(ISO8601::DateTimeUnit::Day, largestUnit);
     // Let dateDifference be CalendarDateUntil(calendar, isoDateTime1.[[ISODate]], adjustedDate, dateLargestUnit).
-    auto dateDifference = calendarDateUntil(calendar, isoDateTime1.plainDate(), adjustedDate, toTemporalUnit(dateLargestUnit));
+    auto dateDifference = calendarDateUntil(state, calendar, isoDateTime1.plainDate(), adjustedDate, toTemporalUnit(dateLargestUnit));
     // If largestUnit is not dateLargestUnit, then
     if (largestUnit != dateLargestUnit) {
         // Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, dateDifference.[[Days]]).
