@@ -318,8 +318,6 @@
     <test id="built-ins/Temporal/Duration/prototype/total/rounding-window"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/negative-instant"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/toString/negative-instant-rounding"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainDate/prototype/add/argument-duration-max"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainDate/prototype/subtract/argument-duration-max"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/with/overflow"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/with/overflow-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/since/options-read-before-algorithmic-validation"><reason>TODO</reason></test>
@@ -327,8 +325,6 @@
     <test id="built-ins/Temporal/PlainDateTime/prototype/toString/rounding-edge-of-range"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/until/options-read-before-algorithmic-validation"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/until/order-of-operations"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/prototype/add/argument-duration-max"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/prototype/subtract/argument-duration-max"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/prototype/with/options-read-before-algorithmic-validation"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/ZonedDateTime/compare/argument-string-limits"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/ZonedDateTime/from/argument-string-limits"><reason>TODO</reason></test>
@@ -417,9 +413,6 @@
     <test id="intl402/Temporal/PlainDate/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/monthCode/chinese-calendar-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/since/era-boundary-ethiopic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/since/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/since/era-boundary-japanese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/since/intercalary-month-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/since/intercalary-month-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/since/intercalary-month-ethiopic"><reason>TODO</reason></test>
@@ -440,9 +433,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/since/wrapping-at-end-of-month-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/subtract/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toZonedDateTime/dst-skipped-cross-midnight"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/until/era-boundary-ethiopic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/until/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/prototype/until/era-boundary-japanese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/until/intercalary-month-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/until/intercalary-month-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/until/intercalary-month-ethiopic"><reason>TODO</reason></test>
@@ -522,9 +512,6 @@
     <test id="intl402/Temporal/PlainDateTime/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/add/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/monthCode/chinese-calendar-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/since/era-boundary-ethiopic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/since/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/since/era-boundary-japanese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/since/intercalary-month-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/since/intercalary-month-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/since/intercalary-month-ethiopic"><reason>TODO</reason></test>
@@ -547,9 +534,6 @@
     <test id="intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/dst-disambiguation"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/multiple-instants"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/toZonedDateTime/order-of-operations"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/until/era-boundary-ethiopic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/until/era-boundary-gregory"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/prototype/until/era-boundary-japanese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/until/intercalary-month-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/until/intercalary-month-ethioaa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/until/intercalary-month-ethiopic"><reason>TODO</reason></test>

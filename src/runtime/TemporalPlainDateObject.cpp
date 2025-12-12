@@ -492,12 +492,17 @@ TemporalPlainDateObject* TemporalPlainDateObject::with(ExecutionState& state, Va
 TemporalPlainDateObject* TemporalPlainDateObject::withCalendar(ExecutionState& state, Value calendarLike)
 {
     auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
-    auto icuCalendar = calendar.createICUCalendar(state);
+    LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
+    auto epoch = ucal_getMillis(m_icuCalendar, &status);
+    CHECK_ICU()
+    ucal_setMillis(newCal.get(), epoch, &status);
+    CHECK_ICU()
 
-    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), std::make_pair(icuCalendar, NullOption), calendar);
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), std::make_pair(newCal.release(), NullOption), calendar);
 }
 
 TemporalDurationObject* TemporalPlainDateObject::since(ExecutionState& state, Value other, Value options)

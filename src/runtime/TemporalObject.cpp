@@ -240,6 +240,9 @@ bool Calendar::isEraRelated() const
 
 bool Calendar::shouldUseICUExtendedYear() const
 {
+    if (id() == Calendar::ID::ISO8601) {
+        return true;
+    }
     if (sameAsGregoryExceptHandlingEraAndYear()) {
         return false;
     }
@@ -3495,14 +3498,13 @@ std::pair<UCalendar*, ISO8601::PlainDate> Temporal::calendarDateAdd(ExecutionSta
 
         return std::make_pair(newCal.release(), ISO8601::PlainDate(year, month, day));
     } else {
-        int32_t y, m, d, check, monthCount;
+        int32_t y, m, d, check;
         MonthCode mc;
 
         y = ucal_get(newCal.get(), UCAL_YEAR, &status);
         m = calendar.ordinalMonth(state, newCal.get());
         mc = calendar.monthCode(state, newCal.get());
         d = ucal_get(newCal.get(), UCAL_DAY_OF_MONTH, &status);
-        monthCount = TemporalPlainDateGetter::monthsInYear(state, computeISODate(state, newCal.get()), calendar, newCal.get()).asInt32();
 
         bool isAnnotherCaseOfCalendarsItHasLeapMonth = (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi);
         bool isHebrewRejectCase = overflow == TemporalOverflowOption::Reject && calendar.id() == Calendar::ID::Hebrew && duration.years() && mc.isLeapMonth;
@@ -3689,7 +3691,7 @@ ISO8601::Duration Temporal::calendarDateUntil(ExecutionState& state, Calendar ca
         CHECK_ICU_CALENDAR();
 
         if (largestUnit == TemporalUnit::Year) {
-            years = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_YEAR, &status);
+            years = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_EXTENDED_YEAR, &status);
             CHECK_ICU_CALENDAR();
             if (years) {
                 oneEpoch = ucal_getMillis(calOne.get(), &status);

@@ -236,14 +236,19 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::withCalendar(Execution
 {
     // Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
     auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
-    auto icuCalendar = calendar.createICUCalendar(state);
+    LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
+    auto epoch = ucal_getMillis(m_icuCalendar, &status);
+    CHECK_ICU()
+    ucal_setMillis(newCal.get(), epoch, &status);
+    CHECK_ICU()
 
     // Return ! CreateTemporalDateTime(plainDateTime.[[ISODateTime]], calendar).
     return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
-                                           icuCalendar, plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
+                                           newCal.release(), plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
 }
 
 TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::addDurationToDateTime(ExecutionState& state, AddDurationToDateTimeOperation operation, Value temporalDurationLike, Value options)
