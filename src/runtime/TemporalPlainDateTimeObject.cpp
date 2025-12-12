@@ -58,27 +58,46 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
-TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, ISO8601::PlainTime plainTime, Calendar calendar)
+TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoDate, ISO8601::PlainTime plainTime, Calendar calendar)
     : DerivedObject(state, proto)
-    , m_plainDateTime(new(PointerFreeGC) ISO8601::PlainDateTime(plainDate, plainTime))
+    , m_plainDateTime(new(PointerFreeGC) ISO8601::PlainDateTime(isoDate, plainTime))
     , m_calendarID(calendar)
 {
-    if (!ISO8601::isDateTimeWithinLimits(plainDate.year(), plainDate.month(), plainDate.day(),
+    if (!ISO8601::isDateTimeWithinLimits(isoDate.year(), isoDate.month(), isoDate.day(),
                                          plainTime.hour(), plainTime.minute(), plainTime.second(), plainTime.microsecond(), plainTime.microsecond(), plainTime.nanosecond())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time");
     }
 
     m_icuCalendar = calendar.createICUCalendar(state);
 
-    UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(plainDate, plainTime)).floorEpochMilliseconds(), &status);
-    CHECK_ICU()
-
     addFinalizer([](PointerValue* obj, void* data) {
         TemporalPlainDateTimeObject* self = (TemporalPlainDateTimeObject*)obj;
         ucal_close(self->m_icuCalendar);
     },
                  nullptr);
+
+    UErrorCode status = U_ZERO_ERROR;
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(isoDate, plainTime)).floorEpochMilliseconds(), &status);
+    CHECK_ICU()
+
+    if (!calendar.isISO8601()) {
+        auto y = calendar.year(state, m_icuCalendar);
+        auto m = calendar.ordinalMonth(state, m_icuCalendar);
+        CHECK_ICU()
+        auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU()
+
+        auto h = ucal_get(m_icuCalendar, UCAL_HOUR_OF_DAY, &status);
+        CHECK_ICU()
+        auto mm = ucal_get(m_icuCalendar, UCAL_MINUTE, &status);
+        CHECK_ICU()
+        auto s = ucal_get(m_icuCalendar, UCAL_SECOND, &status);
+        CHECK_ICU()
+        auto ms = ucal_get(m_icuCalendar, UCAL_MILLISECOND, &status);
+        CHECK_ICU()
+
+        *m_plainDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(y, m, d), plainTime);
+    }
 }
 
 TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, unsigned underMicrosecondValue, Calendar calendar)
@@ -87,17 +106,17 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     , m_calendarID(calendar)
     , m_icuCalendar(icuCalendar)
 {
+    addFinalizer([](PointerValue* obj, void* data) {
+        TemporalPlainDateTimeObject* self = (TemporalPlainDateTimeObject*)obj;
+        ucal_close(self->m_icuCalendar);
+    },
+                 nullptr);
+
     ASSERT(underMicrosecondValue < 1000 * 1000);
     UErrorCode status = U_ZERO_ERROR;
 
-    int32_t y;
-    if (calendar.shouldUseICUExtendedYear()) {
-        y = ucal_get(m_icuCalendar, UCAL_EXTENDED_YEAR, &status);
-    } else {
-        y = ucal_get(m_icuCalendar, UCAL_YEAR, &status);
-    }
-    CHECK_ICU()
-    auto m = ucal_get(m_icuCalendar, UCAL_MONTH, &status) + 1;
+    auto y = calendar.year(state, m_icuCalendar);
+    auto m = calendar.ordinalMonth(state, m_icuCalendar);
     CHECK_ICU()
     auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
     CHECK_ICU()
@@ -112,12 +131,6 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     CHECK_ICU()
 
     *m_plainDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(y, m, d), ISO8601::PlainTime(h, mm, s, ms, underMicrosecondValue / 1000, underMicrosecondValue % 1000));
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateTimeObject* self = (TemporalPlainDateTimeObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
 }
 
 String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value options)
@@ -223,14 +236,19 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::withCalendar(Execution
 {
     // Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
     auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
-    auto icuCalendar = calendar.createICUCalendar(state);
+    LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
+    auto epoch = ucal_getMillis(m_icuCalendar, &status);
+    CHECK_ICU()
+    ucal_setMillis(newCal.get(), epoch, &status);
+    CHECK_ICU()
 
     // Return ! CreateTemporalDateTime(plainDateTime.[[ISODateTime]], calendar).
     return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
-                                           icuCalendar, plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
+                                           newCal.release(), plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
 }
 
 TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::addDurationToDateTime(ExecutionState& state, AddDurationToDateTimeOperation operation, Value temporalDurationLike, Value options)

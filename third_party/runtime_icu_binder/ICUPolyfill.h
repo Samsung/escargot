@@ -143,6 +143,7 @@
 #define ucal_getTimeZoneTransitionDate RuntimeICUBinder::ICU::instance().ucal_getTimeZoneTransitionDate
 #define ucal_add RuntimeICUBinder::ICU::instance().ucal_add
 #define ucal_getTimeZoneOffsetFromLocal RuntimeICUBinder::ICU::instance().ucal_getTimeZoneOffsetFromLocal
+#define ucal_getFieldDifference RuntimeICUBinder::ICU::instance().ucal_getFieldDifference
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close
 #define udatpg_open RuntimeICUBinder::ICU::instance().udatpg_open

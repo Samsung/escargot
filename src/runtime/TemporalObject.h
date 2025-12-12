@@ -55,6 +55,21 @@ T intFloor(T x, int64_t y)
     }
 }
 
+struct MonthCode {
+    unsigned monthNumber = 0;
+    bool isLeapMonth = false;
+    bool operator==(const MonthCode& src) const
+    {
+        return monthNumber == src.monthNumber && isLeapMonth == src.isLeapMonth;
+    }
+
+    bool operator!=(const MonthCode& src) const
+    {
+        return !operator==(src);
+    }
+};
+
+// https://github.com/tc39/proposal-intl-era-monthcode
 class Calendar {
 public:
     // sync with 'canonicalCodeForDisplayNames'
@@ -65,7 +80,7 @@ public:
     F(Coptic, "coptic", "coptic", "coptic")                                         \
     F(Dangi, "dangi", "dangi", "dangi")                                             \
     F(Ethiopian, "ethiopic", "ethiopic", "ethiopic")                                \
-    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethiopic-amete-alem")  \
+    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethioaa")              \
     F(Gregorian, "gregory", "gregorian", "gregory")                                 \
     F(Hebrew, "hebrew", "hebrew", "hebrew")                                         \
     F(Indian, "indian", "indian", "indian")                                         \
@@ -112,6 +127,15 @@ public:
 
     bool isEraRelated() const;
     bool shouldUseICUExtendedYear() const;
+    bool hasLeapMonths() const;
+    bool hasEpagomenalMonths() const;
+    bool sameAsGregoryExceptHandlingEraAndYear() const;
+
+    // https://tc39.es/proposal-intl-era-monthcode/#table-epoch-years
+    int32_t epochISOYear() const;
+
+    // icu4c base year of chinese, dangi, roc are differ with icu4x
+    int diffYearDueToICU4CAndSpecDiffer() const;
 
     static Optional<Calendar> fromString(ISO8601::CalendarID);
     static Optional<Calendar> fromString(String* str);
@@ -120,7 +144,22 @@ public:
     UCalendar* createICUCalendar(ExecutionState& state);
     void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
 
+    void setYear(ExecutionState& state, UCalendar* calendar, int32_t year);
+    void setYear(ExecutionState& state, UCalendar* calendar, const String* era, int32_t year);
+
+    int32_t year(ExecutionState& state, UCalendar* calendar);
+    int32_t eraYear(ExecutionState& state, UCalendar* calendar);
+    String* era(ExecutionState& state, UCalendar* calendar);
+
+    void setOrdinalMonth(ExecutionState& state, UCalendar* calendar, int32_t month);
+    void setMonth(UCalendar* calendar, MonthCode mc);
+
+    int32_t ordinalMonth(ExecutionState& state, UCalendar* calendar);
+    MonthCode monthCode(ExecutionState& state, UCalendar* calendar);
+    bool inLeapMonth(ExecutionState& state, UCalendar* calendar);
+
 private:
+    UCalendar* createICUCalendar(ExecutionState& state, const std::string& name);
     ID m_id;
 };
 
@@ -195,11 +234,6 @@ inline TemporalUnit toTemporalUnit(ISO8601::DateTimeUnit u)
 {
     return static_cast<TemporalUnit>(u);
 }
-
-struct MonthCode {
-    unsigned monthNumber = 0;
-    bool isLeapMonth = false;
-};
 
 #define CALENDAR_FIELD_RECORDS(F)                   \
     F(era, Era, Optional<String*>)                  \
@@ -479,7 +513,7 @@ public:
     static std::pair<UCalendar*, ISO8601::PlainDate> calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
-    static ISO8601::Duration calendarDateUntil(Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);
+    static ISO8601::Duration calendarDateUntil(ExecutionState& state, Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-balanceisoyearmonth
     static ISO8601::PlainYearMonth balanceISOYearMonth(double year, double month);

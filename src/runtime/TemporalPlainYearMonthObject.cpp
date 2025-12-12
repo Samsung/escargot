@@ -223,16 +223,15 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         auto nextMonth = Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, intermediateDate.get()), intermediateDate.get(), oneMonthDuration, TemporalOverflowOption::Constrain).first;
         // Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
         UErrorCode status = U_ZERO_ERROR;
-        auto year = ucal_get(nextMonth, UCAL_YEAR, &status);
-        CHECK_ICU();
-        auto month = ucal_get(nextMonth, UCAL_MONTH, &status) + 1;
+        auto year = calendar.year(state, nextMonth);
+        auto month = calendar.ordinalMonth(state, nextMonth);
         CHECK_ICU();
         auto day = ucal_get(nextMonth, UCAL_DAY_OF_MONTH, &status);
         CHECK_ICU();
         auto balancedDate = Temporal::balanceISODate(state, year, month, day - 1);
         // Assert: ISODateWithinLimits(date) is true.
-        ucal_set(nextMonth, UCAL_YEAR, balancedDate.year());
-        ucal_set(nextMonth, UCAL_MONTH, balancedDate.month() - 1);
+        calendar.setYear(state, nextMonth, balancedDate.year());
+        calendar.setOrdinalMonth(state, nextMonth, balancedDate.month());
         ucal_set(nextMonth, UCAL_DAY_OF_MONTH, balancedDate.day());
 
         date.reset(nextMonth);
@@ -304,7 +303,7 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
     auto otherDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
                                                  Temporal::calendarDateFromFields(state, calendar, otherFields, TemporalOverflowOption::Constrain), calendar);
     // Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
-    auto dateDifference = Temporal::calendarDateUntil(calendar, thisDate->computeISODate(state), otherDate->computeISODate(state), toTemporalUnit(settings.largestUnit));
+    auto dateDifference = Temporal::calendarDateUntil(state, calendar, thisDate->computeISODate(state), otherDate->computeISODate(state), toTemporalUnit(settings.largestUnit));
 
     // Let yearsMonthsDifference be ! AdjustDateDurationRecord(dateDifference, 0, 0).
     auto yearsMonthsDifference = Temporal::adjustDateDurationRecord(state, dateDifference, 0, 0, NullOption);

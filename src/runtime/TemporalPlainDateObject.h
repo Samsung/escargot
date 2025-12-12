@@ -42,7 +42,7 @@ struct TemporalPlainDateGetter {
 
 class TemporalPlainDateObject : public DerivedObject {
 public:
-    TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar, bool checkBoundery = true);
+    TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoDate, Calendar calendar, bool checkBoundery = true);
     TemporalPlainDateObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar, bool checkBoundery = true);
     TemporalPlainDateObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar);
 
