@@ -27,7 +27,7 @@ jobs:
       run: tools/check_tidy.py
 
   build-on-macos:
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
     - uses: actions/checkout@v4
       with:
@@ -81,7 +81,7 @@ jobs:
         ./out/release/escargot run.js
 
   build-test-on-android:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [x86, x86_64]
@@ -90,9 +90,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Packages
+    - name: Enable KVM
       run: |
-        brew update
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
     - name: Set up JDK
       uses: actions/setup-java@v4.1.0
       with:
@@ -320,7 +322,7 @@ jobs:
       timeout-minutes: 15
 
   build-test-on-x86-release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
@@ -331,34 +333,45 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build gcc-multilib g++-multilib python2
-        # set python2
-        sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
-    - name: Install ICU
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Build python2
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu70_70.1-2ubuntu1_i386.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
-        dpkg -X libicu70_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
+        mkdir $GITHUB_WORKSPACE/python2-build/
+        cd $GITHUB_WORKSPACE/python2-build/
+        wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
+        tar xzf Python-2.7.18.tgz
+        cd Python-2.7.18
+        ./configure --prefix=/usr/local/python2.7
+        make -j8
+        sudo make install
+        sudo update-alternatives --install /usr/bin/python python /usr/local/python2.7/bin/python2.7 1
+    - name: Build ICU
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-build/
+        cd $GITHUB_WORKSPACE/icu-build/icu4c/source
+        LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
+        make -j8
+        make install
+        ls $GITHUB_WORKSPACE/icu32/lib/
     - name: Build x86
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu/pkgconfig
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/lib/pkgconfig
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x86 $BUILD_OPTIONS
         ninja -Cout/release/x86
     - name: Run release-x86 test
       env:
         GC_FREE_SPACE_DIVISOR: 1
-      run: LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
+      run: LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
   build-test-on-x64-release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         tc: ['octane v8 web-tooling-benchmark', 'chakracore spidermonkey new-es']
@@ -374,18 +387,38 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build libicu-dev python2
-        sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
+        sudo apt-get install -y ninja-build g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Install ICU
+      run: |
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
+        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+    - name: Build python2
+      run: |
+        mkdir $GITHUB_WORKSPACE/python2-build/
+        cd $GITHUB_WORKSPACE/python2-build/
+        wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
+        tar xzf Python-2.7.18.tgz
+        cd Python-2.7.18
+        ./configure --prefix=/usr/local/python2.7
+        make -j8
+        sudo make install
+        sudo update-alternatives --install /usr/bin/python python /usr/local/python2.7/bin/python2.7 1
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
       env:
         GC_FREE_SPACE_DIVISOR: 1
       run: |
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
         # set locale
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
@@ -396,18 +429,28 @@ jobs:
       timeout-minutes: 15
 
   build-test-on-x86-x64-debug:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
       run: |
-        # for i386 ICU
-        sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y ninja-build gcc-multilib g++-multilib
-        sudo apt-get install -y libicu-dev:i386 # install i386 ICU
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Build ICU(32)
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-build/
+        cd $GITHUB_WORKSPACE/icu-build/icu4c/source
+        LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
+        make -j8
+        make install
+    - name: Install ICU(64)
+      run: |
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
+        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86/x64
       env:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -419,7 +462,9 @@ jobs:
         ninja -Cout/debug/x64
     - name: Run debug-mode test
       run: |
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/debug/x86/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
   build-test-on-self-hosted-linux:
@@ -433,21 +478,21 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu77-32/lib/ -Wl,-rpath=/usr/icu77-32/lib/" PKG_CONFIG_PATH="/usr/icu77-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu77-32/lib/ -Wl,-rpath=/usr/icu77-32/lib/" PKG_CONFIG_PATH="/usr/icu77-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
-        LDFLAGS=" -L/usr/icu77-64/lib/ -Wl,-rpath=/usr/icu77-64/lib/" PKG_CONFIG_PATH="/usr/icu77-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu77-64/lib/ -Wl,-rpath=/usr/icu77-64/lib/" PKG_CONFIG_PATH="/usr/icu77-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
         cmake --build build/out_linux_release/
         cmake --build build/out_linux64_release/
     - name: Test
       run: |
-        LD_LIBRARY_PATH=/usr/icu77-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu77-32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu77-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu77-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
+        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu78-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
     runs-on: [self-hosted, linux, arm, test]
@@ -458,7 +503,7 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
@@ -473,10 +518,11 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
+        export LD_LIBRARY_PATH=/usr/icu78-64/lib/
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
 
   build-test-on-riscv64-release:
@@ -623,7 +669,20 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build gcc-multilib g++-multilib
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Build ICU(32)
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-build/
+        cd $GITHUB_WORKSPACE/icu-build/icu4c/source
+        LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
+        make -j8
+        make install
+    - name: Install ICU(64)
+      run: |
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
+        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
+        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -637,9 +696,13 @@ jobs:
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
     - name: Run x86 test
-      run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
+      run: |
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
     - name: Run x64 test
-      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
+      run: |
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60

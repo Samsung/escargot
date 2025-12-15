@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-latest]
+        os: [macos-15, macos-latest]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -84,13 +84,13 @@ jobs:
         $RUNNER --engine="$GITHUB_WORKSPACE/deploy/escargot" new-es
 
         # zip results
-        if [ "${{ matrix.os }}" == "macos-13" ]; then
+        if [ "${{ matrix.os }}" == "macos-15" ]; then
           zip -j escargot-mac64.zip deploy/*
         elif [ "${{ matrix.os }}" == "macos-latest" ]; then
           zip -j escargot-mac64arm.zip deploy/*
         fi
     - name: Upload mac64
-      if: ${{ matrix.os == 'macos-13' }}
+      if: ${{ matrix.os == 'macos-15' }}
       uses: actions/upload-artifact@v4
       with:
         name: build-artifact-mac64
@@ -240,7 +240,7 @@ jobs:
 
   check-build-mac64:
     needs: [build-macOS]
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
     - uses: actions/checkout@v4
       with:
