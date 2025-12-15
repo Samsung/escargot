@@ -165,11 +165,7 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
         UTF16StringFromExternalMemory u16Str(data, length);
 
         // for old icu(~77)
-        if (id() == ID::Indian) {
-            if (u16Str.equals("Saka")) {
-                u16Str = u"shaka";
-            }
-        } else if (id() == ID::ROC) {
+        if (id() == ID::ROC) {
             if (u16Str.equals("Before R.O.C.")) {
                 u16Str = u"broc";
             } else if (u16Str.equals("R.O.C.")) {
@@ -199,6 +195,12 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
             }
             if (ret[i] == ' ') {
                 break;
+            }
+        }
+
+        if (id() == ID::Indian) {
+            if (icuString == "saka") {
+                icuString = "shaka";
             }
         }
 
