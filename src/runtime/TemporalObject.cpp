@@ -334,14 +334,22 @@ int32_t Calendar::epochISOYear() const
 
 int Calendar::diffYearDueToICU4CAndSpecDiffer() const
 {
-    switch (m_id) {
-    case ID::Chinese:
-        return 2637;
-    case ID::Dangi:
-        return 2333;
-    default:
-        return 0;
+#if defined(ENABLE_RUNTIME_ICU_BINDER) || (defined(U_ICU_VERSION_MAJOR_NUM) && U_ICU_VERSION_MAJOR_NUM < 74)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    // https://unicode-org.atlassian.net/browse/ICU-23167
+    if (versionArray[0] < 78) {
+        switch (m_id) {
+        case ID::Chinese:
+            return 2637;
+        case ID::Dangi:
+            return 2333;
+        default:
+            return 0;
+        }
     }
+#endif
+    return 0;
 }
 
 void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, int32_t year)
