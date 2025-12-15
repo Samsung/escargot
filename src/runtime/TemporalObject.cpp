@@ -142,24 +142,27 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
     s += toICUString();
     s += "/eras/abbreviated";
     UErrorCode status = U_ZERO_ERROR;
-    UResourceBundle* t = nullptr;
-    t = ures_findResource(s.data(), t, &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Internal ICU error");
-    }
+    LocalResourcePointer<UResourceBundle> bundle(ures_findResource(s.data(), nullptr, &status), [](UResourceBundle* res) {
+        ures_close(res);
+    });
 
     // skip before meiji for japanese
     bool skipEraName = id() == ID::Japanese;
+    int meijiKey = std::numeric_limits<int>::max();
 
-    size_t siz = ures_getSize(t);
-    for (size_t i = 0; i < siz; i++) {
-        int32_t len = 0;
-        auto u16 = ures_getStringByIndex(t, i, &len, &status);
-        if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Internal ICU error");
+    UResourceBundle* res = nullptr;
+    while (true) {
+        res = ures_getNextResource(bundle.get(), res, &status);
+        if (res == nullptr || U_FAILURE(status)) {
+            break;
         }
-        UTF16StringFromExternalMemory u16Str(u16, len);
+
+        auto key = ures_getKey(res);
+
+        int32_t length = 0;
+        const UChar* data = ures_getStringByKey(bundle.get(), key, &length, &status);
+        UTF16StringFromExternalMemory u16Str(data, length);
 
         // for old icu(~77)
         if (id() == ID::Indian) {
@@ -199,9 +202,16 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
             }
         }
 
-        if (skipEraName) {
+        int i;
+        try {
+            i = std::stoi(key);
+        } catch (...) {
+            break;
+        }
+
+        if (skipEraName && i <= meijiKey) {
             if (icuString == "meiji") {
-                skipEraName = false;
+                meijiKey = i;
             } else {
                 continue;
             }
@@ -211,7 +221,6 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
             break;
         }
     }
-    ures_close(t);
 }
 
 bool Calendar::isEraRelated() const

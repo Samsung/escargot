@@ -215,6 +215,8 @@
 #define ures_getSize RuntimeICUBinder::ICU::instance().ures_getSize
 #define ures_getStringByIndex RuntimeICUBinder::ICU::instance().ures_getStringByIndex
 #define ures_getStringByKey RuntimeICUBinder::ICU::instance().ures_getStringByKey
+#define ures_getInt RuntimeICUBinder::ICU::instance().ures_getInt
+#define ures_getUInt RuntimeICUBinder::ICU::instance().ures_getUInt
 
 #define unumf_openForSkeletonAndLocale RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocale
 #define unumf_openForSkeletonAndLocaleWithError RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocaleWithError
