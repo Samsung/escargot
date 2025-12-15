@@ -1431,6 +1431,14 @@ static Value builtinTemporalZonedDateTimeStartOfDay(ExecutionState& state, Value
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
 {
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 74) {
+        ESCARGOT_LOG_INFO("Temporal needs 74+ version of ICU");
+        return;
+    }
+#endif
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(
         true, false, true,
         [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -1444,14 +1452,6 @@ void GlobalObject::initializeTemporal(ExecutionState& state)
 
 void GlobalObject::installTemporal(ExecutionState& state)
 {
-#if defined(ENABLE_RUNTIME_ICU_BINDER)
-    UVersionInfo versionArray;
-    u_getVersion(versionArray);
-    if (versionArray[0] < 74) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Temporal needs 74+ version of ICU");
-    }
-#endif
-
     StaticStrings* strings = &state.context()->staticStrings();
 
     // Temporal.Now
