@@ -576,6 +576,14 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimevalue
     static std::pair<double, Optional<TemporalKind>> handleDateTimeValue(ExecutionState& state, IntlDateTimeFormatObject* format, Value x, bool allowZonedDateTime = false);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
+    enum class ISODateToFieldsType : uint8_t {
+        Date,
+        YearMonth,
+        MonthDay
+    };
+    static CalendarFieldsRecord isoDateToFields(ExecutionState& state, Calendar calendar, const ISO8601::PlainDate& isoDate, ISODateToFieldsType type);
 };
 
 } // namespace Escargot

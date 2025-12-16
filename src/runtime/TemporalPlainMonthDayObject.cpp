@@ -92,14 +92,7 @@ TemporalPlainMonthDayObject* TemporalPlainMonthDayObject::with(ExecutionState& s
     // Let calendar be plainMonthDay.[[Calendar]].
     auto calendar = calendarID();
     // Let fields be ISODateToFields(calendar, plainMonthDay.[[ISODate]], month-day).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
-    fields.day = isoDate.day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::MonthDay);
     // Let partialMonthDay be ? PrepareCalendarFields(calendar, temporalMonthDayLike, « year, month, month-code, day », « », partial).
     CalendarField f[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
     auto partialMonthDay = Temporal::prepareCalendarFields(state, calendar, temporalMonthDayLike.asObject(), f, 4, nullptr, 0, nullptr, SIZE_MAX);
@@ -155,14 +148,7 @@ TemporalPlainDateObject* TemporalPlainMonthDayObject::toPlainDate(ExecutionState
     // Let calendar be plainMonthDay.[[Calendar]].
     auto calendar = calendarID();
     // Let fields be ISODateToFields(calendar, plainMonthDay.[[ISODate]], month-day).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
-    fields.day = isoDate.day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::MonthDay);
     // Let inputFields be ? PrepareCalendarFields(calendar, item, « year », « », « »).
     CalendarField f[1] = { CalendarField::Year };
     auto inputFields = Temporal::prepareCalendarFields(state, calendar, item.asObject(), f, 1, nullptr, 0, nullptr, SIZE_MAX);
