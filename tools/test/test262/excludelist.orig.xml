@@ -408,8 +408,6 @@
     <test id="intl402/Temporal/Duration/prototype/total/relativeto-sub-minute-offset"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/calc-epoch-year-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/from/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/islamic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDate/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/add/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/monthCode/chinese-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/since/intercalary-month-coptic"><reason>TODO</reason></test>
@@ -507,8 +505,6 @@
     <test id="intl402/Temporal/PlainDate/prototype/withCalendar/extreme-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/year/epoch-year"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/from/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/from/islamic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainDateTime/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/add/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/monthCode/chinese-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDateTime/prototype/since/intercalary-month-coptic"><reason>TODO</reason></test>
@@ -611,15 +607,11 @@
     <test id="intl402/Temporal/PlainMonthDay/from/calendarresolvefields-error-ordering-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/from/calendarresolvefields-error-ordering-islamic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/from/invalid-month-codes-hebrew"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainMonthDay/from/islamic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainMonthDay/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/from/reference-date-noniso-calendar"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/from/reference-year-1972"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/prototype/monthCode/chinese-calendar-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainMonthDay/prototype/with/non-iso-calendar-fields"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/from/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/from/islamic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/from/reference-day-chinese"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/from/reference-day-hebrew"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/equals/canonicalize-calendar"><reason>TODO</reason></test>
@@ -636,8 +628,6 @@
     <test id="intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/from/dst-skipped-cross-midnight"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/from/extreme-dates"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/from/islamic"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/from/islamic-rgsa"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/add/leap-year-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/daysInMonth/basic-coptic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/getTimeZoneTransition/nanoseconds-subtracted-or-added-at-dst-transition"><reason>TODO</reason></test>
