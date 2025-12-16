@@ -49,6 +49,7 @@ jobs:
   coverage-scan:
     if: github.repository == 'Samsung/escargot'
     runs-on: ubuntu-latest
+    timeout-minutes: 600
     steps:
     - uses: actions/checkout@v4
       with:
