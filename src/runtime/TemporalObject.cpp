@@ -3229,11 +3229,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::Date ? overflow : TemporalOverflowOption::Reject);
 
             if (fields.year) {
-                UErrorCode status = U_ZERO_ERROR;
-                auto epochTime = ucal_getMillis(icuCalendar, &status);
-                DateObject::DateTimeInfo timeInfo;
-                DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
-                if (timeInfo.year != fields.year.value()) {
+                if (calendar.year(state, icuCalendar) != fields.year.value()) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "'year' and computed 'year' calendar fields are inconsistent");
                 }
             }
