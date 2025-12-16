@@ -299,10 +299,7 @@ TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::with(ExecutionState& s
     // Let isoDateTime be GetISODateTimeFor(timeZone, epochNs).
     auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, epochNs);
     // Let fields be ISODateToFields(calendar, isoDateTime.[[ISODate]], date).
-    CalendarFieldsRecord fields;
-    fields.year = isoDateTime.plainDate().year();
-    fields.month = isoDateTime.plainDate().month();
-    fields.day = isoDateTime.plainDate().day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, isoDateTime.plainDate(), Temporal::ISODateToFieldsType::Date);
     // Set fields.[[Hour]] to plainDateTime.[[ISODateTime]].[[Time]].[[Hour]].
     // Set fields.[[Minute]] to plainDateTime.[[ISODateTime]].[[Time]].[[Minute]].
     // Set fields.[[Second]] to plainDateTime.[[ISODateTime]].[[Time]].[[Second]].

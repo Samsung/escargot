@@ -466,14 +466,7 @@ TemporalPlainDateObject* TemporalPlainDateObject::with(ExecutionState& state, Va
     // Let calendar be plainDate.[[Calendar]].
     auto calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
-    fields.day = isoDate.day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::Date);
     // Let partialDate be ? PrepareCalendarFields(calendar, temporalDateLike, « year, month, month-code, day », « », partial).
     CalendarField fs[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
     auto partialDate = Temporal::prepareCalendarFields(state, calendar, temporalDateLike.asObject(), fs, 4, nullptr, 0, nullptr, SIZE_MAX);

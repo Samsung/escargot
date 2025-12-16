@@ -183,20 +183,13 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::with(ExecutionState& s
     // Let calendar be plainDateTime.[[Calendar]].
     auto calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, plainDateTime.[[ISODateTime]].[[ISODate]], date).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::Date);
     // Set fields.[[Hour]] to plainDateTime.[[ISODateTime]].[[Time]].[[Hour]].
     // Set fields.[[Minute]] to plainDateTime.[[ISODateTime]].[[Time]].[[Minute]].
     // Set fields.[[Second]] to plainDateTime.[[ISODateTime]].[[Time]].[[Second]].
     // Set fields.[[Millisecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Millisecond]].
     // Set fields.[[Microsecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Microsecond]].
     // Set fields.[[Nanosecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Nanosecond]].
-    fields.day = isoDate.day();
     fields.hour = plainTime().hour();
     fields.minute = plainTime().minute();
     fields.second = plainTime().second();

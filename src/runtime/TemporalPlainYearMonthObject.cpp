@@ -125,11 +125,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::with(ExecutionState&
     // Let calendar be plainYearMonth.[[Calendar]].
     const auto& calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]], year-month).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    fields.day = isoDate.day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::YearMonth);
     // Let partialYearMonth be ? PrepareCalendarFields(calendar, temporalYearMonthLike, « year, month, month-code », « », partial).
     CalendarField fs[3] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode };
     auto partialYearMonth = Temporal::prepareCalendarFields(state, calendar, temporalYearMonthLike.asObject(), fs, 3, nullptr, 0, nullptr, SIZE_MAX);
@@ -163,11 +159,7 @@ TemporalPlainDateObject* TemporalPlainYearMonthObject::toPlainDate(ExecutionStat
     // Let calendar be plainYearMonth.[[Calendar]].
     const auto& calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, plainYearMonth.[[ISODate]], year-month).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    fields.day = isoDate.day();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::YearMonth);
     // Let inputFields be ? PrepareCalendarFields(calendar, item, « day », « », « »).
     CalendarField fs[1] = { CalendarField::Day };
     auto inputFields = Temporal::prepareCalendarFields(state, calendar, item.asObject(), fs, 1, nullptr, 0, nullptr, SIZE_MAX);
@@ -198,10 +190,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     // Let calendar be yearMonth.[[Calendar]].
     auto calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
+    CalendarFieldsRecord fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::YearMonth);
     // Set fields.[[Day]] to 1.
     fields.day = 1;
     // Let intermediateDate be ? CalendarDateFromFields(calendar, fields, constrain).
@@ -250,11 +239,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
                                                   ucal_close(cal);
                                               });
     // Let addedDateFields be ISODateToFields(calendar, addedDate, year-month).
-    CalendarFieldsRecord addedDateFields;
-    isoDate = addedDateResult.second;
-    addedDateFields.year = isoDate.year();
-    addedDateFields.month = isoDate.month();
-    addedDateFields.day = isoDate.day();
+    CalendarFieldsRecord addedDateFields = Temporal::isoDateToFields(state, calendar, Temporal::computeISODate(state, addedDate.get()), Temporal::ISODateToFieldsType::YearMonth);
     // Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
     // Return ! CreateTemporalYearMonth(isoDate, calendar).
     auto icuDate = Temporal::calendarDateFromFields(state, calendar, addedDateFields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth).first;
@@ -283,21 +268,15 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
         return ISO8601::Duration();
     }
     // Let thisFields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
+    CalendarFieldsRecord thisFields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::YearMonth);
     // Set thisFields.[[Day]] to 1.
-    CalendarFieldsRecord thisFields;
-    auto isoDate = computeISODate(state);
-    thisFields.year = isoDate.year();
-    thisFields.month = isoDate.month();
     thisFields.day = 1;
     // Let thisDate be ? CalendarDateFromFields(calendar, thisFields, constrain).
     auto thisDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
                                                 Temporal::calendarDateFromFields(state, calendar, thisFields, TemporalOverflowOption::Constrain), calendar);
     // Let otherFields be ISODateToFields(calendar, other.[[ISODate]], year-month).
+    CalendarFieldsRecord otherFields = Temporal::isoDateToFields(state, calendar, other->computeISODate(state), Temporal::ISODateToFieldsType::YearMonth);
     // Set otherFields.[[Day]] to 1.
-    CalendarFieldsRecord otherFields;
-    isoDate = other->computeISODate(state);
-    otherFields.year = isoDate.year();
-    otherFields.month = isoDate.month();
     otherFields.day = 1;
     // Let otherDate be ? CalendarDateFromFields(calendar, otherFields, constrain).
     auto otherDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),

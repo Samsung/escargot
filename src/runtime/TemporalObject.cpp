@@ -3123,6 +3123,10 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
         shouldTestUnder1972Year = true;
     }
 
+    if (mode == CalendarDateFromFieldsMode::YearMonth && !fields.day) {
+        fields.day = 1;
+    }
+
     if (calendar.isISO8601() || !calendar.isEraRelated()) {
         if (!fields.year || !fields.day) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
@@ -3345,27 +3349,24 @@ CalendarFieldsRecord Temporal::calendarMergeFields(ExecutionState& state, Calend
 {
     CalendarFieldsRecord merged;
 
-    CalendarFieldsRecord copiedAdditionalFields = additionalFields;
+    CalendarFieldsRecord copiedFields = fields;
 
-    if (copiedAdditionalFields.month && !copiedAdditionalFields.monthCode) {
-        MonthCode mc;
-        mc.monthNumber = copiedAdditionalFields.month.value();
-        copiedAdditionalFields.monthCode = mc;
-    } else if (!copiedAdditionalFields.month && copiedAdditionalFields.monthCode) {
-        copiedAdditionalFields.month = copiedAdditionalFields.monthCode.value().monthNumber;
+    if (additionalFields.month || additionalFields.monthCode) {
+        copiedFields.month = NullOption;
+        copiedFields.monthCode = NullOption;
     }
 
 #define COPY_FIELD(name, Name, type)               \
     if (fields.name) {                             \
-        merged.name = fields.name;                 \
+        merged.name = copiedFields.name;                 \
     }                                              \
-    if (copiedAdditionalFields.name) {             \
-        merged.name = copiedAdditionalFields.name; \
+    if (additionalFields.name) {             \
+        merged.name = additionalFields.name; \
     }
     CALENDAR_FIELD_RECORDS(COPY_FIELD)
 #undef COPY_FIELD
 
-    if (copiedAdditionalFields.era || copiedAdditionalFields.eraYear) {
+    if (additionalFields.era || additionalFields.eraYear) {
         merged.year = NullOption;
     }
 
@@ -4480,6 +4481,46 @@ std::pair<double, Optional<TemporalKind>> Temporal::handleDateTimeValue(Executio
         }
     }
     return std::make_pair(x.toNumber(state), NullOption);
+}
+
+CalendarFieldsRecord Temporal::isoDateToFields(ExecutionState& state, Calendar calendar, const ISO8601::PlainDate& isoDate, ISODateToFieldsType type)
+{
+    // Let fields be an empty Calendar Fields Record with all fields set to unset.
+    CalendarFieldsRecord fields;
+    // Let calendarDate be CalendarISOToDate(calendar, isoDate).
+    // Set fields.[[MonthCode]] to calendarDate.[[MonthCode]].
+    ISO8601::PlainDate calendarDate = isoDate;
+    if (calendar.isISO8601()) {
+        MonthCode mc;
+        mc.monthNumber = isoDate.month();
+        fields.monthCode = mc;
+    } else {
+        LocalResourcePointer<UCalendar> icuCalendar(calendar.createICUCalendar(state), [](UCalendar* r) {
+            ucal_close(r);
+        });
+        UErrorCode status = U_ZERO_ERROR;
+        auto epochTime = ISO8601::ExactTime::fromPlainDate(isoDate).epochMilliseconds();
+        ucal_setMillis(icuCalendar.get(), epochTime, &status);
+        CHECK_ICU_CALENDAR();
+        calendarDate = ISO8601::PlainDate(
+            calendar.year(state, icuCalendar.get()),
+            calendar.ordinalMonth(state, icuCalendar.get()),
+            ucal_get(icuCalendar.get(), UCAL_DAY_OF_MONTH, &status));
+        CHECK_ICU_CALENDAR();
+        fields.monthCode = calendar.monthCode(state, icuCalendar.get());
+    }
+    // If type is month-day or date, then
+    if (type == ISODateToFieldsType::MonthDay || type == ISODateToFieldsType::Date) {
+        // Set fields.[[Day]] to calendarDate.[[Day]].
+        fields.day = calendarDate.day();
+    }
+    // If type is year-month or date, then
+    if (type == ISODateToFieldsType::YearMonth || type == ISODateToFieldsType::Date) {
+        // Set fields.[[Year]] to calendarDate.[[Year]].
+        fields.year = calendarDate.year();
+    }
+    // Return fields.
+    return fields;
 }
 
 } // namespace Escargot
