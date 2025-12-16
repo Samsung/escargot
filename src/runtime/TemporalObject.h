@@ -137,8 +137,8 @@ public:
     // icu4c base year of chinese, dangi, roc are differ with icu4x
     int diffYearDueToICU4CAndSpecDiffer() const;
 
-    static Optional<Calendar> fromString(ISO8601::CalendarID);
-    static Optional<Calendar> fromString(String* str);
+    static Optional<Calendar> fromString(const ISO8601::CalendarID&, bool shouldAllowIslamicAndIslamicRGSA = false);
+    static Optional<Calendar> fromString(String* str, bool shouldAllowIslamicAndIslamicRGSA = false);
     String* toString() const;
     std::string toICUString() const;
     UCalendar* createICUCalendar(ExecutionState& state);

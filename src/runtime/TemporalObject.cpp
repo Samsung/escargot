@@ -718,25 +718,32 @@ bool Calendar::inLeapMonth(ExecutionState& state, UCalendar* icuCalendar)
     }
 }
 
-Optional<Calendar> Calendar::fromString(ISO8601::CalendarID id)
+Optional<Calendar> Calendar::fromString(const ISO8601::CalendarID& id, bool shouldAllowIslamicAndIslamicRGSA)
 {
     auto u = id;
     std::transform(u.begin(), u.end(), u.begin(), tolower);
+
+    Optional<Calendar> ret;
+
     if (false) {}
 #define DEFINE_FIELD(name, string, icuString, fullName) \
     else if (u == string || u == icuString)             \
     {                                                   \
-        return Calendar(ID::name);                      \
+        ret = Calendar(ID::name);                       \
     }
     CALENDAR_ID_RECORDS(DEFINE_FIELD)
 #undef DEFINE_FIELD
 
-    return NullOption;
+    if (ret && (ret.value() == ID::Islamic || ret.value() == ID::IslamicRGSA) && !shouldAllowIslamicAndIslamicRGSA) {
+        ret = NullOption;
+    }
+
+    return ret;
 }
 
-Optional<Calendar> Calendar::fromString(String* str)
+Optional<Calendar> Calendar::fromString(String* str, bool shouldAllowIslamicAndIslamicRGSA)
 {
-    return fromString(str->toNonGCUTF8StringData());
+    return fromString(str->toNonGCUTF8StringData(), shouldAllowIslamicAndIslamicRGSA);
 }
 
 String* Calendar::toString() const
