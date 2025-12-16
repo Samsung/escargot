@@ -1343,6 +1343,9 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                     if (!m_timeZoneName.isUndefined()) {
                         options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName));
                     }
+                    if (!m_era.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                    }
                 } else if (dateTimeValue.second.value() == TemporalKind::ZonedDateTime) {
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
@@ -1355,6 +1358,9 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
+                    if (!m_era.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                    }
                 } else if (dateTimeValue.second.value() == TemporalKind::PlainTime) {
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
@@ -1366,12 +1372,18 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                    if (!m_era.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                    }
                 } else if (dateTimeValue.second.value() == TemporalKind::PlainMonthDay) {
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(numeric));
                 } else if (dateTimeValue.second.value() == TemporalKind::PlainYearMonth) {
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
+                    if (!m_era.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                    }
                 } else {
                     ASSERT_NOT_REACHED();
                 }
@@ -1471,6 +1483,32 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 }
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
                 auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::Instant) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(m_year));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(m_month));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(m_day));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyWeekday(), ObjectPropertyDescriptor(m_weekday));
+                if (!m_era.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                }
+                if (!m_dayPeriodInput.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDayPeriod(), ObjectPropertyDescriptor(m_dayPeriodInput));
+                }
+
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(m_hour));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(m_minute));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(m_second));
+                if (!m_timeZoneName.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName));
+                }
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyFractionalSecondDigits(), ObjectPropertyDescriptor(m_fractionalSecondDigits));
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, m_hour12, skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, m_timeStyle, Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
             }
         }
@@ -1986,60 +2024,6 @@ std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointe
 
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& state, Value startDateInput, Value endDateInput)
 {
-    /*
-#if defined(ENABLE_TEMPORAL)
-    auto t1 = checkTemporalType(startDateInput, endDateInput);
-    auto t2 = checkTemporalType(endDateInput, startDateInput);
-    bool isKindDiffer = t1.first || t2.first;
-    bool isTemporalObject = t1.second;
-
-    if (isKindDiffer) {
-        if (!t1.second && !startDateInput.isUndefined()) {
-            startDateInput.toNumber(state);
-        }
-        if (!t2.second && !endDateInput.isUndefined()) {
-            endDateInput.toNumber(state);
-        }
-
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get invalid date value");
-    }
-#endif
-
-    auto utilResult1 = icuFormatTemporalHelper(state, startDateInput, false);
-    auto utilResult2 = icuFormatTemporalHelper(state, endDateInput, false);
-
-    auto icuFormat = std::get<1>(utilResult1).get() ? std::get<1>(utilResult1).get() : m_icuDateFormat;
-
-    double startDate = std::get<0>(utilResult1);
-    double endDate = std::get<0>(utilResult2);
-    startDate = DateObject::timeClip(startDate);
-    endDate = DateObject::timeClip(endDate);
-
-    if (std::isnan(startDate) || std::isnan(endDate)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
-    }
-
-    UDateIntervalFormat* icuDateIntervalFormat;
-    LocalResourcePointer<UDateIntervalFormat> tempFormatHolder(nullptr, [](UDateIntervalFormat* format) {
-        udtitvfmt_close(format);
-    });
-
-#if defined(ENABLE_TEMPORAL)
-    if (!isTemporalObject) {
-        initICUIntervalFormatIfNecessary(state);
-        icuDateIntervalFormat = m_icuDateIntervalFormat.value();
-    } else {
-        auto fmt = initICUIntervalFormat(state, icuFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, m_timeZoneICU);
-        tempFormatHolder = std::move(fmt);
-        icuDateIntervalFormat = tempFormatHolder.get();
-    }
-#else
-    initICUIntervalFormatIfNecessary(state);
-    icuDateIntervalFormat = m_icuDateIntervalFormat.value();
-#endif
-
-    */
-
     auto args = prepareFormatRangeArguments(state, startDateInput, endDateInput);
     double startDate = std::get<0>(args);
     double endDate = std::get<1>(args);
