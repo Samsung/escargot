@@ -67,6 +67,229 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
+static void setICUYear(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
+{
+    if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
+        calendar.setYear(state, icuCalendar, fields.era.value(), fields.eraYear.value());
+    } else if (fields.year) {
+        calendar.setYear(state, icuCalendar, fields.year.value());
+    }
+}
+
+static void setICUMonth(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
+{
+    if (fields.month) {
+        calendar.setOrdinalMonth(state, icuCalendar, fields.month.value());
+    }
+    if (fields.monthCode) {
+        calendar.setMonth(icuCalendar, fields.monthCode.value());
+    }
+}
+
+static uint8_t monthsPerYear(Calendar calendar)
+{
+    if (calendar.hasEpagomenalMonths() || calendar.hasLeapMonths()) {
+        return 13;
+    }
+    return 12;
+}
+
+static uint8_t monthCodePerYear(Calendar calendar)
+{
+    if (calendar.hasEpagomenalMonths()) {
+        return 13;
+    }
+    return 12;
+}
+
+// https://tc39.es/proposal-intl-era-monthcode/#table-additional-month-codes
+static uint8_t daysInMonth(ExecutionState& state, Calendar calendar, UCalendar* icuCalendar, const CalendarFieldsRecord& fields)
+{
+    switch (calendar.id()) {
+    case Calendar::ID::ISO8601:
+    case Calendar::ID::Buddhist:
+    case Calendar::ID::Gregorian:
+    case Calendar::ID::Japanese:
+    case Calendar::ID::ROC:
+        if (fields.year) {
+            return ISO8601::daysInMonth(fields.year.value() + calendar.epochISOYear(), fields.month ? fields.month.value() : fields.monthCode.value().monthNumber);
+        }
+        break;
+    default:
+        break;
+    }
+
+    setICUYear(state, calendar, fields, icuCalendar);
+    setICUMonth(state, calendar, fields, icuCalendar);
+    return TemporalPlainDateGetter::daysInMonth(state, ISO8601::PlainDate(), calendar, icuCalendar).asInt32();
+}
+
+std::pair<uint8_t, uint8_t> isoDaysInMonth(uint8_t ordinal)
+{
+    if (ordinal == 2) {
+        return { 28, 29 };
+    }
+    if (ordinal == 4 || ordinal == 6 || ordinal == 9 || ordinal == 11) {
+        return { 30, 30 };
+    }
+    return { 31, 31 };
+}
+
+static std::pair<uint8_t, uint8_t> daysInMonth(Calendar calendar, MonthCode mc, uint8_t ordinal)
+{
+    switch (calendar.id()) {
+    case Calendar::ID::ISO8601:
+    case Calendar::ID::Buddhist:
+    case Calendar::ID::Gregorian:
+    case Calendar::ID::Japanese:
+    case Calendar::ID::ROC:
+        return isoDaysInMonth(ordinal);
+
+    case Calendar::ID::Chinese:
+    case Calendar::ID::Dangi:
+        return { 29, 30 };
+
+    case Calendar::ID::Coptic:
+    case Calendar::ID::Ethiopian:
+    case Calendar::ID::EthiopianAmeteAlem: {
+        if (ordinal <= 12) {
+            return { 30, 30 };
+        }
+        return { 5, 6 };
+    }
+
+    case Calendar::ID::Hebrew: {
+        if (ordinal == 2 || ordinal == 3) {
+            return { 29, 30 };
+        }
+        if ((ordinal & 1) == 1 || mc.isLeapMonth) {
+            return { 30, 30 };
+        }
+        return { 29, 29 };
+    }
+
+    case Calendar::ID::Indian: {
+        if (ordinal == 1) {
+            return { 30, 31 };
+        }
+        if (ordinal <= 6) {
+            return { 31, 31 };
+        }
+        return { 30, 30 };
+    }
+
+    case Calendar::ID::IslamicUmmAlQura:
+        return { 29, 30 };
+
+    case Calendar::ID::IslamicCivil:
+    case Calendar::ID::IslamicCivilLegacy:
+    case Calendar::ID::IslamicTabular: {
+        if ((ordinal & 1) == 1) {
+            return { 30, 30 };
+        }
+        if (ordinal < 12) {
+            return { 29, 29 };
+        }
+        return { 29, 30 };
+    }
+
+    case Calendar::ID::Persian: {
+        if (ordinal <= 6) {
+            return { 31, 31 };
+        }
+        if (ordinal <= 11) {
+            return { 30, 30 };
+        }
+        return { 29, 30 };
+    default:
+        ASSERT_NOT_REACHED();
+        return { 29, 31 };
+    }
+    }
+}
+
+static Optional<MonthCode> setICUMonthDay(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar, TemporalOverflowOption overflow)
+{
+    if (overflow == TemporalOverflowOption::Constrain) {
+        auto day = fields.day.value();
+        while (day) {
+            UErrorCode status = U_ZERO_ERROR;
+
+            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
+            setICUYear(state, calendar, fields, icuCalendar);
+            setICUMonth(state, calendar, fields, icuCalendar);
+            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, day);
+            if (fields.month) {
+                unsigned test = calendar.ordinalMonth(state, icuCalendar);
+                CHECK_ICU_CALENDAR();
+                if (test != fields.month.value()) {
+                    day--;
+                    continue;
+                }
+            }
+
+            if (fields.monthCode) {
+                auto mc = calendar.monthCode(state, icuCalendar);
+                if (fields.monthCode.value() != mc) {
+                    day--;
+                    continue;
+                }
+            }
+
+            return NullOption;
+        }
+
+        // convert to non-leap month
+        if (calendar.hasLeapMonths() && fields.monthCode && fields.monthCode.value().isLeapMonth) {
+            // with hebrew, only M05L is valid
+            Optional<MonthCode> newConstrainedMonth;
+            if ((calendar.id() == Calendar::ID::Hebrew && fields.monthCode.value().monthNumber == 5)) {
+                newConstrainedMonth = MonthCode();
+                newConstrainedMonth.value().monthNumber = 6;
+            } else if (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi) {
+                // use non-leap months for other
+                newConstrainedMonth = MonthCode();
+                newConstrainedMonth.value().monthNumber = fields.monthCode.value().monthNumber;
+            }
+            if (newConstrainedMonth) {
+                day = fields.day.value();
+                while (day) {
+                    UErrorCode status = U_ZERO_ERROR;
+                    ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
+                    setICUYear(state, calendar, fields, icuCalendar);
+                    calendar.setMonth(icuCalendar, newConstrainedMonth.value());
+                    ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, day);
+                    if (fields.month) {
+                        unsigned test = calendar.ordinalMonth(state, icuCalendar);
+                        CHECK_ICU_CALENDAR();
+                        if (test != fields.month.value()) {
+                            day--;
+                            continue;
+                        }
+                    }
+
+                    auto mc = calendar.monthCode(state, icuCalendar);
+                    if (newConstrainedMonth.value() != mc) {
+                        day--;
+                        continue;
+                    }
+
+                    return newConstrainedMonth;
+                }
+            }
+        }
+
+        if (day == 0) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid monthCode or month");
+        }
+    } else {
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
+        setICUMonth(state, calendar, fields, icuCalendar);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+    }
+    return NullOption;
+}
+
 // https://tc39.es/proposal-intl-era-monthcode/#table-eras
 /*
 "buddhist"  "be"        -∞  +∞  epoch
@@ -100,12 +323,19 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
 {
     // non-canonical form
     if (id() == ID::Gregorian) {
+        if (fn(0, "bce")) {
+            return;
+        }
+        if (fn(1, "ce")) {
+            return;
+        }
         if (fn(0, "bc")) {
             return;
         }
         if (fn(1, "ad")) {
             return;
         }
+        return;
     } else if (id() == ID::Ethiopian) {
         // for old-icu(~77)
         if (fn(0, "aa")) {
@@ -114,6 +344,7 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
         if (fn(1, "am")) {
             return;
         }
+        return;
     } else if (id() >= ID::Islamic && id() <= ID::IslamicUmmAlQura) {
         // for old-icu(~77)
         if (fn(0, "ah")) {
@@ -1424,6 +1655,51 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
                                             plainDate, mayID.value());
 }
 
+static void makeUnder1972YearCalendar(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, UCalendar* icuCalendar, bool wasYearSpecified)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t diff = 0;
+    ISO8601::PlainDate lastISODate;
+    while (true) {
+        bool shouldChangeYear = false;
+        if (fields.monthCode) {
+            auto mc = calendar.monthCode(state, icuCalendar);
+            if (mc != fields.monthCode.value()) {
+                shouldChangeYear = true;
+            }
+        } else if (fields.month) {
+            unsigned test = calendar.ordinalMonth(state, icuCalendar);
+            CHECK_ICU_CALENDAR();
+            if (test != fields.month.value()) {
+                shouldChangeYear = true;
+            }
+        }
+
+        if (shouldChangeYear) {
+            // should change year
+            diff++;
+        } else {
+            if (wasYearSpecified && calendar.hasLeapMonths() && !fields.monthCode) {
+                fields.monthCode = calendar.monthCode(state, icuCalendar);
+            }
+
+            auto isoDate = Temporal::computeISODate(state, icuCalendar);
+            diff += isoDate.year() - 1972 - 1;
+            if (lastISODate == isoDate) {
+                diff++;
+            }
+            if (isoDate.year() <= 1972) {
+                break;
+            }
+            lastISODate = isoDate;
+        }
+
+        calendar.setYear(state, icuCalendar, fields.year.value() - diff);
+        setICUMonth(state, calendar, fields, icuCalendar);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+    }
+}
+
 TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state, Value item, Value options)
 {
     // If options is not present, set options to undefined.
@@ -1470,30 +1746,27 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
     }
 
     int32_t testYear = 1972;
-    ISO8601::PlainDate plainDate;
+    ISO8601::PlainDate isoDate;
     Optional<ISO8601::TimeZoneRecord> timeZone;
     Optional<ISO8601::CalendarID> calendarID;
 
     if (result) {
-        plainDate = std::get<0>(result.value());
+        isoDate = std::get<0>(result.value());
         timeZone = std::get<2>(result.value());
         calendarID = std::get<3>(result.value());
 
         if (calendarID && calendarID.value() != "iso8601") {
-            testYear = plainDate.year();
+            testYear = isoDate.year();
         }
 
         if (!std::get<1>(result.value()) && timeZone && timeZone.value().m_offset) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO Time string without UTC designator");
         }
     } else {
-        plainDate = std::get<0>(parseResultMonthDay.value());
+        isoDate = std::get<0>(parseResultMonthDay.value());
         timeZone = std::get<1>(parseResultMonthDay.value());
         calendarID = std::get<2>(parseResultMonthDay.value());
     }
-
-    // override year
-    plainDate = ISO8601::PlainDate(1972, plainDate.month(), plainDate.day());
 
     if (timeZone && timeZone.value().m_z) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO Time string without UTC designator");
@@ -1505,7 +1778,7 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO8601 calendar");
     }
 
-    if (!ISO8601::isDateTimeWithinLimits(testYear, plainDate.month(), plainDate.day(), 12, 0, 0, 0, 0, 0)) {
+    if (!ISO8601::isDateTimeWithinLimits(testYear, isoDate.month(), isoDate.day(), 12, 0, 0, 0, 0, 0)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO Date string in valid range");
     }
 
@@ -1520,12 +1793,36 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
     if (!mayID) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid CalendarID");
     }
+
     // Let resolvedOptions be ? GetOptionsObject(options).
     auto resolvedOptions = Intl::getOptionsObject(state, options);
     // Perform ? GetTemporalOverflowOption(resolvedOptions).
     Temporal::getTemporalOverflowOption(state, resolvedOptions);
+
+    LocalResourcePointer<UCalendar> icuCalendar(mayID.value().createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
+
+    if (mayID.value().isISO8601()) {
+        isoDate = ISO8601::PlainDate(1972, isoDate.month(), isoDate.day());
+    }
+    auto epoch = ISO8601::ExactTime::fromPlainDate(isoDate).epochMilliseconds();
+    UErrorCode status = U_ZERO_ERROR;
+    ucal_setMillis(icuCalendar.get(), epoch, &status);
+    CHECK_ICU_CALENDAR();
+
+    if (!mayID.value().isISO8601()) {
+        CalendarFieldsRecord fields;
+        fields.year = mayID.value().year(state, icuCalendar.get());
+        fields.month = mayID.value().ordinalMonth(state, icuCalendar.get());
+        fields.day = ucal_get(icuCalendar.get(), UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU_CALENDAR();
+
+        makeUnder1972YearCalendar(state, mayID.value(), fields, icuCalendar.get(), true);
+    }
+
     return new TemporalPlainMonthDayObject(state, state.context()->globalObject()->temporalPlainMonthDayPrototype(),
-                                           plainDate, mayID.value());
+                                           icuCalendar.release(), mayID.value());
 }
 
 Int128 Temporal::getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601::PlainDate isoDate)
@@ -2963,229 +3260,6 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
     return result;
 }
 
-static void setICUYear(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
-{
-    if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
-        calendar.setYear(state, icuCalendar, fields.era.value(), fields.eraYear.value());
-    } else if (fields.year) {
-        calendar.setYear(state, icuCalendar, fields.year.value());
-    }
-}
-
-static void setICUMonth(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar)
-{
-    if (fields.month) {
-        calendar.setOrdinalMonth(state, icuCalendar, fields.month.value());
-    }
-    if (fields.monthCode) {
-        calendar.setMonth(icuCalendar, fields.monthCode.value());
-    }
-}
-
-static uint8_t monthsPerYear(Calendar calendar)
-{
-    if (calendar.hasEpagomenalMonths() || calendar.hasLeapMonths()) {
-        return 13;
-    }
-    return 12;
-}
-
-static uint8_t monthCodePerYear(Calendar calendar)
-{
-    if (calendar.hasEpagomenalMonths()) {
-        return 13;
-    }
-    return 12;
-}
-
-// https://tc39.es/proposal-intl-era-monthcode/#table-additional-month-codes
-static uint8_t daysInMonth(ExecutionState& state, Calendar calendar, UCalendar* icuCalendar, const CalendarFieldsRecord& fields)
-{
-    switch (calendar.id()) {
-    case Calendar::ID::ISO8601:
-    case Calendar::ID::Buddhist:
-    case Calendar::ID::Gregorian:
-    case Calendar::ID::Japanese:
-    case Calendar::ID::ROC:
-        if (fields.year) {
-            return ISO8601::daysInMonth(fields.year.value() + calendar.epochISOYear(), fields.month ? fields.month.value() : fields.monthCode.value().monthNumber);
-        }
-        break;
-    default:
-        break;
-    }
-
-    setICUYear(state, calendar, fields, icuCalendar);
-    setICUMonth(state, calendar, fields, icuCalendar);
-    return TemporalPlainDateGetter::daysInMonth(state, ISO8601::PlainDate(), calendar, icuCalendar).asInt32();
-}
-
-std::pair<uint8_t, uint8_t> isoDaysInMonth(uint8_t ordinal)
-{
-    if (ordinal == 2) {
-        return { 28, 29 };
-    }
-    if (ordinal == 4 || ordinal == 6 || ordinal == 9 || ordinal == 11) {
-        return { 30, 30 };
-    }
-    return { 31, 31 };
-}
-
-static std::pair<uint8_t, uint8_t> daysInMonth(Calendar calendar, MonthCode mc, uint8_t ordinal)
-{
-    switch (calendar.id()) {
-    case Calendar::ID::ISO8601:
-    case Calendar::ID::Buddhist:
-    case Calendar::ID::Gregorian:
-    case Calendar::ID::Japanese:
-    case Calendar::ID::ROC:
-        return isoDaysInMonth(ordinal);
-
-    case Calendar::ID::Chinese:
-    case Calendar::ID::Dangi:
-        return { 29, 30 };
-
-    case Calendar::ID::Coptic:
-    case Calendar::ID::Ethiopian:
-    case Calendar::ID::EthiopianAmeteAlem: {
-        if (ordinal <= 12) {
-            return { 30, 30 };
-        }
-        return { 5, 6 };
-    }
-
-    case Calendar::ID::Hebrew: {
-        if (ordinal == 2 || ordinal == 3) {
-            return { 29, 30 };
-        }
-        if ((ordinal & 1) == 1 || mc.isLeapMonth) {
-            return { 30, 30 };
-        }
-        return { 29, 29 };
-    }
-
-    case Calendar::ID::Indian: {
-        if (ordinal == 1) {
-            return { 30, 31 };
-        }
-        if (ordinal <= 6) {
-            return { 31, 31 };
-        }
-        return { 30, 30 };
-    }
-
-    case Calendar::ID::IslamicUmmAlQura:
-        return { 29, 30 };
-
-    case Calendar::ID::IslamicCivil:
-    case Calendar::ID::IslamicCivilLegacy:
-    case Calendar::ID::IslamicTabular: {
-        if ((ordinal & 1) == 1) {
-            return { 30, 30 };
-        }
-        if (ordinal < 12) {
-            return { 29, 29 };
-        }
-        return { 29, 30 };
-    }
-
-    case Calendar::ID::Persian: {
-        if (ordinal <= 6) {
-            return { 31, 31 };
-        }
-        if (ordinal <= 11) {
-            return { 30, 30 };
-        }
-        return { 29, 30 };
-    default:
-        ASSERT_NOT_REACHED();
-        return { 29, 31 };
-    }
-    }
-}
-
-static Optional<MonthCode> setICUMonthDay(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, UCalendar* icuCalendar, TemporalOverflowOption overflow)
-{
-    if (overflow == TemporalOverflowOption::Constrain) {
-        auto day = fields.day.value();
-        while (day) {
-            UErrorCode status = U_ZERO_ERROR;
-
-            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
-            setICUYear(state, calendar, fields, icuCalendar);
-            setICUMonth(state, calendar, fields, icuCalendar);
-            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, day);
-            if (fields.month) {
-                unsigned test = calendar.ordinalMonth(state, icuCalendar);
-                CHECK_ICU_CALENDAR();
-                if (test != fields.month.value()) {
-                    day--;
-                    continue;
-                }
-            }
-
-            if (fields.monthCode) {
-                auto mc = calendar.monthCode(state, icuCalendar);
-                if (fields.monthCode.value() != mc) {
-                    day--;
-                    continue;
-                }
-            }
-
-            return NullOption;
-        }
-
-        // convert to non-leap month
-        if (calendar.hasLeapMonths() && fields.monthCode && fields.monthCode.value().isLeapMonth) {
-            // with hebrew, only M05L is valid
-            Optional<MonthCode> newConstrainedMonth;
-            if ((calendar.id() == Calendar::ID::Hebrew && fields.monthCode.value().monthNumber == 5)) {
-                newConstrainedMonth = MonthCode();
-                newConstrainedMonth.value().monthNumber = 6;
-            } else if (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi) {
-                // use non-leap months for other
-                newConstrainedMonth = MonthCode();
-                newConstrainedMonth.value().monthNumber = fields.monthCode.value().monthNumber;
-            }
-            if (newConstrainedMonth) {
-                day = fields.day.value();
-                while (day) {
-                    UErrorCode status = U_ZERO_ERROR;
-                    ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
-                    setICUYear(state, calendar, fields, icuCalendar);
-                    calendar.setMonth(icuCalendar, newConstrainedMonth.value());
-                    ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, day);
-                    if (fields.month) {
-                        unsigned test = calendar.ordinalMonth(state, icuCalendar);
-                        CHECK_ICU_CALENDAR();
-                        if (test != fields.month.value()) {
-                            day--;
-                            continue;
-                        }
-                    }
-
-                    auto mc = calendar.monthCode(state, icuCalendar);
-                    if (newConstrainedMonth.value() != mc) {
-                        day--;
-                        continue;
-                    }
-
-                    return newConstrainedMonth;
-                }
-            }
-        }
-
-        if (day == 0) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid monthCode or month");
-        }
-    } else {
-        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
-        setICUMonth(state, calendar, fields, icuCalendar);
-        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
-    }
-    return NullOption;
-}
-
 // https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
 std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
@@ -3343,44 +3417,8 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
         }
     }
 
-    // test262/test/staging/sm/Temporal/PlainMonthDay/result-not-after-1972-dec-31.js
     if (shouldTestUnder1972Year) {
-        UErrorCode status = U_ZERO_ERROR;
-        int32_t diff = 0;
-        while (true) {
-            bool shouldChangeYear = false;
-            if (fields.monthCode) {
-                auto mc = calendar.monthCode(state, icuCalendar);
-                if (mc != fields.monthCode.value()) {
-                    shouldChangeYear = true;
-                }
-            } else if (fields.month) {
-                unsigned test = calendar.ordinalMonth(state, icuCalendar);
-                CHECK_ICU_CALENDAR();
-                if (test != fields.month.value()) {
-                    shouldChangeYear = true;
-                }
-            }
-
-            if (shouldChangeYear) {
-                // should change year
-                diff++;
-            } else {
-                if (wasYearSpecified && calendar.hasLeapMonths() && !fields.monthCode) {
-                    fields.monthCode = calendar.monthCode(state, icuCalendar);
-                }
-
-                auto isoDate = computeISODate(state, icuCalendar);
-                diff += isoDate.year() - 1972;
-                if (isoDate.year() - 1972 <= 0) {
-                    break;
-                }
-            }
-
-            calendar.setYear(state, icuCalendar, fields.year.value() - diff);
-            setICUMonth(state, calendar, fields, icuCalendar);
-            ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
-        }
+        makeUnder1972YearCalendar(state, calendar, fields, icuCalendar, wasYearSpecified);
     } else if (!calendar.isISO8601()) {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -3415,6 +3453,7 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarDateFromFi
         // Let result be ? CalendarDateToISO(calendar, fields, overflow).
         // If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
         if (result.second) {
+            result.second.value() = ISO8601::PlainDate(result.second.value().year(), result.second.value().month(), 1);
             if (!isoYearMonthWithinLimits(ISO8601::PlainDate(result.second.value().year(), result.second.value().month(), result.second.value().day()))) {
                 ucal_close(result.first);
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid out of range Date");

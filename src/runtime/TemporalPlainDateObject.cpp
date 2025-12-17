@@ -607,16 +607,9 @@ TemporalPlainDateTimeObject* TemporalPlainDateObject::toPlainDateTime(ExecutionS
 TemporalPlainMonthDayObject* TemporalPlainDateObject::toPlainMonthDay(ExecutionState& state)
 {
     // Let calendar be plainDate.[[Calendar]].
-    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
     auto calendar = m_calendarID;
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
-    fields.day = isoDate.day();
+    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+    auto fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::Date);
     // Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, constrain).
     auto u = Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain, Temporal::CalendarDateFromFieldsMode::MonthDay);
     // Return ! CreateTemporalMonthDay(isoDate, calendar).
@@ -626,20 +619,13 @@ TemporalPlainMonthDayObject* TemporalPlainDateObject::toPlainMonthDay(ExecutionS
 TemporalPlainYearMonthObject* TemporalPlainDateObject::toPlainYearMonth(ExecutionState& state)
 {
     // Let calendar be plainDate.[[Calendar]].
-    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
     auto calendar = m_calendarID;
-    CalendarFieldsRecord fields;
-    auto isoDate = computeISODate(state);
-    fields.year = isoDate.year();
-    fields.month = isoDate.month();
-    MonthCode mc;
-    mc.monthNumber = isoDate.month();
-    fields.monthCode = mc;
-    fields.day = 1;
+    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+    auto fields = Temporal::isoDateToFields(state, calendar, computeISODate(state), Temporal::ISODateToFieldsType::Date);
     // Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, constrain).
     auto u = Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain, Temporal::CalendarDateFromFieldsMode::YearMonth);
     // Return ! CreateTemporalYearMonth(isoDate, calendar).
-    return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(), u, calendar);
+    return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(), u, m_calendarID);
 }
 
 TemporalZonedDateTimeObject* TemporalPlainDateObject::toZonedDateTime(ExecutionState& state, Value item)

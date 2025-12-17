@@ -183,7 +183,8 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
     auto precision = Temporal::toSecondsStringPrecisionRecord(state, toDateTimeUnit(smallestUnit), digits);
 
     // Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
-    auto result = Temporal::roundISODateTime(state, ISO8601::PlainDateTime(plainDate(), plainTime()), precision.increment, precision.unit, roundingMode);
+    auto isoDateTime = Temporal::getISODateTimeFor(state, TimeZone(m_timeZone), epochNanoseconds());
+    auto result = Temporal::roundISODateTime(state, isoDateTime, precision.increment, precision.unit, roundingMode);
     StringBuilder sb;
     sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, TemporalShowCalendarNameOption::Never));
     sb.appendChar('T');

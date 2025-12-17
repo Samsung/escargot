@@ -33,8 +33,8 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
-TemporalPlainMonthDayObject::TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar)
-    : TemporalPlainDateObject(state, proto, plainDate, calendar)
+TemporalPlainMonthDayObject::TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoDate, Calendar calendar)
+    : TemporalPlainDateObject(state, proto, isoDate, calendar)
 {
 }
 
@@ -99,13 +99,15 @@ TemporalPlainMonthDayObject* TemporalPlainMonthDayObject::with(ExecutionState& s
 
     // intl402/Temporal/PlainMonthDay/prototype/with/fields-missing-properties
     if (!calendar.isISO8601()) {
-        bool missing = false;
-        if (partialMonthDay.month && !partialMonthDay.day) {
-            missing = true;
-        } else if (partialMonthDay.monthCode && !partialMonthDay.day) {
-            missing = true;
-        } else if (partialMonthDay.day && !partialMonthDay.month && !partialMonthDay.monthCode) {
-            missing = true;
+        bool missing = true;
+        if (partialMonthDay.monthCode) {
+            missing = false;
+        } else if (partialMonthDay.day) {
+            missing = false;
+        } else if (partialMonthDay.year) {
+            missing = false;
+        } else if (calendar.isEraRelated() && (partialMonthDay.era || partialMonthDay.eraYear)) {
+            missing = false;
         }
         if (missing) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid temporalMonthDayLike");
