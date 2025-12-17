@@ -27,7 +27,7 @@ namespace Escargot {
 
 class TemporalPlainMonthDayObject : public TemporalPlainDateObject {
 public:
-    TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainYearMonth, Calendar calendar);
+    TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoYearMonth, Calendar calendar);
     TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar);
 
     virtual bool isTemporalPlainDateObject() const override

@@ -221,7 +221,7 @@ public:
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;
-    ISO8601::PlainDateTime* m_plainDateTime; // stores timezone applied value
+    ISO8601::PlainDateTime* m_plainDateTime; // stores timezone + calendar applied value
     ComputedTimeZone m_timeZone;
     Calendar m_calendarID;
     UCalendar* m_icuCalendar;
