@@ -32,6 +32,7 @@ class Script;
 class Value;
 class Object;
 struct ASTScopeContext;
+struct ASTBlockContext;
 struct ByteCodeGenerateContext;
 
 typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
@@ -938,6 +939,18 @@ public:
         return false;
     }
 
+#ifndef ESCARGOT_DEBUGGER
+    bool checkParameterUsed(const AtomicString& name)
+    {
+        for (size_t i = 0; i < m_parameterUsed.size(); i++) {
+            if (m_parameterNames[i] == name) {
+                return m_parameterUsed[i];
+            }
+        }
+        return false;
+    }
+#endif
+
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
     void setConstructedObjectPropertyCount(size_t s)
@@ -969,6 +982,9 @@ protected:
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
+#ifndef ESCARGOT_DEBUGGER
+    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_parameterUsed;
+#endif
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);

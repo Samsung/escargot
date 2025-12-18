@@ -151,6 +151,17 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         m_buffer.put(stringIndex);
     }
 
+#ifndef ESCARGOT_DEBUGGER
+    // InterpretedCodeBlock::m_parameterUsed
+    const TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>>& parameterUsedVector = codeBlock->m_parameterUsed;
+    size = parameterUsedVector.size();
+    m_buffer.ensureSize(sizeof(size_t) + size * sizeof(bool));
+    m_buffer.put(size);
+    for (size_t i = 0; i < size; i++) {
+        m_buffer.put(parameterUsedVector[i]);
+    }
+#endif
+
     // InterpretedCodeBlock::m_identifierInfos
     const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;
     size = identifierVector.size();
@@ -184,7 +195,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         // InterpretedCodeBlock::BlockInfo::m_identifiers
         const InterpretedCodeBlock::BlockIdentifierInfoVector& infoVector = info->identifiers();
         const size_t vectorSize = infoVector.size();
-        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (2 * sizeof(bool) + 2 * sizeof(size_t)));
+        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (3 * sizeof(bool) + 2 * sizeof(size_t)));
         m_buffer.put(vectorSize);
         for (size_t j = 0; j < vectorSize; j++) {
             const InterpretedCodeBlock::BlockIdentifierInfo& info = infoVector[j];
@@ -722,6 +733,17 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         size_t stringIndex = m_buffer.get<size_t>();
         atomicStringVector[i] = m_stringTable->get(stringIndex);
     }
+
+#ifndef ESCARGOT_DEBUGGER
+    // InterpretedCodeBlock::m_parameterUsed
+    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>>& parameterUsedVector = codeBlock->m_parameterUsed;
+    size = m_buffer.get<size_t>();
+    parameterUsedVector.resizeWithUninitializedValues(size);
+    for (size_t i = 0; i < size; i++) {
+        bool isUsed = m_buffer.get<bool>();
+        parameterUsedVector[i] = isUsed;
+    }
+#endif
 
     // InterpretedCodeBlock::m_identifierInfos
     InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;
