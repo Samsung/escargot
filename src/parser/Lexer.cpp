@@ -189,7 +189,7 @@ NEVER_INLINE bool EscargotLexer::isWhiteSpaceSlowCase(char16_t ch)
 static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
 {
     int bottom = 0;
-    int top = (EscargotLexer::basic_plane_length / sizeof(uint16_t)) - 1;
+    int top = (EscargotLexer::basicPlaneLength / sizeof(uint16_t)) - 1;
 
     while (true) {
         int middle = (bottom + top) >> 1;
@@ -219,7 +219,7 @@ static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
 static NEVER_INLINE bool isIdentifierPartSlowSupplementary(char32_t ch)
 {
     int bottom = 0;
-    int top = (EscargotLexer::supplementary_plane_length / sizeof(uint32_t)) - 1;
+    int top = (EscargotLexer::supplementaryPlaneLength / sizeof(uint32_t)) - 1;
 
     while (true) {
         int middle = (bottom + top) >> 1;
