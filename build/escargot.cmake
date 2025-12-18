@@ -78,6 +78,37 @@ SET (ESCARGOT_SRC_LIST
     ${CCTEST_SRC}
 )
 
+# Generate UnicodeIdentifierTables.cpp
+MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/parser)
+EXECUTE_PROCESS(
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/gen_unicode.py --derived_core_properties ${PROJECT_SOURCE_DIR}/tools/unicode_data/DerivedCoreProperties.txt --dst ${CMAKE_BINARY_DIR}/escargot_generated/parser/UnicodeIdentifierTables.cpp
+)
+SET (ESCARGOT_SRC_LIST ${ESCARGOT_SRC_LIST} ${CMAKE_BINARY_DIR}/escargot_generated/parser/UnicodeIdentifierTables.cpp)
+
+# Generate YarrCanonicalizeUnicode.cpp
+MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/yarr)
+EXECUTE_PROCESS(
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrCanonicalizeUnicode.py ${PROJECT_SOURCE_DIR}/tools/unicode_data/CaseFolding.txt ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp
+)
+
+FILE(READ ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp UNICODE_FILE_CONTENTS)
+STRING(REPLACE "config.h" "WTFBridge.h" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
+STRING(REPLACE "constexpr const" "const" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
+STRING(REPLACE "constexpr size_t UNICODE" "const size_t UNICODE" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
+STRING(REPLACE "constexpr CanonicalizationRange unicodeRangeInfo" "const CanonicalizationRange unicodeRangeInfo" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
+FILE(WRITE ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp "${UNICODE_FILE_CONTENTS}")
+
+SET(ESCARGOT_SRC_LIST ${ESCARGOT_SRC_LIST} ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp)
+
+# yarr/UnicodePatternTables.h
+EXECUTE_PROCESS(
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${CMAKE_BINARY_DIR}/escargot_generated/yarr/UnicodePatternTables.h
+)
+SET (ESCARGOT_INCDIRS
+    ${ESCARGOT_INCDIRS}
+    ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
+)
+
 #######################################################
 # GCUTIL
 #######################################################
