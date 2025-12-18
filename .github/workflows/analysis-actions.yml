@@ -9,15 +9,11 @@ on:
 jobs:
   coverity-scan:
     if: github.repository == 'Samsung/escargot'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, test]
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ninja-build
     - name: Download Coverity Tool
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -30,7 +26,7 @@ jobs:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverity_scan $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverity_scan $BUILD_OPTIONS
         cov-build --dir cov-int ninja -Cout/coverity_scan
     - name: Submit
       env:
@@ -42,27 +38,23 @@ jobs:
           --form token=$TOKEN \
           --form email=$NOTI_MAIL \
           --form file=@escargot.tgz \
-          --form version="4.0.0" \
+          --form version="4.3.0" \
           --form description="escargot coverity scan" \
           https://scan.coverity.com/builds?project=Samsung%2Fescargot
 
   coverage-scan:
     if: github.repository == 'Samsung/escargot'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 600
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ninja-build libicu-dev gcovr
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage $BUILD_OPTIONS
         ninja -Cout/coverage
     - name: Run test262 and collect coverage data
       # test262 is unstable in actions env, but coverage data will be accumulated
@@ -72,7 +64,7 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         locale
-        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es regression-tests test262
+        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es regression-tests test262
     - name: Generate coverage report
       run: |
         gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*api/' -r . --xml coverage.xml
