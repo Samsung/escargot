@@ -127,6 +127,7 @@ def main():
         for item in out_list:
             out_file.write(item)
         out_file.write(rear_template())
+        out_file.write('\n')
 
     numstat = subprocess.check_output(["git", "diff", "--numstat", DEFAULT_EXCLUDE_LIST]).decode('utf-8').split("\t")
     lines = sorted(re.findall(r'^[+|-][^+|-].*', subprocess.check_output(["git", "diff", "--unified=0", DEFAULT_EXCLUDE_LIST]).decode('utf-8'), re.MULTILINE), key=lambda x:x[:1])
