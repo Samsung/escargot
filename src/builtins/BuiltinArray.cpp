@@ -791,8 +791,8 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
         if (elem.isUndefined()) {
             struct Data {
                 bool exists;
-                int64_t cur;
-                int64_t ret;
+                Value::ValueIndex cur;
+                Value::ValueIndex ret;
             } data;
             data.exists = false;
             data.cur = curIndex;
@@ -805,12 +805,11 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                     break;
                 }
                 ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
-                    int64_t index;
                     Data* e = (Data*)data;
-                    int64_t* ret = &e->ret;
+                    Value::ValueIndex* ret = &e->ret;
                     Value key = name.toPlainValue();
-                    index = key.toNumber(state);
-                    if ((uint64_t)index != Value::InvalidIndexValue) {
+                    Value::ValueIndex index = key.tryToUseAsIndex(state);
+                    if (index != Value::InvalidIndexValue) {
                         if (self->get(state, name).value(state, self).isUndefined()) {
                             return true;
                         }
