@@ -111,7 +111,7 @@ public:
         }
         // Else, ReturnIfAbrupt(result).
         // Return envRec.GetThisBinding().
-        return record->getThisBinding(calleeState);
+        return record->getThisBinding(callerState);
     }
 };
 
