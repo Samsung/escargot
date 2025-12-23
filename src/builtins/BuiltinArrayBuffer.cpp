@@ -123,13 +123,12 @@ static Value builtinArrayBufferDetachedGetter(ExecutionState& state, Value thisV
 static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, resize);
-    obj->throwTypeErrorIfDetached(state);
-
     if (!obj->isResizableArrayBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     double newByteLength = argv[0].toInteger(state);
+    obj->throwTypeErrorIfDetached(state);
     if (newByteLength < 0 || newByteLength > obj->maxByteLength()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }

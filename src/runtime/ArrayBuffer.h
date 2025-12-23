@@ -49,6 +49,7 @@ public:
     explicit ArrayBuffer(ExecutionState& state, Object* proto)
         : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , BufferAddressObserverManager<ArrayBuffer>()
+        , m_isResizable(false)
     {
     }
 
@@ -97,10 +98,7 @@ public:
 
     ALWAYS_INLINE bool isResizableArrayBuffer() const
     {
-        if (LIKELY(m_backingStore)) {
-            return m_backingStore->isResizable();
-        }
-        return false;
+        return m_isResizable;
     }
 
     ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)
@@ -128,11 +126,21 @@ protected:
         if (m_backingStore) {
             m_backingStore->addObserver(this, backingStoreObserver);
             bufferUpdated(m_backingStore->data(), m_backingStore->byteLength());
+            m_isResizable = m_backingStore->isResizable();
         } else {
             bufferUpdated(nullptr, 0);
+            // no m_isResizable update here
         }
     }
 
+    // We needs m_isResizable because
+    // IsResizableArrayBuffer ( arrayBuffer )
+    // 1. Assert: Type(arrayBuffer) is Object and arrayBuffer has an
+    //    [[ArrayBufferData]] internal slot.
+    // 2. If buffer has an [[ArrayBufferMaxByteLength]] internal slot, return true.
+    // 3. Return false.
+
+    bool m_isResizable;
     Optional<BackingStore*> m_backingStore;
 };
 

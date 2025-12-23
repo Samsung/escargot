@@ -27,8 +27,6 @@
     <test id="built-ins/AbstractModuleSource/prototype/constructor"><reason>TODO</reason></test>
     <test id="built-ins/AbstractModuleSource/prototype/proto"><reason>TODO</reason></test>
     <test id="built-ins/AbstractModuleSource/throw-from-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayBuffer/prototype/resizable/detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/ArrayBuffer/prototype/resize/coerced-new-length-detach"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
