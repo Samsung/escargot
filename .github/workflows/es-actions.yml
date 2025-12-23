@@ -388,12 +388,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
-    - name: Install ICU
+    - name: Build ICU(64)
       run: |
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
-        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
-        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
+        cd $GITHUB_WORKSPACE/icu64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
+        make -j8
+        make install
     - name: Build python2
       run: |
         mkdir $GITHUB_WORKSPACE/python2-build/
@@ -409,16 +410,16 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/lib/pkgconfig
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
       env:
         GC_FREE_SPACE_DIVISOR: 1
       run: |
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
         # set locale
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
@@ -440,17 +441,18 @@ jobs:
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
     - name: Build ICU(32)
       run: |
-        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-build/
-        cd $GITHUB_WORKSPACE/icu-build/icu4c/source
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu32-build/
+        cd $GITHUB_WORKSPACE/icu32-build/icu4c/source
         LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
         make -j8
         make install
-    - name: Install ICU(64)
+    - name: Build ICU(64)
       run: |
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
-        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
-        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
+        cd $GITHUB_WORKSPACE/icu64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
+        make -j8
+        make install
     - name: Build x86/x64
       env:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -464,7 +466,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/debug/x86/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
   build-test-on-self-hosted-linux:
@@ -677,12 +679,13 @@ jobs:
         LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
         make -j8
         make install
-    - name: Install ICU(64)
+    - name: Build ICU(64)
       run: |
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu78_78.1-1ubuntu1_amd64.deb
-        wget http://mirrors.edge.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_78.1-1ubuntu1_amd64.deb
-        dpkg -X libicu78_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
-        dpkg -X libicu-dev_78.1-1ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
+        cd $GITHUB_WORKSPACE/icu64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
+        make -j8
+        make install
     - name: Build x86
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -701,7 +704,7 @@ jobs:
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
     - name: Run x64 test
       run: |
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
