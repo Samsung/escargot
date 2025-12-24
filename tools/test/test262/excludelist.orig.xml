@@ -29,9 +29,6 @@
     <test id="built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigInt64/immutable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setBigUint64/immutable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setFloat16/immutable-buffer"><reason>TODO</reason></test>
@@ -1073,7 +1070,6 @@
     <test id="staging/sm/Array/from_errors"><reason>TODO</reason></test>
     <test id="staging/sm/Array/from_this"><reason>TODO</reason></test>
     <test id="staging/sm/Array/length-truncate-nonconfigurable-sparse"><reason>TODO</reason></test>
-    <test id="staging/sm/Array/regress-619970"><reason>TODO</reason></test>
     <test id="staging/sm/Array/sort-delete-ascending-order"><reason>TODO</reason></test>
     <test id="staging/sm/Array/toSpliced"><reason>TODO</reason></test>
     <test id="staging/sm/Array/unscopables"><reason>TODO</reason></test>
