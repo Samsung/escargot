@@ -96,6 +96,11 @@ public:
         return (data() == nullptr);
     }
 
+    // https://tc39.es/ecma262/#sec-isfixedlengtharraybuffer
+    ALWAYS_INLINE bool isFixedLengthArrayBuffer() const
+    {
+        return !isResizableArrayBuffer();
+    }
     ALWAYS_INLINE bool isResizableArrayBuffer() const
     {
         return m_isResizable;

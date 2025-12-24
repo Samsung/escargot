@@ -41,54 +41,90 @@ namespace Escargot {
 
 static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
         return Value();
     }
+    // Perform ? RequireInternalSlot(buffer, [[ArrayBufferData]]).
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBuffer())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
-
     ArrayBuffer* buffer = argv[0].asObject()->asArrayBuffer();
-    double byteOffset = 0;
+    // Let offset be ? ToIndex(byteOffset).
+    double offset = 0;
     if (argc >= 2) {
-        Value& val = argv[1];
-        byteOffset = val.toIndex(state);
-        if (byteOffset == Value::InvalidIndexValue) {
+        offset = argv[1].toIndex(state);
+        if (offset == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
+    // If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (buffer->isDetachedBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), "%s: ArrayBuffer is detached buffer");
     }
-    double bufferByteLength = buffer->byteLength();
-
-    if (byteOffset > bufferByteLength) {
+    // Let bufferByteLength be ArrayBufferByteLength(buffer, seq-cst).
+    auto bufferByteLegnth = buffer->byteLength();
+    // If offset > bufferByteLength, throw a RangeError exception.
+    if (offset > bufferByteLegnth) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
-    double byteLength = bufferByteLength - byteOffset;
-
-    if (argc >= 3) {
-        Value& val = argv[2];
-        if (!val.isUndefined()) {
-            byteLength = val.toIndex(state);
-            if (byteOffset + byteLength > bufferByteLength || byteLength == Value::InvalidIndexValue) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
-            }
+    // Let bufferIsFixedLength be IsFixedLengthArrayBuffer(buffer).
+    bool bufferIsFixedLength = buffer->isFixedLengthArrayBuffer();
+    // If byteLength is undefined, then
+    Optional<Value::ValueIndex> viewByteLength;
+    if (argc < 3 || argv[2].isUndefined()) {
+        // If bufferIsFixedLength is true, then
+        if (bufferIsFixedLength) {
+            // Let viewByteLength be bufferByteLength - offset.
+            viewByteLength = bufferByteLegnth - offset;
+        } else {
+            // Else
+            // Let viewByteLength be auto.
+        }
+    } else {
+        // Else,
+        // Let viewByteLength be ? ToIndex(byteLength).
+        viewByteLength = argv[2].toIndex(state);
+        if (viewByteLength.value() == Value::InvalidIndexValue) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        }
+        // If offset + viewByteLength > bufferByteLength, throw a RangeError exception.
+        if (offset + viewByteLength.value() > bufferByteLegnth) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
         }
     }
 
+    // Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%DataView.prototype%", « [[DataView]], [[ViewedArrayBuffer]], [[ByteLength]], [[ByteOffset]] »).
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->dataViewPrototype();
     });
-    ArrayBufferView* obj = new DataViewObject(state, proto);
-    obj->setBuffer(buffer, byteOffset, byteLength, 0, argc < 3);
+    ArrayBufferView* O = new DataViewObject(state, proto);
 
-    if (obj->buffer()->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+    // If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    if (buffer->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), "%s: ArrayBuffer is detached buffer");
     }
 
-    return obj;
+    // Set bufferByteLength to ArrayBufferByteLength(buffer, seq-cst).
+    bufferByteLegnth = buffer->byteLength();
+    // If offset > bufferByteLength, throw a RangeError exception.
+    if (offset > bufferByteLegnth) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+    }
+    // If byteLength is not undefined, then
+    if (argc >= 3 && !argv[2].isUndefined()) {
+        // If offset + viewByteLength > bufferByteLength, throw a RangeError exception.
+        if (offset + viewByteLength.value() > bufferByteLegnth) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        }
+    }
+    // Set O.[[ViewedArrayBuffer]] to buffer.
+    // Set O.[[ByteLength]] to viewByteLength.
+    // Set O.[[ByteOffset]] to offset.
+    // Return O.
+    O->setBuffer(buffer, offset, viewByteLength ? viewByteLength.value() : bufferByteLegnth - offset, 0, argc < 3);
+    return O;
 }
 
 #define DECLARE_DATAVIEW_GETTER(Name)                                                                                                    \
