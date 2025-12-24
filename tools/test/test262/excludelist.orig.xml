@@ -7,7 +7,6 @@
     <test id="built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1"><reason>TOO SLOW</reason></test>
     <test id="staging/sm/regress/regress-1507322-deep-weakmap"><reason>TOO SLOW</reason></test>
     <test id="staging/Temporal/v8/instant-to-json"><reason>TODO(sometimes fail)</reason></test>
-    <test id="annexB/built-ins/Date/prototype/setYear/date-value-read-before-tonumber-when-date-is-valid"><reason>TODO</reason></test>
     <test id="annexB/language/comments/multi-line-html-close"><reason>TODO</reason></test>
     <test id="annexB/language/comments/single-line-html-close-first-line-1"><reason>TODO</reason></test>
     <test id="annexB/language/comments/single-line-html-close-first-line-2"><reason>TODO</reason></test>
