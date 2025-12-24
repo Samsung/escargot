@@ -29,8 +29,6 @@
     <test id="built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncGeneratorPrototype/return/return-state-completed-broken-promise"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncGeneratorPrototype/return/return-suspendedStart-broken-promise"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>

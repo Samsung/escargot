@@ -158,21 +158,26 @@ Value AsyncGeneratorObject::asyncGeneratorResumeNext(ExecutionState& state, Asyn
                 // Set generator.[[AsyncGeneratorState]] to "awaiting-return".
                 generator->m_asyncGeneratorState = AsyncGeneratorObject::AwaitingReturn;
                 // Let promise be ? PromiseResolve(%Promise%, « completion.[[Value]] »).
-                auto promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), next.m_value)->asPromiseObject();
-                // Let stepsFulfilled be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Fulfilled Functions.
-                // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Generator]] »).
-                // Set onFulfilled.[[Generator]] to generator.
-                ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorFulfilledFunction, 1));
-                onFulfilled->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
-                // Let stepsRejected be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Rejected Functions.
-                // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[Generator]] »).
-                // Set onRejected.[[Generator]] to generator.
-                ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1));
-                onRejected->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
-                // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
-                promise->then(state, onFulfilled, onRejected);
-                // Return undefined.
-                return Value();
+                try {
+                    auto promise = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), next.m_value)->asPromiseObject();
+                    // Let stepsFulfilled be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Fulfilled Functions.
+                    // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Generator]] »).
+                    // Set onFulfilled.[[Generator]] to generator.
+                    ExtendedNativeFunctionObject* onFulfilled = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorFulfilledFunction, 1));
+                    onFulfilled->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
+                    // Let stepsRejected be the algorithm steps defined in AsyncGeneratorResumeNext Return Processor Rejected Functions.
+                    // Let onRejected be CreateBuiltinFunction(stepsRejected, « [[Generator]] »).
+                    // Set onRejected.[[Generator]] to generator.
+                    ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1));
+                    onRejected->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
+                    // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
+                    promise->then(state, onFulfilled, onRejected);
+                    // Return undefined.
+                    return Value();
+                } catch (const Value& error) {
+                    AsyncGeneratorObject::asyncGeneratorReject(state, generator, error);
+                    return Value();
+                }
             } else {
                 // Assert: completion.[[Type]] is throw.
                 // Perform ! AsyncGeneratorReject(generator, completion.[[Value]]).
