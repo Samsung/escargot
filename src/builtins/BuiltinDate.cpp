@@ -451,6 +451,12 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
     double y;
     int month, date, hour, minute, second, millisecond;
+    month = d->getMonth(state);
+    date = d->getDate(state);
+    hour = d->getHours(state);
+    minute = d->getMinutes(state);
+    second = d->getSeconds(state);
+    millisecond = d->getMilliseconds(state);
 
     // Let y be ToNumber(year).
     y = argv[0].toNumber(state);
@@ -459,13 +465,6 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
         d->setTimeValueAsNaN();
         return Value(Value::NanInit);
     }
-
-    month = d->getMonth(state);
-    date = d->getDate(state);
-    hour = d->getHours(state);
-    minute = d->getMinutes(state);
-    second = d->getSeconds(state);
-    millisecond = d->getMilliseconds(state);
 
     double yyyy;
     double yAsInteger = Value(Value::DoubleToIntConvertibleTestNeeds, y).toInteger(state);
@@ -477,9 +476,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
         yyyy = y;
     }
 
-    if (d->isValid()) {
-        d->setTimeValue(state, yyyy, month, date, hour, minute, second, millisecond);
-    }
+    d->setTimeValue(state, yyyy, month, date, hour, minute, second, millisecond);
 
     return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
 }
