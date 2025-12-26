@@ -216,7 +216,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
                 result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             }
         } catch (const Value& v) {
-            exceptionValue = v;
+            // ignore error value
         }
 
         // If value is an abrupt completion,
@@ -323,7 +323,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
                 result = IteratorObject::iteratorClose(state, record, exceptionValue, true);
             }
         } catch (const Value& v) {
-            exceptionValue = v;
+            // ignore error here
         }
         // If value is an abrupt completion,
         // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
@@ -565,7 +565,7 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
             try {
                 result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             } catch (const Value& v) {
-                exceptionValue = v;
+                // ignore error value
                 // IfAbruptRejectPromise(result, promiseCapability).
                 // If value is an abrupt completion,
                 // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
@@ -731,7 +731,7 @@ static Value builtinPromiseAny(ExecutionState& state, Value thisValue, size_t ar
                 IteratorObject::iteratorClose(state, iteratorRecord, thrownValue, true);
             }
         } catch (const Value& v) {
-            thrownValue = v;
+            // ignore error here
         }
         // IfAbruptRejectPromise(result, promiseCapability).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &thrownValue);

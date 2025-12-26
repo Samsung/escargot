@@ -134,10 +134,6 @@
     <test id="built-ins/Object/freeze/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/typedarray-backed-by-resizable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/all/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/allSettled/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/any/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/race/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proto-from-caller-realm"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-from-caller-realm"><reason>TODO</reason></test>
