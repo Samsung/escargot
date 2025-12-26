@@ -46,6 +46,105 @@ static Value builtinIteratorFrom(ExecutionState& state, Value thisValue, size_t 
     return wrapper;
 }
 
+struct IteratorConcatIterables : public gc {
+    EncodedValue openMethod;
+    EncodedValue iterable;
+};
+
+struct IteratorConcatData : public gc {
+    IteratorConcatData(size_t size, IteratorConcatIterables* iterables)
+        : counter(0)
+        , iterablesSize(size)
+        , iterables(iterables)
+        , innerAlive(false)
+    {
+    }
+
+    StorePositiveNumberAsOddNumber counter;
+    StorePositiveNumberAsOddNumber iterablesSize;
+    IteratorConcatIterables* iterables;
+    bool innerAlive;
+    Optional<IteratorRecord*> iteratorRecord;
+};
+
+static std::pair<Value, bool> iteratorConcatClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    auto iterData = reinterpret_cast<IteratorConcatData*>(data);
+    // For each Record iterable of iterables, do
+    while (iterData->counter < iterData->iterablesSize && !obj->isDone()) {
+        // check re-enter case with iteratorRecord
+        if (!iterData->iteratorRecord) {
+            auto iterable = iterData->iterables[iterData->counter];
+            // Let iter be ? Call(iterable.[[OpenMethod]], iterable.[[Iterable]]).
+            auto iter = Object::call(state, iterable.openMethod, iterable.iterable, 0, nullptr);
+            // If iter is not an Object, throw a TypeError exception.
+            if (!iter.isObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid iterable value");
+            }
+            // Let iteratorRecord be ? GetIteratorDirect(iter).
+            iterData->iteratorRecord = IteratorObject::getIteratorDirect(state, iter.asObject());
+            obj->underlyingIterators().pushBack(iterData->iteratorRecord.value());
+            // Let innerAlive be true.
+            iterData->innerAlive = true;
+        }
+        // Repeat, while innerAlive is true,
+        while (iterData->innerAlive) {
+            // Let innerValue be ? IteratorStepValue(iteratorRecord).
+            try {
+                auto innerValue = IteratorObject::iteratorStepValue(state, iterData->iteratorRecord.value());
+                // If innerValue is done, then
+                if (!innerValue) {
+                    // Set innerAlive to false.
+                    iterData->innerAlive = false;
+                    iterData->iteratorRecord = nullptr;
+                    iterData->counter = StorePositiveNumberAsOddNumber(iterData->counter + 1);
+                } else {
+                    // Else,
+                    // Let completion be Completion(Yield(innerValue)).
+                    return std::make_pair(innerValue.value(), false);
+                }
+            } catch (const Value& error) {
+                // If completion is an abrupt completion, then
+                // Return ? IteratorClose(iteratorRecord, completion).
+                Value value = IteratorObject::iteratorClose(state, iterData->iteratorRecord.value(), error, true);
+                iterData->iteratorRecord = nullptr;
+                return std::make_pair(value, false);
+            }
+        }
+    }
+    obj->markIteratorIsDone();
+    return std::make_pair(Value(), true);
+}
+
+// https://tc39.es/ecma262/#sec-iterator.concat
+static Value builtinIteratorConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let iterables be a new empty List.
+    IteratorConcatIterables* iterables = reinterpret_cast<IteratorConcatIterables*>(GC_MALLOC(sizeof(IteratorConcatIterables) * argc));
+    // For each element item of items, do
+    for (size_t i = 0; i < argc; i++) {
+        // If item is not an Object, throw a TypeError exception.
+        Value item = argv[i];
+        if (!item.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "item is not an Object");
+        }
+        // Let method be ? GetMethod(item, %Symbol.iterator%).
+        auto method = Object::getMethod(state, item, state.context()->vmInstance()->globalSymbols().iterator);
+        // If method is undefined, throw a TypeError exception.
+        if (method.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid iterator method");
+        }
+        // Append the Record { [[OpenMethod]]: method, [[Iterable]]: item } to iterables.
+        iterables[i].iterable = item;
+        iterables[i].openMethod = method;
+    }
+    // Let gen be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // Set gen.[[UnderlyingIterators]] to a new empty List.
+    IteratorHelperObject* gen = new IteratorHelperObject(state, iteratorConcatClosure, NullOption, new IteratorConcatData(argc, iterables));
+    // Return gen.
+    return gen;
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iterator-constructor
 static Value builtinIteratorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -127,13 +226,24 @@ static Value builtinIteratorHelperPrototypeReturn(ExecutionState& state, Value t
     // Perform ? RequireInternalSlot(O, [[UnderlyingIterator]]).
     RESOLVE_THIS_BINDING_TO_ITERATOR_HELPER(O, Iterator, stringReturn);
     // Assert: O has a [[GeneratorState]] slot.
+    if (O->isRunning()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "You cannot call Iterator helper function recursively");
+    }
+
+    IteratorHelperObject::IteratorHelperObjectRunningStateChanger changeRunningState(*O);
+
     // If O.[[GeneratorState]] is suspended-start, then
-    if (!O->underlyingIterator()->m_done) {
+    if (!O->isDone()) {
         // Set O.[[GeneratorState]] to completed.
-        O->underlyingIterator()->m_done = true;
+        O->markIteratorIsDone();
         // NOTE: Once a generator enters the completed state it never leaves it and its associated execution context is never resumed. Any execution state associated with O can be discarded at this point.
         // Perform ? IteratorClose(O.[[UnderlyingIterator]], NormalCompletion(unused)).
-        IteratorObject::iteratorClose(state, O->underlyingIterator(), Value(), false);
+        for (auto underlyingIterator : O->underlyingIterators()) {
+            if (!underlyingIterator->m_done) {
+                underlyingIterator->m_done = true;
+                IteratorObject::iteratorClose(state, underlyingIterator, Value(), false);
+            }
+        }
         // Return CreateIterResultObject(undefined, true).
         return IteratorObject::createIterResultObject(state, Value(), true);
     }
@@ -177,12 +287,13 @@ static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, Iterator
     //   IfAbruptCloseIterator(completion, iterated).
     //   Set counter to counter + 1.
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
-    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorRecord* iterated = obj->underlyingIterators()[0];
     Value mapper = closureData->callback;
 
     auto value = IteratorObject::iteratorStepValue(state, iterated);
     if (!value) {
         iterated->m_done = true;
+        obj->markIteratorIsDone();
         return std::make_pair(Value(), true);
     }
 
@@ -304,13 +415,14 @@ static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, Itera
     //      IfAbruptCloseIterator(completion, iterated).
     //   Set counter to counter + 1.
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
-    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorRecord* iterated = obj->underlyingIterators()[0];
     Value predicate = closureData->callback;
 
     while (true) {
         auto value = IteratorObject::iteratorStepValue(state, iterated);
         if (!value) {
             iterated->m_done = true;
+            obj->markIteratorIsDone();
             return std::make_pair(Value(), true);
         }
 
@@ -599,10 +711,11 @@ static std::pair<Value, bool> iteratorTakeClosure(ExecutionState& state, Iterato
     //     Let completion be Completion(Yield(value)).
     //     IfAbruptCloseIterator(completion, iterated).
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
-    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorRecord* iterated = obj->underlyingIterators()[0];
     double remaining = closureData->callback.toNumber(state);
 
     if (remaining == 0) {
+        obj->markIteratorIsDone();
         if (!iterated->m_done) {
             iterated->m_done = true;
             IteratorObject::iteratorClose(state, iterated, Value(), false);
@@ -616,6 +729,7 @@ static std::pair<Value, bool> iteratorTakeClosure(ExecutionState& state, Iterato
     auto value = IteratorObject::iteratorStepValue(state, iterated);
     if (!value) {
         iterated->m_done = true;
+        obj->markIteratorIsDone();
         return std::make_pair(Value(), true);
     }
 
@@ -727,7 +841,7 @@ static std::pair<Value, bool> iteratorDropClosure(ExecutionState& state, Iterato
     //     If value is done, return ReturnCompletion(undefined)
     //     Let completion be Completion(Yield(value)).
     //     IfAbruptCloseIterator(completion, iterated).
-    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorRecord* iterated = obj->underlyingIterators()[0];
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     double remaining = closureData->callback.asNumber();
 
@@ -739,6 +853,7 @@ static std::pair<Value, bool> iteratorDropClosure(ExecutionState& state, Iterato
         auto next = IteratorObject::iteratorStep(state, iterated);
         if (!next) {
             iterated->m_done = true;
+            obj->markIteratorIsDone();
             return std::make_pair(Value(), true);
         }
     }
@@ -753,6 +868,7 @@ static std::pair<Value, bool> iteratorDropClosure(ExecutionState& state, Iterato
     auto value = IteratorObject::iteratorStepValue(state, iterated);
     if (!value) {
         iterated->m_done = true;
+        obj->markIteratorIsDone();
         return std::make_pair(Value(), true);
     }
 
@@ -863,7 +979,7 @@ static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, Iter
     //                   ii. IfAbruptCloseIterator(backupCompletion, iterated).
     //                   iii. Return ? IteratorClose(iterated, completion).
     //       ix. Set counter to counter + 1.
-    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorRecord* iterated = obj->underlyingIterators()[0];
     FlatMapIteratorData* closureData = reinterpret_cast<FlatMapIteratorData*>(data);
     Value mapper = closureData->callback;
 
@@ -875,7 +991,7 @@ static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, Iter
                 innerValue = IteratorObject::iteratorStepValue(state, closureData->innerIterator);
             } catch (const Value& e) {
                 // IfAbruptCloseIterator(innerValue, iterated).
-                IteratorObject::iteratorClose(state, obj->underlyingIterator(), e, true);
+                IteratorObject::iteratorClose(state, iterated, e, true);
             }
             if (!innerValue) {
                 // If innerValue is done, then Set innerAlive to false.
@@ -892,6 +1008,7 @@ static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, Iter
         // If value is done, return ReturnCompletion(undefined).
         if (!value) {
             iterated->m_done = true;
+            obj->markIteratorIsDone();
             return std::make_pair(Value(), true);
         }
 
@@ -949,7 +1066,6 @@ static Value builtinIteratorFlatMap(ExecutionState& state, Value thisValue, size
     return result;
 }
 
-
 static Value builtinGenericIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isGenericIteratorObject()) {
@@ -1004,6 +1120,10 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iterator->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinIteratorFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iterator->directDefineOwnProperty(state, ObjectPropertyName(strings->concat),
+                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->concat, builtinIteratorConcat, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
     m_iterator->setFunctionPrototype(state, m_iteratorPrototype);
