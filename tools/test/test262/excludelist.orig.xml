@@ -41,8 +41,6 @@
     <test id="built-ins/DataView/prototype/setUint32/immutable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setUint8/immutable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
-    <test id="built-ins/Date/parse/year-zero"><reason>TODO</reason></test>
-    <test id="built-ins/Date/year-zero"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/arguments/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/caller/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/line-terminator-normalisation-CR"><reason>TODO</reason></test>
