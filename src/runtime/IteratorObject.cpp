@@ -416,13 +416,17 @@ IteratorRecord* IteratorObject::getIteratorFlattenable(ExecutionState& state, co
 }
 
 IteratorHelperObject::IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback,
-                                           IteratorRecord* underlyingIterator, void* data)
+                                           Optional<IteratorRecord*> underlyingIterator, void* data)
     : IteratorObject(state, state.context()->globalObject()->iteratorHelperPrototype())
+    , m_isDone(false)
     , m_isRunning(false)
     , m_callback(callback)
-    , m_underlyingIterator(underlyingIterator)
+    , m_underlyingIterators()
     , m_data(data)
 {
+    if (underlyingIterator) {
+        m_underlyingIterators.pushBack(underlyingIterator.value());
+    }
 }
 
 void* IteratorHelperObject::operator new(size_t size)
@@ -433,7 +437,7 @@ void* IteratorHelperObject::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(IteratorHelperObject)] = { 0 };
         IteratorObject::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(IteratorHelperObject, m_data));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(IteratorHelperObject, m_underlyingIterator));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(IteratorHelperObject, m_underlyingIterators));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(IteratorHelperObject));
         typeInited = true;
     }
@@ -442,22 +446,8 @@ void* IteratorHelperObject::operator new(size_t size)
 
 std::pair<Value, bool> IteratorHelperObject::advance(ExecutionState& state)
 {
-    struct IteratorHelperObjectRunningStateChanger {
-        IteratorHelperObject& obj;
-        IteratorHelperObjectRunningStateChanger(IteratorHelperObject& obj)
-            : obj(obj)
-        {
-            ASSERT(!obj.m_isRunning);
-            obj.m_isRunning = true;
-        }
-        ~IteratorHelperObjectRunningStateChanger()
-        {
-            obj.m_isRunning = false;
-        }
-    };
-
     if (m_isRunning) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "You cannot call Iterator helper advance function recursively");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "You cannot call Iterator helper function recursively");
     }
 
     IteratorHelperObjectRunningStateChanger changeRunningState(*this);

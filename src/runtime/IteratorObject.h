@@ -139,8 +139,22 @@ public:
 
 class IteratorHelperObject : public IteratorObject {
 public:
+    struct IteratorHelperObjectRunningStateChanger {
+        IteratorHelperObject& obj;
+        IteratorHelperObjectRunningStateChanger(IteratorHelperObject& obj)
+            : obj(obj)
+        {
+            ASSERT(!obj.m_isRunning);
+            obj.m_isRunning = true;
+        }
+        ~IteratorHelperObjectRunningStateChanger()
+        {
+            obj.m_isRunning = false;
+        }
+    };
+
     typedef std::pair<Value, bool> (*IteratorHelperObjectCallback)(ExecutionState& state, IteratorHelperObject* obj, void* data);
-    IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback, IteratorRecord* underlyingIterator, void* data);
+    IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback, Optional<IteratorRecord*> underlyingIterator, void* data);
 
     virtual bool isIteratorHelperObject() const override
     {
@@ -152,20 +166,33 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    bool isDone() const
+    {
+        return m_isDone;
+    }
+
+    void markIteratorIsDone()
+    {
+        m_isDone = true;
+    }
+
     bool isRunning() const
     {
         return m_isRunning;
     }
 
-    IteratorRecord* underlyingIterator() const
+    TightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>>& underlyingIterators()
     {
-        return m_underlyingIterator;
+        return m_underlyingIterators;
     }
 
 private:
+    // [[GeneratorState]]
+    bool m_isDone;
     bool m_isRunning;
+
     IteratorHelperObjectCallback m_callback;
-    IteratorRecord* m_underlyingIterator;
+    TightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>> m_underlyingIterators;
     void* m_data;
 };
 
