@@ -194,7 +194,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     }
 
     Value regexp = argv[0];
-    if (!regexp.isUndefinedOrNull()) {
+    if (regexp.isObject()) {
         Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
         if (!matcher.isUndefined()) {
             Value args[1] = { thisValue };
@@ -216,8 +216,8 @@ static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_
     }
 
     Value regexp = argv[0];
-    if (!regexp.isUndefinedOrNull()) {
-        if (regexp.isObject() && regexp.asObject()->isRegExpObject()) {
+    if (regexp.isObject()) {
+        if (regexp.asObject()->isRegExpObject()) {
             String* flags = regexp.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, regexp).toString(state);
             if (flags->find("g") == SIZE_MAX) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
@@ -438,7 +438,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     bool isSearchValueRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject();
     // we should keep fast-path while performace issue is unresolved
     bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && searchValue.asPointerValue()->asRegExpObject()->yarrPatern()->m_captureGroupNames.size() == 0);
-    if (!searchValue.isUndefinedOrNull()) {
+    if (searchValue.isObject()) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
         if (canUseFastPath && isSearchValueRegExp && replacer.isPointerValue() && replacer.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
             auto exec = searchValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().exec));
@@ -571,8 +571,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
     }
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
-    // If searchValue is neither undefined nor null, then
-    if (!searchValue.isUndefinedOrNull()) {
+    if (searchValue.isObject()) {
         // If isRegExp is true, then
         if (searchValue.isObject() && searchValue.asObject()->isRegExp(state)) {
             Value flags = searchValue.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, searchValue);
@@ -642,7 +641,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     }
 
     Value regexp = argv[0];
-    if (!regexp.isUndefinedOrNull()) {
+    if (regexp.isObject()) {
         Value searcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
         if (!searcher.isUndefined()) {
             Value args[1] = { thisValue };
@@ -667,8 +666,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     Value limit = argv[1];
     bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject();
 
-    // If separator is neither undefined nor null, then
-    if (!separator.isUndefinedOrNull()) {
+    if (separator.isObject()) {
         // Let splitter be GetMethod(separator, @@split).
         Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().split));
 
