@@ -593,7 +593,7 @@ static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_
     if (flags->find("g") != SIZE_MAX) {
         global = true;
     }
-    if (flags->find("u") != SIZE_MAX) {
+    if (flags->find("u") != SIZE_MAX || flags->find("v") != SIZE_MAX) {
         unicode = true;
     }
     return new RegExpStringIteratorObject(state, global, unicode, matcher->asRegExpObject(), s);
