@@ -49,8 +49,10 @@ public:
         return true;
     }
 
-    static Value getWrappedValue(ExecutionState& state, Context* callerRealm, const Value& value);
-    static Value performShadowRealmEval(ExecutionState& state, Value& sourceText, Context* callerRealm, Context* evalRealm);
+    // https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
+    static Value wrappedValue(ExecutionState& state, Context* callerRealm, const Value& value);
+    // https://tc39.es/proposal-shadowrealm/#sec-performshadowrealmeval
+    Value eval(ExecutionState& state, String* sourceText, Context* callerRealm);
 
 private:
     Context* m_realmContext;

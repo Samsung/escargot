@@ -18,17 +18,6 @@
  */
 
 #include "Escargot.h"
-#include "interpreter/ByteCode.h"
-#include "interpreter/ByteCodeGenerator.h"
-#include "interpreter/ByteCodeInterpreter.h"
-#include "runtime/Global.h"
-#include "runtime/GlobalObject.h"
-#include "runtime/Context.h"
-#include "runtime/Environment.h"
-#include "runtime/EnvironmentRecord.h"
-#include "runtime/ExtendedNativeFunctionObject.h"
-#include "runtime/VMInstance.h"
-#include "runtime/ExecutionState.h"
 #include "runtime/ShadowRealmObject.h"
 #include "runtime/WrappedFunctionObject.h"
 #include "parser/Script.h"
@@ -40,11 +29,13 @@ namespace Escargot {
 
 ShadowRealmObject::ShadowRealmObject(ExecutionState& state)
     : DerivedObject(state)
+    , m_realmContext(nullptr)
 {
 }
 
 ShadowRealmObject::ShadowRealmObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
+    , m_realmContext(nullptr)
 {
 }
 
@@ -91,8 +82,7 @@ static Value wrappedFunctionCreate(ExecutionState& state, Context* callerRealm, 
     return wrapped;
 }
 
-// https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
-Value ShadowRealmObject::getWrappedValue(ExecutionState& state, Context* callerRealm, const Value& value)
+Value ShadowRealmObject::wrappedValue(ExecutionState& state, Context* callerRealm, const Value& value)
 {
     // If value is an Object, then
     if (value.isObject()) {
@@ -107,103 +97,21 @@ Value ShadowRealmObject::getWrappedValue(ExecutionState& state, Context* callerR
     return value;
 }
 
-static Value execute(ExecutionState& state, Script* script, bool isExecuteOnEvalFunction, bool inStrictMode, Context* callerContext, Context* evalContext)
+Value ShadowRealmObject::eval(ExecutionState& state, String* sourceText, Context* callerRealm)
 {
-    InterpretedCodeBlock* topCodeBlock = script->topCodeBlock();
-    ByteCodeBlock* byteCodeBlock = topCodeBlock->byteCodeBlock();
-
-    ExecutionState* newState;
-    if (byteCodeBlock->needsExtendedExecutionState()) {
-        newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(evalContext);
-    } else {
-        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(evalContext);
-    }
-
-    ExecutionState* codeExecutionState = newState;
-
-    EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(*newState, topCodeBlock, evalContext->globalObject(), evalContext->globalDeclarativeRecord(), evalContext->globalDeclarativeStorage());
-    LexicalEnvironment* globalLexicalEnvironment = new LexicalEnvironment(globalRecord, nullptr);
-    newState->setLexicalEnvironment(globalLexicalEnvironment, topCodeBlock->isStrict());
-
-    EnvironmentRecord* globalVariableRecord = globalRecord;
-
-    EnvironmentRecord* newVariableRecord = new DeclarativeEnvironmentRecordNotIndexed(*newState, true);
-    ExecutionState* newVariableState = new ExtendedExecutionState(evalContext);
-    newVariableState->setLexicalEnvironment(new LexicalEnvironment(newVariableRecord, globalLexicalEnvironment), topCodeBlock->isStrict());
-    newVariableState->setParent(newState);
-    codeExecutionState = newVariableState;
-
-    const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = topCodeBlock->identifierInfos();
-    size_t identifierVectorLen = identifierVector.size();
-
-    const auto& globalLexicalVector = topCodeBlock->blockInfo(0)->identifiers();
-    size_t globalLexicalVectorLen = globalLexicalVector.size();
-
-    {
-        VirtualIdDisabler d(evalContext); // we should create binding even there is virtual ID
-
-        for (size_t i = 0; i < globalLexicalVectorLen; i++) {
-            codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
-        }
-
-        for (size_t i = 0; i < identifierVectorLen; i++) {
-            // https://www.ecma-international.org/ecma-262/5.1/#sec-10.5
-            // Step 2. If code is eval code, then let configurableBindings be true.
-            if (identifierVector[i].m_isVarDeclaration) {
-                globalVariableRecord->createBinding(*codeExecutionState, identifierVector[i].m_name, isExecuteOnEvalFunction, identifierVector[i].m_isMutable, true, topCodeBlock);
-            }
-        }
-    }
-
-    Value thisValue(evalContext->globalObjectProxy());
-
-    const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    const size_t registerFileSize = byteCodeBlock->m_requiredTotalRegisterNumber;
-    ASSERT(registerFileSize == byteCodeBlock->m_requiredOperandRegisterNumber + topCodeBlock->totalStackAllocatedVariableSize() + literalStorageSize);
-
-    Value* registerFile;
-    registerFile = CustomAllocator<Value>().allocate(registerFileSize);
-    // we need to reset allocated memory because customAllocator read it
-    memset(static_cast<void*>(registerFile), 0, sizeof(Value) * registerFileSize);
-    registerFile[0] = Value();
-
-    Value* stackStorage = registerFile + byteCodeBlock->m_requiredOperandRegisterNumber;
-    stackStorage[0] = thisValue;
-
-    Value* literalStorage = stackStorage + topCodeBlock->totalStackAllocatedVariableSize();
-    Value* src = byteCodeBlock->m_numeralLiteralData.data();
-    for (size_t i = 0; i < literalStorageSize; i++) {
-        literalStorage[i] = src[i];
-    }
-
-    Value resultValue;
-#ifdef ESCARGOT_DEBUGGER
-    // set the next(first) breakpoint to be stopped in a newer script execution
-    evalContext->setAsAlwaysStopState();
-#endif
-    resultValue = Interpreter::interpret(codeExecutionState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
-    clearStack<512>();
-
-    // we give up program bytecodeblock after first excution for reducing memory usage
-    topCodeBlock->setByteCodeBlock(nullptr);
-
-    return resultValue;
-}
-
-Value ShadowRealmObject::performShadowRealmEval(ExecutionState& state, Value& sourceText, Context* callerRealm, Context* evalRealm)
-{
-    ScriptParser parser(evalRealm);
-    bool strictFromOutside = false;
-    Script* script = parser.initializeScript(nullptr, 0, sourceText.asString(), evalRealm->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true).scriptThrowsExceptionIfParseError(state);
-
-    ExtendedExecutionState stateForNewGlobal(evalRealm);
-    Value result;
+    ScriptParser parser(m_realmContext);
+    Script* script = parser.initializeScript(nullptr, 0, sourceText, m_realmContext->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, false, false, false, false, true).scriptThrowsExceptionIfParseError(state);
+    Value scriptResult;
+    ExecutionState stateForNewGlobal(m_realmContext);
     try {
-        result = execute(stateForNewGlobal, script, true, script->topCodeBlock()->isStrict(), callerRealm, evalRealm);
+        scriptResult = script->execute(state, true, false);
     } catch (const Value& e) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ShadowRealm.evaluate failed");
+        StringBuilder builder;
+        builder.appendString("ShadowRealm.evaluate failed : ");
+        builder.appendString(e.toStringWithoutException(state));
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, builder.finalize());
     }
-    return getWrappedValue(state, callerRealm, result);
+    return wrappedValue(state, callerRealm, scriptResult);
 }
 
 #endif
