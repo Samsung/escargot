@@ -29,16 +29,13 @@ namespace Escargot {
 #if defined(ENABLE_SHADOWREALM)
 
 WrappedFunctionObject::WrappedFunctionObject(ExecutionState& state, Object* wrappedTargetFunction, Context* realm, const Value& length, const Value& name)
-    : DerivedObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
+    : DerivedObject(state, realm->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
     , m_wrappedTargetFunction(wrappedTargetFunction)
     , m_realm(realm)
 {
     m_structure = state.context()->defaultStructureForWrappedFunctionObject();
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = length;
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name;
-
-    Value proto = m_wrappedTargetFunction->getPrototype(state);
-    Object::setPrototype(state, proto);
 }
 
 // https://tc39.es/proposal-shadowrealm/#sec-ordinary-wrapped-function-call
@@ -50,21 +47,23 @@ Value WrappedFunctionObject::ordinaryWrappedFunctionCall(ExecutionState& state, 
     Context* callerRealm = m_realm;
     Context* targetRealm = target->getFunctionRealm(state);
 
+    ExecutionState newState(callerRealm);
+
     Value* wrappedArgv = ALLOCA(calledArgc * sizeof(Value), Value);
     for (size_t i = 0; i < calledArgc; i++) {
-        Value wrappedValue = ShadowRealmObject::getWrappedValue(state, targetRealm, calledArgv[i]);
+        Value wrappedValue = ShadowRealmObject::wrappedValue(newState, targetRealm, calledArgv[i]);
         wrappedArgv[i] = wrappedValue;
     }
 
-    Value wrappedThisValue = ShadowRealmObject::getWrappedValue(state, targetRealm, thisValue);
+    Value wrappedThisValue = ShadowRealmObject::wrappedValue(newState, targetRealm, thisValue);
     Value result;
     try {
-        result = Object::call(state, target, wrappedThisValue, calledArgc, wrappedArgv);
+        result = Object::call(newState, target, wrappedThisValue, calledArgc, wrappedArgv);
     } catch (const Value& e) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Call target function failed");
     }
 
-    return ShadowRealmObject::getWrappedValue(state, callerRealm, result);
+    return ShadowRealmObject::wrappedValue(newState, callerRealm, result);
 }
 
 // https://tc39.es/proposal-shadowrealm/#sec-wrapped-function-exotic-objects-call-thisargument-argumentslist

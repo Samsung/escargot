@@ -38,7 +38,7 @@ namespace Escargot {
 
 #if defined(ENABLE_SHADOWREALM)
 
-//  https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
+// https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
 static Value builtinShadowRealmConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -72,13 +72,9 @@ static Value builtinShadowRealmEvaluate(ExecutionState& state, Value thisValue, 
     // Let O be the this value.
     const Value& O = thisValue;
     // Perform ? ValidateShadowRealmObject(O).
-    if (!O.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value must be an Object");
-    }
-    if (!O.asObject()->isShadowRealmObject()) {
+    if (!O.isObject() || !O.asObject()->isShadowRealmObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value must be a ShadowRealm object");
     }
-
     // If sourceText is not a String, throw a TypeError exception.
     if (!argv[0].isString()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "sourceText must be a String");
@@ -88,7 +84,7 @@ static Value builtinShadowRealmEvaluate(ExecutionState& state, Value thisValue, 
     // Let evalRealm be O.[[ShadowRealm]].
     Context* evalRealm = O.asObject()->asShadowRealmObject()->realmContext();
     // Return ? PerformShadowRealmEval(sourceText, callerRealm, evalRealm).
-    return ShadowRealmObject::performShadowRealmEval(state, argv[0], callerRealm, evalRealm);
+    return O.asObject()->asShadowRealmObject()->eval(state, argv[0].asString(), callerRealm);
 }
 
 void GlobalObject::initializeShadowRealm(ExecutionState& state)
@@ -113,7 +109,7 @@ void GlobalObject::installShadowRealm(ExecutionState& state)
     m_shadowRealm->setFunctionPrototype(state, m_shadowRealmPrototype);
 
     m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                    ObjectPropertyDescriptor(String::fromASCII("ShadowRealm"), ObjectPropertyDescriptor::ConfigurablePresent));
+                                                    ObjectPropertyDescriptor(state.context()->staticStrings().ShadowRealm.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->evaluate),
                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->evaluate, builtinShadowRealmEvaluate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
