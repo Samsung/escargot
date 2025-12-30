@@ -418,7 +418,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
     return obj;
 }
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.copywithin
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.copywithin
 static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
@@ -428,23 +428,53 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
     // Let len be O.[[ArrayLength]].
     double len = O->arrayLength();
 
-    // Let relativeTarget be ToInteger(target).
-    double relativeTarget = argv[0].toInteger(state);
-    // If relativeTarget < 0, let to be max((len + relativeTarget),0); else let to be min(relativeTarget, len).
-    double to = (relativeTarget < 0.0) ? std::max((len + relativeTarget), 0.0) : std::min(relativeTarget, len);
+    // Let relativeTarget be ? ToIntegerOrInfinity(target).
+    auto relativeTarget = argv[0].toInteger(state);
+    // If relativeTarget = -∞, let targetIndex be 0.
+    double targetIndex;
+    if (std::isinf(relativeTarget) && std::signbit(relativeTarget)) {
+        targetIndex = 0;
+    } else if (relativeTarget < 0) {
+        // Else if relativeTarget < 0, let targetIndex be max(len + relativeTarget, 0).
+        targetIndex = std::max(len + relativeTarget, 0.0);
+    } else {
+        // Else, let targetIndex be min(relativeTarget, len).
+        targetIndex = std::min(relativeTarget, len);
+    }
+    // Let relativeStart be ? ToIntegerOrInfinity(start).
+    auto relativeStart = argv[1].toInteger(state);
+    // If relativeStart = -∞, let startIndex be 0.
+    double startIndex;
+    if (std::isinf(relativeStart) && std::signbit(relativeStart)) {
+        startIndex = 0;
+    } else if (relativeStart < 0) {
+        // Else if relativeStart < 0, let startIndex be max(len + relativeStart, 0).
+        startIndex = std::max(len + relativeStart, 0.0);
+    } else {
+        // Else, let startIndex be min(relativeStart, len).
+        startIndex = std::min(relativeStart, len);
+    }
+    // If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
+    double relativeEnd;
+    if (argc < 3 || argv[2].isUndefined()) {
+        relativeEnd = len;
+    } else {
+        relativeEnd = argv[2].toInteger(state);
+    }
 
-    // Let relativeStart be ToInteger(start).
-    double relativeStart = argv[1].toInteger(state);
-    // If relativeStart < 0, let from be max((len + relativeStart),0); else let from be min(relativeStart, len).
-    double from = (relativeStart < 0.0) ? std::max((len + relativeStart), 0.0) : std::min(relativeStart, len);
-
-    // If end is undefined, let relativeEnd be len; else let relativeEnd be ToInteger(end).
-    double relativeEnd = (argc <= 2 || argv[2].isUndefined()) ? len : argv[2].toInteger(state);
-    // If relativeEnd < 0, let final be max((len + relativeEnd),0); else let final be min(relativeEnd, len).
-    double finalEnd = (relativeEnd < 0.0) ? std::max((len + relativeEnd), 0.0) : std::min(relativeEnd, len);
-
-    // Let count be min(final-from, len-to).
-    double count = std::min(finalEnd - from, len - to);
+    double endIndex;
+    // If relativeEnd = -∞, let endIndex be 0.
+    if (std::isinf(relativeEnd) && std::signbit(relativeEnd)) {
+        endIndex = 0;
+    } else if (relativeEnd < 0) {
+        // Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
+        endIndex = std::max(len + relativeEnd, 0.0);
+    } else {
+        // Else, let endIndex be min(relativeEnd, len).
+        endIndex = std::min(relativeEnd, len);
+    }
+    // Let count be min(endIndex - startIndex, len - targetIndex).
+    auto count = std::min(endIndex - startIndex, len - targetIndex);
     // If count > 0, then
     if (count > 0) {
         // Let buffer be O.[[ViewedArrayBuffer]].
@@ -454,17 +484,17 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
         TypedArrayObject::validateTypedArray(state, thisValue);
         // Set len to TypedArrayLength(taRecord).
         len = O->arrayLength();
+        // Set count to min(count, len - startIndex, len - targetIndex).
+        count = std::min(std::min(count, len - startIndex), len - targetIndex);
         // Let typedArrayName be the String value of O.[[TypedArrayName]].
         // Let elementSize be the Number value of the Element Size value specified in Table 59 for typedArrayName.
         size_t elementSize = O->elementSize();
         // Let byteOffset be O.[[ByteOffset]].
         size_t byteOffset = O->byteOffset();
-        // Let bufferByteLimit be (len × elementSize) + byteOffset.
-        size_t bufferByteLimit = (len * elementSize) + byteOffset;
-        // Let toByteIndex be to × elementSize + byteOffset.
-        size_t toByteIndex = to * elementSize + byteOffset;
-        // Let fromByteIndex be from × elementSize + byteOffset.
-        size_t fromByteIndex = from * elementSize + byteOffset;
+        // Let toByteIndex be (targetIndex × elementSize) + byteOffset.
+        size_t toByteIndex = targetIndex * elementSize + byteOffset;
+        // Let fromByteIndex be (startIndex × elementSize) + byteOffset.
+        size_t fromByteIndex = startIndex * elementSize + byteOffset;
         // Let countBytes be count × elementSize.
         size_t countBytes = count * elementSize;
 
@@ -482,23 +512,18 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
             direction = 1;
         }
 
-        // Repeat, while countBytes > 0
+        // Repeat, while countBytes > 0,
         while (countBytes > 0) {
-            // If fromByteIndex < bufferByteLimit and toByteIndex < bufferByteLimit, then
-            if (fromByteIndex < bufferByteLimit && toByteIndex < bufferByteLimit) {
-                // Let value be GetValueFromBuffer(buffer, fromByteIndex, "Uint8", true, "Unordered").
-                Value value = buffer->getValueFromBuffer(state, fromByteIndex, TypedArrayType::Uint8);
-                // Perform SetValueInBuffer(buffer, toByteIndex, "Uint8", value, true, "Unordered").
-                buffer->setValueInBuffer(state, toByteIndex, TypedArrayType::Uint8, value);
-                // Set fromByteIndex to fromByteIndex + direction.
-                fromByteIndex += direction;
-                // Set toByteIndex to toByteIndex + direction.
-                toByteIndex += direction;
-                // Decrease countBytes by 1.
-                countBytes--;
-            } else {
-                countBytes = 0;
-            }
+            // Let value be GetValueFromBuffer(buffer, fromByteIndex, uint8, true, unordered).
+            Value value = buffer->getValueFromBuffer(state, fromByteIndex, TypedArrayType::Uint8);
+            // Perform SetValueInBuffer(buffer, toByteIndex, uint8, value, true, unordered).
+            buffer->setValueInBuffer(state, toByteIndex, TypedArrayType::Uint8, value);
+            // Set fromByteIndex to fromByteIndex + direction.
+            fromByteIndex += direction;
+            // Set toByteIndex to toByteIndex + direction.
+            toByteIndex += direction;
+            // Set countBytes to countBytes - 1.
+            countBytes--;
         }
     }
 
