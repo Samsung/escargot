@@ -50,8 +50,6 @@ static Value builtinShadowRealmConstructor(ExecutionState& state, Value thisValu
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->shadowRealmPrototype();
     });
-    ShadowRealmObject* O = new ShadowRealmObject(state, proto);
-
     // Let callerContext be the running execution context.
     // Perform ? InitializeHostDefinedRealm().
     // Let innerContext be the running execution context.
@@ -59,7 +57,26 @@ static Value builtinShadowRealmConstructor(ExecutionState& state, Value thisValu
     // Remove innerContext from the execution context stack and restore callerContext as the running execution context.
     // Let realmRec be the Realm of innerContext.
     // Set O.[[ShadowRealm]] to realmRec.
-    O->setRealmContext(innerContext);
+    auto targetState = &state;
+    Optional<Script*> referrer;
+    while (targetState) {
+        auto callee = targetState->resolveCallee();
+        if (callee && !callee->isNativeFunctionObject()) {
+            auto fn = targetState->mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+            referrer = fn->codeBlock()->asInterpretedCodeBlock()->script();
+            break;
+        }
+        auto outerScript = targetState->resolveOuterScript();
+        if (outerScript && outerScript->topCodeBlock() && !outerScript->topCodeBlock()->isEvalCode()) {
+            referrer = outerScript;
+            break;
+        }
+        targetState = targetState->parent();
+    }
+    if (!referrer) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Shadow Realm needs Javascript code as importValue referrer");
+    }
+    ShadowRealmObject* O = new ShadowRealmObject(state, proto, innerContext, referrer.value());
     // Perform ? HostInitializeShadowRealm(realmRec, innerContext, O).
     // Assert: realmRec.[[GlobalObject]] is an ordinary object.
     ASSERT(innerContext->globalObject()->isOrdinary());
@@ -85,6 +102,29 @@ static Value builtinShadowRealmEvaluate(ExecutionState& state, Value thisValue, 
     Context* evalRealm = O.asObject()->asShadowRealmObject()->realmContext();
     // Return ? PerformShadowRealmEval(sourceText, callerRealm, evalRealm).
     return O.asObject()->asShadowRealmObject()->eval(state, argv[0].asString(), callerRealm);
+}
+
+static Value builtinShadowRealmImportValue(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // Perform ? ValidateShadowRealmObject(O).
+    if (!O.isObject() || !O.asObject()->isShadowRealmObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value must be a ShadowRealm object");
+    }
+
+    // Let specifierString be ? ToString(specifier).
+    auto specifierString = argv[0].toString(state);
+    // If exportName is not a String, throw a TypeError exception.
+    if (!argv[1].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "exportName must be a String");
+    }
+    // Let callerRealm be the current Realm Record.
+    Context* callerRealm = state.context();
+    // Let evalRealm be O.[[ShadowRealm]].
+    Context* evalRealm = O.asObject()->asShadowRealmObject()->realmContext();
+    // Return ShadowRealmImportValue(specifierString, exportName, callerRealm, evalRealm).
+    return O.asObject()->asShadowRealmObject()->importValue(state, specifierString, argv[1].asString(), callerRealm);
 }
 
 void GlobalObject::initializeShadowRealm(ExecutionState& state)
@@ -113,6 +153,9 @@ void GlobalObject::installShadowRealm(ExecutionState& state)
 
     m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->evaluate),
                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->evaluate, builtinShadowRealmEvaluate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->importValue),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->importValue, builtinShadowRealmImportValue, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().ShadowRealm),
                         ObjectPropertyDescriptor(m_shadowRealm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

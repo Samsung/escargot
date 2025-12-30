@@ -385,6 +385,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false);
     }
     ExecutionState* codeExecutionState = newState;
+    codeExecutionState->setParent(&state);
 
     EnvironmentRecord* globalRecord = new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage());
     LexicalEnvironment* globalLexicalEnvironment = new LexicalEnvironment(globalRecord, nullptr);
