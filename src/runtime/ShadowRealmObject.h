@@ -29,19 +29,14 @@ namespace Escargot {
 
 #if defined(ENABLE_SHADOWREALM)
 
+class Script;
 class ShadowRealmObject : public DerivedObject {
 public:
-    explicit ShadowRealmObject(ExecutionState& state);
-    explicit ShadowRealmObject(ExecutionState& state, Object* proto);
+    explicit ShadowRealmObject(ExecutionState& state, Object* proto, Context* realmContext, Script* referrer);
 
     Context* realmContext()
     {
         return m_realmContext;
-    }
-
-    void setRealmContext(Context* context)
-    {
-        m_realmContext = context;
     }
 
     virtual bool isShadowRealmObject() const override
@@ -53,9 +48,12 @@ public:
     static Value wrappedValue(ExecutionState& state, Context* callerRealm, const Value& value);
     // https://tc39.es/proposal-shadowrealm/#sec-performshadowrealmeval
     Value eval(ExecutionState& state, String* sourceText, Context* callerRealm);
+    // https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
+    Value importValue(ExecutionState& state, String* specifierString, String* exportNameString, Context* callerRealm);
 
 private:
     Context* m_realmContext;
+    Script* m_referrer;
 };
 
 #endif // defined(ENABLE_SHADOWREALM)
