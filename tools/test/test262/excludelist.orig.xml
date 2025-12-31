@@ -164,8 +164,6 @@
     <test id="built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-limits"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/ZonedDateTime/prototype/until/roundingincrement-addition-out-of-range"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-prototype-chain-set"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-reflect-set"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-valid-index-prototype-chain-set"><reason>TODO</reason></test>

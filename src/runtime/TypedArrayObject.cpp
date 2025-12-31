@@ -210,7 +210,11 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         numValue = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
     }
 
-    if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (buffer()->isDetachedBuffer()) {
+        return true;
+    }
+
+    if (!Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return false;
     }
 
