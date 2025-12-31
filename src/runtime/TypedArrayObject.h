@@ -74,6 +74,34 @@ public:
         return true;
     }
 
+    // https://tc39.es/ecma262/#sec-isvalidintegerindex
+    bool isValidIntegerIndex(ExecutionState& state, double index)
+    {
+        // If IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is true, return false.
+        if (buffer()->isDetachedBuffer()) {
+            return false;
+        }
+        // 2. If index is not an integral Number, return false.
+        if (std::trunc(index) != index) {
+            return false;
+        }
+        // If index is -0𝔽 or index < -0𝔽, return false.
+        if ((index == 0 && std::signbit(index)) || index < -0.0) {
+            return false;
+        }
+        // Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, unordered).
+        // NOTE: Bounds checking is not a synchronizing operation when O's backing buffer is a growable SharedArrayBuffer.
+        // If IsTypedArrayOutOfBounds(taRecord) is true, return false.
+        // Let length be TypedArrayLength(taRecord).
+        double length = arrayLength();
+        // If ℝ(index) ≥ length, return false.
+        if (index >= length) {
+            return false;
+        }
+        // Return true.
+        return true;
+    }
+
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;

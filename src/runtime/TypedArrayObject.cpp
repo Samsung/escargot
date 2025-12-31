@@ -100,13 +100,27 @@ ObjectGetResult TypedArrayObject::get(ExecutionState& state, const ObjectPropert
 
 bool TypedArrayObject::set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
+    // https://tc39.es/ecma262/#sec-typedarray-set
+    // If P is a String, then
     if (LIKELY(P.isStringType())) {
+        // Let numericIndex be CanonicalNumericIndexString(P).
         double index = P.canonicalNumericIndexString(state);
+        // If numericIndex is not undefined, then
         if (LIKELY(index != Value::UndefinedIndex)) {
-            integerIndexedElementSet(state, index, v);
-            return true;
+            // If SameValue(O, Receiver) is true, then
+            if (receiver.isObject() && receiver.asObject() == this) {
+                // Perform ? TypedArraySetElement(O, numericIndex, V).
+                integerIndexedElementSet(state, index, v);
+                // Return true.
+                return true;
+            }
+            // If IsValidIntegerIndex(O, numericIndex) is false, return true.
+            if (!isValidIntegerIndex(state, index)) {
+                return true;
+            }
         }
     }
+    // Return ? OrdinarySet(O, P, V, Receiver).
     return Object::set(state, P, v, receiver);
 }
 
