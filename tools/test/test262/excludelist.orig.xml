@@ -164,17 +164,6 @@
     <test id="built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-limits"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/ZonedDateTime/prototype/until/roundingincrement-addition-out-of-range"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-prototype-chain-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-reflect-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-valid-index-prototype-chain-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-valid-index-reflect-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-prototype-chain-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-reflect-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-in-bounds-receiver-is-not-typed-array"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-object"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-typed-array"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-valid-index-prototype-chain-set"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/Set/key-is-valid-index-reflect-set"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage-empty"><reason>TODO</reason></test>
     <test id="built-ins/decodeURIComponent/throw-URIError"><reason>TODO</reason></test>
@@ -1103,7 +1092,6 @@
     <test id="staging/sm/TypedArray/element-setting-converts-using-ToNumber"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/find-and-findIndex"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/findLast-and-findLastIndex"><reason>TODO</reason></test>
-    <test id="staging/sm/TypedArray/set-with-receiver"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/sort-negative-nan"><reason>TODO</reason></test>
     <test id="staging/sm/async-functions/async-contains-unicode-escape"><reason>TODO</reason></test>
     <test id="staging/sm/async-functions/async-property-name-error"><reason>TODO</reason></test>
