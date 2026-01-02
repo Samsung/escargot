@@ -170,7 +170,8 @@ Value ShadowRealmObject::importValue(ExecutionState& state, String* specifierStr
     // Let evalContext be GetShadowRealmContext(evalRealm, true).
     ExecutionState evalState(evalRealm);
     // Let innerCapability be ! NewPromiseCapability(%Promise%).
-    auto innerCapability = PromiseObject::newPromiseCapability(evalState, state.context()->globalObject()->promise());
+    auto newModuleInnerPromise = new Script::ModuleData::ModulePromiseObject(state, state.context()->globalObject()->promisePrototype());
+    auto innerCapability = newModuleInnerPromise->createResolvingFunctions(state);
     // Let runningContext be the running execution context.
     // If runningContext is not already suspended, suspend runningContext.
     // Push evalContext onto the execution context stack; evalContext is now the running execution context.
