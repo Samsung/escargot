@@ -167,15 +167,10 @@
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage-empty"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/resolvedOptions/calendar"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-timeStyle"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-basic"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-change"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/resolved-hour-cycle-unicode-extensions-and-options"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/timezone-case-insensitive"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/timezone-legacy-non-iana"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/timezone-not-canonicalized"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/of/type-calendar-invalid"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/of/type-language-invalid"><reason>TODO</reason></test>

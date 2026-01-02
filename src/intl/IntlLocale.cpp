@@ -254,7 +254,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     Value calendar = Intl::getOption(state, options, state.context()->staticStrings().lazyCalendar().string(), Intl::StringValue, nullptr, 0, Value());
     if (!calendar.isUndefined()) {
         std::string s = calendar.asString()->toNonGCUTF8StringData();
-        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("calendar", s)) {
+        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("calendar", Intl::canonicalizeCalendarTag(s))) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "calendar is not a well-formed calendar value");
         }
     }
