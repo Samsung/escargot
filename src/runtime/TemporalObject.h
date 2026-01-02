@@ -55,114 +55,6 @@ T intFloor(T x, int64_t y)
     }
 }
 
-struct MonthCode {
-    unsigned monthNumber = 0;
-    bool isLeapMonth = false;
-    bool operator==(const MonthCode& src) const
-    {
-        return monthNumber == src.monthNumber && isLeapMonth == src.isLeapMonth;
-    }
-
-    bool operator!=(const MonthCode& src) const
-    {
-        return !operator==(src);
-    }
-};
-
-// https://github.com/tc39/proposal-intl-era-monthcode
-class Calendar {
-public:
-    // sync with 'canonicalCodeForDisplayNames'
-#define CALENDAR_ID_RECORDS(F)                                                      \
-    F(ISO8601, "iso8601", "iso8601", "iso8601")                                     \
-    F(Buddhist, "buddhist", "buddhist", "buddhist")                                 \
-    F(Chinese, "chinese", "chinese", "chinese")                                     \
-    F(Coptic, "coptic", "coptic", "coptic")                                         \
-    F(Dangi, "dangi", "dangi", "dangi")                                             \
-    F(Ethiopian, "ethiopic", "ethiopic", "ethiopic")                                \
-    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethioaa")              \
-    F(Gregorian, "gregory", "gregorian", "gregory")                                 \
-    F(Hebrew, "hebrew", "hebrew", "hebrew")                                         \
-    F(Indian, "indian", "indian", "indian")                                         \
-    F(Islamic, "islamic", "islamic", "islamic")                                     \
-    F(IslamicCivil, "islamic-civil", "islamic-civil", "islamic-civil")              \
-    F(IslamicCivilLegacy, "islamicc", "islamic-civil", "islamic-civil")             \
-    F(IslamicRGSA, "islamic-rgsa", "islamic-rgsa", "islamic-rgsa")                  \
-    F(IslamicTabular, "islamic-tbla", "islamic-tbla", "islamic-tbla")               \
-    F(IslamicUmmAlQura, "islamic-umalqura", "islamic-umalqura", "islamic-umalqura") \
-    F(Japanese, "japanese", "japanese", "japanese")                                 \
-    F(Persian, "persian", "persian", "persian")                                     \
-    F(ROC, "roc", "roc", "roc")
-
-    enum class ID : int32_t {
-#define DEFINE_FIELD(name, string, icuString, fullName) name,
-        CALENDAR_ID_RECORDS(DEFINE_FIELD)
-#undef DEFINE_FIELD
-    };
-
-    Calendar(ID id = ID::ISO8601)
-        : m_id(id)
-    {
-    }
-
-    bool operator==(const Calendar& c) const
-    {
-        return toICUString() == c.toICUString();
-    }
-
-    bool operator!=(const Calendar& c) const
-    {
-        return !operator==(c);
-    }
-
-    bool isISO8601() const
-    {
-        return m_id == ID::ISO8601;
-    }
-
-    ID id() const
-    {
-        return m_id;
-    }
-
-    bool isEraRelated() const;
-    bool shouldUseICUExtendedYear() const;
-    bool hasLeapMonths() const;
-    bool hasEpagomenalMonths() const;
-    bool sameAsGregoryExceptHandlingEraAndYear() const;
-
-    // https://tc39.es/proposal-intl-era-monthcode/#table-epoch-years
-    int32_t epochISOYear() const;
-
-    // icu4c base year of chinese, dangi, roc are differ with icu4x
-    int diffYearDueToICU4CAndSpecDiffer() const;
-
-    static Optional<Calendar> fromString(const ISO8601::CalendarID&, bool shouldAllowIslamicAndIslamicRGSA = false);
-    static Optional<Calendar> fromString(String* str, bool shouldAllowIslamicAndIslamicRGSA = false);
-    String* toString() const;
-    std::string toICUString() const;
-    UCalendar* createICUCalendar(ExecutionState& state);
-    void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
-
-    void setYear(ExecutionState& state, UCalendar* calendar, int32_t year);
-    void setYear(ExecutionState& state, UCalendar* calendar, const String* era, int32_t year);
-
-    int32_t year(ExecutionState& state, UCalendar* calendar);
-    int32_t eraYear(ExecutionState& state, UCalendar* calendar);
-    String* era(ExecutionState& state, UCalendar* calendar);
-
-    void setOrdinalMonth(ExecutionState& state, UCalendar* calendar, int32_t month);
-    void setMonth(UCalendar* calendar, MonthCode mc);
-
-    int32_t ordinalMonth(ExecutionState& state, UCalendar* calendar);
-    MonthCode monthCode(ExecutionState& state, UCalendar* calendar);
-    bool inLeapMonth(ExecutionState& state, UCalendar* calendar);
-
-private:
-    UCalendar* createICUCalendar(ExecutionState& state, const std::string& name);
-    ID m_id;
-};
-
 class TimeZone {
 public:
     TimeZone()
@@ -330,7 +222,6 @@ enum class TemporalKind : uint8_t {
 
 class Temporal {
 public:
-    static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
     static TimeZone parseTimeZone(ExecutionState& state, String* input, bool allowISODateTimeString = true);
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
     static ISO8601::PlainDateTime toPlainDateTime(Int128 epochNanoseconds);

@@ -1438,7 +1438,7 @@ static ValueVector availableCalendars()
 {
     ValueVector resultVector;
 
-    auto ns = Intl::calendarsForLocale(String::emptyString());
+    auto ns = Intl::calendarsForLocale(String::emptyString(), false);
 
     for (const auto& s : ns) {
         resultVector.pushBack(String::fromUTF8(s.data(), s.length()));

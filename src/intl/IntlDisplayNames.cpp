@@ -219,19 +219,17 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // a. If code does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         // b. Let code be the result of mapping code to lower case as described in 6.1.
         // c. Return code.
+        std::string s = code->toNonGCUTF8StringData();
 
-        // sync with 'Calendar::fromString'
-        if (code->equals("islamicc")) {
-            code = String::fromASCII("islamic-civil", sizeof("islamic-civil") - 1);
-        } else if (code->equals("ethioaa")) {
-            code = String::fromASCII("ethiopic-amete-alem", sizeof("ethiopic-amete-alem") - 1);
+        auto mayID = Calendar::fromString(s);
+        if (mayID) {
+            s = mayID.value().toString()->toNonGCUTF8StringData();
         }
 
         if (!Intl::isValidUnicodeLocaleIdentifier(code)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar code");
         }
 
-        std::string s = code->toNonGCUTF8StringData();
         for (size_t i = 0; i < s.length(); i++) {
             s[i] = tolower(s[i]);
         }
@@ -292,6 +290,12 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
     } else if (m_type->equals("calendar")) {
         auto icuKey = Intl::convertBCP47KeywordToICUCalendarKeywordIfNeeds(code->toNonGCUTF8StringData());
         result = INTL_ICU_STRING_BUFFER_OPERATION(uldn_keyValueDisplayName, m_icuLocaleDisplayNames, "calendar", icuKey.data());
+        if (U_SUCCESS(result.first)) {
+            auto mayID = Calendar::fromString(icuKey);
+            if (!mayID) {
+                result.first = U_ILLEGAL_ARGUMENT_ERROR;
+            }
+        }
     } else if (m_type->equals("currency")) {
         UCurrNameStyle style = UCURR_LONG_NAME;
         if (m_style->equals("long")) {

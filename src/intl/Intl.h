@@ -21,7 +21,119 @@
 #ifndef __EscargotIntlObject__
 #define __EscargotIntlObject__
 
+#include "util/ISO8601.h"
+
 namespace Escargot {
+
+struct MonthCode {
+    unsigned monthNumber = 0;
+    bool isLeapMonth = false;
+    bool operator==(const MonthCode& src) const
+    {
+        return monthNumber == src.monthNumber && isLeapMonth == src.isLeapMonth;
+    }
+
+    bool operator!=(const MonthCode& src) const
+    {
+        return !operator==(src);
+    }
+};
+
+// https://github.com/tc39/proposal-intl-era-monthcode
+class Calendar {
+public:
+#define CALENDAR_ID_RECORDS(F)                                                                \
+    F(ISO8601, "iso8601", "iso8601", "iso8601", false)                                        \
+    F(Buddhist, "buddhist", "buddhist", "buddhist", false)                                    \
+    F(Chinese, "chinese", "chinese", "chinese", false)                                        \
+    F(Coptic, "coptic", "coptic", "coptic", false)                                            \
+    F(Dangi, "dangi", "dangi", "dangi", false)                                                \
+    F(Ethiopian, "ethiopic", "ethiopic", "ethiopic", false)                                   \
+    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethioaa", false)                 \
+    F(EthiopianAmeteAlemAlias, "ethiopic-amete-alem", "ethiopic-amete-alem", "ethioaa", true) \
+    F(Gregorian, "gregory", "gregorian", "gregory", false)                                    \
+    F(Hebrew, "hebrew", "hebrew", "hebrew", false)                                            \
+    F(Indian, "indian", "indian", "indian", false)                                            \
+    F(Islamic, "islamic", "islamic", "islamic", false)                                        \
+    F(IslamicCivil, "islamic-civil", "islamic-civil", "islamic-civil", false)                 \
+    F(IslamicCivilAlias, "islamicc", "islamic-civil", "islamic-civil", true)                  \
+    F(IslamicRGSA, "islamic-rgsa", "islamic-rgsa", "islamic-rgsa", false)                     \
+    F(IslamicTabular, "islamic-tbla", "islamic-tbla", "islamic-tbla", false)                  \
+    F(IslamicUmmAlQura, "islamic-umalqura", "islamic-umalqura", "islamic-umalqura", false)    \
+    F(Japanese, "japanese", "japanese", "japanese", false)                                    \
+    F(Persian, "persian", "persian", "persian", false)                                        \
+    F(ROC, "roc", "roc", "roc", false)
+
+    enum class ID : int32_t {
+#define DEFINE_FIELD(name, string, icuString, fullName, alias) name,
+        CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+    };
+
+    Calendar(ID id = ID::ISO8601)
+        : m_id(id)
+    {
+    }
+
+    bool operator==(const Calendar& c) const
+    {
+        return toICUString() == c.toICUString();
+    }
+
+    bool operator!=(const Calendar& c) const
+    {
+        return !operator==(c);
+    }
+
+    bool isISO8601() const
+    {
+        return m_id == ID::ISO8601;
+    }
+
+    ID id() const
+    {
+        return m_id;
+    }
+
+    bool isEraRelated() const;
+    bool shouldUseICUExtendedYear() const;
+    bool hasLeapMonths() const;
+    bool hasEpagomenalMonths() const;
+    bool sameAsGregoryExceptHandlingEraAndYear() const;
+
+    // https://tc39.es/proposal-intl-era-monthcode/#table-epoch-years
+    int32_t epochISOYear() const;
+
+    // icu4c base year of chinese, dangi, roc are differ with icu4x
+    int diffYearDueToICU4CAndSpecDiffer() const;
+
+    static Optional<Calendar> fromString(const std::string&, bool shouldAllowIslamicAndIslamicRGSA = false);
+    static Optional<Calendar> fromString(String* str, bool shouldAllowIslamicAndIslamicRGSA = false);
+    String* toString() const;
+    std::string toICUString() const;
+    UCalendar* createICUCalendar(ExecutionState& state);
+    void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
+
+    void setYear(ExecutionState& state, UCalendar* calendar, int32_t year);
+    void setYear(ExecutionState& state, UCalendar* calendar, const String* era, int32_t year);
+
+    int32_t year(ExecutionState& state, UCalendar* calendar);
+    int32_t eraYear(ExecutionState& state, UCalendar* calendar);
+    String* era(ExecutionState& state, UCalendar* calendar);
+
+    void setOrdinalMonth(ExecutionState& state, UCalendar* calendar, int32_t month);
+    void setMonth(UCalendar* calendar, MonthCode mc);
+
+    int32_t ordinalMonth(ExecutionState& state, UCalendar* calendar);
+    MonthCode monthCode(ExecutionState& state, UCalendar* calendar);
+    bool inLeapMonth(ExecutionState& state, UCalendar* calendar);
+
+    static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
+
+private:
+    UCalendar* createICUCalendar(ExecutionState& state, const std::string& name);
+    ID m_id;
+};
 
 class Intl {
 public:
@@ -73,7 +185,7 @@ public:
     static bool isUnicodeExtensionKey(const std::string& src);
     static Optional<std::string> languageTagForLocaleID(const char* localeID);
 
-    static std::vector<std::string> calendarsForLocale(String* locale);
+    static std::vector<std::string> calendarsForLocale(String* locale, bool includeAlias);
     static std::vector<std::string> numberingSystemsForLocale(String* locale);
     struct CanonicalizedLangunageTag {
         Optional<String*> canonicalizedTag;

@@ -169,7 +169,7 @@ String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value optio
 ISO8601::PlainDate TemporalPlainDateTimeObject::computeISODate(ExecutionState& state)
 {
     if (!m_calendarID.isISO8601()) {
-        return Temporal::computeISODate(state, m_icuCalendar);
+        return Calendar::computeISODate(state, m_icuCalendar);
     }
     return plainDate();
 }

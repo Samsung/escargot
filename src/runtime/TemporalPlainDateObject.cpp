@@ -130,7 +130,7 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
 ISO8601::PlainDate TemporalPlainDateObject::computeISODate(ExecutionState& state)
 {
     if (!m_calendarID.isISO8601()) {
-        return Temporal::computeISODate(state, m_icuCalendar);
+        return Calendar::computeISODate(state, m_icuCalendar);
     }
     return plainDate();
 }
@@ -399,7 +399,7 @@ Value TemporalPlainDateGetter::inLeapYear(ExecutionState& state, ISO8601::PlainD
     switch (calendarID.id()) {
     case Calendar::ID::Islamic:
     case Calendar::ID::IslamicCivil:
-    case Calendar::ID::IslamicCivilLegacy:
+    case Calendar::ID::IslamicCivilAlias:
     case Calendar::ID::IslamicRGSA:
     case Calendar::ID::IslamicTabular:
     case Calendar::ID::IslamicUmmAlQura: {

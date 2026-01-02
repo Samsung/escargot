@@ -67,7 +67,7 @@ static const size_t indexOfExtensionKeyNu = 1;
 static const size_t indexOfExtensionKeyHc = 2;
 static const double minECMAScriptTime = -8.64E15;
 
-std::vector<std::string> Intl::calendarsForLocale(String* locale)
+std::vector<std::string> Intl::calendarsForLocale(String* locale, bool includeAlias)
 {
     std::vector<std::string> keyLocaleData;
     UErrorCode status = U_ZERO_ERROR;
@@ -79,10 +79,22 @@ std::vector<std::string> Intl::calendarsForLocale(String* locale)
     while (const char* availableName = uenum_next(calendars, &nameLength, &status)) {
         ASSERT(U_SUCCESS(status));
         status = U_ZERO_ERROR;
-        std::string calendar = std::string(availableName, nameLength);
-        keyLocaleData.push_back(Intl::convertICUCalendarKeywordToBCP47KeywordIfNeeds(calendar));
+        std::string calendar(availableName, nameLength);
+        auto id = Calendar::fromString(calendar);
+        if (id) {
+            keyLocaleData.push_back(id.value().toString()->toNonGCUTF8StringData());
+        }
     }
     uenum_close(calendars);
+
+    if (includeAlias) {
+#define DEFINE_FIELD(name, string, icuString, fullName, alias) \
+    if (alias) {                                               \
+        keyLocaleData.push_back(string);                       \
+    }
+        CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+    }
 
     return keyLocaleData;
 }
@@ -92,7 +104,7 @@ static std::vector<std::string> localeDataDateTimeFormat(String* locale, size_t 
     std::vector<std::string> keyLocaleData;
     switch (keyIndex) {
     case indexOfExtensionKeyCa:
-        keyLocaleData = Intl::calendarsForLocale(locale);
+        keyLocaleData = Intl::calendarsForLocale(locale, true);
         break;
     case indexOfExtensionKeyNu:
         keyLocaleData = Intl::numberingSystemsForLocale(locale);
@@ -120,6 +132,20 @@ static bool equalIgnoringASCIICase(String* timeZoneName, const UTF16StringDataNo
         }
     }
     return true;
+}
+
+template <size_t N>
+static Optional<String*> equalIgnoringASCIICase(String* timeZoneName, const char (&str)[N])
+{
+    if (timeZoneName->length() != N - 1) {
+        return NullOption;
+    }
+    for (size_t i = 0; i < N - 1; i++) {
+        if (tolower(str[i]) != tolower(timeZoneName->charAt(i))) {
+            return NullOption;
+        }
+    }
+    return String::fromASCII(str);
 }
 
 // ICU 72 uses narrowNoBreakSpace (u202F) and thinSpace (u2009) for the output of Intl.DateTimeFormat.
@@ -254,15 +280,25 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     UEnumeration* timeZones = ucal_openTimeZones(&status);
     ASSERT(U_SUCCESS(status));
 
-    if (timeZoneName->equals("Etc/UTC") || timeZoneName->equals("Etc/GMT") || timeZoneName->equals("GMT")) {
-        return timeZoneName;
-    }
-
     if (auto offset = parseUTCOffsetInMinutes(timeZoneName->bufferAccessData())) {
         int64_t minutes = offset.value();
         int64_t absMinutes = std::abs(minutes);
-        std::string tz = minutes < 0 ? std::string("-") : std::string("+") + pad('0', 2, std::to_string(absMinutes / 60)) + ':' + pad('0', 2, std::to_string(absMinutes % 60));
-        return timeZoneName;
+        std::string tz = (minutes < 0 ? std::string("-") : std::string("+")) + pad('0', 2, std::to_string(absMinutes / 60)) + ':' + pad('0', 2, std::to_string(absMinutes % 60));
+        return String::fromASCII(tz.data(), tz.length());
+    }
+
+    // skip non-iana names like "ACT" in https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones
+    if (timeZoneName->length() == 3) {
+        auto c = ISO8601::parseTimeZoneName(timeZoneName);
+        if (!c) {
+            return String::emptyString();
+        }
+    }
+
+    // exceptional cases
+    Optional<String*> exceptional;
+    if ((exceptional = equalIgnoringASCIICase(timeZoneName, "UTC")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Etc/GMT")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Etc/UTC")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "GMT")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Etc/UCT")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Etc/GMT0")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Australia/Canberra")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Atlantic/Jan_Mayen")) || (exceptional = equalIgnoringASCIICase(timeZoneName, "Pacific/Truk"))) {
+        return exceptional.value();
     }
 
     String* canonical = String::emptyString();
@@ -280,7 +316,6 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
         UTF16StringDataNonGCStd ianaTimeZoneView((char16_t*)ianaTimeZone, ianaTimeZoneLength);
         if (!equalIgnoringASCIICase(timeZoneName, ianaTimeZoneView))
             continue;
-
         // Found a match, now canonicalize.
         // 6.4.2 CanonicalizeTimeZoneName (timeZone) (ECMA-402 2.0)
         // 1. Let ianaTimeZone be the Zone or Link name of the IANA Time Zone Database such that timeZone, converted to upper case as described in 6.1, is equal to ianaTimeZone, converted to upper case as described in 6.1.
@@ -302,12 +337,6 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     } while (canonical->length() == 0);
     uenum_close(timeZones);
 
-    if (canonical->equals("Etc/UTC") || canonical->equals("Etc/GMT")) {
-        canonical = state.context()->staticStrings().UTC.string();
-    }
-    if (timeZoneName->equals("Australia/Canberra") || timeZoneName->equals("Atlantic/Jan_Mayen") || timeZoneName->equals("Pacific/Truk") || timeZoneName->equals("Etc/UCT") || timeZoneName->equals("Etc/GMT0")) {
-        return timeZoneName;
-    }
     // 4. Return ianaTimeZone.
     return canonical;
 }
