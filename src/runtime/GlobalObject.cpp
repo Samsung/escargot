@@ -669,7 +669,9 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                         ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 }
-                if (v >= 0x10000) {
+                if (v > 0x10FFFF) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                } else if (v >= 0x10000) {
                     const char16_t l = (((v - 0x10000) & 0x3ff) + 0xdc00);
                     const char16_t h = ((((v - 0x10000) >> 10) & 0x3ff) + 0xd800);
                     unescaped.appendChar(h, &state);

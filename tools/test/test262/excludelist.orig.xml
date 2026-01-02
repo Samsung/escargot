@@ -166,7 +166,6 @@
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage-empty"><reason>TODO</reason></test>
-    <test id="built-ins/decodeURIComponent/throw-URIError"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-func-throws-sync"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-rejects-non-callable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
