@@ -507,10 +507,8 @@
     <test id="language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/destructuring/default-expr-throws-iterator-return-get-throws"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order-with-bindings"><reason>TODO</reason></test>
-    <test id="language/expressions/assignment/destructuring/target-assign-throws-iterator-return-get-throws"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/array-rest-init"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/dstr/obj-rest-non-string-computed-property-1"><reason>TODO</reason></test>
@@ -925,7 +923,6 @@
     <test id="language/statements/for-of/dstr/obj-rest-not-last-element-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-of/head-lhs-async-dot"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>

@@ -4955,19 +4955,28 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
             bool exceptionWasThrown = state.rareData()->controlFlowRecordVector() && state.rareData()->controlFlowRecordVector()->back() && state.rareData()->controlFlowRecordVector()->back()->reason() == ControlFlowRecord::NeedsThrow;
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             Object* iterator = iteratorRecord->m_iterator;
-            Value returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
-            if (returnFunction.isUndefined()) {
+            Value returnFunction;
+            Value innerResult;
+            bool innerResultHasException = false;
+            try {
+                returnFunction = iterator->get(state, ObjectPropertyName(state.context()->staticStrings().stringReturn)).value(state, iterator);
+            } catch (const Value& e) {
+                innerResult = e;
+                innerResultHasException = true;
+            }
+
+            if (!innerResultHasException && returnFunction.isUndefined()) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
                 return;
             }
 
-            Value innerResult;
-            bool innerResultHasException = false;
-            try {
-                innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
-            } catch (const Value& e) {
-                innerResult = e;
-                innerResultHasException = true;
+            if (!innerResultHasException) {
+                try {
+                    innerResult = Object::call(state, returnFunction, iterator, 0, nullptr);
+                } catch (const Value& e) {
+                    innerResult = e;
+                    innerResultHasException = true;
+                }
             }
 
             if (exceptionWasThrown) {
