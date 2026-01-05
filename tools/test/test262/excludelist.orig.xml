@@ -360,7 +360,6 @@
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/wrapping-at-end-of-month-persian"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/withCalendar/extreme-dates"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/withPlainTime/dst-skipped-cross-midnight"><reason>TODO</reason></test>
-    <test id="intl402/TypedArray/prototype/toLocaleString/calls-toLocaleString-number-elements"><reason>TODO</reason></test>
     <test id="intl402/language-tags-with-underscore"><reason>TODO</reason></test>
     <test id="language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function"><reason>TODO</reason></test>
     <test id="language/block-scope/syntax/redeclaration/var-name-redeclaration-attempt-with-function"><reason>TODO</reason></test>
