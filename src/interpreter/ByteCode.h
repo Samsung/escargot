@@ -93,6 +93,7 @@ struct GlobalVariableAccessCacheItem;
     F(ToNumericIncrement)                             \
     F(ToNumericDecrement)                             \
     F(ToNumber)                                       \
+    F(ToPropertyKey)                                  \
     F(UnaryMinus)                                     \
     F(UnaryNot)                                       \
     F(UnaryBitwiseNot)                                \
@@ -1544,6 +1545,26 @@ public:
     void dump()
     {
         printf("to number r%u <- r%u", m_dstIndex, m_srcIndex);
+    }
+#endif
+};
+
+class ToPropertyKey : public ByteCode {
+public:
+    ToPropertyKey(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
+        : ByteCode(Opcode::ToPropertyKeyOpcode, loc)
+        , m_srcIndex(srcIndex)
+        , m_dstIndex(dstIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_srcIndex;
+    ByteCodeRegisterIndex m_dstIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("to property key r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
