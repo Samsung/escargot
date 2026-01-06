@@ -54,8 +54,10 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage $BUILD_OPTIONS
-        ninja -Cout/coverage
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage64 -DESCARGOT_ARCH=x64 $BUILD_OPTIONS
+        ninja -Cout/coverage64
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage32 -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        ninja -Cout/coverage32
     - name: Run test262 and collect coverage data
       # test262 is unstable in actions env, but coverage data will be accumulated
       continue-on-error: true
@@ -64,7 +66,8 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         locale
-        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es regression-tests test262
+        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage64/escargot" new-es regression-tests test262 octane chakracore sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey intl jetstream-only-cdjs
+        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="$GITHUB_WORKSPACE/out/coverage32/escargot" new-es regression-tests test262 octane chakracore sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey intl jetstream-only-cdjs
     - name: Generate coverage report
       run: |
         gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*api/' -r . --xml coverage.xml
