@@ -997,6 +997,16 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(ToPropertyKey)
+            :
+        {
+            ToPropertyKey* code = (ToPropertyKey*)programCounter;
+            const Value& val = registerFile[code->m_srcIndex];
+            registerFile[code->m_dstIndex] = val.toPropertyKey(*state);
+            ADD_PROGRAM_COUNTER(ToPropertyKey);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(BindingCalleeIntoRegister)
             :
         {

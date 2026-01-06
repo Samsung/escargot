@@ -101,14 +101,18 @@ public:
             size_t valueIndex = context->getRegister();
             size_t propertyIndex = m_key->getRegister(codeBlock, context);
             m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
-            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this->m_loc.index);
+            size_t toPropertyKeyIndex = context->getRegister();
+            codeBlock->pushCode(ToPropertyKey(ByteCodeLOC(m_loc.index), propertyIndex, toPropertyKeyIndex), context, this->m_loc.index);
             m_value->generateResolveAddressByteCode(codeBlock, context);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, toPropertyKeyIndex, valueIndex), context, this->m_loc.index);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, false);
 
+
             if (enumDataIndex != REGISTER_LIMIT) {
-                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this->m_loc.index);
+                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, toPropertyKeyIndex), context, this->m_loc.index);
             }
             context->giveUpRegister(); // for drop propertyIndex
+            context->giveUpRegister(); // for drop toPropertyIndex
             context->giveUpRegister(); // for drop valueIndex
         }
     }

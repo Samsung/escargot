@@ -573,6 +573,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             break;
         }
         case ToNumberOpcode:
+        case ToPropertyKeyOpcode:
         case IncrementOpcode:
         case DecrementOpcode:
         case UnaryMinusOpcode:
