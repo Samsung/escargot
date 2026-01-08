@@ -123,6 +123,7 @@ Requires(postun): /sbin/ldconfig
 # build requirements
 BuildRequires: cmake
 BuildRequires: ninja
+BuildRequires: python3
 BuildRequires: pkgconfig(dlog)
 BuildRequires: pkgconfig(bundle)
 
