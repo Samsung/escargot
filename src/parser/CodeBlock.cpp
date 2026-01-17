@@ -54,7 +54,6 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterUsed));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlock));
@@ -99,7 +98,6 @@ void* InterpretedCodeBlockWithRareData::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterUsed));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
@@ -391,16 +389,14 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     if (parameterNames.size() > 0) {
         size_t parameterNamesCount = parameterNames.size();
         m_parameterNames.resizeWithUninitializedValues(parameterNamesCount);
-#ifndef ESCARGOT_DEBUGGER
-        m_parameterUsed.resizeWithUninitializedValues(parameterNamesCount);
-#endif
         for (size_t i = 0; i < parameterNamesCount; i++) {
             m_parameterNames[i] = parameterNames[i];
-#ifndef ESCARGOT_DEBUGGER
-            m_parameterUsed[i] = scopeCtx->m_parameterUsed[i];
-#endif
         }
     }
+
+#ifndef ESCARGOT_DEBUGGER
+    m_parameterUsed = scopeCtx->m_parameterUsed;
+#endif
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
     m_canAllocateEnvironmentOnStack = m_canUseIndexedVariableStorage && !m_isGenerator && !m_isAsync;

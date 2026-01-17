@@ -54,6 +54,7 @@ class ImportNamespaceSpecifierNode;
 class ExportSpecifierNode;
 class ArrowParameterPlaceHolderNode;
 class VariableDeclarationNode;
+class RestElementNode;
 
 class Node {
 protected:
@@ -162,6 +163,17 @@ public:
     {
         ASSERT(isObjectExpression());
         return (ObjectExpressionNode*)this;
+    }
+
+    bool isRestElement()
+    {
+        return type() == ASTNodeType::RestElement;
+    }
+
+    ALWAYS_INLINE RestElementNode* asRestElement()
+    {
+        ASSERT(isRestElement());
+        return (RestElementNode*)this;
     }
 
     bool isProperty()

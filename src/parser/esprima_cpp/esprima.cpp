@@ -340,15 +340,13 @@ public:
 #ifndef ESCARGOT_DEBUGGER
     void setParameterUsed(ASTScopeContext* scopeCtx, AtomicString name)
     {
-        for (size_t i = 0; i < scopeCtx->m_parameterUsed.size(); i++) {
-            if (scopeCtx->m_parameterUsed[i]) {
-                continue;
-            }
-
-            if (name == "eval" || name == "arguments") {
-                scopeCtx->m_parameterUsed[i] = true;
-            } else if (scopeCtx->m_parameters[i] == name) {
-                scopeCtx->m_parameterUsed[i] = true;
+        if (name == "eval" || name == "arguments") {
+            scopeCtx->m_parameterUsed = 0b1111111111111111;
+        } else if (scopeCtx->m_usedParams->contains(name.string())) {
+            for (size_t i = 0; i < scopeCtx->m_parameters.size(); i++) {
+                if (scopeCtx->m_parameters[i] == name) {
+                    scopeCtx->m_parameterUsed |= (1 << i);
+                }
             }
         }
     }
@@ -455,7 +453,7 @@ public:
 #ifndef ESCARGOT_DEBUGGER
             ASTScopeContext* scope = this->currentScopeContext;
             while (scope) {
-                if (scope->m_parameters.size()) {
+                if (scope->m_usedParams != nullptr) {
                     setParameterUsed(scope, name);
                 }
                 scope = scope->m_parent;
@@ -513,7 +511,8 @@ public:
 #endif
         this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
 #ifndef ESCARGOT_DEBUGGER
-        this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(paramNames.size());
+        this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
+        this->currentScopeContext->m_parameterUsed = 0;
 #endif
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
@@ -521,8 +520,7 @@ public:
             AtomicString as(this->escargotContext, paramNames[i]);
             this->currentScopeContext->m_parameters[i] = as;
 #ifndef ESCARGOT_DEBUGGER
-            // Set false basically, but true when parameter is not identifier.
-            this->currentScopeContext->m_parameterUsed[i] = hasParameterOtherThanIdentifier;
+            this->currentScopeContext->m_usedParams->insert(as.string());
 #endif
             this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
         }
@@ -1747,8 +1745,9 @@ public:
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = className;
 #ifndef ESCARGOT_DEBUGGER
-                this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(1);
-                this->currentScopeContext->m_parameterUsed[0] = true;
+                this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
+                this->currentScopeContext->m_usedParams->insert(className.string());
+                this->currentScopeContext->m_parameterUsed = 1;
 #endif
                 this->currentScopeContext->insertVarName(className, 0, true, true, true);
             }
@@ -3574,8 +3573,9 @@ public:
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = paramName;
 #ifndef ESCARGOT_DEBUGGER
-                this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(1);
-                this->currentScopeContext->m_parameterUsed[0] = true;
+                this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
+                this->currentScopeContext->m_usedParams->insert(paramName.string());
+                this->currentScopeContext->m_parameterUsed = 1;
 #endif
                 this->currentScopeContext->insertVarName(paramName, 0, true, true, true);
             }
@@ -5078,7 +5078,7 @@ public:
                 switch (param->type()) {
                 case Identifier: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (this->codeBlock->checkParameterUsed(param->asIdentifier()->name())) {
+                    if (this->codeBlock->checkParameterUsed(paramIndex)) {
 #endif
                         Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
@@ -5088,7 +5088,18 @@ public:
 #endif
                     break;
                 }
-                case AssignmentPattern:
+                case AssignmentPattern: {
+#ifndef ESCARGOT_DEBUGGER
+                    if (param->asAssignmentPattern()->right()->type() != Expression || this->codeBlock->checkParameterUsed(paramIndex)) {
+#endif
+                        Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
+                        Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+                        container->appendChild(statement);
+#ifndef ESCARGOT_DEBUGGER
+                    }
+#endif
+                    break;
+                }
                 case ArrayPattern:
                 case ObjectPattern: {
                     Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
@@ -5097,8 +5108,14 @@ public:
                     break;
                 }
                 case RestElement: {
-                    Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
-                    container->appendChild(statement);
+#ifndef ESCARGOT_DEBUGGER
+                    if (param->asRestElement()->argument()->type() != Identifier || this->codeBlock->checkParameterUsed(paramIndex)) {
+#endif
+                        Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
+                        container->appendChild(statement);
+#ifndef ESCARGOT_DEBUGGER
+                    }
+#endif
                     break;
                 }
                 default: {
