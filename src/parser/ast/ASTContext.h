@@ -322,7 +322,8 @@ struct ASTScopeContext {
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 #ifndef ESCARGOT_DEBUGGER
-    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_parameterUsed;
+    AtomicStringMap *m_usedParams;
+    uint16_t m_parameterUsed : 16;
 
     ASTScopeContext *m_parent;
 #endif
@@ -708,6 +709,8 @@ struct ASTScopeContext {
         , m_varNamesMap(nullptr)
         , m_classPrivateNames(nullptr)
 #ifndef ESCARGOT_DEBUGGER
+        , m_usedParams(nullptr)
+        , m_parameterUsed(0)
         , m_parent(nullptr)
 #endif
         , m_firstChild(nullptr)

@@ -940,14 +940,14 @@ public:
     }
 
 #ifndef ESCARGOT_DEBUGGER
-    bool checkParameterUsed(const AtomicString& name)
+    bool checkParameterUsed(size_t index)
     {
-        for (size_t i = 0; i < m_parameterUsed.size(); i++) {
-            if (m_parameterNames[i] == name) {
-                return m_parameterUsed[i];
+        for (size_t i = 0; i < parameterNamesCount(); i++) {
+            if (m_parameterNames[i] == m_parameterNames[index]) {
+                return true;
             }
         }
-        return false;
+        return m_parameterUsed & (1 << index);
     }
 #endif
 
@@ -982,9 +982,6 @@ protected:
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
-#ifndef ESCARGOT_DEBUGGER
-    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_parameterUsed;
-#endif
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
@@ -996,6 +993,10 @@ protected:
     ExtendedNodeLOC m_functionStart; // point to the start position
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     ExtendedNodeLOC m_bodyEndLOC;
+#endif
+
+#ifndef ESCARGOT_DEBUGGER
+    uint16_t m_parameterUsed : 16;
 #endif
 
     uint16_t m_functionLength : 16;
