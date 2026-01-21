@@ -543,6 +543,13 @@ public:
         return m_parameterNames;
     }
 
+#ifndef ESCARGOT_DEBUGGER
+    uint16_t parameterUsed() const
+    {
+        return m_parameterUsed;
+    }
+#endif
+
     const IdentifierInfoVector& identifierInfos() const
     {
         return m_identifierInfos;
@@ -938,18 +945,6 @@ public:
 
         return false;
     }
-
-#ifndef ESCARGOT_DEBUGGER
-    bool checkParameterUsed(size_t index)
-    {
-        for (size_t i = 0; i < parameterNamesCount(); i++) {
-            if (m_parameterNames[i] == m_parameterNames[index]) {
-                return true;
-            }
-        }
-        return m_parameterUsed & (1 << index);
-    }
-#endif
 
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
