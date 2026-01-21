@@ -20,6 +20,8 @@
 #ifndef ASTContext_h
 #define ASTContext_h
 
+#include "util/BloomFilter.h"
+
 
 namespace Escargot {
 
@@ -322,7 +324,7 @@ struct ASTScopeContext {
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 #ifndef ESCARGOT_DEBUGGER
-    AtomicStringMap *m_usedParams;
+    BloomFilter<16> m_parameterTable;
     uint16_t m_parameterUsed : 16;
 
     ASTScopeContext *m_parent;
@@ -709,8 +711,6 @@ struct ASTScopeContext {
         , m_varNamesMap(nullptr)
         , m_classPrivateNames(nullptr)
 #ifndef ESCARGOT_DEBUGGER
-        , m_usedParams(nullptr)
-        , m_parameterUsed(0)
         , m_parent(nullptr)
 #endif
         , m_firstChild(nullptr)

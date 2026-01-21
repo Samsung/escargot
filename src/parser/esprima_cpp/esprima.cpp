@@ -51,6 +51,7 @@
 #include "parser/ASTBuilder.h"
 #include "parser/ASTAllocator.h"
 #include "parser/esprima_cpp/ParserContext.h"
+#include "util/BloomFilter.h"
 
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult);
 
@@ -338,17 +339,23 @@ public:
     }
 
 #ifndef ESCARGOT_DEBUGGER
-    void setParameterUsed(ASTScopeContext* scopeCtx, AtomicString name)
+    bool setParameterUsed(ASTScopeContext* scopeCtx, AtomicString name)
     {
-        if (name == "eval" || name == "arguments") {
-            scopeCtx->m_parameterUsed = 0b1111111111111111;
-        } else if (scopeCtx->m_usedParams->contains(name.string())) {
+        if (name == "eval" || name == "arguments" || scopeCtx->m_parameterCount > 16) {
+            scopeCtx->m_parameterUsed = 0xFFFF;
+            return false;
+        } else if (scopeCtx->m_parameterTable.mayContain(name)) {
+            bool isChecked = false;
             for (size_t i = 0; i < scopeCtx->m_parameters.size(); i++) {
                 if (scopeCtx->m_parameters[i] == name) {
                     scopeCtx->m_parameterUsed |= (1 << i);
+                    isChecked = true;
                 }
             }
+            return isChecked;
         }
+
+        return false;
     }
 #endif
 
@@ -453,8 +460,8 @@ public:
 #ifndef ESCARGOT_DEBUGGER
             ASTScopeContext* scope = this->currentScopeContext;
             while (scope) {
-                if (scope->m_usedParams != nullptr) {
-                    setParameterUsed(scope, name);
+                if (setParameterUsed(scope, name)) {
+                    break;
                 }
                 scope = scope->m_parent;
             }
@@ -511,8 +518,7 @@ public:
 #endif
         this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
 #ifndef ESCARGOT_DEBUGGER
-        this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
-        this->currentScopeContext->m_parameterUsed = 0;
+        this->currentScopeContext->m_parameterUsed = hasParameterOtherThanIdentifier ? 0xFFFF : 0;
 #endif
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
@@ -520,7 +526,7 @@ public:
             AtomicString as(this->escargotContext, paramNames[i]);
             this->currentScopeContext->m_parameters[i] = as;
 #ifndef ESCARGOT_DEBUGGER
-            this->currentScopeContext->m_usedParams->insert(as.string());
+            this->currentScopeContext->m_parameterTable.add(as);
 #endif
             this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
         }
@@ -1745,8 +1751,7 @@ public:
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = className;
 #ifndef ESCARGOT_DEBUGGER
-                this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
-                this->currentScopeContext->m_usedParams->insert(className.string());
+                this->currentScopeContext->m_parameterTable.add(className);
                 this->currentScopeContext->m_parameterUsed = 1;
 #endif
                 this->currentScopeContext->insertVarName(className, 0, true, true, true);
@@ -3573,8 +3578,7 @@ public:
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = paramName;
 #ifndef ESCARGOT_DEBUGGER
-                this->currentScopeContext->m_usedParams = new (GC) AtomicStringMap;
-                this->currentScopeContext->m_usedParams->insert(paramName.string());
+                this->currentScopeContext->m_parameterTable.add(paramName);
                 this->currentScopeContext->m_parameterUsed = 1;
 #endif
                 this->currentScopeContext->insertVarName(paramName, 0, true, true, true);
@@ -5078,7 +5082,7 @@ public:
                 switch (param->type()) {
                 case Identifier: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (this->codeBlock->checkParameterUsed(paramIndex)) {
+                    if (this->codeBlock->parameterCount() > 16 || this->codeBlock->parameterUsed() & (1 << paramIndex)) {
 #endif
                         Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
@@ -5090,7 +5094,7 @@ public:
                 }
                 case AssignmentPattern: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (param->asAssignmentPattern()->right()->type() != Expression || this->codeBlock->checkParameterUsed(paramIndex)) {
+                    if (param->asAssignmentPattern()->right()->type() != Expression || this->codeBlock->parameterCount() > 16 || this->codeBlock->parameterUsed() & (1 << paramIndex)) {
 #endif
                         Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
@@ -5109,7 +5113,7 @@ public:
                 }
                 case RestElement: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (param->asRestElement()->argument()->type() != Identifier || this->codeBlock->checkParameterUsed(paramIndex)) {
+                    if (param->asRestElement()->argument()->type() != Identifier || this->codeBlock->parameterCount() > 16 || this->codeBlock->parameterUsed() & (1 << paramIndex)) {
 #endif
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
                         container->appendChild(statement);
