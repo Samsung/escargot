@@ -3526,8 +3526,8 @@ void Intl::initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumber
         }
 
         if (!formatResult.minimumFractionDigits.isUndefined()) {
-            double mnfd = formatResult.minimumSignificantDigits.asNumber();
-            double mxfd = formatResult.maximumSignificantDigits.asNumber();
+            double mnfd = formatResult.minimumFractionDigits.asNumber();
+            double mxfd = formatResult.maximumFractionDigits.asNumber();
 
             skeleton += '.';
 
