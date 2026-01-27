@@ -356,6 +356,9 @@ public:
                 if (isChecked) {
                     return;
                 }
+            } else if (!scopeCtx->m_parameters.size()) {
+                // This part is for adding parameter table before parsing function body
+                scopeCtx->m_parameterTable.add(name);
             }
 
             scopeCtx = scopeCtx->m_parent;
@@ -515,16 +518,17 @@ public:
         }
 #endif
         this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
-#ifndef ESCARGOT_DEBUGGER
-        this->currentScopeContext->m_parameterUsed = hasParameterOtherThanIdentifier ? 0xFFFF : 0;
-#endif
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
             ASSERT(paramNames[i].length() > 0);
             AtomicString as(this->escargotContext, paramNames[i]);
             this->currentScopeContext->m_parameters[i] = as;
 #ifndef ESCARGOT_DEBUGGER
-            this->currentScopeContext->m_parameterTable.add(as);
+            if (this->currentScopeContext->m_parameterTable.mayContain(as)) {
+                this->currentScopeContext->m_parameterUsed |= (1 << i);
+            } else {
+                this->currentScopeContext->m_parameterTable.add(as);
+            }
 #endif
             this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
         }
@@ -1750,7 +1754,7 @@ public:
                 this->currentScopeContext->m_parameters[0] = className;
 #ifndef ESCARGOT_DEBUGGER
                 this->currentScopeContext->m_parameterTable.add(className);
-                this->currentScopeContext->m_parameterUsed = 1;
+                this->currentScopeContext->m_parameterUsed |= 1;
 #endif
                 this->currentScopeContext->insertVarName(className, 0, true, true, true);
             }
@@ -3577,7 +3581,7 @@ public:
                 this->currentScopeContext->m_parameters[0] = paramName;
 #ifndef ESCARGOT_DEBUGGER
                 this->currentScopeContext->m_parameterTable.add(paramName);
-                this->currentScopeContext->m_parameterUsed = 1;
+                this->currentScopeContext->m_parameterUsed |= 1;
 #endif
                 this->currentScopeContext->insertVarName(paramName, 0, true, true, true);
             }
