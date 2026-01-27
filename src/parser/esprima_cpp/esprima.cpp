@@ -6811,7 +6811,7 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
             this->consumeSemicolon();
-        } else if (this->lookahead.type == Token::KeywordToken) {
+        } else if (this->lookahead.type == Token::KeywordToken || this->matchAsyncFunction()) {
             // export var f = 1;
             auto oldNameCallback = this->nameDeclaredCallback;
             AtomicStringVector declaredNames;
@@ -6827,19 +6827,24 @@ public:
             }
             AtomicStringVector declaredName;
             ASTNode declaration = nullptr;
-            switch (this->lookahead.valueKeywordKind) {
-            case KeywordKind::LetKeyword:
-            case KeywordKind::ConstKeyword:
-                declaration = this->parseLexicalDeclaration(builder, false);
-                break;
-            case KeywordKind::VarKeyword:
-            case KeywordKind::ClassKeyword:
-            case KeywordKind::FunctionKeyword:
-                declaration = this->parseStatementListItem(builder);
-                break;
-            default:
-                this->throwUnexpectedToken(this->lookahead);
-                break;
+
+            if (this->lookahead.type == Token::KeywordToken) {
+                switch (this->lookahead.valueKeywordKind) {
+                case KeywordKind::LetKeyword:
+                case KeywordKind::ConstKeyword:
+                    declaration = this->parseLexicalDeclaration(builder, false);
+                    break;
+                case KeywordKind::VarKeyword:
+                case KeywordKind::ClassKeyword:
+                case KeywordKind::FunctionKeyword:
+                    declaration = this->parseStatementListItem(builder);
+                    break;
+                default:
+                    this->throwUnexpectedToken(this->lookahead);
+                    break;
+                }
+            } else {
+                declaration = this->parseFunctionDeclaration(builder);
             }
 
             for (size_t i = 0; i < declaredNames.size(); i++) {
@@ -6852,9 +6857,6 @@ public:
             }
             exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
             this->nameDeclaredCallback = oldNameCallback;
-        } else if (this->matchAsyncFunction()) {
-            ASTNode declaration = this->parseFunctionDeclaration(builder);
-            exportDeclaration = this->finalize(node, builder.createExportNamedDeclarationNode(declaration, ASTNodeList(), nullptr));
         } else {
             ASTNodeList specifiers;
             ASTNode source = nullptr;

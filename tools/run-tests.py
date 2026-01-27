@@ -447,11 +447,11 @@ def run_regression_tests(engine, arch, extra_arg):
     REGRESSION_ASSERT_JS = join(REGRESSION_DIR, 'assert.js')
 
     print('Running regression tests:')
-    xpass = glob(join(REGRESSION_DIR, 'issue-*.js'))
+    xpass = glob(join(REGRESSION_DIR, 'issue-*.js')) + glob(join(REGRESSION_DIR, 'issue-*.mjs'))
     xpass_result = _run_regression_tests(engine, REGRESSION_ASSERT_JS, xpass, False)
 
     print('Running regression tests expected to fail:')
-    xfail = glob(join(REGRESSION_XFAIL_DIR, 'issue-*.js'))
+    xfail = glob(join(REGRESSION_XFAIL_DIR, 'issue-*.js')) + glob(join(REGRESSION_XFAIL_DIR, 'issue-*.mjs'))
     xfail_result = _run_regression_tests(engine, REGRESSION_ASSERT_JS, xfail, True)
 
     tests_total = len(xpass) + len(xfail)
