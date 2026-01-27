@@ -711,6 +711,7 @@ struct ASTScopeContext {
         , m_varNamesMap(nullptr)
         , m_classPrivateNames(nullptr)
 #ifndef ESCARGOT_DEBUGGER
+        , m_parameterUsed(0)
         , m_parent(nullptr)
 #endif
         , m_firstChild(nullptr)
