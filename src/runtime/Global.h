@@ -47,6 +47,15 @@ class Global {
 public:
     static void initialize(Platform* platform);
     static void finalize();
+    static void finalizeGC()
+    {
+        GC_register_mark_stack_func([]() {});
+        GC_gcollect_and_unmap();
+        GC_gcollect_and_unmap();
+        GC_gcollect_and_unmap();
+        GC_invoke_finalizers();
+        GC_register_mark_stack_func(nullptr);
+    }
 
     static Platform* platform();
 #if defined(ENABLE_ATOMICS_GLOBAL_LOCK)

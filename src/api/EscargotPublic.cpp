@@ -269,15 +269,15 @@ void Globals::initialize(PlatformRef* platform)
 
 void Globals::finalize()
 {
+    RELEASE_ASSERT(!!g_globalsInited);
+    g_globalsInited = false;
     // finalize global value or context including thread-local variables
     // this function should be invoked once at the end of the program
-    RELEASE_ASSERT(!!g_globalsInited);
     ThreadLocal::finalize();
 
     // Global::finalize should be called at the end of program
     // because it holds Platform which could be used in other Object's finalizer
     Global::finalize();
-    g_globalsInited = false;
 }
 
 bool Globals::isInitialized()
@@ -296,11 +296,12 @@ void Globals::initializeThread()
 
 void Globals::finalizeThread()
 {
+    RELEASE_ASSERT(!!g_globalsInited);
+    g_globalsInited = false;
+    Global::finalizeGC();
     // finalize thread-local variables
     // this function should be invoked once at the end of sub-thread
-    RELEASE_ASSERT(!!g_globalsInited);
     ThreadLocal::finalize();
-    g_globalsInited = false;
 }
 
 bool Globals::supportsThreading()
