@@ -32,7 +32,6 @@ class Script;
 class Value;
 class Object;
 struct ASTScopeContext;
-struct ASTBlockContext;
 struct ByteCodeGenerateContext;
 
 typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
