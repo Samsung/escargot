@@ -29,6 +29,7 @@
 #include "interpreter/ByteCode.h"
 #include "parser/CodeBlock.h"
 #include "util/Util.h"
+#include "api/EscargotPublic.h"
 
 namespace Escargot {
 
@@ -197,7 +198,7 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
         }
     }
 
-    if (!wasCallbackDeleted) {
+    if (!wasCallbackDeleted && Globals::isInitialized()) {
         try {
             ExecutionState tempState(item->source->m_realm);
             Value argv = item->heldValue;

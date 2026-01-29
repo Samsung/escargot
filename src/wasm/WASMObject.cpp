@@ -29,6 +29,7 @@
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
 #include "wasm/ExportedFunctionObject.h"
+#include "api/EscargotPublic.h"
 
 // represent ownership of each object
 // object marked with 'own' should be deleted in the current context
@@ -138,6 +139,9 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 
     addFinalizer([](PointerValue* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
+        if (!Globals::isInitialized()) {
+            return;
+        }
         if (!wasm_memory_is_shared(self->memory())) {
             self->buffer()->asArrayBufferObject()->detachArrayBuffer();
         }
