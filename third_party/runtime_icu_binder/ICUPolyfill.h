@@ -20,6 +20,8 @@
 #include "RuntimeICUBinder.h"
 
 #define u_getVersion RuntimeICUBinder::ICU::instance().u_getVersion
+#define u_setDataDirectory RuntimeICUBinder::ICU::instance().u_setDataDirectory
+#define u_setTimeZoneFilesDirectory RuntimeICUBinder::ICU::instance().u_setTimeZoneFilesDirectory
 
 #define u_tolower RuntimeICUBinder::ICU::instance().u_tolower
 #define u_toupper RuntimeICUBinder::ICU::instance().u_toupper

@@ -293,6 +293,7 @@ extern "C" {
 #if defined(OS_WINDOWS)
 #include <icu.h>
 #else
+#include <unicode/utypes.h>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/ustring.h>

@@ -100,6 +100,8 @@ namespace RuntimeICUBinder {
 
 #define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                                 \
     F(u_getVersion, void(CALLCONV*)(UVersionInfo versionArray), void)                                                                                                                                          \
+    F(u_setDataDirectory, void(CALLCONV*)(const char*), void)                                                                                                                                                  \
+    F(u_setTimeZoneFilesDirectory, void(CALLCONV*)(const char*, UErrorCode*), void)                                                                                                                            \
     F(uiter_setString, void(CALLCONV*)(UCharIterator * iter, const UChar* s, int32_t length), void)                                                                                                            \
     F(ucnv_close, void(CALLCONV*)(UConverter * converter), void)                                                                                                                                               \
     F(ucnv_toUnicode, void(CALLCONV*)(UConverter * converter, UChar * *target, const UChar* targetLimit, const char** source, const char* sourceLimit, int32_t* offsets, UBool flush, UErrorCode* err), void)  \
