@@ -26,6 +26,41 @@
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptSimpleFunctionObject.h"
 
+// https://cs.android.com/android/platform/superproject/main/+/main:external/icu/libandroidicuinit/IcuRegistration.cpp
+#if defined(OS_ANDROID) && defined(ENABLE_ICU) && defined(ESCARGOT_ENABLE_TEST)
+#include <sys/stat.h>
+#include <stdbool.h>
+
+static bool directoryExists(const char* path)
+{
+    struct stat info;
+    if (stat(path, &info) != 0)
+        return false;
+    else
+        return (info.st_mode & S_IFDIR) != 0;
+}
+
+static std::string getTimeZoneModulePath()
+{
+    const char* tzdataModulePathPrefix = getenv("ANDROID_TZDATA_ROOT");
+    if (tzdataModulePathPrefix == NULL) {
+        return "";
+    }
+
+    std::string ret;
+
+    for (int version = 1; version < 128; version++) {
+        std::string tzdataModulePath = tzdataModulePathPrefix;
+        tzdataModulePath += "/etc/tz/versioned/" + std::to_string(version) + "/icu";
+        if (directoryExists(tzdataModulePath.data())) {
+            ret = tzdataModulePath;
+        }
+    }
+
+    return ret;
+}
+#endif
+
 namespace Escargot {
 
 bool Global::inited;
@@ -59,6 +94,15 @@ void Global::initialize(Platform* platform)
 
     DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef INIT_SCRIPTSIMPLEFUNCTION_TAGS
+
+#if defined(OS_ANDROID) && defined(ENABLE_ICU) && defined(ESCARGOT_ENABLE_TEST)
+    // android timezone data load for adb-shell
+    std::string tzPath = getTimeZoneModulePath();
+    if (tzPath.size()) {
+        UErrorCode status = U_ZERO_ERROR;
+        u_setTimeZoneFilesDirectory(tzPath.data(), &status);
+    }
+#endif
 
     inited = true;
 }
