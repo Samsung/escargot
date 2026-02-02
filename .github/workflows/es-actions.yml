@@ -136,6 +136,20 @@ jobs:
         ninja -Cout/clang/x64
         $RUNNER --engine="./out/clang/x64/escargot" new-es
 
+  build-test-tizen:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: prepare deb sources for GBS
+      run: echo "deb [trusted=yes] http://download.tizen.org/tools/latest-release/Ubuntu_24.04/ /" | sudo tee /etc/apt/sources.list.d/tizen.list
+    - name: install GBS
+      run: sudo apt-get update && sudo apt-get install -y gbs
+    - name: build
+      run: |
+        gbs -c .github/workflows/gbs.conf build -A armv7l -P profile.tizen --incremental --define "enable_shell 1"
+
   test-on-windows-clang-cl:
     runs-on: windows-2022
     strategy:
