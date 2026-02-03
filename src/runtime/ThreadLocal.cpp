@@ -93,6 +93,50 @@ MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
 #endif
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
 
+#if defined(ENABLE_THREADING)
+class GlobalDeleteChecker {
+public:
+    GlobalDeleteChecker();
+    ~GlobalDeleteChecker();
+    // FIXME: using std::vector on { darwin, android } cause error
+    size_t m_mappedMemoriesAllocatedSize = 8;
+    size_t m_mappedMemoriesSize = 0;
+    std::pair<void*, size_t>* m_mappedMemories;
+};
+
+thread_local std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
+
+GlobalDeleteChecker::GlobalDeleteChecker()
+{
+    m_mappedMemories = reinterpret_cast<std::pair<void*, size_t>*>(malloc(sizeof(std::pair<void*, size_t>) * m_mappedMemoriesAllocatedSize));
+    GC_set_os_get_mem_proc([](void* ptr, size_t length) {
+        if (g_globalDeleteChecker->m_mappedMemoriesSize == g_globalDeleteChecker->m_mappedMemoriesAllocatedSize) {
+            std::pair<void*, size_t>* newBuf = reinterpret_cast<std::pair<void*, size_t>*>(
+                malloc(sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize * 2));
+            memcpy(newBuf, g_globalDeleteChecker->m_mappedMemories, sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize);
+            g_globalDeleteChecker->m_mappedMemoriesAllocatedSize *= 2;
+            free(g_globalDeleteChecker->m_mappedMemories);
+            g_globalDeleteChecker->m_mappedMemories = newBuf;
+        }
+        g_globalDeleteChecker->m_mappedMemories[g_globalDeleteChecker->m_mappedMemoriesSize++] = std::make_pair(ptr, length);
+    });
+}
+
+GlobalDeleteChecker::~GlobalDeleteChecker()
+{
+    for (size_t i = 0; i < m_mappedMemoriesSize; i++) {
+        auto e = m_mappedMemories[i];
+#if defined(OS_WINDOWS)
+        VirtualFree(e.first, 0, MEM_RELEASE);
+#else
+        munmap(e.first, e.second);
+#endif
+    }
+
+    free(m_mappedMemories);
+}
+#endif
+
 GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureMarkStartListeners()
 {
     if (!m_markStartListeners) {
@@ -205,7 +249,11 @@ void ThreadLocal::initialize()
 {
     // initialize should be invoked only once in each thread
     ESCARGOT_RELEASE_ASSERT(!inited);
-
+#if defined(ENABLE_THREADING)
+    if (!g_globalDeleteChecker) {
+        g_globalDeleteChecker = std::unique_ptr<GlobalDeleteChecker>(new GlobalDeleteChecker());
+    }
+#endif
     // Heap is initialized for each thread
     Heap::initialize();
 
