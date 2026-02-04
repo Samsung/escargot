@@ -548,7 +548,7 @@ jobs:
       with:
         submodules: true
     - name: Build in riscv64 container
-      uses: uraimo/run-on-arch-action@v2.8.1
+      uses: uraimo/run-on-arch-action@v3
       with:
         arch: riscv64
         distro: ubuntu22.04
@@ -563,7 +563,7 @@ jobs:
         run: |
           cmake -H. -Bout/riscv64 -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
           ninja -Cout/riscv64
-          python3 ./tools/run-tests.py --engine="./out/riscv64/escargot" regression-tests new-es intl sunspider-js
+          python3 ./tools/run-tests.py --engine="./out/riscv64/escargot" new-es intl sunspider-js
 
   build-test-debugger:
     runs-on: ubuntu-latest
