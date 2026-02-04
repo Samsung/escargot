@@ -42,6 +42,52 @@
 // these header & function below are used for Escargot internal development
 // general client doesn't need this
 
+#if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#include <psapi.h>
+static int processMemoryUsage()
+{
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize;
+    } else {
+        return -1;
+    }
+}
+#endif
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <sys/resource.h>
+
+static void dumpSmaps()
+{
+    const char* filename = "/proc/self/smaps";
+    char line[256];
+    FILE* fp;
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        perror("Error opening smaps file");
+        return;
+    }
+
+    while (fgets(line, sizeof(line), fp)) {
+        printf("%s", line);
+    }
+
+    fclose(fp);
+}
+
+static int processMemoryUsage()
+{
+    rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        return usage.ru_maxrss * 1024;
+    } else {
+        return -1;
+    }
+}
+#endif
+
 #if defined(ANDROID)
 #include <unwind.h>
 #include <dlfcn.h>
@@ -388,6 +434,58 @@ static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisVa
 static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     return ValueRef::createNull();
+}
+
+static ValueRef* builtinProcessMemoryUsage(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ValueRef::create(processMemoryUsage());
+}
+
+static ValueRef* builtinEvalOnThreadAndWait(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::string script = argv[0]->toString(state)->toStdUTF8String();
+    int threadCount = 1;
+    if (argc >= 2 && argv[1]->toInt32(state) > threadCount) {
+        threadCount = argv[1]->toInt32(state);
+    }
+
+    std::vector<std::thread> workers;
+    for (int i = 0; i < threadCount; i++) {
+        std::thread worker([](std::string script) {
+            Globals::initializeThread();
+
+            Memory::setGCFrequency(24);
+
+            PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+            PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
+
+            evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
+                       StringRef::createFromASCII("from main thread"), false, false);
+
+            while (context->vmInstance()->hasPendingJob()) {
+                auto jobResult = context->vmInstance()->executePendingJob();
+                if (jobResult.error) {
+                    if (jobResult.error) {
+                        fprintf(stderr, "Uncaught %s: in agent\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    }
+                }
+            }
+
+            context.release();
+            instance.release();
+
+            Globals::finalizeThread();
+        },
+                           script);
+
+        workers.push_back(std::move(worker));
+    }
+
+    for (auto& w : workers) {
+        w.join();
+    }
+
+    return ValueRef::createUndefined();
 }
 
 struct WorkerThreadData {
@@ -898,6 +996,18 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinCreateNewGlobalObject, 0, true, false);
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("newGlobal"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "processMemoryUsage"), builtinProcessMemoryUsage, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("processMemoryUsage"), buildFunctionObjectRef, true, true, true);
+        }
+
+        if (Globals::supportsThreading() && isMainThread) {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "evalOnThreadAndWait"), builtinEvalOnThreadAndWait, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("evalOnThreadAndWait"), buildFunctionObjectRef, true, true, true);
         }
 
         // https://github.com/tc39/test262/blob/master/INTERPRETING.md
