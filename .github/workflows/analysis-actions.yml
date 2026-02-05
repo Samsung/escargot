@@ -9,11 +9,18 @@ on:
 jobs:
   coverity-scan:
     if: github.repository == 'Samsung/escargot'
-    runs-on: [self-hosted, linux, x64, test]
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
+    - name: Build ICU(64)
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
+        cd $GITHUB_WORKSPACE/icu64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
+        make -j8
+        make install
     - name: Download Coverity Tool
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -26,7 +33,7 @@ jobs:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverity_scan $BUILD_OPTIONS
+        LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" PKG_CONFIG_PATH="$GITHUB_WORKSPACE/icu64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverity_scan $BUILD_OPTIONS
         cov-build --dir cov-int ninja -Cout/coverity_scan
     - name: Submit
       env:
@@ -70,7 +77,7 @@ jobs:
         LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="$GITHUB_WORKSPACE/out/coverage32/escargot" new-es regression-tests test262 octane chakracore sunspider-js modifiedVendorTest jsc-stress v8 spidermonkey intl jetstream-only-cdjs
     - name: Generate coverage report
       run: |
-        gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*api/' -r . --xml coverage.xml
+        gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*shell/' --exclude '.*api/' -r . --xml coverage.xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
       with:
