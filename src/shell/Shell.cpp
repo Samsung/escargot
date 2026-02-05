@@ -79,12 +79,22 @@ static void dumpSmaps()
 
 static int processMemoryUsage()
 {
-    rusage usage;
-    if (getrusage(RUSAGE_SELF, &usage) == 0) {
-        return usage.ru_maxrss * 1024;
-    } else {
+    FILE* file = fopen("/proc/self/status", "r");
+    if (!file) {
         return -1;
     }
+
+    char line[128];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strncmp(line, "VmRSS:", 6) == 0) {
+            long vmrss = atol(line + 6);
+            fclose(file);
+            return vmrss * 1024;
+        }
+    }
+
+    fclose(file);
+    return -1;
 }
 #endif
 
