@@ -112,30 +112,6 @@ jobs:
         disable-animations: true
         script: cd build/android/;./gradlew connectedDebugAndroidTest -DESCARGOT_BUILD_TLS_ACCESS_BY_PTHREAD_KEY=ON
 
-  build-by-clang:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ninja-build gcc-multilib g++-multilib libicu-dev
-    - name: Build x86
-      env:
-        BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
-      run: |
-        CC=clang CXX=clang++ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/clang/x86 $BUILD_OPTIONS
-        ninja -Cout/clang/x86
-    - name: Build x64
-      env:
-        BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
-      run: |
-        CC=clang CXX=clang++ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/clang/x64 $BUILD_OPTIONS
-        ninja -Cout/clang/x64
-        $RUNNER --engine="./out/clang/x64/escargot" new-es
-
   build-test-tizen:
     runs-on: ubuntu-24.04
     steps:
@@ -495,25 +471,34 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release_clang -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release_clang -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
         cmake --build build/out_linux_release/
+        cmake --build build/out_linux_release_clang/
         cmake --build build/out_linux64_release/
+        cmake --build build/out_linux64_release_clang/
     - name: Test
       run: |
         LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release_clang/escargot" test262
         LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
         LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release_clang/escargot" test262
         LD_LIBRARY_PATH=/usr/icu78-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
     if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, arm, test]
+    strategy:
+      matrix:
+        compiler: [ {cxx: g++, cc: gcc}, {cxx: clang++, cc: clang} ]
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
@@ -521,7 +506,7 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=${{ matrix.compiler.tls }} -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
@@ -530,6 +515,9 @@ jobs:
   build-test-on-self-hosted-arm64-linux:
     if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, arm64, test]
+    strategy:
+      matrix:
+        compiler: [ {cxx: g++-11, cc: gcc-11}, {cxx: clang++, cc: clang} ]
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
@@ -537,7 +525,7 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
