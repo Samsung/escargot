@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   review:
+    if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, escargot-review]
 
     steps:

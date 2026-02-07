@@ -484,6 +484,7 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
   build-test-on-self-hosted-linux:
+    if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 60
     steps:
@@ -511,6 +512,7 @@ jobs:
         LD_LIBRARY_PATH=/usr/icu78-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
+    if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, arm, test]
     timeout-minutes: 60
     steps:
@@ -526,6 +528,7 @@ jobs:
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm --skip Temporal" new-es v8 spidermonkey chakracore test262
 
   build-test-on-self-hosted-arm64-linux:
+    if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, arm64, test]
     timeout-minutes: 60
     steps:
