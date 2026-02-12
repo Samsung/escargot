@@ -301,6 +301,9 @@ public:
         ESCARGOT_DEBUGGER_PENDING_CONFIG = 23,
         ESCARGOT_DEBUGGER_PENDING_RESUME = 24,
         ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 25,
+        ESCARGOT_DEBUGGER_STOP = 26,
+        ESCARGOT_MESSAGE_WATCH_8BIT_START = 27,
+        ESCARGOT_MESSAGE_WATCH_8BIT = 28,
     };
 
     // Environment record types
@@ -374,6 +377,7 @@ protected:
         : m_exitClient(false)
         , m_pendingWait(false)
         , m_waitForResume(false)
+        , m_watchEval(false)
         , m_clientSourceData(nullptr)
         , m_clientSourceName(nullptr)
     {
@@ -431,6 +435,7 @@ private:
     bool m_exitClient : 1;
     bool m_pendingWait : 1;
     bool m_waitForResume : 1;
+    bool m_watchEval : 1;
     String* m_clientSourceData;
     String* m_clientSourceName;
 
