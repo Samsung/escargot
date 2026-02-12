@@ -101,6 +101,9 @@ ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 22
 ESCARGOT_DEBUGGER_PENDING_CONFIG = 23
 ESCARGOT_DEBUGGER_PENDING_RESUME = 24
 ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 25
+ESCARGOT_DEBUGGER_STOP = 26
+ESCARGOT_MESSAGE_WATCH_8BIT_START = 27
+ESCARGOT_MESSAGE_WATCH_8BIT = 28
 
 
 # Environment record types
@@ -588,7 +591,7 @@ class Debugger(object):
             self._exec_command(ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE)
             return
         path = self.client_sources.pop(0)
-        if not path.endswith('.js'):
+        if not path.endswith('.js') and not path.endswith('.mjs'):
             sys.exit("Error: Javascript file expected!")
         with open(path, 'r') as src_file:
             content = path + '\0'+ src_file.read()

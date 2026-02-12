@@ -189,7 +189,7 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, size_t orig
 
     sendType(ESCARGOT_MESSAGE_PARSE_DONE);
 
-    if (enabled() && pendingWait()) {
+    if (enabled() && pendingWait() && !m_watchEval) {
         waitForResolvingPendingBreakpoints();
     }
 }
@@ -371,7 +371,7 @@ bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byte
     }
 
     String* str;
-    if (type == ESCARGOT_MESSAGE_EVAL_8BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT) {
+    if (type == ESCARGOT_MESSAGE_EVAL_8BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT || type == ESCARGOT_MESSAGE_WATCH_8BIT) {
         str = new Latin1String(data, size);
     } else if (type == ESCARGOT_MESSAGE_EVAL_16BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT) {
         str = new UTF16String((char16_t*)data, size / 2);
@@ -401,6 +401,9 @@ bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byte
         return false;
     }
 
+    if (type == ESCARGOT_MESSAGE_WATCH_8BIT) {
+        m_watchEval = true;
+    }
     m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
 
     try {
@@ -419,6 +422,7 @@ bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byte
     }
 
     m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
+    m_watchEval = false;
 
     if (enabled()) {
         sendString(type, str);
@@ -923,6 +927,7 @@ bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock
             m_stopState = stopState;
             return false;
         }
+        case ESCARGOT_MESSAGE_WATCH_8BIT_START:
         case ESCARGOT_MESSAGE_EVAL_8BIT_START:
         case ESCARGOT_MESSAGE_EVAL_16BIT_START: {
             if ((length <= 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
