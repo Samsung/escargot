@@ -143,4 +143,14 @@ SandBox::SandBoxResult CleanupSomeJob::run()
     result.result = Value();
     return result;
 }
+
+SandBox::SandBoxResult EvaluateJob::run()
+{
+    SandBox sandbox(relatedContext());
+    return sandbox.run([](ExecutionState& state, void* data) -> Value {
+        EvaluateJob* self = reinterpret_cast<EvaluateJob*>(data);
+        return self->m_callback(state, self->m_data);
+    },
+                       this);
+}
 } // namespace Escargot

@@ -43,6 +43,7 @@
 #include "runtime/BooleanObject.h"
 #include "runtime/RegExpObject.h"
 #include "runtime/ModuleNamespaceObject.h"
+#include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/ProxyObject.h"
@@ -1483,6 +1484,25 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 {
     auto result = toImpl(this)->executePendingJob();
     return toEvaluatorResultRef(result);
+}
+
+void VMInstanceRef::enqueueEvaluateJob(ContextRef* relalatedContext, EvaluateJobCallback callback, void* data)
+{
+    struct Holder : public gc {
+        EvaluateJobCallback callback;
+        void* data;
+        Holder(EvaluateJobCallback callback, void* data)
+            : callback(callback)
+            , data(data)
+        {
+        }
+    };
+
+    auto job = new EvaluateJob(toImpl(relalatedContext), [](ExecutionState& state, void* data) -> Value {
+        Holder* holder = reinterpret_cast<Holder*>(data);
+        return toImpl(holder->callback(toRef(&state), holder->data)); }, new Holder(callback, data));
+
+    toImpl(this)->enqueueJob(job);
 }
 
 bool VMInstanceRef::hasPendingJobFromAnotherThread()

@@ -767,6 +767,8 @@ public:
 
     bool hasPendingJob();
     Evaluator::EvaluatorResult executePendingJob();
+    typedef ValueRef* (*EvaluateJobCallback)(ExecutionStateRef* state, void* data);
+    void enqueueEvaluateJob(ContextRef* relatedContext, EvaluateJobCallback callback, void* data);
 
     bool hasPendingJobFromAnotherThread();
     bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
