@@ -1,0 +1,61 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_watch.js:1
+(escargot-debugger) b do_watch.js:8
+Breakpoint 1 at tools/debugger/tests/do_watch.js:8
+(escargot-debugger) watch num_a
+Added watch: num_a
+(escargot-debugger) w num_b
+Added watch: num_b
+(escargot-debugger) watches
+Watched values:
+num_a
+num_b
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) watch num_c
+Added watch: num_c
+(escargot-debugger) list_watches
+Watched values:
+num_a
+num_b
+num_c
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) print_watches
+Watch: 190
+Watch: 0
+Watch: 3333
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) delete_watch num_b
+Removed watch: num_b
+(escargot-debugger) lw
+Watched values:
+num_a
+num_c
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) pw
+Watch: 325
+Watch: 3433993233
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) pw
+Watch: 415
+Watch: 35030164969833
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_watch.js:8
+(escargot-debugger) pw
+Watch: 550
+Watch: 36091613998583910000
+(escargot-debugger) c
+Connection closed.
