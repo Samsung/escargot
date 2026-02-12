@@ -100,5 +100,22 @@ private:
     Optional<Object*> m_callback;
 };
 
+class EvaluateJob : public Job {
+public:
+    typedef Value (*Callback)(ExecutionState& state, void* data);
+    EvaluateJob(Context* relatedContext, Callback callback, void* data)
+        : Job(relatedContext)
+        , m_callback(callback)
+        , m_data(data)
+    {
+    }
+
+    SandBox::SandBoxResult run();
+
+private:
+    Callback m_callback;
+    void* m_data;
+};
+
 } // namespace Escargot
 #endif // __EscargotJob__

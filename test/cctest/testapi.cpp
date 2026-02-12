@@ -3062,3 +3062,24 @@ TEST(Finalizer, Basic)
     context.release();
     instance.release();
 }
+
+
+TEST(EvaluateJob, Job)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    int check = 0;
+
+    instance->enqueueEvaluateJob(context, [](ExecutionStateRef* state, void* data) -> ValueRef* {
+        int* check = (int*)data;
+        *check = 1;
+        return ValueRef::createUndefined(); }, &check);
+
+    evalScript(context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);
+
+    EXPECT_TRUE(check == 1);
+
+    context.release();
+    instance.release();
+}

@@ -511,7 +511,7 @@ private:
     std::string m_tzname[2];
     DateObject* m_cachedUTC;
 
-    // promise job queue
+    // job queue
     JobQueue* m_jobQueue;
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
