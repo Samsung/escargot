@@ -56,22 +56,26 @@ ESCARGOT_MESSAGE_EVAL_FAILED_8BIT = 26
 ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END = 27
 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28
 ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29
-ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 30
-ESCARGOT_MESSAGE_BACKTRACE = 31
-ESCARGOT_MESSAGE_BACKTRACE_END = 32
-ESCARGOT_MESSAGE_SCOPE_CHAIN = 33
-ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 34
-ESCARGOT_MESSAGE_STRING_8BIT = 35
-ESCARGOT_MESSAGE_STRING_8BIT_END = 36
-ESCARGOT_MESSAGE_STRING_16BIT = 37
-ESCARGOT_MESSAGE_STRING_16BIT_END = 38
-ESCARGOT_MESSAGE_VARIABLE = 39
-ESCARGOT_MESSAGE_PRINT = 40
-ESCARGOT_MESSAGE_EXCEPTION = 41
-ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42
-ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43
-ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 44
-ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT = 45
+ESCARGOT_MESSAGE_WATCH_RESULT_8BIT = 30
+ESCARGOT_MESSAGE_WATCH_RESULT_8BIT_END = 31
+ESCARGOT_MESSAGE_WATCH_RESULT_16BIT = 32
+ESCARGOT_MESSAGE_WATCH_RESULT_16BIT_END = 33
+ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 34
+ESCARGOT_MESSAGE_BACKTRACE = 35
+ESCARGOT_MESSAGE_BACKTRACE_END = 36
+ESCARGOT_MESSAGE_SCOPE_CHAIN = 37
+ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 38
+ESCARGOT_MESSAGE_STRING_8BIT = 39
+ESCARGOT_MESSAGE_STRING_8BIT_END = 40
+ESCARGOT_MESSAGE_STRING_16BIT = 41
+ESCARGOT_MESSAGE_STRING_16BIT_END = 42
+ESCARGOT_MESSAGE_VARIABLE = 43
+ESCARGOT_MESSAGE_PRINT = 44
+ESCARGOT_MESSAGE_EXCEPTION = 45
+ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 46
+ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 47
+ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 48
+ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT = 49
 
 
 # Messages sent by the debugger client to Escargot.
@@ -89,18 +93,23 @@ ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT_START = 10
 ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT = 11
 ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT_START = 12
 ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT = 13
-ESCARGOT_MESSAGE_GET_BACKTRACE = 14
-ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 15
-ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 16
-ESCARGOT_MESSAGE_GET_OBJECT = 17
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 18
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 19
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 20
-ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 21
-ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 22
-ESCARGOT_DEBUGGER_PENDING_CONFIG = 23
-ESCARGOT_DEBUGGER_PENDING_RESUME = 24
-ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 25
+ESCARGOT_MESSAGE_WATCH_8BIT_START = 14
+ESCARGOT_MESSAGE_WATCH_8BIT = 15
+ESCARGOT_MESSAGE_WATCH_16BIT_START = 16
+ESCARGOT_MESSAGE_WATCH_16BIT = 17
+ESCARGOT_MESSAGE_GET_BACKTRACE = 18
+ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 19
+ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 20
+ESCARGOT_MESSAGE_GET_OBJECT = 21
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 22
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 23
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 24
+ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 25
+ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 26
+ESCARGOT_DEBUGGER_PENDING_CONFIG = 27
+ESCARGOT_DEBUGGER_PENDING_RESUME = 28
+ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 29
+ESCARGOT_DEBUGGER_STOP = 30
 
 
 # Environment record types
@@ -300,6 +309,8 @@ class Debugger(object):
         self.next_breakpoint_index = 0
         self.active_breakpoint_list = {}
         self.pending_breakpoint_list = {}
+        self.watched_values_list = []
+        self.waiting_for_watched_values_count = 0
         self.line_list = Multimap()
         self.display = 0
         self.green = ''
@@ -442,6 +453,15 @@ class Debugger(object):
                 self.prompt = True
                 return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data))
 
+            elif buffer_type in [ESCARGOT_MESSAGE_WATCH_RESULT_8BIT,
+                                 ESCARGOT_MESSAGE_WATCH_RESULT_8BIT_END,
+                                 ESCARGOT_MESSAGE_WATCH_RESULT_16BIT,
+                                 ESCARGOT_MESSAGE_WATCH_RESULT_16BIT_END]:
+                self.prompt = True
+                self.waiting_for_watched_values_count -= 1
+                print("Watch: " + self._receive_string(ESCARGOT_MESSAGE_WATCH_RESULT_8BIT, data))
+                return DebuggerAction(DebuggerAction.WAIT, "")
+
             elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
@@ -452,7 +472,9 @@ class Debugger(object):
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
-                backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format + self.idx_format, data[1:])
+                backtrace_info = struct.unpack(
+                    self.byte_order + self.pointer_format + self.idx_format + self.idx_format + self.idx_format,
+                    data[1:])
                 function = self.function_list.get(backtrace_info[0])
 
                 depth = ""
@@ -588,10 +610,10 @@ class Debugger(object):
             self._exec_command(ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE)
             return
         path = self.client_sources.pop(0)
-        if not path.endswith('.js'):
+        if not path.endswith('.js') and not path.endswith('.mjs'):
             sys.exit("Error: Javascript file expected!")
         with open(path, 'r') as src_file:
-            content = path + '\0'+ src_file.read()
+            content = path + '\0' + src_file.read()
         self._send_string(content, ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START)
 
     def set_wait_exit(self, wait_exit):
@@ -645,6 +667,16 @@ class Debugger(object):
                 return "Error: Positive breakpoint index expected: %s" % val_errno
 
         return self._set_breakpoint(args, False)
+
+    def set_watch(self, args):
+        if not args:
+            return "Error: Value name expected"
+
+        if args not in self.watched_values_list:
+            self.watched_values_list.append(args)
+            return "Added watch: %s\n" % args
+        else:
+            return  "Already watching: %s\n" % args
 
     def delete(self, args):
         if not args:
@@ -734,8 +766,21 @@ class Debugger(object):
 
         return msg
 
-    def eval(self, code):
-        self._send_string(code, ESCARGOT_MESSAGE_EVAL_8BIT_START)
+    def print_watches(self):
+        if self.watched_values_list:
+            for var_name in self.watched_values_list:
+                self.eval(var_name, watch=True)
+                self.waiting_for_watched_values_count += 1
+            while self.waiting_for_watched_values_count > 0:
+                self.process_messages()
+
+    def list_watches(self):
+        print("Watched values:")
+        for var_name in self.watched_values_list:
+            print(var_name)
+
+    def eval(self, code, watch=False):
+        self._send_string(code, ESCARGOT_MESSAGE_EVAL_8BIT_START if not watch else ESCARGOT_MESSAGE_WATCH_8BIT_START)
         self.prompt = False
 
     def backtrace(self, args):
@@ -900,7 +945,8 @@ class Debugger(object):
                     buffer_size -= 8
 
             elif buffer_type == ESCARGOT_MESSAGE_FUNCTION_PTR:
-                function_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
+                function_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format,
+                                              data[1:])
                 logging.debug("Pointer %s received %d", source_name, function_info[0])
 
                 if isinstance(name, bytearray):
@@ -1165,3 +1211,7 @@ class Debugger(object):
                     return True
 
         return False
+
+    def delete_watch(self, var_name):
+        self.watched_values_list.remove(var_name)
+        return "Removed watch: %s\n" % var_name

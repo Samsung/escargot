@@ -69,6 +69,23 @@ class DebuggerPrompt(Cmd):
         else:
             print("Non-negative integer number expected, 0 turns off this function")
 
+    def do_watch(self, args):
+        """ Add value to watched values display after breakpoints """
+        if not args:
+            write("Error: Argument expected\n")
+        else:
+            write(self.debugger.set_watch(args))
+    do_w = do_watch
+
+    def do_print_watches(self, _):
+        self.debugger.print_watches()
+    do_pw = do_print_watches
+
+    def do_watches(self, _):
+        self.debugger.list_watches()
+    do_list_watches = do_watches
+    do_lw = do_watches
+
     def do_break(self, args):
         """ Insert breakpoints on the given lines or functions """
         if not args:
@@ -84,6 +101,10 @@ class DebuggerPrompt(Cmd):
     def do_delete(self, args):
         """ Delete the given breakpoint, use 'delete all|active|pending' to clear all the given breakpoints """
         write(self.debugger.delete(args))
+
+    def do_delete_watch(self, args):
+        """ Delete the given watch """
+        write(self.debugger.delete_watch(args))
 
     def do_continue(self, _):
         """ Continue execution """
