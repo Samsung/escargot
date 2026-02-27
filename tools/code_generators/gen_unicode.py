@@ -65,7 +65,7 @@ class UnicodeTable:
         self.data.append("")
 
     def generate(self, dst):
-        with open(dst, 'w') as unicode_table_file:
+        with open(dst, 'w', encoding='utf-8') as unicode_table_file:
             unicode_table_file.write("\n".join([str(i) for i in self.header]))
             unicode_table_file.write("\n".join([str(i) for i in self.data]))
             unicode_table_file.write("\n".join([str(i) for i in self.footer]))
@@ -130,7 +130,7 @@ def unify_non_basic_plane():
 def generate_ranges(file):
     bigger = 0
     long_range_index = 0
-    with open(file, "r") as fp:
+    with open(file, "r", encoding='utf-8') as fp:
         line = fp.readline()
         while line:
             line = fp.readline()
