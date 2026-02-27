@@ -56,6 +56,10 @@ namespace large_int {
     class alignas(sizeof(_Hi) * 2) int128_base final {
         static_assert(sizeof(_Hi) == sizeof(_Low), "low type, high type should have same size");
 
+#if defined(__GNUC__) && __GNUC__ <= 6
+    public:
+#endif
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         _Low low_{};
         _Hi high_{};
