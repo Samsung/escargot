@@ -990,7 +990,7 @@ protected:
 #endif
 
 #ifndef ESCARGOT_DEBUGGER
-    uint16_t m_parameterUsed : 16;
+    uint16_t m_parameterUsed : 16; // 0xFFFF means all parameters are used or parameter is more than 16
 #endif
 
     uint16_t m_functionLength : 16;

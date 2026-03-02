@@ -55,6 +55,9 @@ struct Error : public gc {
 };
 
 #define ESPRIMA_RECURSIVE_LIMIT 1024
+#ifndef ESCARGOT_DEBUGGER
+#define DISABLE_PARAM_CHECK 0xFFFF
+#endif
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo,
                           bool isModule, bool strictFromOutside, bool inWith, bool allowSuperCallFromOutside,
