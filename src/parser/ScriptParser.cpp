@@ -186,7 +186,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     bool needToCaptureArguments = false;
                     InterpretedCodeBlock* argumentsObjectHolder = codeBlock;
                     while (argumentsObjectHolder && !argumentsObjectHolder->isGlobalCodeBlock()) {
-                        if (UNLIKELY(argumentsObjectHolder->hasParameterName(arguments))) {
+                        if (UNLIKELY(argumentsObjectHolder->isParameterName(arguments))) {
                             // no need to create arguments object since it has a parameter of which name is `arguments`
                             break;
                         }

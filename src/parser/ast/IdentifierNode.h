@@ -107,7 +107,7 @@ public:
             context->addLexicallyDeclaredNames(m_name);
         }
 
-        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->hasParameterName(m_name)) {
+        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->isParameterName(m_name)) {
             context->addInitializedParameterNames(m_name);
         }
 
@@ -205,7 +205,7 @@ public:
             codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         }
 
-        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->hasParameterName(m_name)) {
+        if (context->m_inParameterInitialization && codeBlock->m_codeBlock->isParameterName(m_name)) {
             addParameterReferenceErrorIfNeeds(codeBlock, context);
         }
 

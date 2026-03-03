@@ -423,7 +423,7 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
 void InterpretedCodeBlock::captureArguments(bool needToAllocateOnStack)
 {
     AtomicString arguments = m_context->staticStrings().arguments;
-    ASSERT(!hasParameterName(arguments));
+    ASSERT(!isParameterName(arguments));
     ASSERT(!isGlobalCodeBlock() && !isArrowFunctionExpression() && isKindOfFunction());
 
     if (m_usesArgumentsObject) {

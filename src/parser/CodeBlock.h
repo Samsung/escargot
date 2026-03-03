@@ -925,23 +925,13 @@ public:
         return findVarName(name) != SIZE_MAX;
     }
 
-    bool hasParameterName(const AtomicString& name)
+    bool isParameterName(const AtomicString& name)
     {
         for (size_t i = 0; i < parameterNamesCount(); i++) {
             if (m_parameterNames[i] == name) {
                 return true;
             }
         }
-        return false;
-    }
-
-    bool isParameterName(const AtomicString& name)
-    {
-        size_t r = findVarName(name);
-        if (r != SIZE_MAX) {
-            return m_identifierInfos[r].m_isParameterName;
-        }
-
         return false;
     }
 
