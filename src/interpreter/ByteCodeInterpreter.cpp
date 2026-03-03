@@ -3094,21 +3094,34 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
 NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (code->m_stage == CreateObjectPrepare::Init) {
-        void* ptr;
+        uint8_t* ptr;
         if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
             // async or generator uses ValueVector alloctor for allocating registerFile
             // ValueVector allocator cannot track CreateObjectData if there is CreateObjectData on registerFile
-            ptr = GC_MALLOC(sizeof(CreateObjectPrepare::CreateObjectData));
+            ptr = reinterpret_cast<uint8_t*>(GC_MALLOC(sizeof(CreateObjectPrepare::CreateObjectData)));
             registerFile[code->m_dataRegisterIndex] = Value(Value::FromPayload, reinterpret_cast<intptr_t>(ptr));
         } else {
-            ptr = &registerFile[code->m_dataRegisterIndex];
+            ptr = reinterpret_cast<uint8_t*>(&registerFile[code->m_dataRegisterIndex]);
         }
         CreateObjectPrepare::CreateObjectData* data = new (ptr) CreateObjectPrepare::CreateObjectData(
             code->m_allPrecomputed, code->m_cachedObjectStructure.hasValue(), code->m_allPrecomputed,
+            code->m_needsToUsePropertyFilterOnIntepreter,
             code->m_propertyReserveSize, new Object(state), code);
         registerFile[code->m_objectIndex] = data->m_target;
         if (data->m_wasStructureComputed) {
             data->m_target->m_structure = code->m_cachedObjectStructure.value();
+        }
+        if (UNLIKELY(data->m_needsToUsePropertyFilterOnIntepreter)) {
+            if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
+                data->m_filter = new (PointerFreeGC) CreateObjectPrepare::CreateObjectPropertyFilter();
+            } else {
+                size_t diff = sizeof(CreateObjectPrepare::CreateObjectData);
+                if (diff % sizeof(Value)) {
+                    diff += (sizeof(Value) - (diff % sizeof(Value)));
+                }
+                data->m_filter = reinterpret_cast<CreateObjectPrepare::CreateObjectPropertyFilter*>(ptr + diff);
+            }
+            data->m_filter->clear();
         }
     } else {
         ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter);
@@ -3146,15 +3159,29 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             return;
         }
 
+        bool needsPropertySearch = true;
+        if (UNLIKELY(data->m_needsToUsePropertyFilterOnIntepreter)) {
+            auto newPropertyNameHash = (propertyName.isSymbol() ?
+                propertyName.symbol()->descriptionString()->hashValue() : propertyName.plainString()->hashValue());
+            if (data->m_filter->mayContain(newPropertyNameHash)) {
+            } else {
+                data->m_filter->add(newPropertyNameHash);
+                needsPropertySearch = false;
+            }
+        }
+
         size_t lastPropertyCount = data->m_properties.size();
         size_t targetIndex = lastPropertyCount;
         bool updateProperty = false;
-        for (size_t i = 0; i < lastPropertyCount; i++) {
-            if (data->m_properties[i].m_propertyName == propertyName) {
-                targetIndex = i;
-                updateProperty = true;
-                data->m_canStoreStructureOnCode = false;
-                break;
+
+        if (LIKELY(needsPropertySearch)) {
+            for (size_t i = 0; i < lastPropertyCount; i++) {
+                if (data->m_properties[i].m_propertyName == propertyName) {
+                    targetIndex = i;
+                    updateProperty = true;
+                    data->m_canStoreStructureOnCode = false;
+                    break;
+                }
             }
         }
 
