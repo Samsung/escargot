@@ -23,6 +23,7 @@
 #include "interpreter/ByteCodeBlockData.h"
 #include "interpreter/ByteCodeGenerator.h"
 #include "runtime/ExecutionPauser.h"
+#include "util/BloomFilter.h"
 
 #ifndef NDEBUG
 #include "parser/CodeBlock.h"
@@ -964,19 +965,25 @@ public:
         DefineGetterSetter,
     };
 
+    typedef BloomFilter<1024> CreateObjectPropertyFilter;
+
     struct CreateObjectData : public gc {
         bool m_allPrecomputed;
         bool m_wasStructureComputed;
         bool m_canStoreStructureOnCode;
+        bool m_needsToUsePropertyFilterOnIntepreter;
         VectorWithInlineStorage<6, ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
         EncodedValueVector m_values;
         Object* m_target;
         CreateObjectPrepare* m_initCode;
+        Optional<CreateObjectPropertyFilter*> m_filter;
         CreateObjectData(bool allPrecomputed, bool wasStructureComputed, bool canStoreStructureOnCode,
+                         bool needsToUsePropertyFilterOnIntepreter,
                          size_t reserveSize, Object* target, CreateObjectPrepare* initCode)
             : m_allPrecomputed(allPrecomputed)
             , m_wasStructureComputed(wasStructureComputed)
             , m_canStoreStructureOnCode(canStoreStructureOnCode)
+            , m_needsToUsePropertyFilterOnIntepreter(needsToUsePropertyFilterOnIntepreter)
             , m_target(target)
             , m_initCode(initCode)
         {
@@ -987,10 +994,11 @@ public:
         }
     };
 
-    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex)
+    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex, bool needsToUseNameFilterOnIntepreter)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::Init)
         , m_allPrecomputed(false)
+        , m_needsToUsePropertyFilterOnIntepreter(needsToUseNameFilterOnIntepreter)
         , m_hasPrecomputedKey(false)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(false)
@@ -1004,6 +1012,7 @@ public:
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::FillKeyValue)
         , m_allPrecomputed(false)
+        , m_needsToUsePropertyFilterOnIntepreter(false)
         , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(needsToUpdateFunctionName)
         , m_isGetter(false)
@@ -1017,6 +1026,7 @@ public:
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::DefineGetterSetter)
         , m_allPrecomputed(false)
+        , m_needsToUsePropertyFilterOnIntepreter(false)
         , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(isGetter)
@@ -1028,6 +1038,7 @@ public:
 
     Stage m_stage : 2;
     bool m_allPrecomputed : 1;
+    bool m_needsToUsePropertyFilterOnIntepreter : 1;
     bool m_hasPrecomputedKey : 1;
     bool m_needsToUpdateFunctionName : 1;
     bool m_isGetter : 1; // other case, this is setter

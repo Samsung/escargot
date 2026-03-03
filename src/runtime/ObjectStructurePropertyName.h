@@ -48,7 +48,7 @@ public:
     // same as `ToPropertyKey` https://262.ecma-international.org/#sec-topropertykey
     ObjectStructurePropertyName(ExecutionState& state, const Value& value);
 
-    size_t hashValue() const
+    ALWAYS_INLINE size_t hashValue() const
     {
         if (LIKELY(hasAtomicString())) {
             std::hash<Escargot::AtomicString> hasher;
