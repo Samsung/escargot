@@ -28,8 +28,262 @@
 #include "runtime/SandBox.h"
 #include "parser/Script.h"
 
+#include "cstdio"
+#include "rapidjson/document.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/prettywriter.h"
+
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
+
+constexpr uint32_t heapSnapshotNodeFieldCount = 6;
+
+struct snapshotNode {
+    enum nodeType {
+        hidden,
+        array,
+        string,
+        object,
+        code,
+        closure,
+        regexp,
+        number,
+        native,
+        synthetic,
+        concatenated_string,
+        sliced_string,
+        symbol,
+        bigint,
+        object_shape
+    };
+
+    snapshotNode(nodeType type, uint64_t name_idx, uint64_t id, uint64_t self_size, bool detachedness)
+        : m_type(type)
+        , m_name_idx(name_idx)
+        , m_id(id)
+        , m_self_size(self_size)
+        , m_edge_count(0)
+        , m_detachedness(detachedness)
+    {
+    }
+
+    nodeType m_type;
+    uint64_t m_name_idx;
+    uint64_t m_id;
+    uint64_t m_self_size;
+    uint64_t m_edge_count;
+    // if the object can be reached from the global env
+    bool m_detachedness;
+};
+
+// /"edge_types":[["context","element","property","internal","hidden","shortcut","weak"]
+struct snapshotEdge {
+    enum edgeType {
+        context,
+        element,
+        property,
+        internal,
+        hidden,
+        shortcut,
+        weak,
+    };
+
+    snapshotEdge(edgeType type, uint64_t str_idx, uint64_t to_node_idx)
+        : m_type(type)
+        , m_str_idx(str_idx)
+        , m_to_node_idx(to_node_idx)
+    {
+    }
+
+    edgeType m_type;
+    uint64_t m_str_idx;
+    uint64_t m_to_node_idx;
+};
+
+struct snapshotInfo {
+    std::vector<snapshotNode> nodes;
+    std::vector<snapshotEdge> edges;
+    std::vector<std::string> strings;
+};
+
+uint64_t addNode(snapshotInfo& info, snapshotNode::nodeType type, const std::string& name, uint64_t* id, uint64_t size, bool detachedness)
+{
+    info.nodes.push_back(snapshotNode(
+        type,
+        info.strings.size(),
+        *id,
+        size,
+        detachedness));
+    info.strings.push_back(name);
+    *id += 1;
+
+    return info.nodes.size() - 1;
+}
+
+void addEdge(snapshotInfo& info, snapshotEdge::edgeType type, uint64_t from, uint64_t to)
+{
+    info.edges.push_back(snapshotEdge(
+        type,
+        info.nodes.at(from).m_name_idx,
+        to * heapSnapshotNodeFieldCount));
+    info.nodes.at(from).m_edge_count++;
+}
+
+void addObjectProperties(ExecutionState* state, Object::OwnPropertyKeyVector keys, snapshotInfo& info, uint64_t ownerId, uint64_t& id)
+{
+    for (size_t i = 0; i < keys.size(); i++) {
+        Value& key = keys[i];
+        std::string snapshot_str = "";
+
+        // [["hidden","array","string","object","code","closure","regexp","number","native","synthetic","concatenated string","sliced string","symbol","bigint","object shape"],"
+        snapshotNode::nodeType type = snapshotNode::hidden;
+        if (key.isNull()) {
+            type = snapshotNode::hidden;
+            snapshot_str = "null";
+        } else if (key.isTrue() || key.isFalse()) {
+            type = snapshotNode::number;
+            snapshot_str = "boolean";
+        } else if (key.isNumber()) {
+            type = snapshotNode::number;
+        } else if (key.isString() || key.isSymbol() || key.isBigInt()) {
+            if (key.isString()) {
+                type = snapshotNode::string;
+                snapshot_str = std::string(key.toString(*state)->toUTF8StringData().data(), key.toString(*state)->toUTF8StringData().size());
+            } else if (key.isBigInt()) {
+                type = snapshotNode::bigint;
+                snapshot_str = "bigint";
+            } else {
+                type = snapshotNode::symbol;
+                snapshot_str = "symbol";
+            }
+        } else if (key.isFunction()) {
+            type = snapshotNode::code;
+            snapshot_str = "function";
+        } else if (key.isObject()) {
+            type = snapshotNode::object;
+            snapshot_str = "object";
+        }
+
+        uint64_t property = addNode(info, type, snapshot_str, &id, sizeof(key), false);
+        addEdge(info, snapshotEdge::property, ownerId, property);
+    }
+}
+
+snapshotNode::nodeType getPropertyType(ExecutionState* state, Value* obj, std::string& str)
+{
+    if (obj->isNull()) {
+        str = "null";
+        return snapshotNode::hidden;
+    } else if (obj->isTrue() || obj->isFalse()) {
+        str = "boolean";
+        return snapshotNode::number;
+    } else if (obj->isNumber()) {
+        str = "number";
+        return snapshotNode::number;
+    } else if (obj->isString() || obj->isSymbol() || obj->isBigInt()) {
+        if (obj->isString()) {
+            str = std::string(obj->toString(*state)->toUTF8StringData().data(), obj->toString(*state)->toUTF8StringData().size());
+            return snapshotNode::string;
+        } else if (obj->isBigInt()) {
+            str = "bigint";
+            return snapshotNode::bigint;
+        } else {
+            str = "symbol";
+            return snapshotNode::symbol;
+        }
+    } else if (obj->isFunction()) {
+        str = "function";
+        return snapshotNode::code;
+    } else if (obj->isObject()) {
+        str = "object";
+        return snapshotNode::object;
+    }
+
+    return snapshotNode::hidden;
+}
+
+void addGlobalEnvrionmentRecord(ExecutionState* state, snapshotInfo& info, GlobalEnvironmentRecord* env, uint64_t& id, uint64_t& LexicalEnvIdx)
+{
+    uint64_t globalEnv = addNode(info, snapshotNode::hidden, "global environment record", &id, sizeof(*env), false);
+    addEdge(info, snapshotEdge::element, globalEnv, LexicalEnvIdx);
+
+    InterpretedCodeBlock* globalCodeBlock = env->globalCodeBlock();
+    uint64_t CodeBlock = addNode(info, snapshotNode::code, "global code block", &id, sizeof(*globalCodeBlock), false);
+    addEdge(info, snapshotEdge::element, LexicalEnvIdx, CodeBlock);
+
+    for (uint64_t i = 0; i < globalCodeBlock->children().size(); i++) {
+        uint64_t childBlock = addNode(info,
+                                      snapshotNode::code,
+                                      "interpreted code block",
+                                      &id,
+                                      sizeof(*globalCodeBlock->children()[i]),
+                                      false);
+        addEdge(info, snapshotEdge::element, CodeBlock, childBlock);
+    }
+
+    GlobalObject* globalObj = env->globalObject();
+    uint64_t gObj = addNode(info, snapshotNode::object, "global object", &id, sizeof(*globalObj), false);
+    addEdge(info, snapshotEdge::element, LexicalEnvIdx, gObj);
+    addObjectProperties(state, globalObj->ownPropertyKeys(*state), info, id, gObj);
+
+    uint64_t gObjContext = addNode(info,
+                                   snapshotNode::hidden,
+                                   "global object context",
+                                   &id,
+                                   sizeof(*globalObj->getFunctionRealm(*state)),
+                                   false);
+    addEdge(info, snapshotEdge::context, gObj, gObjContext);
+}
+
+void addObjectEnvironmentRecord(ExecutionState* state, snapshotInfo& info, ObjectEnvironmentRecord* env, uint64_t& id, uint64_t& LexicalEnvIdx)
+{
+    uint64_t objEnv = addNode(info, snapshotNode::hidden, "object environment record", &id, sizeof(*env), false);
+    addEdge(info, snapshotEdge::element, objEnv, LexicalEnvIdx);
+
+    Object* bindingObj = env->bindingObject();
+    uint64_t obj = addNode(info, snapshotNode::object, "object", &id, sizeof(*bindingObj), false);
+    addEdge(info, snapshotEdge::element, obj, objEnv);
+
+    addObjectProperties(state, bindingObj->ownPropertyKeys(*state), info, obj, id);
+}
+
+void addFunctionEnvironmentRecord(ExecutionState* state, snapshotInfo& info, FunctionEnvironmentRecord* env, uint64_t& id, uint64_t& LexicalEnvIdx)
+{
+    uint64_t funcEnv = addNode(info, snapshotNode::hidden, "function environment record", &id, sizeof(*env), false);
+    addEdge(info, snapshotEdge::element, funcEnv, LexicalEnvIdx);
+
+    uint64_t functionObj = addNode(info, snapshotNode::code, "script function object", &id, sizeof(*env->functionObject()), false);
+    addEdge(info, snapshotEdge::element, funcEnv, functionObj);
+    addObjectProperties(state, env->functionObject()->ownPropertyKeys(*state), info, functionObj, id);
+
+    uint64_t childBlock = addNode(info, snapshotNode::code, "interpreted code block", &id, sizeof(*env->functionObject()->codeBlock()), false);
+    addEdge(info, snapshotEdge::element, functionObj, childBlock);
+}
+
+void addModuleEnvironmentRecord(ExecutionState* state, snapshotInfo& info, ModuleEnvironmentRecord* env, uint64_t& id, uint64_t& LexicalEnvIdx)
+{
+    uint64_t moduleEnv = addNode(info, snapshotNode::hidden, "module environment record", &id, sizeof(*env), false);
+    addEdge(info, snapshotEdge::element, moduleEnv, LexicalEnvIdx);
+
+    // [["hidden","array","string","object","code","closure","regexp","number","native","synthetic","concatenated string","sliced string","symbol","bigint","object shape"],"
+    uint64_t script = addNode(info, snapshotNode::code, "script", &id, sizeof(*env->script()), false);
+    addEdge(info, snapshotEdge::element, script, moduleEnv);
+
+    std::string nameStr = std::string(env->script()->srcName()->toUTF8StringData().data(), env->script()->srcName()->toUTF8StringData().size());
+    uint64_t srcName = addNode(info, snapshotNode::string, nameStr, &id, sizeof(*env->script()->srcName()), false);
+    addEdge(info, snapshotEdge::element, srcName, script);
+
+    std::string sourceCode = std::string(env->script()->sourceCode()->toUTF8StringData().data(), env->script()->srcName()->toUTF8StringData().size());
+    uint64_t source = addNode(info, snapshotNode::string, sourceCode, &id, sizeof(*env->script()->sourceCode()), false);
+    addEdge(info, snapshotEdge::element, source, script);
+}
+
+void addDeclarativeEnvironmentRecord(ExecutionState* state, snapshotInfo& info, DeclarativeEnvironmentRecord* env, uint64_t& id, uint64_t& LexicalEnvIdx)
+{
+    uint64_t declEnv = addNode(info, snapshotNode::hidden, "declarative environment record", &id, sizeof(*env), false);
+    addEdge(info, snapshotEdge::element, declEnv, LexicalEnvIdx);
+}
 
 void Debugger::enable(Context* context)
 {
@@ -783,6 +1037,204 @@ static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
     return nullptr;
 }
 
+bool prepareHeapsnapshotFile(snapshotInfo* infos)
+{
+    auto addFields = [&](rapidjson::Value& array, std::vector<std::string> strings, rapidjson::Document::AllocatorType& allocator) {
+        for (std::string& elem : strings) {
+            rapidjson::Value s;
+            s.SetString(elem.c_str(), elem.length());
+            array.PushBack(s, allocator);
+        }
+    };
+
+    rapidjson::Document jsonDoc;
+    rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
+    jsonDoc.SetObject();
+
+    rapidjson::Value meta(rapidjson::kObjectType);
+
+    rapidjson::Value node_fields(rapidjson::kArrayType);
+    {
+        std::vector<std::string> strings{ "type", "name", "id", "self_size", "edge_count", "detachedness" };
+        addFields(node_fields, strings, allocator);
+        meta.AddMember("node_fields", node_fields, allocator);
+    }
+
+    rapidjson::Value types(rapidjson::kArrayType);
+    {
+        std::vector<std::string> strings{
+            "hidden", "array", "string", "object", "code", "closure", "regexp",
+            "number", "native", "synthetic", "concatenated string",
+            "sliced string", "symbol", "bigint", "object shape"
+        };
+        addFields(types, strings, allocator);
+    }
+
+    rapidjson::Value node_types(rapidjson::kArrayType);
+    {
+        node_types.PushBack(types, allocator);
+        std::vector<std::string> strings{ "string", "number", "number", "number", "number" };
+        addFields(node_types, strings, allocator);
+        meta.AddMember("node_types", node_types, allocator);
+    }
+
+    rapidjson::Value edge_fields(rapidjson::kArrayType);
+    {
+        std::vector<std::string> strings{ "type", "name_or_index", "to_node" };
+        addFields(edge_fields, strings, allocator);
+        meta.AddMember("edge_fields", edge_fields, allocator);
+    }
+
+    rapidjson::Value edge_types_inner(rapidjson::kArrayType);
+    {
+        std::vector<std::string> strings{ "type", "name_or_index", "to_node" };
+        addFields(edge_types_inner, strings, allocator);
+    }
+
+    rapidjson::Value edge_types(rapidjson::kArrayType);
+    {
+        edge_types.PushBack(edge_types_inner, allocator);
+        std::vector<std::string> strings{ "string_or_number", "node" };
+        addFields(edge_types, strings, allocator);
+        meta.AddMember("edge_types", edge_types, allocator);
+    }
+
+    // rapidjson::Value trace_function_info_fields(rapidjson::kArrayType);
+    // {
+    //     trace_function_info_fields.PushBack("function_id", allocator);
+    //     trace_function_info_fields.PushBack("name", allocator);
+    //     trace_function_info_fields.PushBack("script_name", allocator);
+    //     trace_function_info_fields.PushBack("script_id", allocator);
+    //     trace_function_info_fields.PushBack("line", allocator);
+    //     trace_function_info_fields.PushBack("column", allocator);
+    //     meta.AddMember("trace_function_info_fields", trace_function_info_fields, allocator);
+    // }
+
+    // rapidjson::Value trace_node_fields(rapidjson::kArrayType);
+    // {
+    //     trace_node_fields.PushBack("id", allocator);
+    //     trace_node_fields.PushBack("function_info_index", allocator);
+    //     trace_node_fields.PushBack("count", allocator);
+    //     trace_node_fields.PushBack("size", allocator);
+    //     trace_node_fields.PushBack("children", allocator);
+    //     meta.AddMember("trace_node_fields", trace_node_fields, allocator);
+    // }
+
+    // rapidjson::Value sample_fields(rapidjson::kArrayType);
+    // {
+    //     sample_fields.PushBack("timestamp_us", allocator);
+    //     sample_fields.PushBack("last_assigned_id", allocator);
+    //     meta.AddMember("sample_fields", sample_fields, allocator);
+    // }
+
+    // rapidjson::Value location_fields(rapidjson::kArrayType);
+    // {
+    //     std::vector<std::string> strings{ "object_index", "script_id", "line", "column" };
+    //     addFields(location_fields, strings, allocator);
+    //     meta.AddMember("location_fields", location_fields, allocator);
+    // }
+
+    rapidjson::Value snapshot(rapidjson::kObjectType);
+    {
+        snapshot.AddMember("meta", meta, allocator);
+        snapshot.AddMember("node_count", rapidjson::Value(infos->nodes.size()), allocator);
+        snapshot.AddMember("edge_count", rapidjson::Value(infos->edges.size()), allocator);
+        // snapshot.AddMember("trace_function_count", 0, allocator);
+        snapshot.AddMember("extra_native_bytes", 0, allocator);
+    }
+
+    rapidjson::Value nodes(rapidjson::kArrayType);
+    for (snapshotNode& node : infos->nodes) {
+        nodes.PushBack(node.m_type, allocator);
+        nodes.PushBack(node.m_name_idx, allocator);
+        nodes.PushBack(node.m_id, allocator);
+        nodes.PushBack(node.m_self_size, allocator);
+        nodes.PushBack(node.m_edge_count, allocator);
+        nodes.PushBack((uint32_t)node.m_detachedness, allocator);
+    }
+
+    rapidjson::Value edges(rapidjson::kArrayType);
+    for (snapshotEdge& edge : infos->edges) {
+        edges.PushBack(edge.m_type, allocator);
+        edges.PushBack(edge.m_str_idx, allocator);
+        edges.PushBack(edge.m_to_node_idx, allocator);
+    }
+
+    // rapidjson::Value locations(rapidjson::kArrayType);
+    rapidjson::Value strings(rapidjson::kArrayType);
+    for (std::string& str : infos->strings) {
+        rapidjson::Value s;
+        s = rapidjson::StringRef(str.c_str());
+        strings.PushBack(s, allocator);
+    }
+
+    jsonDoc.AddMember("snapshot", snapshot, allocator);
+    jsonDoc.AddMember("nodes", nodes, allocator);
+    jsonDoc.AddMember("edges", edges, allocator);
+    // jsonDoc.AddMember("locations", locations, allocator);
+    jsonDoc.AddMember("strings", strings, allocator);
+
+    auto deleter = [&](std::FILE* fp) { fclose(fp); };
+    std::unique_ptr<std::FILE, decltype(deleter)> output(fopen("output.heapsnapshot", "w"), deleter);
+
+    if (output.get() == nullptr) {
+        ESCARGOT_LOG_ERROR("Could not create heap snapshot file.\n");
+        return false;
+    }
+
+    char buffer[65536];
+    rapidjson::FileWriteStream os(output.get(), buffer, sizeof(buffer));
+    rapidjson::Writer<rapidjson::FileWriteStream> writer(os);
+    jsonDoc.Accept(writer);
+
+    return true;
+}
+
+void Debugger::takeHeapSnapshot(ExecutionState* state)
+{
+    uint64_t id = 0;
+    snapshotInfo info;
+
+    // [["hidden","array","string","object","code","closure","regexp","number","native","synthetic","concatenated string","sliced string","symbol","bigint","object shape"],"
+    // "edge_types":[["context","element","property","internal","hidden","shortcut","weak"]
+    uint64_t stateIdx = addNode(info, snapshotNode::hidden, "state", &id, sizeof(*state), false);
+
+    uint64_t contextIdx = addNode(info, snapshotNode::hidden, "context", &id, sizeof(*state->context()), false);
+    addEdge(info, snapshotEdge::element, stateIdx, contextIdx);
+
+    LexicalEnvironment* lexicalEnv = state->lexicalEnvironment();
+    uint64_t LexicalEnvIdx = addNode(info, snapshotNode::hidden, "lexical environment", &id, sizeof(*lexicalEnv), false);
+    addEdge(info, snapshotEdge::element, stateIdx, LexicalEnvIdx);
+
+    while (lexicalEnv != nullptr) {
+        EnvironmentRecord* envRecord = lexicalEnv->record();
+
+        if (envRecord->isGlobalEnvironmentRecord()) {
+            addGlobalEnvrionmentRecord(state, info, envRecord->asGlobalEnvironmentRecord(), id, LexicalEnvIdx);
+        } else if (envRecord->isObjectEnvironmentRecord()) {
+            addObjectEnvironmentRecord(state, info, envRecord->asObjectEnvironmentRecord(), id, LexicalEnvIdx);
+        } else if (envRecord->isDeclarativeEnvironmentRecord()) {
+            DeclarativeEnvironmentRecord* declarativeRecord = envRecord->asDeclarativeEnvironmentRecord();
+            if (declarativeRecord->isFunctionEnvironmentRecord()) {
+                FunctionEnvironmentRecord* funcEnv = envRecord->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                addFunctionEnvironmentRecord(state, info, funcEnv, id, LexicalEnvIdx);
+            } else if (envRecord->isModuleEnvironmentRecord()) {
+                ModuleEnvironmentRecord* moduleEnv = envRecord->asDeclarativeEnvironmentRecord()->asModuleEnvironmentRecord();
+                addModuleEnvironmentRecord(state, info, moduleEnv, id, LexicalEnvIdx);
+            } else {
+                DeclarativeEnvironmentRecord* declEnv = envRecord->asDeclarativeEnvironmentRecord()->asModuleEnvironmentRecord();
+                addDeclarativeEnvironmentRecord(state, info, declEnv, id, LexicalEnvIdx);
+            }
+        }
+
+        lexicalEnv = lexicalEnv->outerEnvironment();
+    }
+
+    ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %ld", info.nodes.size(), info.edges.size(), info.strings.size());
+    if (prepareHeapsnapshotFile(&info) != true) {
+    }
+}
+
 bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
@@ -1009,6 +1461,12 @@ bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock
                 break;
             }
             m_waitForResume = false;
+            return true;
+        }
+        case ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT: {
+            GC_disable();
+            takeHeapSnapshot(state);
+            GC_enable();
             return true;
         }
         }
