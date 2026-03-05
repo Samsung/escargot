@@ -25,6 +25,7 @@
 #include "FunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ScriptClassConstructorFunctionObject.h"
+#include "../src/debugger/HeapSnapshot.h"
 
 namespace Escargot {
 

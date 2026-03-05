@@ -25,6 +25,10 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
 
+#if defined(ESCARGOT_DEBUGGER)
+#include "debugger/HeapSnapshot.h"
+#endif
+
 namespace Escargot {
 
 class VMInstance;

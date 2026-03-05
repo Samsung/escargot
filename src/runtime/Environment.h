@@ -17,8 +17,8 @@
  *  USA
  */
 
-#ifndef __Escargot_Environment_h
-#define __Escargot_Environment_h
+#ifndef __Escargot_Environment__
+#define __Escargot_Environment__
 
 #include "runtime/AtomicString.h"
 #include "runtime/String.h"
