@@ -36,6 +36,7 @@ class Script;
 class GeneratorObject;
 class FunctionObject;
 class NativeFunctionObject;
+class HeapSnapshot;
 
 typedef VectorWithInlineStorage<2, ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 

@@ -642,6 +642,11 @@ public:
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override;
 
+    IdentifierRecordVector getIdentifierRecordVector()
+    {
+        return m_recordVector;
+    }
+
     void* operator new(size_t size)
     {
         static MAY_THREAD_LOCAL bool typeInited = false;
@@ -1207,6 +1212,7 @@ class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class DebuggerEscargot;
     friend class DebuggerDevtools;
     friend class DebuggerAPI;
+    friend class HeapSnapshot;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     struct ModuleBindingRecord {

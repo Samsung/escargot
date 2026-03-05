@@ -29,6 +29,7 @@
 #include "runtime/SandBox.h"
 #include "parser/Script.h"
 #include "DebuggerEscargot.h"
+#include "HeapSnapshot.h"
 
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
@@ -997,6 +998,11 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
                 break;
             }
             m_waitForResume = false;
+            return true;
+        }
+        case ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT: {
+            HeapSnapshot snapshot;
+            snapshot.takeHeapSnapshot(state);
             return true;
         }
         }
