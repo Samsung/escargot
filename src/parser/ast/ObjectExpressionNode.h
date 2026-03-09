@@ -60,11 +60,12 @@ public:
         size_t objectCreationDataRegisterSize = 0;
         size_t initCodePosition = codeBlock->currentCodeSize();
 
-        bool needsToUseNameFilterOnIntepreter = m_properties.size() >= 6;
-        if (needsToUseNameFilterOnIntepreter) {
+        bool needsToUseBigPropertyFilterOnInterpreter = m_properties.size() >= 512;
+        bool needsToUseNameFilterOnInterpreter = !needsToUseBigPropertyFilterOnInterpreter && m_properties.size() >= 6;
+        if (needsToUseNameFilterOnInterpreter || needsToUseBigPropertyFilterOnInterpreter) {
             for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                 if (!property->astNode()->isProperty()) {
-                    needsToUseNameFilterOnIntepreter = false;
+                    needsToUseBigPropertyFilterOnInterpreter = needsToUseNameFilterOnInterpreter = false;
                 }
             }
         }
@@ -79,7 +80,7 @@ public:
                     objectCreationDataRegisterSize++;
                     context->getRegister();
                 }
-                if (needsToUseNameFilterOnIntepreter) {
+                if (needsToUseNameFilterOnInterpreter) {
                     for (size_t i = 0; i < sizeof(CreateObjectPrepare::CreateObjectPropertyFilter); i += sizeof(Value)) {
                         objectCreationDataRegisterSize++;
                         context->getRegister();
@@ -87,7 +88,9 @@ public:
                 }
             }
 
-            codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), objectCreationDataIndex, dstRegister, needsToUseNameFilterOnIntepreter), context, this->m_loc.index);
+            codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), objectCreationDataIndex, dstRegister,
+                                                    needsToUseNameFilterOnInterpreter, needsToUseBigPropertyFilterOnInterpreter),
+                                context, this->m_loc.index);
         }
 
         bool allPrecomputed = true;

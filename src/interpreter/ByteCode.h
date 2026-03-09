@@ -966,24 +966,30 @@ public:
     };
 
     typedef BloomFilter<1024> CreateObjectPropertyFilter;
+    typedef BloomFilter<1024 * 64> CreateObjectBigPropertyFilter;
 
     struct CreateObjectData : public gc {
-        bool m_allPrecomputed;
-        bool m_wasStructureComputed;
-        bool m_canStoreStructureOnCode;
-        bool m_needsToUsePropertyFilterOnIntepreter;
+        bool m_allPrecomputed : 1;
+        bool m_wasStructureComputed : 1;
+        bool m_canStoreStructureOnCode : 1;
+        bool m_needsToUsePropertyFilterOnInterpreter : 1;
+        bool m_needsToUseBigPropertyFilterOnInterpreter : 1;
         VectorWithInlineStorage<6, ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
         EncodedValueVector m_values;
         Object* m_target;
         CreateObjectPrepare* m_initCode;
-        Optional<CreateObjectPropertyFilter*> m_filter;
+        union {
+            Optional<CreateObjectPropertyFilter*> m_filter;
+            Optional<CreateObjectBigPropertyFilter*> m_bigFilter;
+        };
         CreateObjectData(bool allPrecomputed, bool wasStructureComputed, bool canStoreStructureOnCode,
-                         bool needsToUsePropertyFilterOnIntepreter,
+                         bool needsToUsePropertyFilterOnInterpreter, bool needsToUseBigPropertyFilterOnInterpreter,
                          size_t reserveSize, Object* target, CreateObjectPrepare* initCode)
             : m_allPrecomputed(allPrecomputed)
             , m_wasStructureComputed(wasStructureComputed)
             , m_canStoreStructureOnCode(canStoreStructureOnCode)
-            , m_needsToUsePropertyFilterOnIntepreter(needsToUsePropertyFilterOnIntepreter)
+            , m_needsToUsePropertyFilterOnInterpreter(needsToUsePropertyFilterOnInterpreter)
+            , m_needsToUseBigPropertyFilterOnInterpreter(needsToUseBigPropertyFilterOnInterpreter)
             , m_target(target)
             , m_initCode(initCode)
         {
@@ -994,11 +1000,13 @@ public:
         }
     };
 
-    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex, bool needsToUseNameFilterOnIntepreter)
+    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex, bool needsToUseNameFilterOnIntepreter,
+                        bool needsToUseBigPropertyFilterOnInterpreter)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::Init)
         , m_allPrecomputed(false)
-        , m_needsToUsePropertyFilterOnIntepreter(needsToUseNameFilterOnIntepreter)
+        , m_needsToUsePropertyFilterOnInterpreter(needsToUseNameFilterOnIntepreter)
+        , m_needsToUseBigPropertyFilterOnInterpreter(needsToUseBigPropertyFilterOnInterpreter)
         , m_hasPrecomputedKey(false)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(false)
@@ -1012,7 +1020,8 @@ public:
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::FillKeyValue)
         , m_allPrecomputed(false)
-        , m_needsToUsePropertyFilterOnIntepreter(false)
+        , m_needsToUsePropertyFilterOnInterpreter(false)
+        , m_needsToUseBigPropertyFilterOnInterpreter(false)
         , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(needsToUpdateFunctionName)
         , m_isGetter(false)
@@ -1026,7 +1035,8 @@ public:
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::DefineGetterSetter)
         , m_allPrecomputed(false)
-        , m_needsToUsePropertyFilterOnIntepreter(false)
+        , m_needsToUsePropertyFilterOnInterpreter(false)
+        , m_needsToUseBigPropertyFilterOnInterpreter(false)
         , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(isGetter)
@@ -1038,7 +1048,8 @@ public:
 
     Stage m_stage : 2;
     bool m_allPrecomputed : 1;
-    bool m_needsToUsePropertyFilterOnIntepreter : 1;
+    bool m_needsToUsePropertyFilterOnInterpreter : 1;
+    bool m_needsToUseBigPropertyFilterOnInterpreter : 1;
     bool m_hasPrecomputedKey : 1;
     bool m_needsToUpdateFunctionName : 1;
     bool m_isGetter : 1; // other case, this is setter
