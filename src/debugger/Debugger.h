@@ -177,6 +177,9 @@ public:
 
     void pumpDebuggerEvents(ExecutionState* state);
 
+    static void takeHeapSnapshot(ExecutionState* state);
+    static void prepareHeapSnapshotFile();
+
 protected:
     Debugger()
         : m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
@@ -311,7 +314,8 @@ public:
         ESCARGOT_DEBUGGER_PENDING_CONFIG = 27,
         ESCARGOT_DEBUGGER_PENDING_RESUME = 28,
         ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 29,
-        ESCARGOT_DEBUGGER_STOP = 30
+        ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT = 30,
+        ESCARGOT_DEBUGGER_STOP = 31
     };
 
 
