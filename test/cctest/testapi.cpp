@@ -2752,7 +2752,7 @@ TEST(Debugger, Basic)
     DebuggerTest* debuggerTest = new DebuggerTest();
     StringRef* fileName = StringRef::createFromUTF8(debuggerFileNameString, sizeof(debuggerFileNameString) - 1);
 
-    context->initDebugger(debuggerTest);
+    context->initDebuggerClient(debuggerTest);
 
     StringRef* source = StringRef::createFromUTF8(debuggerSourceString1, sizeof(debuggerSourceString1) - 1);
     evalScript(context, source, fileName, false);
@@ -2778,7 +2778,7 @@ TEST(Debugger, RemoteOption)
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
     // 100ms
-    EXPECT_FALSE(context->initDebuggerRemote("--accept-timeout=100"));
+    EXPECT_FALSE(context->initDebugger("--accept-timeout=100"));
     EXPECT_FALSE(context->isDebuggerRunning());
     EXPECT_FALSE(context->isWaitBeforeExit());
 
@@ -2873,7 +2873,7 @@ TEST(Debugger, ObjectStore)
     DebuggerTest* debuggerTest = new DebuggerTest();
     StringRef* fileName = StringRef::createFromUTF8(debuggerFileNameString, sizeof(debuggerFileNameString) - 1);
 
-    context->initDebugger(debuggerTest);
+    context->initDebuggerClient(debuggerTest);
 
     StringRef* source = StringRef::createFromUTF8(debuggerSourceString1, sizeof(debuggerSourceString1) - 1);
     evalScript(context, source, fileName, false);

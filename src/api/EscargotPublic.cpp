@@ -1984,6 +1984,7 @@ bool DebuggerOperationsRef::updateBreakpoint(WeakCodeRef* weakCodeRef, uint32_t 
 
 class DebuggerC : public Debugger {
 public:
+    virtual void init(const char* options, Context* context) override {}
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
@@ -3385,7 +3386,7 @@ void ContextRef::throwException(ValueRef* exceptionValue)
     toImpl(this)->throwException(s, toImpl(exceptionValue));
 }
 
-bool ContextRef::initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient)
+bool ContextRef::initDebuggerClient(DebuggerOperationsRef::DebuggerClient* debuggerClient)
 {
 #ifdef ESCARGOT_DEBUGGER
     Context* context = toImpl(this);
@@ -3414,10 +3415,10 @@ bool ContextRef::disableDebugger()
 #endif
 }
 
-bool ContextRef::initDebuggerRemote(const char* options)
+bool ContextRef::initDebugger(const char* options)
 {
 #ifdef ESCARGOT_DEBUGGER
-    return toImpl(this)->initDebuggerRemote(options);
+    return toImpl(this)->initDebugger(options);
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */
