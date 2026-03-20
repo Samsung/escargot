@@ -28,14 +28,11 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH 8
 
 /* WebSocket max length encoded in one byte. */
-#define ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH 125
-#define ESCARGOT_DEBUGGER_VERSION 1
 #define ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY 10
 #define ESCARGOT_DEBUGGER_IN_WAIT_MODE (nullptr)
 #define ESCARGOT_DEBUGGER_IN_EVAL_MODE (reinterpret_cast<ExecutionState*>(0x1))
 #define ESCARGOT_DEBUGGER_ALWAYS_STOP (reinterpret_cast<ExecutionState*>(0x2))
 #define ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE (reinterpret_cast<ExecutionState*>(0x1))
-#define ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH 128
 
 class Context;
 class Object;
@@ -158,8 +155,7 @@ public:
         m_stopState = stopState;
     }
 
-    static void createDebuggerRemote(const char* options, Context* context);
-
+    virtual void init(const char* options, Context* context) = 0;
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) = 0;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) = 0;
@@ -176,6 +172,11 @@ public:
     static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
 
     void pumpDebuggerEvents(ExecutionState* state);
+    static void createDebugger(const char* options, Context* context);
+
+    void enable(Context* context);
+
+    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 
 protected:
     Debugger()
@@ -193,7 +194,6 @@ protected:
         return m_context != nullptr;
     }
 
-    void enable(Context* context);
     void disable();
 
     virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) = 0;
@@ -201,6 +201,7 @@ protected:
     uint32_t m_delay;
     ExecutionState* m_stopState;
     std::vector<BreakpointLocationsInfo*> m_breakpointLocationsVector;
+    Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
 
 private:
     Context* m_context;
@@ -210,246 +211,6 @@ private:
     // represent that every created InterpretedCodeBlock and its ByteCode should be marked with debugging feature
     // ByteCode should contain debugging code (breakpoint)
     bool m_inDebuggingCodeMode;
-};
-
-class DebuggerRemote : public Debugger {
-public:
-    // Messages sent by Escargot to the debugger client
-    enum {
-        ESCARGOT_MESSAGE_VERSION = 0,
-        ESCARGOT_MESSAGE_CONFIGURATION = 1,
-        ESCARGOT_MESSAGE_CLOSE_CONNECTION = 2,
-        ESCARGOT_MESSAGE_RELEASE_FUNCTION = 3,
-        ESCARGOT_MESSAGE_PARSE_DONE = 4,
-        ESCARGOT_MESSAGE_PARSE_ERROR = 5,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_SOURCE_8BIT = 6,
-        ESCARGOT_MESSAGE_SOURCE_8BIT_END = 7,
-        ESCARGOT_MESSAGE_SOURCE_16BIT = 8,
-        ESCARGOT_MESSAGE_SOURCE_16BIT_END = 9,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_FILE_NAME_8BIT = 10,
-        ESCARGOT_MESSAGE_FILE_NAME_8BIT_END = 11,
-        ESCARGOT_MESSAGE_FILE_NAME_16BIT = 12,
-        ESCARGOT_MESSAGE_FILE_NAME_16BIT_END = 13,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT = 14,
-        ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END = 15,
-        ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT = 16,
-        ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END = 17,
-        ESCARGOT_MESSAGE_BREAKPOINT_LOCATION = 18,
-        ESCARGOT_MESSAGE_FUNCTION_PTR = 19,
-        ESCARGOT_MESSAGE_BREAKPOINT_HIT = 20,
-        ESCARGOT_MESSAGE_EXCEPTION_HIT = 21,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_EVAL_RESULT_8BIT = 22,
-        ESCARGOT_MESSAGE_EVAL_RESULT_8BIT_END = 23,
-        ESCARGOT_MESSAGE_EVAL_RESULT_16BIT = 24,
-        ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END = 25,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_EVAL_FAILED_8BIT = 26,
-        ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END = 27,
-        ESCARGOT_MESSAGE_EVAL_FAILED_16BIT = 28,
-        ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END = 29,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_WATCH_RESULT_8BIT = 30,
-        ESCARGOT_MESSAGE_WATCH_RESULT_8BIT_END = 31,
-        ESCARGOT_MESSAGE_WATCH_RESULT_16BIT = 32,
-        ESCARGOT_MESSAGE_WATCH_RESULT_16BIT_END = 33,
-        ESCARGOT_MESSAGE_BACKTRACE_TOTAL = 34,
-        ESCARGOT_MESSAGE_BACKTRACE = 35,
-        ESCARGOT_MESSAGE_BACKTRACE_END = 36,
-        ESCARGOT_MESSAGE_SCOPE_CHAIN = 37,
-        ESCARGOT_MESSAGE_SCOPE_CHAIN_END = 38,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_STRING_8BIT = 39,
-        ESCARGOT_MESSAGE_STRING_8BIT_END = 40,
-        ESCARGOT_MESSAGE_STRING_16BIT = 41,
-        ESCARGOT_MESSAGE_STRING_16BIT_END = 42,
-        ESCARGOT_MESSAGE_VARIABLE = 43,
-        ESCARGOT_MESSAGE_PRINT = 44,
-        ESCARGOT_MESSAGE_EXCEPTION = 45,
-        ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 46,
-        ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 47,
-        ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 48,
-        ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT = 49
-    };
-
-    // Messages sent by the debugger client to Escargot
-    enum {
-        ESCARGOT_MESSAGE_FUNCTION_RELEASED = 0,
-        ESCARGOT_MESSAGE_UPDATE_BREAKPOINT = 1,
-        ESCARGOT_MESSAGE_CONTINUE = 2,
-        ESCARGOT_MESSAGE_STEP = 3,
-        ESCARGOT_MESSAGE_NEXT = 4,
-        ESCARGOT_MESSAGE_FINISH = 5,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_EVAL_8BIT_START = 6,
-        ESCARGOT_MESSAGE_EVAL_8BIT = 7,
-        ESCARGOT_MESSAGE_EVAL_16BIT_START = 8,
-        ESCARGOT_MESSAGE_EVAL_16BIT = 9,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT_START = 10,
-        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT = 11,
-        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT_START = 12,
-        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT = 13,
-        // These four must be in the same order.
-        ESCARGOT_MESSAGE_WATCH_8BIT_START = 14,
-        ESCARGOT_MESSAGE_WATCH_8BIT = 15,
-        ESCARGOT_MESSAGE_WATCH_16BIT_START = 16,
-        ESCARGOT_MESSAGE_WATCH_16BIT = 17,
-        ESCARGOT_MESSAGE_GET_BACKTRACE = 18,
-        ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 19,
-        ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 20,
-        ESCARGOT_MESSAGE_GET_OBJECT = 21,
-        // These four must be in the same order.
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 22,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 23,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 24,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 25,
-        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 26,
-        ESCARGOT_DEBUGGER_PENDING_CONFIG = 27,
-        ESCARGOT_DEBUGGER_PENDING_RESUME = 28,
-        ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 29,
-        ESCARGOT_DEBUGGER_STOP = 30
-    };
-
-
-    // Environment record types
-    enum {
-        ESCARGOT_RECORD_GLOBAL_ENVIRONMENT = 0,
-        ESCARGOT_RECORD_FUNCTION_ENVIRONMENT = 1,
-        ESCARGOT_RECORD_DECLARATIVE_ENVIRONMENT = 2,
-        ESCARGOT_RECORD_OBJECT_ENVIRONMENT = 3,
-        ESCARGOT_RECORD_MODULE_ENVIRONMENT = 4,
-        ESCARGOT_RECORD_UNKNOWN_ENVIRONMENT = 5,
-    };
-
-    // Variable types
-    enum {
-        ESCARGOT_VARIABLE_END = 0,
-        ESCARGOT_VARIABLE_UNACCESSIBLE = 1,
-        ESCARGOT_VARIABLE_UNDEFINED = 2,
-        ESCARGOT_VARIABLE_NULL = 3,
-        ESCARGOT_VARIABLE_TRUE = 4,
-        ESCARGOT_VARIABLE_FALSE = 5,
-        ESCARGOT_VARIABLE_NUMBER = 6,
-        ESCARGOT_VARIABLE_STRING = 7,
-        ESCARGOT_VARIABLE_SYMBOL = 8,
-        ESCARGOT_VARIABLE_BIGINT = 9,
-        // Only object types should be defined after this point.
-        ESCARGOT_VARIABLE_OBJECT = 10,
-        ESCARGOT_VARIABLE_ARRAY = 11,
-        ESCARGOT_VARIABLE_FUNCTION = 12,
-        ESCARGOT_VARIABLE_TYPE_MASK = 0x3f,
-        ESCARGOT_VARIABLE_LONG_NAME = 0x40,
-        ESCARGOT_VARIABLE_LONG_VALUE = 0x80,
-    };
-
-    inline bool pendingWait(void)
-    {
-        return m_pendingWait;
-    }
-
-    inline bool connected(void)
-    {
-        return enabled();
-    }
-
-    void sendType(uint8_t type);
-    void sendSubtype(uint8_t type, uint8_t subType);
-    void sendString(uint8_t type, const String* string);
-    void sendPointer(uint8_t type, const void* ptr);
-
-    virtual void init(const char* options, Context* context) = 0;
-    virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
-    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
-    virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
-    virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
-    virtual void consoleOut(String* output) override;
-    virtual String* getClientSource(String** sourceName) override;
-    virtual bool getWaitBeforeExitClient() override;
-
-    void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth);
-    void sendVariableObjectInfo(uint8_t subType, Object* object);
-    void waitForResolvingPendingBreakpoints();
-
-protected:
-    enum CloseReason {
-        CloseEndConnection,
-        CloseAbortConnection,
-        CloseProtocolUnsupported,
-        CloseProtocolError,
-    };
-
-    DebuggerRemote()
-        : m_exitClient(false)
-        , m_pendingWait(false)
-        , m_waitForResume(false)
-        , m_watchEval(false)
-        , m_clientSourceData(nullptr)
-        , m_clientSourceName(nullptr)
-    {
-    }
-
-    virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
-
-    virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
-    virtual bool receive(uint8_t* buffer, size_t& length) = 0;
-    virtual bool isThereAnyEvent() = 0;
-    virtual void close(CloseReason reason) = 0;
-
-private:
-    // Packed structure definitions to reduce network traffic
-
-    struct MessageVersion {
-        uint8_t littleEndian;
-        uint8_t version[sizeof(uint32_t)];
-    };
-
-    struct MessageConfiguration {
-        uint8_t maxMessageSize;
-        uint8_t pointerSize;
-    };
-
-    struct FunctionInfo {
-        uint8_t byteCodeStart[sizeof(void*)];
-        uint8_t startLine[sizeof(uint32_t)];
-        uint8_t startColumn[sizeof(uint32_t)];
-    };
-
-    struct BreakpointOffset {
-        uint8_t byteCodeStart[sizeof(void*)];
-        uint8_t offset[sizeof(uint32_t)];
-    };
-
-    struct BacktraceInfo {
-        uint8_t byteCode[sizeof(void*)];
-        uint8_t line[sizeof(uint32_t)];
-        uint8_t column[sizeof(uint32_t)];
-        uint8_t executionStateDepth[sizeof(uint32_t)];
-    };
-
-    struct VariableObjectInfo {
-        uint8_t subType;
-        uint8_t index[sizeof(uint32_t)];
-    };
-
-    uint32_t appendToActiveObjects(Object* object);
-    bool doEval(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, uint8_t* buffer, size_t length);
-    void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
-    void getScopeChain(ExecutionState* state, uint32_t stateIndex);
-    void getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index);
-
-    bool m_exitClient : 1;
-    bool m_pendingWait : 1;
-    bool m_waitForResume : 1;
-    bool m_watchEval : 1;
-    String* m_clientSourceData;
-    String* m_clientSourceName;
-
-    Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
-    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 };
 
 } // namespace Escargot

@@ -294,7 +294,8 @@ private:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class DebuggerRemote;
+    friend class DebuggerEscargot;
+    friend class DebuggerDevtools;
     friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:
@@ -587,7 +588,8 @@ public:
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class DebuggerRemote;
+    friend class DebuggerEscargot;
+    friend class DebuggerDevtools;
     friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:
@@ -1202,7 +1204,8 @@ public:
 
 class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class DebuggerRemote;
+    friend class DebuggerEscargot;
+    friend class DebuggerDevtools;
     friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:

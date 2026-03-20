@@ -158,14 +158,14 @@ ASTAllocator& Context::astAllocator()
 
 #ifdef ESCARGOT_DEBUGGER
 
-bool Context::initDebuggerRemote(const char* options)
+bool Context::initDebugger(const char* options)
 {
     if (debuggerEnabled()) {
         // debugger cannot be re-initialized
         return false;
     }
 
-    Debugger::createDebuggerRemote(options, this);
+    Debugger::createDebugger(options, this);
     return m_debugger != nullptr;
 }
 
