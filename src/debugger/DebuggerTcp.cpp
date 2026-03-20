@@ -19,6 +19,9 @@
 
 #include "Escargot.h"
 #include "DebuggerTcp.h"
+#include "DebuggerDevtools.h"
+#include "DebuggerEscargot.h"
+#include "DebuggerHttpRouter.h"
 #include "runtime/String.h" // for split function
 
 #ifdef ESCARGOT_DEBUGGER
@@ -110,7 +113,7 @@ static inline void tcpCloseSocket(EscargotSocket socket)
 #endif /* WIN32 */
 }
 
-static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messageLength)
+bool DebuggerTcp::tcpSend(EscargotSocket socket, const uint8_t* message, size_t messageLength)
 {
     do {
 #ifdef OS_POSIX
@@ -122,7 +125,7 @@ static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messag
         }
 #endif /* OS_POSIX */
 
-        ssize_t sentBytes = send(socket, message, messageLength, 0);
+        ssize_t sentBytes = Escargot::send(socket, message, messageLength, 0);
 
         if (sentBytes < 0) {
             int errorNumber = tcpGetErrno();
@@ -142,7 +145,7 @@ static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messag
     return true;
 }
 
-static bool tcpReceive(EscargotSocket socket, uint8_t* message, size_t maxLength, size_t* receivedLength)
+bool DebuggerTcp::tcpReceive(EscargotSocket socket, uint8_t* message, size_t maxLength, size_t* receivedLength)
 {
     *receivedLength = 0;
 
@@ -162,151 +165,13 @@ static bool tcpReceive(EscargotSocket socket, uint8_t* message, size_t maxLength
     return true;
 }
 
-static uint8_t toBase64Character(uint8_t value)
-{
-    if (value < 26) {
-        return (uint8_t)(value + 'A');
-    }
-
-    if (value < 52) {
-        return (uint8_t)(value - 26 + 'a');
-    }
-
-    if (value < 62) {
-        return (uint8_t)(value - 52 + '0');
-    }
-
-    if (value == 62) {
-        return (uint8_t)'+';
-    }
-
-    return (uint8_t)'/';
-}
-
-/**
- * Encode a byte sequence into Base64 string.
- */
-static void toBase64(const uint8_t* source, uint8_t* destination, size_t length)
-{
-    while (length >= 3) {
-        uint8_t value = (source[0] >> 2);
-        destination[0] = toBase64Character(value);
-
-        value = (uint8_t)(((source[0] << 4) | (source[1] >> 4)) & 0x3f);
-        destination[1] = toBase64Character(value);
-
-        value = (uint8_t)(((source[1] << 2) | (source[2] >> 6)) & 0x3f);
-        destination[2] = toBase64Character(value);
-
-        value = (uint8_t)(source[2] & 0x3f);
-        destination[3] = toBase64Character(value);
-
-        source += 3;
-        destination += 4;
-        length -= 3;
-    }
-}
-
-static bool webSocketHandshake(EscargotSocket socket)
-{
-    uint8_t buffer[1024];
-    size_t remainingLength = sizeof(buffer);
-    uint8_t* message = buffer;
-
-    while (true) {
-        size_t receivedLength;
-        if (!tcpReceive(socket, message, remainingLength, &receivedLength)) {
-            return false;
-        }
-
-        message += receivedLength;
-        remainingLength -= receivedLength;
-
-        if (message > (buffer + 4) && memcmp(message - 4, "\r\n\r\n", 4) == 0) {
-            break;
-        }
-
-        if (remainingLength == 0) {
-            ESCARGOT_LOG_ERROR("WebSocket Error: Request too long\n");
-            return false;
-        }
-    }
-
-    /* Check protocol. */
-    const char expectedProtocol[] = "GET /escargot-debugger";
-    const size_t expectedProtocolLength = sizeof(expectedProtocol) - 1;
-
-    if ((size_t)(message - buffer) < expectedProtocolLength
-        || memcmp(buffer, expectedProtocol, expectedProtocolLength) != 0) {
-        ESCARGOT_LOG_ERROR("WebSocket Error: Invalid handshake format.\n");
-        return false;
-    }
-
-    uint8_t* websocketKey = buffer + expectedProtocolLength;
-
-    const char expectedWebsocketKey[] = "Sec-WebSocket-Key:";
-    const size_t expectedWebsocketKeyLength = sizeof(expectedWebsocketKey) - 1;
-
-    while (true) {
-        if ((size_t)(message - websocketKey) < expectedWebsocketKeyLength) {
-            ESCARGOT_LOG_ERROR("Sec-WebSocket-Key not found.\n");
-            return false;
-        }
-
-        if (websocketKey[0] == 'S'
-            && websocketKey[-1] == '\n'
-            && websocketKey[-2] == '\r'
-            && memcmp(websocketKey, expectedWebsocketKey, expectedWebsocketKeyLength) == 0) {
-            websocketKey += expectedWebsocketKeyLength;
-            break;
-        }
-
-        websocketKey++;
-    }
-
-    /* String terminated by double newlines. */
-    while (*websocketKey == ' ') {
-        websocketKey++;
-    }
-
-    uint8_t* websocketKeyEnd = websocketKey;
-
-    while (*websocketKeyEnd > ' ') {
-        websocketKeyEnd++;
-    }
-
-    /* Since the buffer is not needed anymore it can
-     * be reused for storing the SHA-1 key and Base64 string. */
-    const size_t sha1Length = 20;
-
-    DebuggerTcp::computeSha1(websocketKey,
-                             (size_t)(websocketKeyEnd - websocketKey),
-                             (const uint8_t*)"258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
-                             36,
-                             buffer);
-
-    /* The SHA-1 key is 20 bytes long but toBase64 expects a length
-     * divisible by 3 so an extra 0 is appended at the end. */
-    buffer[sha1Length] = 0;
-
-    toBase64(buffer, buffer + sha1Length + 1, sha1Length + 1);
-
-    /* Last value must be replaced by equal sign. */
-    const uint8_t responsePrefix[] = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ";
-
-    if (!tcpSend(socket, responsePrefix, sizeof(responsePrefix) - 1)
-        || !tcpSend(socket, buffer + sha1Length + 1, 27)) {
-        return false;
-    }
-
-    const uint8_t responseSuffix[] = "=\r\n\r\n";
-    return tcpSend(socket, responseSuffix, sizeof(responseSuffix) - 1);
-}
-
-void DebuggerTcp::init(const char* options, Context* context)
+Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
 {
     uint16_t port = 6501;
     int timeout = -1;
+
+    String* skipSourceName = nullptr;
+    EscargotSocket clientSocket = 0;
 
     if (options) {
         auto v = split(options, ';');
@@ -325,31 +190,29 @@ void DebuggerTcp::init(const char* options, Context* context)
             } else if (s.find(skipOption) == 0) {
                 const char* skipStr = const_cast<const char*>(s.data() + sizeof(skipOption) - 1);
                 size_t skipLen = strlen(skipStr);
-                m_skipSourceName = String::fromASCII(skipStr, skipLen);
+                skipSourceName = String::fromASCII(skipStr, skipLen);
             }
         }
     }
-
-    ASSERT(enabled() == false);
 
 #ifdef WIN32
     WSADATA wsaData;
     int wsa_init_status = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (wsa_init_status != NO_ERROR) {
-        return;
+        return nullptr;
     }
 #endif /* WIN32*/
 
     EscargotSocket serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (m_socket == ESCARGOT_INVALID_SOCKET) {
-        return;
+    if (serverSocket == ESCARGOT_INVALID_SOCKET) {
+        return nullptr;
     }
 
     if (!tcpConfigureSocket(serverSocket, port)) {
         int error = tcpGetErrno();
         tcpCloseSocket(serverSocket);
         tcpLogError(error);
-        return;
+        return nullptr;
     }
 
     ESCARGOT_LOG_INFO("Waiting for client connection 0.0.0.0:%hd\n", port);
@@ -372,58 +235,72 @@ void DebuggerTcp::init(const char* options, Context* context)
         if (timeout < 0) {
             ESCARGOT_LOG_ERROR("Waiting for client connection error: timeout reached\n");
             tcpCloseSocket(serverSocket);
-            return;
+            return nullptr;
         }
     }
 
     sockaddr_in addr;
     socklen_t sinSize = sizeof(sockaddr_in);
+    DebuggerHttpRouter httpRouter;
 
-    m_socket = accept(serverSocket, (sockaddr*)&addr, &sinSize);
+    while (true) {
+        clientSocket = accept(serverSocket, (sockaddr*)&addr, &sinSize);
+
+        if (clientSocket == ESCARGOT_INVALID_SOCKET) {
+            tcpLogError(tcpGetErrno());
+            return nullptr;
+        }
+
+#ifdef WIN32
+        u_long nonblockingEnabled = 1;
+
+        /* Set non-blocking mode. */
+        if (ioctlsocket(clientSocket, FIONBIO, &nonblockingEnabled) != NO_ERROR) {
+            tcpCloseSocket(clientSocket);
+            return nullptr;
+        }
+#else /* !WIN32 */
+        int socketFlags = fcntl(clientSocket, F_GETFL, 0);
+
+        if (socketFlags < 0) {
+            tcpCloseSocket(clientSocket);
+            return nullptr;
+        }
+
+        /* Set non-blocking mode. */
+        if (fcntl(clientSocket, F_SETFL, socketFlags | O_NONBLOCK) == -1) {
+            tcpCloseSocket(clientSocket);
+            return nullptr;
+        }
+#endif /* WIN32 */
+
+        ESCARGOT_LOG_INFO("Connected from: %s\n", inet_ntoa(addr.sin_addr));
+
+        if (!httpRouter.handleHttpRequest(clientSocket)) {
+            tcpCloseSocket(clientSocket);
+            return nullptr;
+        }
+
+        if (httpRouter.webSocketEstablished()) {
+            break;
+        }
+
+        // Close connection, waiting for the next request
+        tcpCloseSocket(clientSocket);
+    }
 
     tcpCloseSocket(serverSocket);
 
-    if (m_socket == ESCARGOT_INVALID_SOCKET) {
-        tcpLogError(tcpGetErrno());
-        return;
+    Debugger* client;
+
+    if (httpRouter.client() == DebuggerClient::Escargot) {
+        client = new DebuggerEscargot(clientSocket, skipSourceName);
+    } else {
+        client = new DebuggerDevtools(clientSocket, skipSourceName);
     }
 
-#ifdef WIN32
-    u_long nonblockingEnabled = 1;
-
-    /* Set non-blocking mode. */
-    if (ioctlsocket(m_socket, FIONBIO, &nonblockingEnabled) != NO_ERROR) {
-        tcpCloseSocket(m_socket);
-        return;
-    }
-#else /* !WIN32 */
-    int socketFlags = fcntl(m_socket, F_GETFL, 0);
-
-    if (socketFlags < 0) {
-        tcpCloseSocket(m_socket);
-        return;
-    }
-
-    /* Set non-blocking mode. */
-    if (fcntl(m_socket, F_SETFL, socketFlags | O_NONBLOCK) == -1) {
-        tcpCloseSocket(m_socket);
-        return;
-    }
-#endif /* WIN32 */
-
-    ESCARGOT_LOG_INFO("Connected from: %s\n", inet_ntoa(addr.sin_addr));
-
-    if (!webSocketHandshake(m_socket)) {
-        tcpCloseSocket(m_socket);
-        return;
-    }
-
-    m_receiveBufferFill = 0;
-    m_messageLength = 0;
-
-    enable(context);
-
-    return DebuggerRemote::init(nullptr, context);
+    client->enable(context);
+    return client;
 }
 
 bool DebuggerTcp::skipSourceCode(String* srcName) const
@@ -434,34 +311,6 @@ bool DebuggerTcp::skipSourceCode(String* srcName) const
     }
 
     return srcName->contains(m_skipSourceName);
-}
-
-#define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
-#define ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME 2
-#define ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME 8
-#define ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK 0x0f
-#define ESCARGOT_DEBUGGER_WEBSOCKET_LENGTH_MASK 0x7f
-#define ESCARGOT_DEBUGGER_WEBSOCKET_ONE_BYTE_LEN_MAX 125
-#define ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT 0x80
-
-bool DebuggerTcp::send(uint8_t type, const void* buffer, size_t length)
-{
-    ASSERT(enabled());
-    ASSERT(length < ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH);
-
-    uint8_t message[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH + 2];
-
-    message[0] = ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT | ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME;
-    message[1] = (uint8_t)(length + 1);
-    message[2] = type;
-    memcpy(message + 3, buffer, length);
-
-    if (tcpSend(m_socket, message, length + 3)) {
-        return true;
-    }
-
-    close(CloseAbortConnection);
-    return false;
 }
 
 bool DebuggerTcp::isThereAnyEvent()
@@ -481,91 +330,6 @@ bool DebuggerTcp::isThereAnyEvent()
         return false;
     }
 
-    return true;
-}
-
-bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
-{
-    size_t receivedLength;
-
-    if (m_messageLength == 0 || m_receiveBufferFill < 2 + sizeof(uint32_t) + m_messageLength) {
-        /* Cannot extract a whole message from the buffer. */
-        if (!tcpReceive(m_socket,
-                        m_receiveBuffer + m_receiveBufferFill,
-                        ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH + 2 + sizeof(uint32_t) - m_receiveBufferFill,
-                        &receivedLength)) {
-            close(CloseAbortConnection);
-            return false;
-        }
-
-        if (receivedLength == 0 && m_receiveBufferFill < (2 + sizeof(uint32_t))) {
-            return false;
-        }
-
-        m_receiveBufferFill = (uint8_t)(m_receiveBufferFill + receivedLength);
-    }
-
-    if (m_messageLength == 0) {
-        if (m_receiveBufferFill < 3) {
-            return false;
-        }
-
-        if ((m_receiveBuffer[0] & ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME) {
-            if ((m_receiveBuffer[0] & ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) == ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME) {
-                close(CloseEndConnection);
-                return false;
-            }
-
-            ESCARGOT_LOG_ERROR("Unsupported Websocket opcode.\n");
-            close(CloseProtocolUnsupported);
-            return false;
-        }
-
-        if ((m_receiveBuffer[0] & ~ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT
-            || !(m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT)) {
-            ESCARGOT_LOG_ERROR("Unsupported Websocket message.\n");
-            close(CloseProtocolUnsupported);
-            return false;
-        }
-
-        m_messageLength = (uint8_t)(m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_LENGTH_MASK);
-
-        if (m_messageLength == 0 || m_messageLength > ESCARGOT_DEBUGGER_WEBSOCKET_ONE_BYTE_LEN_MAX) {
-            ESCARGOT_LOG_ERROR("Unsupported Websocket message size.\n");
-            close(CloseProtocolUnsupported);
-            return false;
-        }
-    }
-
-    size_t totalSize = 2 + sizeof(uint32_t) + m_messageLength;
-
-    if (m_receiveBufferFill < totalSize) {
-        return false;
-    }
-
-    uint8_t* mask = m_receiveBuffer + 2;
-    uint8_t* mask_end = mask + sizeof(uint32_t);
-    uint8_t* source = mask_end;
-    uint8_t* buffer_end = buffer + m_messageLength;
-
-    while (buffer < buffer_end) {
-        *buffer++ = *source++ ^ *mask++;
-
-        if (mask >= mask_end) {
-            mask -= 4;
-        }
-    }
-
-    length = m_messageLength;
-    m_messageLength = 0;
-
-    if (m_receiveBufferFill == totalSize) {
-        m_receiveBufferFill = 0;
-        return true;
-    }
-
-    m_receiveBufferFill = (uint8_t)(m_receiveBufferFill - totalSize);
-    memmove(m_receiveBuffer, m_receiveBuffer + totalSize, m_receiveBufferFill);
     return true;
 }
 

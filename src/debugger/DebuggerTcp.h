@@ -32,38 +32,44 @@ typedef SOCKET EscargotSocket;
 typedef int EscargotSocket;
 #endif /* WIN32 */
 
-class DebuggerTcp : public DebuggerRemote {
+class DebuggerTcp : public Debugger {
 public:
-    DebuggerTcp()
-        : m_socket(0)
+    DebuggerTcp(EscargotSocket socket, String* skipSource)
+        : m_socket(socket)
         , m_receiveBuffer{}
         , m_receiveBufferFill(0)
-        , m_messageLength(0)
-        , m_skipSourceName(nullptr)
+        , m_skipSourceName(skipSource)
     {
     }
 
-    virtual void init(const char* options, Context* context) override;
+    static Debugger* createDebugger(const char* options, Context* context);
+    void init(const char* options, Context* context) override {}
 
-    virtual bool skipSourceCode(String* srcName) const override;
+    bool skipSourceCode(String* srcName) const override;
 
     static void computeSha1(const uint8_t* source1, size_t source1Length,
                             const uint8_t* source2, size_t source2Length,
                             uint8_t destination[20]);
 
-protected:
-    virtual bool send(uint8_t type, const void* buffer, size_t length) override;
-    virtual bool receive(uint8_t* buffer, size_t& length) override;
-    virtual bool isThereAnyEvent() override;
-    virtual void close(CloseReason reason) override;
+    static bool tcpReceive(EscargotSocket socket, uint8_t* message, size_t maxLength, size_t* receivedLength);
+    static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messageLength);
 
-private:
-    void receiveData();
+protected:
+    enum CloseReason {
+        CloseEndConnection,
+        CloseAbortConnection,
+        CloseProtocolUnsupported,
+        CloseProtocolError,
+    };
+
+    virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
+    virtual bool receive(uint8_t* buffer, size_t& length) = 0;
+    bool isThereAnyEvent();
+    void close(CloseReason reason);
 
     EscargotSocket m_socket;
-    uint8_t m_receiveBuffer[2 + sizeof(uint32_t) + ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
+    uint8_t* m_receiveBuffer;
     uint8_t m_receiveBufferFill;
-    uint8_t m_messageLength;
 
     // skip generating debugging bytecode for source code whose name contains m_skipSourceName
     String* m_skipSourceName;

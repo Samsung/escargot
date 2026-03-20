@@ -323,7 +323,7 @@ public:
         return m_debugger;
     }
 
-    bool initDebuggerRemote(const char* options);
+    bool initDebugger(const char* options);
     void initDebugger(Debugger* debugger);
     void removeDebugger();
     bool debuggerEnabled() const;
