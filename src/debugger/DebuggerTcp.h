@@ -31,39 +31,75 @@ typedef SOCKET EscargotSocket;
 #else /* !WIN32 */
 typedef int EscargotSocket;
 #endif /* WIN32 */
+#define ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH 125
 
-class DebuggerTcp : public DebuggerRemote {
+#define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
+#define ESCARGOT_DEBUGGER_WEBSOCKET_TEXT_FRAME 1
+#define ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME 2
+#define ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME 8
+#define ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK 0x0f
+#define ESCARGOT_DEBUGGER_WEBSOCKET_LENGTH_MASK 0x7f
+#define ESCARGOT_DEBUGGER_WEBSOCKET_ONE_BYTE_LEN_MAX 125
+#define ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT 0x80
+
+#define ESCARGOT_WS_HEADER_BASE_SIZE 2
+#define ESCARGOT_WS_EXT_LEN16_SIZE 2
+#define ESCARGOT_WS_MASK_SIZE 4
+
+#define ESCARGOT_WS_MESSAGE_16BIT_LENGTH_MARKER 126
+#define ESCARGOT_WS_MAX_MESSAGE_LENGTH 65535
+
+#define ESCARGOT_WS_HEADER_SIZE (ESCARGOT_WS_HEADER_BASE_SIZE + ESCARGOT_WS_MASK_SIZE)
+#define ESCARGOT_WS_HEADER_LEN16_SIZE (ESCARGOT_WS_HEADER_SIZE + ESCARGOT_WS_EXT_LEN16_SIZE)
+#define ESCARGOT_WS_BUFFER_SIZE (ESCARGOT_WS_HEADER_LEN16_SIZE + ESCARGOT_WS_MAX_MESSAGE_LENGTH)
+
+class DebuggerTcp : public Debugger {
 public:
-    DebuggerTcp()
-        : m_socket(0)
-        , m_receiveBuffer{}
+    DebuggerTcp(const EscargotSocket socket, String* skipSource, const uint32_t bufferSize, const uint8_t type)
+        : m_socket(socket)
+        , m_bufferSize(bufferSize)
+        , m_receiveBuffer(new uint8_t[bufferSize])
+        , m_payloadLength(0)
         , m_receiveBufferFill(0)
-        , m_messageLength(0)
-        , m_skipSourceName(nullptr)
+        , m_headerLength(0)
+        , m_websocketMessageType(type)
+        , m_skipSourceName(skipSource)
     {
     }
 
-    virtual void init(const char* options, Context* context) override;
+    static Debugger* createDebugger(const char* options, Context* context);
+    void init(const char* options, Context* context) override {}
 
-    virtual bool skipSourceCode(String* srcName) const override;
+    bool skipSourceCode(String* srcName) const override;
 
     static void computeSha1(const uint8_t* source1, size_t source1Length,
                             const uint8_t* source2, size_t source2Length,
                             uint8_t destination[20]);
 
-protected:
-    virtual bool send(uint8_t type, const void* buffer, size_t length) override;
-    virtual bool receive(uint8_t* buffer, size_t& length) override;
-    virtual bool isThereAnyEvent() override;
-    virtual void close(CloseReason reason) override;
+    static bool tcpReceive(EscargotSocket socket, uint8_t* message, size_t maxLength, size_t* receivedLength);
+    static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messageLength);
 
-private:
-    void receiveData();
+protected:
+    enum CloseReason {
+        CloseEndConnection,
+        CloseAbortConnection,
+        CloseProtocolUnsupported,
+        CloseProtocolError,
+    };
+
+    bool send(uint8_t type, const void* buffer, size_t length);
+    bool receive(uint8_t* buffer, size_t& length);
+    bool isThereAnyEvent();
+    void close(CloseReason reason);
 
     EscargotSocket m_socket;
-    uint8_t m_receiveBuffer[2 + sizeof(uint32_t) + ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
+    uint32_t m_bufferSize;
+    uint8_t* m_receiveBuffer;
+    uint16_t m_payloadLength;
     uint8_t m_receiveBufferFill;
-    uint8_t m_messageLength;
+    uint8_t m_headerLength;
+    uint8_t m_websocketMessageType;
+
 
     // skip generating debugging bytecode for source code whose name contains m_skipSourceName
     String* m_skipSourceName;

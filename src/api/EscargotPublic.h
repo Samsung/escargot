@@ -950,11 +950,11 @@ public:
     bool canThrowException();
     void throwException(ValueRef* exceptionValue);
 
-    bool initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient);
+    bool initDebuggerClient(DebuggerOperationsRef::DebuggerClient* debuggerClient);
     bool disableDebugger();
     // available options(separator is ';')
     // "--port=6501", default for TCP debugger
-    bool initDebuggerRemote(const char* options);
+    bool initDebugger(const char* options);
     bool isDebuggerRunning();
     bool isWaitBeforeExit();
     void printDebugger(StringRef* output);

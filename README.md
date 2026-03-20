@@ -60,6 +60,7 @@ The following build options are supported when generating build rules using cmak
 | **SHADOWREALM** | Enable ShadowRealm support | -ESCARGOT_SHADOWREALM | ON/OFF | OFF |
 | **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
 | **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
+| **DEBUGGER** | Enable Debug server | -DESCARGOT_DEBUGGER | ON/OFF | OFF |
 
 ### Linux
 
@@ -134,6 +135,27 @@ CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] 
 cd out
 msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
 ```
+
+## Debugger
+
+Make sure Escargot is built with the `-DESCARGOT_DEBUGGER=1` flag (off by default) enabled;
+then start Escargot with the `--start-debug-server` option.
+
+### Connect using a debugger client
+
+- Escargot python debugger
+  - run `./tools/debugger/debugger.py`; It will automatically connect to a debug server on the default port `6501`
+  - run `./tools/debugger/debugger.py --help` for a list of options
+- [Visual Studio Code extension](https://github.com/Samsung/escargot-vscode-extension/?tab=readme-ov-file#how-to-use)
+- Chrome Devtools `⚠️ Early in development ⚠️`
+  - Initial setup:
+    - Navigate to [chrome://inspect](chrome://inspect)
+    - Make sure *Discover network targets* is enabled; click configure
+    - Add `localhost:6501` as a target; click Done
+  - Usage:
+    - The started debug server will be listed in the *Remote Target* list (If it is not, the page may need to be reloaded using the browser reload button)
+    - Click `inspect`
+    - A new window with the Chrome Devtools debugger UI will open
 
 ## Testing ✅
 
