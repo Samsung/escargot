@@ -3070,7 +3070,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
             GC_FREE(data);
         } else {
             // reset creation area prevent leak from stack
-            memset(data, 0, sizeof(CreateObjectPrepare::CreateObjectData));
+            memset(reinterpret_cast<void*>(data), 0, sizeof(CreateObjectPrepare::CreateObjectData));
         }
     } else {
         registerFile[code->m_registerIndex] = new Object(state);
