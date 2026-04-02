@@ -113,7 +113,7 @@ GlobalDeleteChecker::GlobalDeleteChecker()
         if (g_globalDeleteChecker->m_mappedMemoriesSize == g_globalDeleteChecker->m_mappedMemoriesAllocatedSize) {
             std::pair<void*, size_t>* newBuf = reinterpret_cast<std::pair<void*, size_t>*>(
                 malloc(sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize * 2));
-            memcpy(newBuf, g_globalDeleteChecker->m_mappedMemories, sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize);
+            memcpy(reinterpret_cast<void*>(newBuf), g_globalDeleteChecker->m_mappedMemories, sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize);
             g_globalDeleteChecker->m_mappedMemoriesAllocatedSize *= 2;
             free(g_globalDeleteChecker->m_mappedMemories);
             g_globalDeleteChecker->m_mappedMemories = newBuf;
