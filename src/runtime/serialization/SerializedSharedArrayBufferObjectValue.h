@@ -44,17 +44,24 @@ public:
 protected:
     virtual void serializeValueData(std::ostringstream& outputStream) override
     {
-        size_t ptr = reinterpret_cast<size_t>(m_bufferData);
-        outputStream << ptr;
+        outputStream << m_bufferData->byteLength();
+        uint8_t* buffer = reinterpret_cast<uint8_t*>(m_bufferData->data());
+        for (size_t i = 0; i < m_bufferData->byteLength(); i++) {
+            outputStream << buffer[i];
+        }
         outputStream << std::endl;
     }
 
     static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
     {
-        size_t ptr;
-        inputStream >> ptr;
-        SharedDataBlockInfo* data = reinterpret_cast<SharedDataBlockInfo*>(ptr);
-        return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(data));
+        size_t size;
+        inputStream >> size;
+        BackingStore* bs = SharedBackingStore::createDefaultSharedBackingStore(size);
+        uint8_t* buffer = reinterpret_cast<uint8_t*>(bs->data());
+        for (size_t i = 0; i < size; i++) {
+            inputStream >> buffer[i];
+        }
+        return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(bs->sharedDataBlockInfo()));
     }
 
     SerializedSharedArrayBufferObjectValue(SharedDataBlockInfo* bufferData)
