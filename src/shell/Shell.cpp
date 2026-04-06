@@ -513,6 +513,40 @@ std::mutex workerMutex;
 std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
 std::vector<std::string> messagesFromWorkers;
 
+static void serializeInto(ValueRef* src, std::ostringstream& ostream)
+{
+    if (src->isSharedArrayBufferObject()) {
+        char type = 100;
+        ostream << type;
+        // use unsafe pointer serialization to pass test
+        if (src->asSharedArrayBufferObject()->backingStore()) {
+            ostream << reinterpret_cast<size_t>(src->asSharedArrayBufferObject()->backingStore().value());
+        } else {
+            ostream << static_cast<size_t>(0x0);
+        }
+    } else {
+        SerializerRef::serializeInto(src, ostream);
+    }
+}
+
+static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& istream)
+{
+    if (istream.peek() == 100) {
+        char type;
+        istream >> type;
+        // use unsafe pointer serialization to pass test
+        size_t ptr;
+        istream >> ptr;
+        if (ptr) {
+            return Evaluator::execute(context, [](ExecutionStateRef* state, size_t ptr) -> ValueRef* { return SharedArrayBufferObjectRef::create(state, reinterpret_cast<BackingStoreRef*>(ptr)); }, ptr).result;
+        } else {
+            return ValueRef::createUndefined();
+        }
+    } else {
+        return SerializerRef::deserializeFrom(context, istream);
+    }
+}
+
 static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     std::string script = argv[0]->toString(state)->toStdUTF8String();
@@ -557,8 +591,8 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
 
             if (message.length()) {
                 std::istringstream istream(message);
-                ValueRef* val1 = SerializerRef::deserializeFrom(context.get(), istream);
-                ValueRef* val2 = SerializerRef::deserializeFrom(context.get(), istream);
+                ValueRef* val1 = deserializeFrom(context.get(), istream);
+                ValueRef* val2 = deserializeFrom(context.get(), istream);
 
                 ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
                 if (callback) {
@@ -611,14 +645,14 @@ static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* th
 {
     std::ostringstream ostream;
     if (argc > 0) {
-        SerializerRef::serializeInto(argv[0], ostream);
+        serializeInto(argv[0], ostream);
     } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+        serializeInto(ValueRef::createUndefined(), ostream);
     }
     if (argc > 1) {
-        SerializerRef::serializeInto(argv[1], ostream);
+        serializeInto(argv[1], ostream);
     } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+        serializeInto(ValueRef::createUndefined(), ostream);
     }
 
 

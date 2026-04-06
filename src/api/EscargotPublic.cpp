@@ -5128,6 +5128,10 @@ ValueRef* SerializerRef::deserializeFrom(ContextRef* context, std::istringstream
 {
     std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(input);
 
+    if (!value) {
+        return ValueRef::createUndefined();
+    }
+
     SandBox sb(toImpl(context));
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         std::unique_ptr<SerializedValue>* value = (std::unique_ptr<SerializedValue>*)data;

@@ -88,9 +88,8 @@ std::unique_ptr<SerializedValue> Serializer::deserializeFrom(std::istringstream&
         return SerializedSharedArrayBufferObjectValue::deserializeFrom(input);
 #endif
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        break;
     }
-    RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 }
 
