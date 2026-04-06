@@ -424,45 +424,65 @@ bool CodeCache::loadGlobalCache(Context* context, const CodeCacheIndex& cacheInd
 {
     ASSERT(m_enabled && cacheIndex.isValid());
 
-    // load global CodeBlock and its related information
-    prepareCacheLoading(context, cacheIndex, entry);
-
-    InterpretedCodeBlock* topCodeBlock = loadCodeBlockTree(context, script);
-    ByteCodeBlock* topByteCodeBlock = loadByteCodeBlock(context, topCodeBlock);
-
-    if (!postCacheLoading()) {
+    if (m_status != Status::READY) {
         return false;
     }
 
-    ASSERT(!!topCodeBlock && !!topByteCodeBlock);
-    script->m_topCodeBlock = topCodeBlock;
-    topCodeBlock->m_byteCodeBlock = topByteCodeBlock;
+    try {
+        // load global CodeBlock and its related information
+        prepareCacheLoading(context, cacheIndex, entry);
 
-    ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s)\n", script->srcName()->toUTF8StringData().data());
+        InterpretedCodeBlock* topCodeBlock = loadCodeBlockTree(context, script);
+        ByteCodeBlock* topByteCodeBlock = loadByteCodeBlock(context, topCodeBlock);
 
-    return true;
+        if (!postCacheLoading()) {
+            return false;
+        }
+
+        ASSERT(!!topCodeBlock && !!topByteCodeBlock);
+        script->m_topCodeBlock = topCodeBlock;
+        topCodeBlock->m_byteCodeBlock = topByteCodeBlock;
+
+        ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s)\n", script->srcName()->toUTF8StringData().data());
+
+        return true;
+    } catch (CodeCacheReader::Error& error) {
+        return false;
+    }
 }
 
 bool CodeCache::loadFunctionCache(Context* context, const CodeCacheIndex& cacheIndex, const CodeCacheEntry& entry, InterpretedCodeBlock* codeBlock)
 {
     ASSERT(m_enabled && cacheIndex.isValid());
 
-    // load function CodeBlock and its related information
-    prepareCacheLoading(context, cacheIndex, entry);
-
-    codeBlock->m_byteCodeBlock = loadByteCodeBlock(context, codeBlock);
-
-    bool result = postCacheLoading();
-    if (result) {
-        ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
-                          codeBlock->functionStart().index, codeBlock->src().length());
+    if (m_status != Status::READY) {
+        return false;
     }
-    return result;
+
+    try {
+        // load function CodeBlock and its related information
+        prepareCacheLoading(context, cacheIndex, entry);
+
+        codeBlock->m_byteCodeBlock = loadByteCodeBlock(context, codeBlock);
+
+        bool result = postCacheLoading();
+        if (result) {
+            ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
+                              codeBlock->functionStart().index, codeBlock->src().length());
+        }
+        return result;
+    } catch (CodeCacheReader::Error& error) {
+        return false;
+    }
 }
 
 bool CodeCache::storeGlobalCache(Context* context, const CodeCacheIndex& cacheIndex, InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo, Node* programNode, bool inWith)
 {
     ASSERT(m_enabled && cacheIndex.isValid());
+
+    if (m_status != Status::READY) {
+        return false;
+    }
 
     // store global CodeBlock and its related information
     prepareCacheWriting(cacheIndex);
@@ -493,6 +513,10 @@ bool CodeCache::storeGlobalCache(Context* context, const CodeCacheIndex& cacheIn
 bool CodeCache::storeFunctionCache(Context* context, const CodeCacheIndex& cacheIndex, InterpretedCodeBlock* codeBlock, Node* functionNode)
 {
     ASSERT(m_enabled && cacheIndex.isValid());
+
+    if (m_status != Status::READY) {
+        return false;
+    }
 
     // store function ByteCodeBlock and its related information
     prepareCacheWriting(cacheIndex);
