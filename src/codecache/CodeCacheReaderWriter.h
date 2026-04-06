@@ -227,6 +227,14 @@ private:
 
 class CodeCacheReader {
 public:
+    class Error {
+    public:
+        std::string message;
+        Error(const std::string& message)
+            : message(message)
+        {
+        }
+    };
     class CacheBuffer {
     public:
         CacheBuffer()
@@ -250,7 +258,9 @@ public:
         template <typename IntegralType>
         IntegralType get()
         {
-            ASSERT(m_index < m_capacity);
+            if (m_index + sizeof(IntegralType) > m_capacity) {
+                throw Error("out of range");
+            }
             IntegralType value;
             memcpy(&value, m_buffer + m_index, sizeof(IntegralType));
             m_index += sizeof(IntegralType);
@@ -260,10 +270,13 @@ public:
         template <typename IntegralType>
         void getData(IntegralType* data, size_t size)
         {
+            size_t dataSize = size * sizeof(IntegralType);
+            if (m_index + dataSize > m_capacity) {
+                throw Error("out of range");
+            }
             if (UNLIKELY(!size)) {
                 return;
             }
-            size_t dataSize = size * sizeof(IntegralType);
             memcpy(data, m_buffer + m_index, dataSize);
             m_index += dataSize;
         }

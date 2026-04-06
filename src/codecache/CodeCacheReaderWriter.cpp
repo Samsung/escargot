@@ -932,6 +932,9 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
         LChar* buffer = new LChar[maxLength + 1];
         for (size_t i = 0; i < tableSize; i++) {
             size_t length = m_buffer.get<size_t>();
+            if (maxLength < length) {
+                throw CodeCacheReader::Error("invalid maxLength");
+            }
             m_buffer.getData(buffer, length);
             buffer[length] = '\0';
 
@@ -950,6 +953,9 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
         for (size_t i = 0; i < tableSize; i++) {
             bool is8Bit = m_buffer.get<bool>();
             size_t length = m_buffer.get<size_t>();
+            if (maxLength < length) {
+                throw CodeCacheReader::Error("invalid maxLength");
+            }
 
             if (is8Bit) {
                 m_buffer.getData(lBuffer, length);
