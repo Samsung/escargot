@@ -104,11 +104,19 @@ namespace large_int {
 
         constexpr int128_base() noexcept = default;
 
-        constexpr int128_base(const int128_base &) noexcept = default;
+        constexpr int128_base(const int128_base &src) noexcept
+            : low_(src.low_)
+            , high_(src.high_)
+        {
+        }
 
-        constexpr int128_base(int128_base &&) noexcept = default;
+        constexpr int128_base(int128_base &&src) noexcept
+            : low_(src.low_)
+            , high_(src.high_)
+        {
+        }
 
-        int128_base &operator=(const int128_base &) noexcept = default;
+        int128_base &operator=(const int128_base &src) = default;
 
         int128_base &operator=(int128_base &&) noexcept = default;
 
