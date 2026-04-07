@@ -1,0 +1,10 @@
+Connecting to: localhost:6501
+Connection created!!!
+(escargot-debugger) n
+Stopped at tools/debugger/tests/module_debug_1.mjs:3
+(escargot-debugger) n
+Print: hello from module_debug_1.mjs!
+Stopped at tools/debugger/tests/module_debug_1.mjs:4
+(escargot-debugger) n
+Print: hello from module_debug_2!
+Connection closed.
