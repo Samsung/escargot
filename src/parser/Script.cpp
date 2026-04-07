@@ -1124,6 +1124,10 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
 
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         try {
+#ifdef ESCARGOT_DEBUGGER
+            // set the next(first) breakpoint to be stopped in a newer script execution
+            context()->setAsAlwaysStopState();
+#endif
             Interpreter::interpret(newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
         } catch (const Value& e) {
             resultValue = e;
