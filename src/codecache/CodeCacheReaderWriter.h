@@ -287,16 +287,19 @@ public:
             String* str = nullptr;
             bool is8Bit = get<bool>();
             size_t length = get<size_t>();
+            if (length > STRING_MAXIMUM_LENGTH) {
+                throw Error("out of range");
+            }
             ASSERT(length);
             if (LIKELY(is8Bit)) {
                 LChar* buffer = ALLOCA(sizeof(LChar) * (length + 1), LChar);
-                buffer[length] = '\0';
                 getData(buffer, length);
+                buffer[length] = '\0';
                 str = new Latin1String(buffer, length);
             } else {
                 UChar* buffer = ALLOCA(sizeof(UChar) * (length + 1), UChar);
-                buffer[length] = '\0';
                 getData(buffer, length);
+                buffer[length] = '\0';
                 str = new UTF16String(buffer, length);
             }
             return str;
