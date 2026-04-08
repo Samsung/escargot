@@ -69,7 +69,9 @@ void CacheStringTable::initAdd(const AtomicString& string)
 
 AtomicString& CacheStringTable::get(size_t index)
 {
-    ASSERT(index < m_table.size());
+    if (index >= m_table.size()) {
+        throw CodeCacheReader::Error("out of range");
+    }
     return m_table[index];
 }
 
@@ -1023,6 +1025,10 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
         for (size_t i = 0; i < relocInfoVector.size(); i++) {
             ByteCodeRelocInfo& info = relocInfoVector[i];
             ByteCode* currentCode = reinterpret_cast<ByteCode*>(code + info.codeOffset);
+
+            if (info.codeOffset >= byteCodeStream.size()) {
+                throw CodeCacheReader::Error("out of range");
+            }
 
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
