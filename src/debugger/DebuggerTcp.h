@@ -57,10 +57,10 @@ class DebuggerTcp : public Debugger {
 public:
     DebuggerTcp(const EscargotSocket socket, String* skipSource, const uint32_t bufferSize, const uint8_t type)
         : m_socket(socket)
-        , m_bufferSize(bufferSize)
         , m_receiveBuffer(new uint8_t[bufferSize])
-        , m_payloadLength(0)
+        , m_bufferSize(bufferSize)
         , m_receiveBufferFill(0)
+        , m_payloadLength(0)
         , m_headerLength(0)
         , m_websocketMessageType(type)
         , m_skipSourceName(skipSource)
@@ -93,10 +93,10 @@ protected:
     void close(CloseReason reason);
 
     EscargotSocket m_socket;
-    uint32_t m_bufferSize;
     uint8_t* m_receiveBuffer;
+    uint32_t m_bufferSize;
+    uint32_t m_receiveBufferFill;
     uint16_t m_payloadLength;
-    uint8_t m_receiveBufferFill;
     uint8_t m_headerLength;
     uint8_t m_websocketMessageType;
 
