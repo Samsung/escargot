@@ -197,6 +197,12 @@ class DebuggerPrompt(Cmd):
         self.stop = True
     do_bt = do_backtrace
 
+    def do_take_snapshot(self, args):
+        """ Save heap snapshot to a .snapshot file in the escargot binary's folder """
+        file_name = self.debugger._send_take_snapshot()
+        print("Took heap snapshot as \'" + file_name.decode('utf-8')[1:] + "\'!")
+        self.stop = True
+
     def do_scope(self, args):
         """ Get lexical environment chain """
         self.debugger.scope_chain(args)

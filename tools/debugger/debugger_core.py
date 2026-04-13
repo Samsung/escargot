@@ -109,7 +109,8 @@ ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 26
 ESCARGOT_DEBUGGER_PENDING_CONFIG = 27
 ESCARGOT_DEBUGGER_PENDING_RESUME = 28
 ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 29
-ESCARGOT_DEBUGGER_STOP = 30
+ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT = 30
+ESCARGOT_DEBUGGER_STOP = 31
 
 
 # Environment record types
@@ -625,6 +626,11 @@ class Debugger(object):
                               ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT,
                               1 if self.wait_exit else 0)
         self.channel.send_message(self.byte_order, message)
+
+    def _send_take_snapshot(self):
+        message = struct.pack(self.byte_order + "BB", 1, ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT)
+        self.channel.send_message(self.byte_order, message)
+        return self.channel.get_message(True)
 
     def _exec_command(self, command_id):
         message = struct.pack(self.byte_order + "BB",

@@ -130,8 +130,8 @@ public:
     void addIndexedDeclarativeEnvironmentRecord(ExecutionState* state, DeclarativeEnvironmentRecordIndexed* env, uint64_t& id, uint64_t& LexicalEnvIdx);
     void addNotIndexedDeclarativeEnvironmentRecord(ExecutionState* state, DeclarativeEnvironmentRecordNotIndexed* env, uint64_t& id, uint64_t& LexicalEnvIdx);
 
-    bool prepareHeapSnapshotFile();
-    void takeHeapSnapshot(ExecutionState* state);
+    std::string prepareHeapSnapshotFile();
+    std::string takeHeapSnapshot(ExecutionState* state);
 
 private:
     uint64_t m_nodeCount;

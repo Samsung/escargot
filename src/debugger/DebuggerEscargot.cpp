@@ -1002,7 +1002,23 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         }
         case ESCARGOT_DEBUGGER_TAKE_HEAP_SNAPSHOT: {
             HeapSnapshot snapshot;
-            snapshot.takeHeapSnapshot(state);
+            std::string fileName = snapshot.takeHeapSnapshot(state);
+
+            if (fileName.empty()) {
+                ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.\n");
+                abort();
+            } else if (enabled()) {
+                String* data = String::fromUTF8(fileName.c_str(), fileName.length());
+
+                if (data == nullptr) {
+                    ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.\n");
+                    abort();
+                }
+
+                send(ESCARGOT_DEBUGGER_SNAPSHOT_FINISHED,
+                     data->characters8(),
+                     data->length());
+            }
             return true;
         }
         }
