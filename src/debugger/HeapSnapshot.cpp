@@ -267,7 +267,7 @@ void HeapSnapshot::addNotIndexedDeclarativeEnvironmentRecord(ExecutionState* sta
     }
 }
 
-bool HeapSnapshot::prepareHeapSnapshotFile()
+std::string HeapSnapshot::prepareHeapSnapshotFile()
 {
     auto addFields = [](rapidjson::Value& array, Vector<std::string, GCUtil::gc_malloc_allocator<std::string>>& strings, rapidjson::Document::AllocatorType& allocator) {
         for (const std::string& elem : strings) {
@@ -431,7 +431,7 @@ bool HeapSnapshot::prepareHeapSnapshotFile()
 
     if (output.get() == nullptr) {
         ESCARGOT_LOG_ERROR("Could not create heap snapshot file.\n");
-        return false;
+        return "";
     }
 
     char buffer[65536];
@@ -439,11 +439,10 @@ bool HeapSnapshot::prepareHeapSnapshotFile()
     rapidjson::Writer<rapidjson::FileWriteStream> writer(os);
     jsonDoc.Accept(writer);
 
-    return true;
+    return outputName;
 }
 
-
-void HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
+std::string HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
 {
     uint64_t id = 0;
     uint64_t stateIdx = 0;
@@ -524,10 +523,7 @@ void HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
     }
 
     ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %ld", m_nodeCount, m_edgeCount, m_strings.size());
-    if (prepareHeapSnapshotFile() != true) {
-        ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.\n");
-        abort();
-    }
+    return prepareHeapSnapshotFile();
 }
 } // namespace Escargot
 #endif
