@@ -301,7 +301,7 @@ public:
     LexicalEnvironment* mostNearestFunctionLexicalEnvironment();
     Optional<LexicalEnvironment*> mostNearestHeapAllocatedLexicalEnvironment();
 
-    Optional<Object*> mostNearestHomeObject();
+    Optional<Object*> mostNearestHomeObject(size_t skipCount = 0);
     static Object* convertHomeObjectIntoPrivateMemberContextObject(Object* o);
     Object* findPrivateMemberContextObject();
 
