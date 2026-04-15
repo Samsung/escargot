@@ -127,7 +127,7 @@ Optional<LexicalEnvironment*> ExecutionState::mostNearestHeapAllocatedLexicalEnv
     return nullptr;
 }
 
-Optional<Object*> ExecutionState::mostNearestHomeObject()
+Optional<Object*> ExecutionState::mostNearestHomeObject(size_t skipCount)
 {
     LexicalEnvironment* env = m_lexicalEnvironment;
 
@@ -136,7 +136,11 @@ Optional<Object*> ExecutionState::mostNearestHomeObject()
         if (rec->isDeclarativeEnvironmentRecord() && rec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
             auto homeObject = rec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->homeObject();
             if (homeObject) {
-                return homeObject;
+                if (skipCount) {
+                    skipCount--;
+                } else {
+                    return homeObject;
+                }
             }
         }
         env = env->outerEnvironment();
@@ -154,11 +158,24 @@ Object* ExecutionState::convertHomeObjectIntoPrivateMemberContextObject(Object* 
 
 Object* ExecutionState::findPrivateMemberContextObject()
 {
-    auto o = mostNearestHomeObject();
+    size_t skipCount = 0;
+    Optional<Object*> o;
+    while (true) {
+        auto test = mostNearestHomeObject(skipCount);
+        if (!test) {
+            break;
+        }
+        if (test->isScriptClassConstructorPrototypeObject() || test->isScriptClassConstructorFunctionObject()) {
+            o = test;
+            break;
+        }
+        skipCount++;
+    }
     if (!o) {
         ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, "Cannot read/write private member here");
         return nullptr;
     }
+
     return convertHomeObjectIntoPrivateMemberContextObject(o.value());
 }
 
