@@ -21,14 +21,14 @@ import traceback
 import sys
 import time
 import re, fnmatch
+import shlex
 
 from argparse import ArgumentParser
 from difflib import unified_diff
 from glob import glob
 from os.path import abspath, basename, dirname, join, relpath
 from shutil import copy
-from subprocess import PIPE, Popen
-
+from subprocess import Popen, PIPE, DEVNULL
 
 PROJECT_SOURCE_DIR = dirname(dirname(abspath(__file__)))
 DEFAULT_ESCARGOT = join(PROJECT_SOURCE_DIR, 'escargot')
@@ -884,44 +884,141 @@ def run_cctest(engine, arch, extra_arg):
 @runner('debugger-server-source', default=True)
 def run_escargot_debugger(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')
-    ESCARGOT_DEBUGGER_CLIENT = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
-    ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
+    ESCARGOT_DEBUGGER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
     print('Running Escargot-Debugger-Server-Source test:')
     fails = 0
-    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER], stdout=PIPE)
-    for files in os.listdir(ESCARGOT_DEBUGGER_TEST_DIR):
-        if files.endswith(".cmd"):
-            test_case, _ = os.path.splitext(files)
-            test_case_path = os.path.join(ESCARGOT_DEBUGGER_TEST_DIR, test_case)
-            proc = Popen([ESCARGOT_DEBUGGER_TESTER, engine, os.path.relpath(test_case_path, PROJECT_SOURCE_DIR), ESCARGOT_DEBUGGER_CLIENT, "0"])
-            proc.communicate()
-            if not proc.returncode:
-                 print('%sOK: %s%s' % (COLOR_GREEN, test_case_path, COLOR_RESET))
+
+    files = os.listdir(ESCARGOT_DEBUGGER_TEST_DIR)
+    if extra_arg['debugger_extra']:
+        specific_tests = list(extra_arg['debugger_extra'])
+        files = [file for test in specific_tests for file in files if test in file and file.endswith(".cmd")]
+    else:
+        files = os.listdir(ESCARGOT_DEBUGGER_TEST_DIR)
+
+    for file in files:
+        if file.endswith(".cmd"):
+            commands = ""
+            with open(ESCARGOT_DEBUGGER_TEST_DIR + "/" + file, 'r') as f:
+                commands = f.read()
+
+            additional_options = ""
+            if "do_wait_exit2" in file:
+                additional_options += " --wait-before-exit "
+
+            args = shlex.split(engine + " --start-debug-server --debugger-wait-source" + additional_options)
+            escargot_client = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True)
+
+            debugger_options = ""
+            if "do_command" in file:
+                debugger_options += " --command \"b do_command.js:2;c;e i;c\""
+            elif "do_wait_exit1" in file:
+                debugger_options += " --wait-before-exit 1"
+
+            test_base, _ = os.path.splitext(file.removesuffix(".cmd"))
+            test_case = ESCARGOT_DEBUGGER_TEST_DIR + "/" + test_base
+
+            if "client_source_multiple" in file:
+                test_case = test_case + "_2.js " + test_case + "_1.js"
+            elif "module_debug" not in file:
+                test_case += ".js"
             else:
-                 print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, test_case_path, COLOR_RESET))
-                 fails += 1
+                test_case += "_1.mjs"
+
+            args = shlex.split(ESCARGOT_DEBUGGER + " --non-interactive --client-source " + test_case + debugger_options)
+            debugger = Popen(args, stdin=PIPE, stdout=PIPE, stderr=DEVNULL, text=True)
+            stdout, stderr = debugger.communicate(commands)
+            output = stdout.splitlines()
+
+            expected = ""
+            expected_file = file.removesuffix(".cmd") + ".expected"
+            with open(ESCARGOT_DEBUGGER_TEST_DIR + "/" + expected_file, "r") as f:
+                expected = f.read()
+            expected = expected.splitlines()
+
+            if "module_debug" in file:
+                output.pop(2)
+
+            escargot_client.communicate()
+            return_code = escargot_client.returncode
+            output = [x.replace(PROJECT_SOURCE_DIR + "/", "") for x in output]
+
+            if output == expected:
+                print('%sOK: %s%s' % (COLOR_GREEN, test_case, COLOR_RESET))
+            else:
+                print('%sFAIL(%d): %s%s' % (COLOR_RED, return_code, test_case, COLOR_RESET))
+                fails += 1
+
     if fails > 0:
         raise Exception('Escargot-Debugger-Server-Source tests failed')
 
 @runner('debugger-client-source', default=True)
 def run_escargot_debugger2(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')
-    ESCARGOT_DEBUGGER_CLIENT = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
-    ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
+    ESCARGOT_DEBUGGER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
     print('Running Escargot-Debugger-Client-Source test:')
     fails = 0
-    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER], stdout=PIPE)
-    for files in os.listdir(ESCARGOT_DEBUGGER_TEST_DIR):
-        if files.endswith(".cmd"):
-            test_case, _ = os.path.splitext(files)
-            test_case_path = os.path.join(ESCARGOT_DEBUGGER_TEST_DIR, test_case)
-            proc = Popen([ESCARGOT_DEBUGGER_TESTER, engine, os.path.relpath(test_case_path, PROJECT_SOURCE_DIR), ESCARGOT_DEBUGGER_CLIENT, "1"])
-            proc.communicate()
-            if not proc.returncode:
-                 print('%sOK: %s%s' % (COLOR_GREEN, test_case_path, COLOR_RESET))
+
+    files = os.listdir(ESCARGOT_DEBUGGER_TEST_DIR)
+    if extra_arg['debugger_extra']:
+        specific_tests = list(extra_arg['debugger_extra'])
+        files = [file for test in specific_tests for file in files if test in file and file.endswith(".cmd")]
+    else:
+        files = os.listdir(ESCARGOT_DEBUGGER_TEST_DIR)
+    
+    for file in files:
+        if "client_source" in file:
+            continue
+
+        if file.endswith(".cmd"):
+            commands = ""
+            with open(ESCARGOT_DEBUGGER_TEST_DIR + "/" + file, 'r') as f:
+                commands = f.read()
+
+            test_case, _ = os.path.splitext(file.removesuffix(".cmd"))
+            test_case = ESCARGOT_DEBUGGER_TEST_DIR + "/" + file.removesuffix(".cmd")
+            additional_options = ""
+            if "do_wait_exit2" in file:
+                additional_options += " --wait-before-exit "
+            elif "module_debug" in file:
+                additional_options += " --module "
+
+            if "module_debug" not in file:
+                test_case += ".js"
             else:
-                 print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, test_case_path, COLOR_RESET))
-                 fails += 1
+                test_case += "_1.mjs"
+
+            args = shlex.split(engine + " --start-debug-server " + additional_options + os.path.relpath(test_case, PROJECT_SOURCE_DIR))
+            escargot_client = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True)
+
+            debugger_options = ""
+            if "do_command" in file:
+                debugger_options += " --command \"b do_command.js:2;c;e i;c\""
+            elif "do_wait_exit1" in file:
+                debugger_options += " --wait-before-exit 1"
+
+            args = shlex.split(ESCARGOT_DEBUGGER + " --non-interactive"+ debugger_options)
+            debugger = Popen(args, stdin=PIPE, stdout=PIPE, stderr=DEVNULL, text=True)
+            stdout, stderr = debugger.communicate(commands)
+            output = stdout.splitlines()
+
+            expected = ""
+            expected_file = file.removesuffix(".cmd") + ".expected"
+            with open(ESCARGOT_DEBUGGER_TEST_DIR + "/" + expected_file, "r") as f:
+                expected = f.read()
+            expected = expected.splitlines()
+
+            if "module_debug" in file:
+                output.pop(2)
+
+            stdout, stderr = escargot_client.communicate()
+            return_code = escargot_client.returncode
+
+            if output == expected:
+                print('%sOK: %s%s' % (COLOR_GREEN, test_case, COLOR_RESET))
+            else:
+                print('%sFAIL(%d): %s%s' % (COLOR_RED, return_code, test_case, COLOR_RESET))
+                fails += 1
+
     if fails > 0:
         raise Exception('Escargot-Debugger-Client-Source tests failed')
 
@@ -978,6 +1075,7 @@ def main():
                         help='Skip build test-data-runner executable')
     parser.add_argument('suite', metavar='SUITE', nargs='*', default=sorted(DEFAULT_RUNNERS),
                         help='test suite to run (%s; default: %s)' % (', '.join(sorted(RUNNERS.keys())), ' '.join(sorted(DEFAULT_RUNNERS))))
+    parser.add_argument('--debugger-test', default="", help='Run specific debugger tests based on given substring(s)', nargs='+')
     args = parser.parse_args()
 
     for suite in args.suite:
@@ -988,7 +1086,8 @@ def main():
     extra_arg = {
         'test262_extra_arg' : args.test262_extra_arg,
         'skip_build_test_data_runner' : args.skip_build_test_data_runner,
-        'test_data_runner_path' : args.test_data_runner_path
+        'test_data_runner_path' : args.test_data_runner_path,
+        'debugger_extra': args.debugger_test
                  }
     for suite in args.suite:
         print(COLOR_PURPLE + 'running test suite: ' + suite + COLOR_RESET)

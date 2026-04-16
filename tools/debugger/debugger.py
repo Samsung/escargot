@@ -318,7 +318,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-        sys.exit("Connection closed.")
+        print("Connection closed.")
+        sys.exit(0)
     except socket.error as error_msg:
         ERRNO = error_msg.errno
         MSG = str(error_msg)
