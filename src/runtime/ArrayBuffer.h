@@ -93,7 +93,7 @@ public:
 
     ALWAYS_INLINE bool isDetachedBuffer()
     {
-        return (data() == nullptr);
+        return !m_backingStore.hasValue();
     }
 
     // https://tc39.es/ecma262/#sec-isfixedlengtharraybuffer
