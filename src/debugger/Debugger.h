@@ -20,10 +20,13 @@
 #ifndef __Debugger__
 #define __Debugger__
 
+#include "runtime/Environment.h"
 #include "util/Vector.h"
 
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
+
+class ByteCode;
 
 #define ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH 8
 
@@ -55,6 +58,17 @@ public:
 
         uint32_t line; // source code line
         uint32_t offset; // bytecode offset
+    };
+
+    struct BreakpointByteCodeLocation {
+        BreakpointByteCodeLocation(const uint32_t line, ByteCode* breakpointByteCode)
+            : line(line)
+            , byteCode(breakpointByteCode)
+        {
+        }
+
+        uint32_t line; // source code line
+        ByteCode* byteCode; // bytecode pointer
     };
 
     typedef std::vector<BreakpointLocation> BreakpointLocationVector;
@@ -149,6 +163,24 @@ public:
             debugger->m_stopState = newState;
         }
     }
+
+    static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
+    {
+        LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+        while (lexEnv) {
+            EnvironmentRecord* record = lexEnv->record();
+
+            if (record->isDeclarativeEnvironmentRecord()
+                && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                return lexEnv;
+            }
+
+            lexEnv = lexEnv->outerEnvironment();
+        }
+        return nullptr;
+    }
+
 
     void setStopState(ExecutionState* stopState)
     {

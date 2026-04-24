@@ -207,7 +207,6 @@ bool DebuggerTcp::send(const uint8_t type, const void* buffer, const size_t leng
         return false;
     }
 
-    // ESCARGOT_LOG_INFO("Sent message: %s\n", static_cast<const char*>(buffer));
     return true;
 }
 

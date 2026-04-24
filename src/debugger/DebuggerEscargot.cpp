@@ -755,23 +755,6 @@ void DebuggerEscargot::getScopeVariables(ExecutionState* state, uint32_t stateIn
     sendSubtype(ESCARGOT_MESSAGE_VARIABLE, ESCARGOT_VARIABLE_END);
 }
 
-static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
-{
-    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
-
-    while (lexEnv) {
-        EnvironmentRecord* record = lexEnv->record();
-
-        if (record->isDeclarativeEnvironmentRecord()
-            && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-            return lexEnv;
-        }
-
-        lexEnv = lexEnv->outerEnvironment();
-    }
-    return nullptr;
-}
-
 bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
