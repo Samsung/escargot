@@ -3308,12 +3308,19 @@ public:
             context->m_locData->push_back(std::make_pair(start, idx));
         }
 
+#ifndef NDEBUG
+        const auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
+        ByteCodeLOC* bytecodeLoc = &reinterpret_cast<ByteCode*>(first)->m_loc;
+        bytecodeLoc->index = loc.index;
+        bytecodeLoc->line = loc.line;
+        bytecodeLoc->column = loc.column;
+#endif
+
         m_code.resizeWithUninitializedValues(m_code.size() + sizeof(CodeType));
         for (size_t i = 0; i < sizeof(CodeType); i++) {
             m_code[start++] = *first;
             first++;
         }
-
         m_requiredOperandRegisterNumber = std::max(m_requiredOperandRegisterNumber, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
 
         // TODO throw exception

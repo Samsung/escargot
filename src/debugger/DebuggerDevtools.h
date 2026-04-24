@@ -22,6 +22,7 @@
 
 #include "Debugger.h"
 #include "DebuggerTcp.h"
+#include "interpreter/ByteCode.h"
 #include "rapidjson/document.h"
 #include "rapidjson/rapidjson.h"
 
@@ -48,7 +49,8 @@ public:
     {
     }
 
-    bool sendMessage(const std::string& msg, const int length = -1);
+    bool sendMessage(const std::string& msg, size_t length = -1);
+    bool sendJSONDocument(const rapidjson::Document& document);
     void init(const char* options, Context* context) override;
     bool skipSourceCode(String* srcName) const override;
 
@@ -61,22 +63,37 @@ public:
     bool getWaitBeforeExitClient() override;
 
 
-    void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
+    void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, bool breakpoint = false);
 
 protected:
     bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
 
 private:
-    bool sendProperties(rapidjson::Document& jsonMessage);
-    bool resume(rapidjson::Document& jsonMessage);
-    bool sendSourceCode(rapidjson::Document& jsonMessage);
-    bool replyOK(rapidjson::Document& jsonMessage);
-    bool enableNetwork(rapidjson::Document& jsonMessage);
-    bool enableDebugger(rapidjson::Document& jsonMessage);
-    bool enableRuntime(rapidjson::Document& jsonMessage);
-    bool enableProfiler(rapidjson::Document& jsonMessage);
-    bool setPauseOnExceptions(rapidjson::Document& jsonMessage);
-    bool replyMethodNotFound(rapidjson::Document& jsonMessage);
+    bool sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool resume(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool stepOver(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool stepOut(rapidjson::Document& jsonMessage, ExecutionState* state);
+    bool stepInto(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool sendSourceCode(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool replyOK(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool enableNetwork(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool enableDebugger(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool enableRuntime(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool enableProfiler(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool setPauseOnExceptions(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool setBreakpointsActive(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool setBreakpointByUrl(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool removeBreakpoint(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool sendPossibleBreakpoints(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+
+    static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)
+    {
+        if (LIKELY(a.line != b.line)) {
+            return a.line < b.line;
+        }
+        return a.byteCode->m_loc.column <= b.byteCode->m_loc.column;
+    }
 
     uint8_t registerScript(String* url, String* source);
 
@@ -85,15 +102,19 @@ private:
     bool m_runtimeEnabled = false;
     bool m_profilerEnabled = false;
     bool m_pauseOnExceptions = false;
+    bool m_breakpointsActive = false;
+    bool m_startBreakpoint = true;
 
     std::unordered_map<uint8_t, ScriptInfo> m_scriptsById;
     std::unordered_map<std::string, uint8_t> m_scriptIdByUrl;
     uint8_t m_nextScriptId = 1;
+    std::unordered_map<uint8_t, std::set<BreakpointByteCodeLocation, decltype(compareBreakpointLocations)*>> m_breakpointInfo;
 
     std::vector<std::string> m_pendingMessages;
+    std::set<ByteCode*> m_setBreakPoints; // stores set breakpoints for enabling/disabling in bulk with the `Deactivate Breakpoints` button
 };
 
-using MessageHandler = bool (DebuggerDevtools::*)(rapidjson::Document&);
+using MessageHandler = bool (DebuggerDevtools::*)(rapidjson::Document&, ExecutionState* state);
 
 struct MessageType {
     const char* methodName;
