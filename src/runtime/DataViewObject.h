@@ -90,8 +90,8 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
+        // Perform coercion first before any buffer state checks
         auto numericValue = val.toNumeric(state);
-        UNUSED_VARIABLE(numericValue);
 
         bool isLittleEndian = _isLittleEndian.toBoolean();
         throwTypeErrorIfDetached(state);
@@ -105,7 +105,8 @@ public:
         }
 
         size_t bufferIndex = numberIndex + viewOffset;
-        buffer()->setValueInBuffer(state, bufferIndex, type, val, isLittleEndian);
+        // Pass the already-coerced numeric value to prevent re-coercion in setValueInBuffer
+        buffer()->setValueInBuffer(state, bufferIndex, type, numericValue.first, isLittleEndian);
     }
 };
 } // namespace Escargot
