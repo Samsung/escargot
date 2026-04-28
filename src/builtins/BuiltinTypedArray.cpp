@@ -485,7 +485,9 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
         // Set len to TypedArrayLength(taRecord).
         len = O->arrayLength();
         // Set count to min(count, len - startIndex, len - targetIndex).
-        count = std::min(std::min(count, len - startIndex), len - targetIndex);
+        // NOTE: After buffer resize during argument coercion, len - startIndex or len - targetIndex can be negative.
+        // We must clamp count to non-negative to prevent integer underflow when casting to size_t.
+        count = std::max(0.0, std::min(std::min(count, len - startIndex), len - targetIndex));
         // Let typedArrayName be the String value of O.[[TypedArrayName]].
         // Let elementSize be the Number value of the Element Size value specified in Table 59 for typedArrayName.
         size_t elementSize = O->elementSize();
