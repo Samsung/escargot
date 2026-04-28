@@ -83,6 +83,30 @@ struct JSONStringStream {
     const Ch* tail_;
 };
 
+template <typename JSONCharType>
+class JSONDocument : public rapidjson::GenericDocument<JSONCharType> {
+public:
+    JSONDocument(ExecutionState& state)
+        : m_state(state)
+    {
+    }
+
+    bool StartObject()
+    {
+        CHECK_STACK_OVERFLOW(m_state);
+        return rapidjson::GenericDocument<JSONCharType>::StartObject();
+    }
+
+    bool StartArray()
+    {
+        CHECK_STACK_OVERFLOW(m_state);
+        return rapidjson::GenericDocument<JSONCharType>::StartArray();
+    }
+
+private:
+    ExecutionState& m_state;
+};
+
 template <typename CharType, typename JSONCharType>
 static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValue<JSONCharType>& value)
 {
@@ -156,12 +180,12 @@ static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValu
 }
 
 template <typename CharType, typename JSONCharType>
-static Value parseJSON(ExecutionState& state, const CharType* data, size_t length, rapidjson::GenericDocument<JSONCharType>& jsonDocument)
+static Value parseJSON(ExecutionState& state, const CharType* data, size_t length, JSONDocument<JSONCharType>& jsonDocument)
 {
     auto strings = &state.context()->staticStrings();
 
     JSONStringStream<JSONCharType> stringStream(data, length);
-    jsonDocument.ParseStream(stringStream);
+    jsonDocument.template ParseStream<rapidjson::kParseDefaultFlags, JSONCharType, JSONStringStream<JSONCharType>, JSONDocument<JSONCharType>>(stringStream);
     if (jsonDocument.HasParseError()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
@@ -197,7 +221,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
 
     // 1, 2, 3
     String* JText = text.toString(state);
-    rapidjson::GenericDocument<rapidjson::UTF16<char16_t>> parseResult;
+    JSONDocument<rapidjson::UTF16<char16_t>> parseResult(state);
     Value unfiltered;
     if (JText->has8BitContent()) {
         size_t len = JText->length();
