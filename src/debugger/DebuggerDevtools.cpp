@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <fstream>
 
 #include "Escargot.h"
 #include "DebuggerTcp.h"
@@ -27,6 +28,7 @@
 #include "DebuggerDevtoolsMessageBuilder.h"
 #include "interpreter/ByteCode.h"
 #include "parser/Script.h"
+#include "HeapSnapshot.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
@@ -675,6 +677,57 @@ bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage,
     return sendJSONDocument(reply);
 }
 
+bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, ExecutionState* state)
+{
+    HeapSnapshot snapshot;
+    std::string fileName = snapshot.takeHeapSnapshot(state);
+
+    if (fileName.empty()) {
+        ESCARGOT_LOG_ERROR("Error: Error happened during heap snapshot creation. Aborting now.\n");
+        abort();
+    }
+    // DevTools just sends done and total messages, then adds "finished" before sending the snapshot
+    // Since we dont record progress, just send a finished and then the snapshot chunks
+    // Chrome might change this in the future
+    rapidjson::Document progressReport;
+    progressReport.SetObject();
+    progressReport.AddMember("method", "HeapProfiler.reportHeapSnapshotProgress", progressReport.GetAllocator());
+    rapidjson::Value progressParams;
+    progressParams.SetObject();
+    progressParams.AddMember("done", 0, progressReport.GetAllocator());
+    progressParams.AddMember("total", 0, progressReport.GetAllocator());
+    progressParams.AddMember("finished", true, progressReport.GetAllocator());
+    progressReport.AddMember("params", progressParams, progressReport.GetAllocator());
+    sendJSONDocument(progressReport);
+
+    std::ifstream file(fileName, std::ios::in);
+    if (!file.is_open()) {
+        ESCARGOT_LOG_ERROR("ERROR: Could not open snapshot file. Aborting now.\n");
+        abort();
+    }
+
+    const uint16_t bufferSize = 4096 * 4;
+    char buffer[bufferSize];
+    while (!file.eof()) {
+        file.read(buffer, bufferSize);
+
+        rapidjson::Document snapshotChunk;
+        snapshotChunk.SetObject();
+        snapshotChunk.AddMember("method", "HeapProfiler.addHeapSnapshotChunk", snapshotChunk.GetAllocator());
+
+        rapidjson::Value params;
+        params.SetObject();
+        rapidjson::Value chunk;
+        chunk.SetString(buffer, file.gcount(), snapshotChunk.GetAllocator());
+        params.AddMember("chunk", chunk, snapshotChunk.GetAllocator());
+        snapshotChunk.AddMember("params", params, snapshotChunk.GetAllocator());
+
+        sendJSONDocument(snapshotChunk);
+    }
+
+    return replyOK(jsonMessage);
+}
+
 bool DebuggerDevtools::replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
     const std::string jsonReplyString = string_format(R"({"id":%d,"error":{"code":-32601,"message":"'%s' wasn't found"}})",
@@ -705,6 +758,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         messageType("Debugger.stepInto", &DebuggerDevtools::stepInto),
         messageType("Debugger.stepOut", &DebuggerDevtools::stepOut),
         messageType("Debugger.stepOver", &DebuggerDevtools::stepOver),
+        messageType("HeapProfiler.takeHeapSnapshot", &DebuggerDevtools::takeHeapSnapshot),
         messageType("Network.clearAcceptedEncodingsOverride", &DebuggerDevtools::replyMethodNotFound),
         messageType("Network.emulateNetworkConditionsByRule", &DebuggerDevtools::replyMethodNotFound),
         messageType("Network.enable", &DebuggerDevtools::enableNetwork),

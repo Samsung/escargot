@@ -85,6 +85,7 @@ private:
     bool setBreakpointByUrl(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool removeBreakpoint(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool sendPossibleBreakpoints(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool takeHeapSnapshot(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
 
     static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)

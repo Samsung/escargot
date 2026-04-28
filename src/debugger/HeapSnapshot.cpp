@@ -16,6 +16,7 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  *  USA
  */
+#include <cstdio>
 
 #include "Escargot.h"
 #include "HeapSnapshot.h"
@@ -28,7 +29,6 @@
 #include "parser/Script.h"
 #include "util/Util.h"
 
-#include "cstdio"
 #include "rapidjson/document.h"
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/writer.h"
@@ -522,7 +522,7 @@ std::string HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
         lexEnv = lexEnv->outerEnvironment();
     }
 
-    ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %ld", m_nodeCount, m_edgeCount, m_strings.size());
+    ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %zu\n", m_nodeCount, m_edgeCount, m_strings.size());
     return prepareHeapSnapshotFile();
 }
 } // namespace Escargot
