@@ -2063,6 +2063,26 @@ public:
 
     //!@name Parse from stream
     //!@{
+    //! Parse JSON text from an input stream (with Encoding conversion)
+    /*! \tparam parseFlags Combination of \ref ParseFlag.
+        \tparam SourceEncoding Encoding of input stream
+        \tparam InputStream Type of input stream, implementing Stream concept
+        \param is Input stream to be parsed.
+        \return The document itself for fluent API.
+    */
+    template <unsigned parseFlags, typename SourceEncoding, typename InputStream, typename Handler>
+    GenericDocument& ParseStream(InputStream& is)
+    {
+        ValueType::SetNull(); // Remove existing root if exist
+        GenericReader<SourceEncoding, Encoding, StackAllocator> reader(&stack_.GetAllocator());
+        ClearStackOnExit scope(*this);
+        parseResult_ = reader.template Parse<parseFlags>(is, (Handler&)*this);
+        if (parseResult_) {
+            RAPIDJSON_ASSERT(stack_.GetSize() == sizeof(ValueType)); // Got one and only one root object
+            this->RawAssign(*stack_.template Pop<ValueType>(1)); // Add this-> to prevent issue 13.
+        }
+        return *this;
+    }
 
     //! Parse JSON text from an input stream (with Encoding conversion)
     /*! \tparam parseFlags Combination of \ref ParseFlag.
@@ -2189,7 +2209,7 @@ public:
     //! Get the capacity of stack in bytes.
     size_t GetStackCapacity() const { return stack_.GetCapacity(); }
 
-private:
+protected:
     // clear stack on any exit from ParseStream, e.g. due to exception
     struct ClearStackOnExit {
         explicit ClearStackOnExit(GenericDocument& d)
