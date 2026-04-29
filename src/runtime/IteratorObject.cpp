@@ -26,6 +26,7 @@
 #include "runtime/AsyncFromSyncIteratorObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/ArrayBuffer.h"
 
 namespace Escargot {
 
@@ -227,6 +228,11 @@ ValueVectorWithInlineStorage IteratorObject::iterableToList(ExecutionState& stat
         if (next.hasValue()) {
             Value nextValue = IteratorObject::iteratorValue(state, next.value());
             values.pushBack(nextValue);
+            // Check if the size exceeds the maximum allowed size for TypedArray construction
+            // This prevents memory exhaustion when iterating over very large sparse arrays
+            if (values.size() >= ArrayBuffer::maxArrayBufferSize) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+            }
         } else {
             break;
         }
