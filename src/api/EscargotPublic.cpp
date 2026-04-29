@@ -1265,7 +1265,13 @@ StringRef* Evaluator::EvaluatorResult::resultOrErrorToString(ContextRef* ctx) co
     if (isSuccessful()) {
         return result->toStringWithoutException(ctx);
     } else {
-        return ((ValueRef*)error.value())->toStringWithoutException(ctx);
+        // Check if error value is valid before dereferencing
+        // In some edge cases (e.g., nested eval throw with finally allocation),
+        // the error value might be invalid or null
+        if (error.hasValue()) {
+            return ((ValueRef*)error.value())->toStringWithoutException(ctx);
+        }
+        return StringRef::emptyString();
     }
 }
 
