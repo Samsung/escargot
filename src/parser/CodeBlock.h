@@ -35,7 +35,7 @@ struct ASTScopeContext;
 struct ByteCodeGenerateContext;
 
 typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveNumberAsOddNumber>>>
+                GCUtil::gc_malloc_atomic_allocator<std::pair<AtomicString const, size_t>>>
     FunctionContextVarMap;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
