@@ -4602,7 +4602,34 @@ NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOper
 
         size_t newLength = baseIndex + elementLength;
         arr->setArrayLength(state, newLength);
-        ASSERT(arr->isFastModeArray());
+
+        // Check if the array is still in fast mode after setArrayLength
+        // setArrayLength can convert the array to non-fast mode when length exceeds thresholds
+        if (UNLIKELY(!arr->isFastModeArray())) {
+            // Array was converted to non-fast mode, use slow path
+            size_t elementIndex = 0;
+            for (size_t i = 0; i < code->m_count; i++) {
+                if (LIKELY(code->m_loadRegisterIndexs[i] != REGISTER_LIMIT)) {
+                    Value element = registerFile[code->m_loadRegisterIndexs[i]];
+                    if (element.isObject() && element.asObject()->isSpreadArray()) {
+                        ArrayObject* spreadArray = element.asObject()->asArrayObject();
+                        ASSERT(spreadArray->isFastModeArray());
+                        Value spreadElement;
+                        for (size_t spreadIndex = 0; spreadIndex < spreadArray->arrayLength(state); spreadIndex++) {
+                            spreadElement = spreadArray->m_fastModeData[spreadIndex];
+                            arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
+                            elementIndex++;
+                        }
+                    } else {
+                        arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(element, ObjectPropertyDescriptor::AllPresent));
+                        elementIndex++;
+                    }
+                } else {
+                    elementIndex++;
+                }
+            }
+            return;
+        }
 
         size_t elementIndex = 0;
         for (size_t i = 0; i < code->m_count; i++) {
