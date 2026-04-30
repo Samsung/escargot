@@ -3308,7 +3308,7 @@ public:
             context->m_locData->push_back(std::make_pair(start, idx));
         }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(ESCARGOT_DEBUGGER)
         const auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
         ByteCodeLOC* bytecodeLoc = &reinterpret_cast<ByteCode*>(first)->m_loc;
         bytecodeLoc->index = loc.index;
