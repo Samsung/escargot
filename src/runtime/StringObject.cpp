@@ -77,6 +77,18 @@ ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const Object
 
 bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
+    // Check if this is an index property within the string length
+    // String index properties are non-configurable and non-writable per ECMAScript spec
+    // We must reject any attempt to define a property on these indexed positions
+    size_t idx = P.tryToUseAsIndexProperty();
+    if (idx != Value::InvalidIndexPropertyValue) {
+        size_t strLen = m_primitiveValue->length();
+        if (idx < strLen) {
+            // Indexed properties within string length are non-configurable
+            // Per ECMAScript spec, defining a non-configurable property should fail
+            return false;
+        }
+    }
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
         return false;
