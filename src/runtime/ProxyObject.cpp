@@ -472,6 +472,8 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
 
 Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
     auto strings = &state.context()->staticStrings();
 
