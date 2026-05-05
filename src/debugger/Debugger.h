@@ -142,7 +142,7 @@ public:
         return m_activeSavedStackTrace;
     }
 
-    inline void processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+    inline bool processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
     {
         if (m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP && m_stopState != state) {
             m_delay--;
@@ -154,6 +154,8 @@ public:
         if (m_stopState == ESCARGOT_DEBUGGER_ALWAYS_STOP || m_stopState == state) {
             stopAtBreakpoint(byteCodeBlock, offset, state);
         }
+
+        return m_restartDebugging;
     }
 
     static inline void updateStopState(Debugger* debugger, ExecutionState* state, ExecutionState* newState)
@@ -189,7 +191,7 @@ public:
 
     virtual void init(const char* options, Context* context) = 0;
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) = 0;
-    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
+    virtual bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) = 0;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
     virtual void consoleOut(String* output) = 0;
@@ -209,6 +211,16 @@ public:
     void enable(Context* context);
 
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
+
+    bool getRestart()
+    {
+        return m_restartDebugging;
+    }
+
+    void setRestart(bool b)
+    {
+        m_restartDebugging = b;
+    }
 
 protected:
     Debugger()
@@ -234,6 +246,7 @@ protected:
     ExecutionState* m_stopState;
     std::vector<BreakpointLocationsInfo*> m_breakpointLocationsVector;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
+    bool m_restartDebugging;
 
 private:
     Context* m_context;

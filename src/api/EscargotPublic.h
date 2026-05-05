@@ -957,9 +957,11 @@ public:
     bool initDebugger(const char* options);
     bool isDebuggerRunning();
     bool isWaitBeforeExit();
+    bool isDebuggerRestartTrue();
     void printDebugger(StringRef* output);
     void pumpDebuggerEvents();
     void setAsAlwaysStopState();
+    void setDebuggerRestart();
     StringRef* getClientSource(StringRef** sourceName);
 
     typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);

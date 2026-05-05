@@ -763,6 +763,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
+#ifdef ESCARGOT_DEBUGGER
+            if (state->context()->debuggerEnabled()) {
+                if (state->context()->debugger()->getRestart()) {
+                    return Value(true);
+                }
+            }
+#endif /* ESCARGOT_DEBUGGER */
+
             ADD_PROGRAM_COUNTER(Call);
             NEXT_INSTRUCTION();
         }
@@ -1715,7 +1723,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             if (state->context()->debuggerEnabled()) {
-                state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
+                bool restart = state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
+                if (restart) {
+                    return Value(true);
+                }
             }
 
             ADD_PROGRAM_COUNTER(BreakpointDisabled);
@@ -1726,7 +1737,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             if (state->context()->debuggerEnabled()) {
-                state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
+                bool restart = state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
+                if (restart) {
+                    return Value(true);
+                }
             }
 
             ADD_PROGRAM_COUNTER(BreakpointEnabled);

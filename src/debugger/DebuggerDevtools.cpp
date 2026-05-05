@@ -258,14 +258,14 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     sendMessage(msg, msg.length());
 }
 
-void DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
         m_delay--;
         if (m_delay == 0) {
             processEvents(state, byteCodeBlock);
         }
-        return;
+        return false;
     }
 
     sendPausedEvent(byteCodeBlock, offset, state, !m_startBreakpoint);
@@ -275,7 +275,7 @@ void DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t o
     }
 
     if (!enabled()) {
-        return;
+        return false;
     }
 
     ASSERT(m_activeObjects.empty());
@@ -286,6 +286,8 @@ void DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t o
 
     m_activeObjects.clear();
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
+
+    return false;
 }
 
 void DebuggerDevtools::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)

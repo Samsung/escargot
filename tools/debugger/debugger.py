@@ -228,6 +228,12 @@ class DebuggerPrompt(Cmd):
         else:
             pprint(self.debugger.function_list)
 
+    def do_restart(self, args):
+        """ Restart current debugging from the start of the file """
+        self.debugger.send_restart()
+        self.debugger.step()
+        self.stop = True
+    do_re = do_restart
 
 def _scroll_direction(debugger, direction):
     """ Helper function for do_scroll """

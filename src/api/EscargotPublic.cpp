@@ -1986,7 +1986,7 @@ class DebuggerC : public Debugger {
 public:
     virtual void init(const char* options, Context* context) override {}
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
-    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    virtual bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     virtual void consoleOut(String* output) override;
@@ -2057,7 +2057,7 @@ static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
     return nullptr;
 }
 
-void DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+bool DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     DebuggerOperationsRef::BreakpointOperations operations(reinterpret_cast<DebuggerOperationsRef::WeakCodeRef*>(byteCodeBlock), toRef(state), offset);
 
@@ -2092,6 +2092,7 @@ void DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, 
         break;
     }
     }
+    return false;
 }
 
 void DebuggerC::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
@@ -3439,6 +3440,24 @@ bool ContextRef::isWaitBeforeExit()
     return isDebuggerRunning() && toImpl(this)->debugger()->getWaitBeforeExitClient();
 #else /* !ESCARGOT_DEBUGGER */
     return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+bool ContextRef::isDebuggerRestartTrue()
+{
+#ifdef ESCARGOT_DEBUGGER
+    return isDebuggerRunning() && toImpl(this)->debugger()->getRestart();
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+void ContextRef::setDebuggerRestart()
+{
+#ifdef ESCARGOT_DEBUGGER
+    if (isDebuggerRunning()) {
+        toImpl(this)->debugger()->setRestart(false);
+    }
 #endif /* ESCARGOT_DEBUGGER */
 }
 
