@@ -219,14 +219,14 @@ void DebuggerEscargot::sendVariableObjectInfo(uint8_t subType, Object* object)
     send(ESCARGOT_MESSAGE_VARIABLE, &variableObjectInfo, sizeof(VariableObjectInfo));
 }
 
-void DebuggerEscargot::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+bool DebuggerEscargot::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
         m_delay--;
         if (m_delay == 0) {
             processEvents(state, byteCodeBlock);
         }
-        return;
+        return m_restartDebugging;
     }
 
     BreakpointOffset breakpointOffset;
@@ -238,7 +238,7 @@ void DebuggerEscargot::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t o
     send(ESCARGOT_MESSAGE_BREAKPOINT_HIT, &breakpointOffset, sizeof(BreakpointOffset));
 
     if (!enabled()) {
-        return;
+        return m_restartDebugging;
     }
 
     ASSERT(m_activeObjects.size() == 0);
@@ -249,6 +249,8 @@ void DebuggerEscargot::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t o
 
     m_activeObjects.clear();
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
+
+    return m_restartDebugging;
 }
 
 void DebuggerEscargot::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
@@ -898,6 +900,10 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
 
             m_stopState = stopState;
             return false;
+        }
+        case ESCARGOT_MESSAGE_RESTART: {
+            setRestart(true);
+            return true;
         }
         case ESCARGOT_MESSAGE_WATCH_8BIT_START:
         case ESCARGOT_MESSAGE_WATCH_16BIT_START:

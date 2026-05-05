@@ -898,48 +898,61 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         isModule = isModule || true;
     }
 
-    auto scriptInitializeResult = context->scriptParser()->initializeScript(source, srcName, isModule);
-    if (!scriptInitializeResult.script) {
-        fprintf(stderr, "Script parsing error: ");
-        switch (scriptInitializeResult.parseErrorCode) {
-        case Escargot::ErrorObjectRef::Code::SyntaxError:
-            fprintf(stderr, "SyntaxError");
-            break;
-        case Escargot::ErrorObjectRef::Code::EvalError:
-            fprintf(stderr, "EvalError");
-            break;
-        case Escargot::ErrorObjectRef::Code::RangeError:
-            fprintf(stderr, "RangeError");
-            break;
-        case Escargot::ErrorObjectRef::Code::ReferenceError:
-            fprintf(stderr, "ReferenceError");
-            break;
-        case Escargot::ErrorObjectRef::Code::TypeError:
-            fprintf(stderr, "TypeError");
-            break;
-        case Escargot::ErrorObjectRef::Code::URIError:
-            fprintf(stderr, "URIError");
-            break;
-        default:
-            break;
+
+    bool shouldRestart = false;
+    do {
+        if (shouldRestart) {
+            source = Evaluator::execute(context, [](ExecutionStateRef* state, StringRef* str) -> ValueRef* { return builtinHelperFileRead(state, str->toStdUTF8String().c_str(), "read").get(); }, srcName).result->asString();
         }
-        fprintf(stderr, ": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
-        return false;
-    }
+        shouldRestart = false;
 
-    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
-
-    if (!evalResult.isSuccessful()) {
-        fprintf(stderr, "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
-        for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
-            fprintf(stderr, "%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+        auto scriptInitializeResult = context->scriptParser()->initializeScript(source, srcName, isModule);
+        if (!scriptInitializeResult.script) {
+            fprintf(stderr, "Script parsing error: ");
+            switch (scriptInitializeResult.parseErrorCode) {
+            case Escargot::ErrorObjectRef::Code::SyntaxError:
+                fprintf(stderr, "SyntaxError");
+                break;
+            case Escargot::ErrorObjectRef::Code::EvalError:
+                fprintf(stderr, "EvalError");
+                break;
+            case Escargot::ErrorObjectRef::Code::RangeError:
+                fprintf(stderr, "RangeError");
+                break;
+            case Escargot::ErrorObjectRef::Code::ReferenceError:
+                fprintf(stderr, "ReferenceError");
+                break;
+            case Escargot::ErrorObjectRef::Code::TypeError:
+                fprintf(stderr, "TypeError");
+                break;
+            case Escargot::ErrorObjectRef::Code::URIError:
+                fprintf(stderr, "URIError");
+                break;
+            default:
+                break;
+            }
+            fprintf(stderr, ": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
+            return false;
         }
-        return false;
-    }
 
-    if (shouldPrintScriptResult) {
-        puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
-    }
+        auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
+        if (!evalResult.isSuccessful()) {
+            fprintf(stderr, "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+            for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
+                fprintf(stderr, "%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+            }
+            return false;
+        }
+
+        if (context->isDebuggerRestartTrue()) {
+            shouldRestart = true;
+            context->setDebuggerRestart();
+        }
+
+        if (shouldPrintScriptResult) {
+            puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        }
+    } while (shouldRestart);
 
     bool result = true;
     while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {

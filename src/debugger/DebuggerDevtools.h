@@ -55,7 +55,7 @@ public:
     bool skipSourceCode(String* srcName) const override;
 
     void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
-    void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     void consoleOut(String* output) override;
