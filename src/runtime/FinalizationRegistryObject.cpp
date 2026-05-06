@@ -56,6 +56,9 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
                     cell->unregisterToken->removeFinalizer(finalizerUnregisterToken, cell);
                 }
             }
+            // Set source to nullptr to indicate that FinalizationRegistryObject is being collected.
+            // This prevents the weakRefTarget's finalizer from accessing an invalid source pointer.
+            cell->source = nullptr;
         }
         s->m_cells.clear();
         s->m_deletedCellCount = 0;
@@ -186,7 +189,14 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
     UNUSED_PARAMETER(self);
     FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;
 
-    ASSERT(!!item->source && !!item->source->m_cleanupCallback);
+    // Check if FinalizationRegistryObject is already being collected by GC.
+    // GC finalizers are not ordered, so the FinalizationRegistryObject may be collected
+    // before its registered targets. In that case, source will be nullptr.
+    if (!item->source) {
+        return;
+    }
+
+    ASSERT(!!item->source->m_cleanupCallback);
     bool wasCallbackDeleted = false;
     auto callback = item->source->m_cleanupCallback;
     if (callback->isScriptFunctionObject()) {
