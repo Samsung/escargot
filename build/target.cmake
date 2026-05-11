@@ -51,6 +51,11 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
         -Wno-unused-but-set-variable -Wno-unused-but-set-parameter
         -Wno-deprecated-declarations -Wno-unused-function
     )
+
+    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-maybe-uninitialized)
+    ENDIF()
+
     IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-mismatched-new-delete -Wno-overloaded-virtual -Wno-dangling-pointer)
     endif()
