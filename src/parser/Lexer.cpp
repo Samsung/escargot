@@ -755,7 +755,7 @@ void Scanner::skipSingleLine()
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 13 && this->peekCharWithoutEOF() == 10) {
+            if (ch == 13 && !this->eof() && this->peekCharWithoutEOF() == 10) {
                 ++this->index;
             }
             ++this->lineNumber;
@@ -772,7 +772,7 @@ void Scanner::skipSingleLineComment(void)
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 13 && this->peekCharWithoutEOF() == 10) {
+            if (ch == 13 && !this->eof() && this->peekCharWithoutEOF() == 10) {
                 ++this->index;
             }
             ++this->lineNumber;
@@ -790,12 +790,12 @@ void Scanner::skipMultiLineComment(void)
         ++this->index;
 
         if (isLineTerminator(ch)) {
-            if (ch == 0x0D && this->peekCharWithoutEOF() == 0x0A) {
+            if (ch == 0x0D && !this->eof() && this->peekCharWithoutEOF() == 0x0A) {
                 ++this->index;
             }
             ++this->lineNumber;
             this->lineStart = this->index;
-        } else if (ch == 0x2A && this->peekCharWithoutEOF() == 0x2F) {
+        } else if (ch == 0x2A && !this->eof() && this->peekCharWithoutEOF() == 0x2F) {
             // Block comment ends with '*/'.
             ++this->index;
             return;
