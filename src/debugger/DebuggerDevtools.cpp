@@ -103,8 +103,7 @@ bool DebuggerDevtools::skipSourceCode(String* srcName) const
 
 uint8_t DebuggerDevtools::registerScript(String* source, String* srcName)
 {
-    std::string url(reinterpret_cast<const char*>(srcName->characters8()), srcName->length());
-
+    std::string url(srcName->toNonGCUTF8StringData().c_str(), srcName->toNonGCUTF8StringData().length());
     auto it = m_scriptIdByUrl.find(url);
     if (it != m_scriptIdByUrl.end()) {
         return it->second;
@@ -118,7 +117,7 @@ uint8_t DebuggerDevtools::registerScript(String* source, String* srcName)
     return newId;
 }
 
-static void computeEndLocation(const LChar* src, size_t length, uint32_t& endLine, uint32_t& endColumn)
+static void computeEndLocation(const char* src, size_t length, uint32_t& endLine, uint32_t& endColumn)
 {
     for (size_t i = 0; i < length; i++) {
         if (src[i] == '\n') {
@@ -189,7 +188,7 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
     reply["params"].AddMember("scriptId", scriptIdValue, reply.GetAllocator());
 
     rapidjson::Value urlString;
-    std::string url = reinterpret_cast<const char*>(srcName->characters8());
+    std::string url = srcName->toNonGCUTF8StringData();
     urlString.SetString(url.c_str(), url.length(), reply.GetAllocator());
     reply["params"].AddMember("url", urlString, reply.GetAllocator());
 
@@ -198,7 +197,7 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
 
     uint32_t endLine = 0;
     uint32_t endColumn = 0;
-    computeEndLocation(source->characters8(), source->length(), endLine, endColumn);
+    computeEndLocation(source->toUTF8StringData().data(), source->toUTF8StringData().length(), endLine, endColumn);
     reply["params"].AddMember("endLine", endLine, reply.GetAllocator());
     reply["params"].AddMember("endColumn", endColumn, reply.GetAllocator());
 
@@ -210,8 +209,8 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
 void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state, const bool breakpoint)
 {
     const auto* byteCode = reinterpret_cast<ByteCode*>(byteCodeBlock->m_code.data() + offset);
-    const auto* filename = reinterpret_cast<const char*>(byteCodeBlock->codeBlock()->script()->srcName()->characters8());
-    const uint8_t scripId = m_scriptIdByUrl[reinterpret_cast<const char*>(byteCodeBlock->codeBlock()->script()->srcName()->characters8())];
+    const char* filename = byteCodeBlock->codeBlock()->script()->srcName()->toUTF8StringData().data();
+    const uint8_t scriptId = m_scriptIdByUrl[filename];
 
     const uint64_t line = byteCode->m_loc.line - 1; // chrome starts line indexes at 0
     const uint64_t column = byteCode->m_loc.column - 1; // chrome starts column indexes at 0
@@ -245,8 +244,8 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
                                           "\"hitBreakpoints\":[\"%s:%lu:%lu\"]"
                                           "}"
                                           "}",
-                                          reinterpret_cast<const char*>(byteCodeBlock->codeBlock()->functionName().string()->characters8()),
-                                          scripId,
+                                          byteCodeBlock->codeBlock()->functionName().string()->toUTF8StringData().data(),
+                                          scriptId,
                                           line,
                                           column,
                                           filename,
