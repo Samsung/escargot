@@ -69,6 +69,7 @@ protected:
     bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
 
 private:
+    bool evaluate(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool resume(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool stepOver(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
