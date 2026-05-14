@@ -111,6 +111,9 @@ SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*
         result.result = scriptRunner(state, data);
     } catch (const Value& err) {
         processCatch(err, result);
+#ifdef ASAN_ENABLED
+        GC_enable();
+#endif
     }
     return result;
 }
@@ -123,6 +126,9 @@ SandBox::SandBoxResult SandBox::run(ExecutionState& parentState, Value (*runner)
         result.result = runner(state, data);
     } catch (const Value& err) {
         processCatch(err, result);
+#ifdef ASAN_ENABLED
+        GC_enable();
+#endif
     }
     return result;
 }
@@ -310,6 +316,11 @@ void SandBox::throwException(ExecutionState& state, const Value& exception)
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
     m_exception = exception;
+
+    // If ASAN is enabled, BDWGC cannot perform stack scanning properly in the catch block.
+#ifdef ASAN_ENABLED
+    GC_disable();
+#endif
     throw exception;
 }
 
@@ -322,6 +333,11 @@ void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exce
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
     m_exception = exception;
+
+    // If ASAN is enabled, BDWGC cannot perform stack scanning properly in the catch block.
+#ifdef ASAN_ENABLED
+    GC_disable();
+#endif
     throw exception;
 }
 
