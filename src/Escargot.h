@@ -264,6 +264,16 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #define HAVE_BUILTIN_ATOMIC_FUNCTIONS
 #endif
 
+#if defined(COMPILER_CLANG)
+#if __has_feature(address_sanitizer)
+#define ASAN_ENABLED
+#endif
+#elif defined(COMPILER_GCC)
+#if defined(__SANITIZE_ADDRESS__)
+#define ASAN_ENABLED
+#endif
+#endif
+
 #if defined(COMPILER_MSVC)
 #include <stddef.h>
 #endif
