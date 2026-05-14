@@ -41,6 +41,12 @@ void Heap::initialize()
     GC_set_warn_proc(GC_ignore_warn_proc);
 #endif
 
+    GC_set_oom_fn([](size_t sz) -> void* {
+        ESCARGOT_LOG_ERROR("Out of memory!");
+        abort();
+        return nullptr;
+    });
+
     GC_set_force_unmap_on_gcollect(1);
     initializeCustomAllocators();
 
