@@ -148,9 +148,13 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
         newByteLength = argv[0].toIndex(state);
     }
 
+    obj->throwTypeErrorIfDetached(state);
     Optional<uint64_t> maxLength;
     if (obj->isResizableArrayBuffer()) {
         maxLength = obj->maxByteLength();
+        if (newByteLength > maxLength.value()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().transfer.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        }
     }
     ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, maxLength);
 
