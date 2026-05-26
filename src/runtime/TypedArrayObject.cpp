@@ -249,8 +249,16 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         if (length == std::numeric_limits<size_t>::max()) {                                                                                       \
             obj->setBuffer(nullptr, 0, 0, 0);                                                                                                     \
         } else {                                                                                                                                  \
-            auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);            \
-            obj->setBuffer(buffer, 0, length * siz, length);                                                                                      \
+            /* Check for overflow: length * elementSize must not overflow size_t */                                                               \
+            uint64_t byteLength64 = static_cast<uint64_t>(length) * siz;                                                                          \
+            /* On 32-bit systems, byteLength64 can overflow size_t, leading to undersized backing store */                                        \
+            if (UNLIKELY(byteLength64 > std::numeric_limits<size_t>::max() || byteLength64 >= ArrayBuffer::maxArrayBufferSize)) {                 \
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false,         \
+                                               String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);                \
+            }                                                                                                                                     \
+            size_t byteLength = static_cast<size_t>(byteLength64);                                                                                \
+            auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);              \
+            obj->setBuffer(buffer, 0, byteLength, length);                                                                                        \
         }                                                                                                                                         \
         return obj;                                                                                                                               \
     }                                                                                                                                             \
