@@ -4333,9 +4333,14 @@ NEVER_INLINE void InterpreterSlowPath::spreadFunctionArguments(ExecutionState& s
         Value arg = argv[i];
         if (arg.isObject() && arg.asObject()->isSpreadArray()) {
             ArrayObject* spreadArray = arg.asObject()->asArrayObject();
-            ASSERT(spreadArray->isFastModeArray());
-            for (size_t i = 0; i < spreadArray->arrayLength(state); i++) {
-                argVector.push_back(spreadArray->m_fastModeData[i]);
+            if (spreadArray->isFastModeArray()) {
+                for (size_t i = 0; i < spreadArray->arrayLength(state); i++) {
+                    argVector.push_back(spreadArray->m_fastModeData[i]);
+                }
+            } else {
+                for (size_t i = 0; i < spreadArray->arrayLength(state); i++) {
+                    argVector.push_back(spreadArray->getOwnProperty(state, ObjectPropertyName(state, i)).value(state, spreadArray));
+                }
             }
         } else {
             argVector.push_back(arg);
@@ -4682,10 +4687,9 @@ NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOper
                 Value element = registerFile[loadRegisterIndexs[i]];
                 if (element.isObject() && element.asObject()->isSpreadArray()) {
                     ArrayObject* spreadArray = element.asObject()->asArrayObject();
-                    ASSERT(spreadArray->isFastModeArray());
                     Value spreadElement;
                     for (size_t spreadIndex = 0; spreadIndex < spreadArray->arrayLength(state); spreadIndex++) {
-                        spreadElement = spreadArray->m_fastModeData[spreadIndex];
+                        spreadElement = spreadArray->getOwnProperty(state, ObjectPropertyName(state, spreadIndex)).value(state, spreadArray);
                         arr->defineOwnProperty(state, ObjectPropertyName(state, baseIndex + elementIndex), ObjectPropertyDescriptor(spreadElement, ObjectPropertyDescriptor::AllPresent));
                         elementIndex++;
                     }
