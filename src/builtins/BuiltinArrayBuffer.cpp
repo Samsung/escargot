@@ -146,6 +146,9 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
     uint64_t newByteLength = obj->byteLength();
     if (argc > 0 && !argv[0].isUndefined()) {
         newByteLength = argv[0].toIndex(state);
+        if (UNLIKELY(newByteLength == Value::InvalidIndexValue)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().transfer.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        }
     }
 
     obj->throwTypeErrorIfDetached(state);
@@ -155,8 +158,11 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
         if (newByteLength > maxLength.value()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().transfer.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
         }
+    } else {
+        // For non-resizable ArrayBuffer, the new buffer should also be non-resizable
+        maxLength = newByteLength;
     }
-    ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, maxLength);
+    ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, maxLength, obj->isResizableArrayBuffer());
 
     // Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
     // Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
@@ -175,6 +181,9 @@ static Value builtinArrayBufferTransferToFixedLength(ExecutionState& state, Valu
     uint64_t newByteLength = obj->byteLength();
     if (argc > 0 && !argv[0].isUndefined()) {
         newByteLength = argv[0].toIndex(state);
+        if (UNLIKELY(newByteLength == Value::InvalidIndexValue)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().transferToFixedLength.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        }
     }
 
     ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, newByteLength, false);
