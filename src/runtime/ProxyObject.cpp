@@ -738,6 +738,8 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 
 Object* ProxyObject::getPrototypeObject(ExecutionState& state)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     if (!this->target()) {
         return nullptr;
     }
@@ -753,6 +755,8 @@ Object* ProxyObject::getPrototypeObject(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-getprototypeof
 Value ProxyObject::getPrototype(ExecutionState& state)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
