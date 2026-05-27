@@ -1061,11 +1061,10 @@ size_t String::rfind(String* str, size_t pos)
     if (srcStrLen == 0)
         return pos <= size ? pos : -1;
     if (srcStrLen <= size) {
+        if (pos > size - srcStrLen)
+            pos = size - srcStrLen;
         do {
             bool same = true;
-            if (pos >= size) {
-                continue;
-            }
             for (size_t k = 0; k < srcStrLen; k++) {
                 if (charAt(pos + k) != str->charAt(k)) {
                     same = false;
