@@ -216,6 +216,8 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             data.isConstructor = false;
 #ifdef ESCARGOT_DEBUGGER
             data.executionStateDepth = executionStateDepthIndex;
+            data.executionState = pState;
+            data.lexicalEnvironment = pState->lexicalEnvironment();
 #endif /* ESCARGOT_DEBUGGER */
 
             stackTraceDataVector.pushBack(data);
@@ -260,6 +262,8 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             data.isConstructor = isFunction ? record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isConstructor() : false;
 #ifdef ESCARGOT_DEBUGGER
             data.executionStateDepth = executionStateDepthIndex;
+            data.executionState = pState;
+            data.lexicalEnvironment = pState->lexicalEnvironment();
 #endif /* ESCARGOT_DEBUGGER */
 
             stackTraceDataVector.pushBack(data);
@@ -288,6 +292,8 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             data.isConstructor = cb->isNativeConstructor();
 #ifdef ESCARGOT_DEBUGGER
             data.executionStateDepth = executionStateDepthIndex;
+            data.executionState = pState;
+            data.lexicalEnvironment = pState->lexicalEnvironment();
 #endif /* ESCARGOT_DEBUGGER */
 
             stackTraceDataVector.pushBack(data);

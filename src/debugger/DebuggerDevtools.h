@@ -42,6 +42,9 @@ struct ScriptInfo {
     String* source;
 };
 
+typedef HashMap<AtomicString, Value, std::hash<AtomicString>, std::equal_to<AtomicString>, GCUtil::gc_malloc_allocator<std::pair<AtomicString const, Value>>> PropertyNameValueMap;
+typedef Vector<PropertyNameValueMap*, GCUtil::gc_malloc_allocator<PropertyNameValueMap*>> PropertyNameValueMapVector;
+
 class DebuggerDevtools : public DebuggerTcp {
 public:
     DebuggerDevtools(EscargotSocket socket, String* skipSource)
@@ -89,6 +92,8 @@ private:
     bool takeHeapSnapshot(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
 
+    uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap);
+
     static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)
     {
         if (LIKELY(a.line != b.line)) {
@@ -111,6 +116,10 @@ private:
     std::unordered_map<std::string, uint8_t> m_scriptIdByUrl;
     uint8_t m_nextScriptId = 1;
     std::unordered_map<uint8_t, std::set<BreakpointByteCodeLocation, decltype(compareBreakpointLocations)*>> m_breakpointInfo;
+    PropertyNameValueMapVector m_propertyMapsById;
+    uint32_t m_objectIdVectorIndexOffset = 0;
+    uint32_t m_nextObjectId = 0;
+    uint32_t m_nextCallFrameId = 1;
 
     std::vector<std::string> m_pendingMessages;
     std::set<ByteCode*> m_setBreakPoints; // stores set breakpoints for enabling/disabling in bulk with the `Deactivate Breakpoints` button
