@@ -29,7 +29,6 @@
 #include "interpreter/ByteCode.h"
 #include "parser/Script.h"
 #include "HeapSnapshot.h"
-#include "parser/ScriptParser.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
@@ -53,6 +52,13 @@ std::string string_format(const std::string& format, Args... args)
     return { buf.get(), buf.get() + size - 1 }; // We don't want the '\0' inside
 }
 
+
+rapidjson::Value stringToRapidjsonValue(const std::string& value, rapidjson::MemoryPoolAllocator<>& allocator)
+{
+    rapidjson::Value rapidjsonStringValue(rapidjson::kStringType);
+    rapidjsonStringValue.SetString(value.c_str(), value.length(), allocator);
+    return rapidjsonStringValue;
+}
 
 bool DebuggerDevtools::sendMessage(const std::string& msg, const size_t length)
 {
@@ -207,55 +213,189 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
     sendJSONDocument(reply);
 }
 
+static void addObjectProperties(ExecutionState* state, PropertyNameValueMap* values, Object* object)
+{
+    Object::OwnPropertyKeyVector keys = object->ownPropertyKeys(*state);
+    for (const auto key : keys) {
+        ObjectPropertyName propertyName(*state, key);
+        AtomicString name(*state, key.toStringWithoutException(*state));
+
+        try {
+            ObjectGetResult result = object->getOwnProperty(*state, propertyName);
+            Value value = result.value(*state, value);
+
+            if (values->find(name) == values->end()) {
+                values->insert(std::make_pair(name, value));
+            }
+        } catch (const Value& val) {
+            if (values->find(name) == values->end()) {
+                values->insert(std::make_pair(name, Value()));
+            }
+        }
+    }
+}
+
+static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const IdentifierRecordVector& identifiers, EnvironmentRecord* record)
+{
+    for (const auto identifier : identifiers) {
+        try {
+            const EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, identifier.m_name);
+            ASSERT(result.m_hasBindingValue);
+            if (values->find(identifier.m_name) == values->end()) {
+                values->insert(std::make_pair(identifier.m_name, result.m_value));
+            }
+        } catch (const Value& val) {
+            if (values->find(identifier.m_name) == values->end()) {
+                values->insert(std::make_pair(identifier.m_name, Value()));
+            }
+        }
+    }
+}
+
+static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
+{
+    for (const auto binding : bindings) {
+        try {
+            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, binding.m_localName);
+            ASSERT(result.m_hasBindingValue);
+            if (values->find(binding.m_localName) == values->end()) {
+                values->insert(std::make_pair(binding.m_localName, result.m_value));
+            }
+        } catch (const Value& val) {
+            if (values->find(binding.m_localName) == values->end()) {
+                values->insert(std::make_pair(binding.m_localName, Value()));
+            }
+        }
+    }
+}
+
 void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state, const bool breakpoint)
 {
-    const auto* byteCode = reinterpret_cast<ByteCode*>(byteCodeBlock->m_code.data() + offset);
-    const char* filename = byteCodeBlock->codeBlock()->script()->srcName()->toUTF8StringData().data();
-    const uint8_t scriptId = m_scriptIdByUrl[filename];
+    const auto* stopByteCode = reinterpret_cast<ByteCode*>(byteCodeBlock->m_code.data() + offset);
+    const std::string stopFilename = byteCodeBlock->codeBlock()->script()->srcName()->toUTF8StringData().data();
+    const uint64_t stopLine = stopByteCode->m_loc.line - 1; // chrome starts line indexes at 0
+    const uint64_t stopColumn = stopByteCode->m_loc.column - 1; // chrome starts column indexes at 0
 
-    const uint64_t line = byteCode->m_loc.line - 1; // chrome starts line indexes at 0
-    const uint64_t column = byteCode->m_loc.column - 1; // chrome starts column indexes at 0
+    m_objectIdVectorIndexOffset += m_propertyMapsById.size();
+    m_propertyMapsById.clear();
 
-    // TODO: some placeholder info
-    const std::string msg = string_format("{\"method\":\"Debugger.paused\","
-                                          "\"params\":{"
-                                          "\"callFrames\":[{"
-                                          "\"callFrameId\":\"frame:0\","
-                                          "\"functionName\":\"%s\","
-                                          "\"location\":{"
-                                          "\"scriptId\":\"%d\","
-                                          "\"lineNumber\":%lu,"
-                                          "\"columnNumber\":%lu"
-                                          "},"
-                                          "\"url\":\"%s\","
-                                          "\"scopeChain\":[{"
-                                          "\"type\":\"global\","
-                                          "\"object\":{"
-                                          "\"type\":\"object\","
-                                          "\"className\":\"global\","
-                                          "\"description\":\"global\","
-                                          "\"objectId\":\"global:1\""
-                                          "}"
-                                          "}],"
-                                          "\"this\":{"
-                                          "\"type\":\"undefined\""
-                                          "}"
-                                          "}],"
-                                          "\"reason\":\"%s\","
-                                          "\"hitBreakpoints\":[\"%s:%lu:%lu\"]"
-                                          "}"
-                                          "}",
-                                          byteCodeBlock->codeBlock()->functionName().string()->toUTF8StringData().data(),
-                                          scriptId,
-                                          line,
-                                          column,
-                                          filename,
-                                          breakpoint ? "Breakpoint" : "Break on start",
-                                          filename,
-                                          line,
-                                          column);
+    rapidjson::Document reply;
+    reply.SetObject();
 
-    sendMessage(msg, msg.length());
+    reply.AddMember("method", "Debugger.paused", reply.GetAllocator());
+    reply.AddMember("params", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+    reply["params"].AddMember("callFrames", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
+    reply["params"].AddMember("hitBreakpoints", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
+    reply["params"]["hitBreakpoints"].PushBack(stringToRapidjsonValue(string_format("%s:%lu:%lu", stopFilename, stopLine, stopColumn), reply.GetAllocator()), reply.GetAllocator());
+    reply["params"].AddMember("reason", stringToRapidjsonValue(breakpoint ? "Breakpoint" : "Break on start", reply.GetAllocator()), reply.GetAllocator());
+
+    StackTraceDataOnStackVector stackTraceDataVector;
+    SandBox::createStackTrace(stackTraceDataVector, *state, true);
+    ByteCodeLOCDataMap locMap;
+    bool first = true;
+
+    for (auto stackTraceData : stackTraceDataVector) {
+        const std::string currentFunctionNameStr = stackTraceData.functionName->toUTF8StringData().data();
+        const uint8_t scripId = m_scriptIdByUrl[stackTraceData.srcName->toUTF8StringData().data()];
+
+        uint64_t line, column;
+        ByteCodeBlock* stackTraceByteCodeBlock = stackTraceData.loc.actualCodeBlock;
+
+        if (stackTraceData.loc.index == SIZE_MAX) {
+            size_t byteCodePosition = stackTraceData.loc.byteCodePosition;
+
+            ByteCodeLOCData* locData;
+            auto iterMap = locMap.find(stackTraceByteCodeBlock);
+            if (iterMap == locMap.end()) {
+                locData = new ByteCodeLOCData();
+                locMap.insert(std::make_pair(stackTraceByteCodeBlock, locData));
+            } else {
+                locData = iterMap->second;
+            }
+
+            ExtendedNodeLOC loc = stackTraceByteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, stackTraceByteCodeBlock->m_codeBlock, locData);
+            line = loc.line - 1; // chrome starts line indexes at 0
+            column = loc.column - 1; // chrome starts column indexes at 0
+        } else {
+            line = stackTraceData.loc.line - 1; // chrome starts line indexes at 0
+            column = stackTraceData.loc.column - 1; // chrome starts column indexes at 0
+        }
+
+        rapidjson::Value callFrameObject(rapidjson::kObjectType);
+
+        callFrameObject.AddMember("callFrameId", stringToRapidjsonValue(string_format("%d", m_nextCallFrameId++), reply.GetAllocator()), reply.GetAllocator());
+        callFrameObject.AddMember("functionName", stringToRapidjsonValue(currentFunctionNameStr, reply.GetAllocator()), reply.GetAllocator());
+        callFrameObject.AddMember("location", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+        callFrameObject["location"].AddMember("scriptId", stringToRapidjsonValue(string_format("%d", scripId), reply.GetAllocator()), reply.GetAllocator());
+        callFrameObject["location"].AddMember("lineNumber", line, reply.GetAllocator());
+        callFrameObject["location"].AddMember("columnNumber", column, reply.GetAllocator());
+        callFrameObject.AddMember("scopeChain", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
+        callFrameObject.AddMember("canBeRestarted", false, reply.GetAllocator());
+
+        auto* blockValues = new (GC) PropertyNameValueMap();
+        auto* localValues = new (GC) PropertyNameValueMap();
+        auto* globalValues = new (GC) PropertyNameValueMap();
+        auto* moduleValues = new (GC) PropertyNameValueMap();
+
+        LexicalEnvironment* lexEnv;
+        if (first) {
+            lexEnv = state->lexicalEnvironment();
+            first = false;
+        } else {
+            lexEnv = stackTraceData.lexicalEnvironment;
+        }
+        while (lexEnv) {
+            EnvironmentRecord* envRecord = lexEnv->record();
+
+            if (envRecord->isGlobalEnvironmentRecord()) {
+                GlobalEnvironmentRecord* global = envRecord->asGlobalEnvironmentRecord();
+
+                addRecordProperties(stackTraceData.executionState, globalValues, *global->m_globalDeclarativeRecord, envRecord);
+                addObjectProperties(stackTraceData.executionState, globalValues, global->m_globalObject);
+            } else if (envRecord->isDeclarativeEnvironmentRecord()) {
+                DeclarativeEnvironmentRecord* declarativeRecord = envRecord->asDeclarativeEnvironmentRecord();
+                if (declarativeRecord->isFunctionEnvironmentRecord()) {
+                    IdentifierRecordVector* identifierRecordVector = declarativeRecord->asFunctionEnvironmentRecord()->getRecordVector();
+
+                    if (identifierRecordVector != nullptr) {
+                        addRecordProperties(stackTraceData.executionState, localValues, *identifierRecordVector, envRecord);
+                    }
+                } else if (envRecord->isModuleEnvironmentRecord()) {
+                    addRecordProperties(stackTraceData.executionState, moduleValues, envRecord->asModuleEnvironmentRecord()->moduleBindings(), envRecord->asModuleEnvironmentRecord());
+                } else if (declarativeRecord->isDeclarativeEnvironmentRecordNotIndexed()) {
+                    DeclarativeEnvironmentRecordNotIndexed* record = declarativeRecord->asDeclarativeEnvironmentRecordNotIndexed();
+                    addRecordProperties(stackTraceData.executionState, localValues, record->m_recordVector, envRecord);
+                }
+            } else if (envRecord->isObjectEnvironmentRecord()) {
+                addObjectProperties(stackTraceData.executionState, blockValues, envRecord->asObjectEnvironmentRecord()->bindingObject());
+            }
+
+            lexEnv = lexEnv->outerEnvironment();
+        }
+
+        typedef std::pair<PropertyNameValueMap*, std::string> TypedPropertyDataMap;
+        for (const auto& typedValueMap : {
+                 // Possible scope types: [ "global", "local", "with", "closure", "catch", "block", "script", "eval", "module", "wasm-expression-stack" ]
+                 TypedPropertyDataMap(blockValues, "block"),
+                 TypedPropertyDataMap(localValues, "local"),
+                 TypedPropertyDataMap(globalValues, "global"),
+                 TypedPropertyDataMap(moduleValues, "module") }) {
+            if (typedValueMap.first->empty()) {
+                continue;
+            }
+            rapidjson::Value scopeChain(rapidjson::kObjectType);
+            scopeChain.AddMember("object", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+
+            scopeChain["object"].AddMember("type", stringToRapidjsonValue("object", reply.GetAllocator()), reply.GetAllocator());
+            scopeChain["object"].AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(typedValueMap.first)), reply.GetAllocator()), reply.GetAllocator());
+            scopeChain.AddMember("type", stringToRapidjsonValue(typedValueMap.second, reply.GetAllocator()), reply.GetAllocator());
+            callFrameObject["scopeChain"].PushBack(scopeChain, reply.GetAllocator());
+        }
+
+        reply["params"]["callFrames"].PushBack(callFrameObject, reply.GetAllocator());
+    }
+
+    sendJSONDocument(reply);
 }
 
 bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
@@ -405,47 +545,123 @@ bool DebuggerDevtools::stepOut(rapidjson::Document& jsonMessage, ExecutionState*
     return false;
 }
 
+uint32_t DebuggerDevtools::registerValuesMap(PropertyNameValueMap* newPropertyMap)
+{
+    m_propertyMapsById.push_back(newPropertyMap);
+    return m_nextObjectId++;
+}
+
+std::string objectToStringTypeName(const Value object)
+{
+    std::string objectType;
+    if (object.isSymbol()) {
+        objectType = "symbol";
+    } else if (object.isFunction()) {
+        objectType = "function";
+    } else if (object.isUndefined()) {
+        objectType = "undefined";
+    } else if (object.isString()) {
+        objectType = "string";
+    } else if (object.isNumber()) {
+        objectType = "number";
+    } else if (object.isBoolean()) {
+        objectType = "boolean";
+    } else if (object.isBigInt()) {
+        objectType = "bigint";
+    } else if (object.isObject()) {
+        objectType = "object";
+    } else {
+        ASSERT_NOT_REACHED();
+    }
+    return objectType;
+}
+
 bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
-    // TODO: placeholder info
-    const std::string msg = string_format("{\"id\":%u,\"result\":{"
-                                          "\"result\":["
-                                          "{"
-                                          "\"name\":\"print\","
-                                          "\"configurable\":true,"
-                                          "\"enumerable\":true,"
-                                          "\"value\":{"
-                                          "\"type\":\"function\","
-                                          "\"description\":\"function print()\""
-                                          "}"
-                                          "},"
-                                          "{"
-                                          "\"name\":\"c\","
-                                          "\"configurable\":true,"
-                                          "\"enumerable\":true,"
-                                          "\"value\":{"
-                                          "\"type\":\"number\","
-                                          "\"value\":8,"
-                                          "\"description\":\"8\""
-                                          "}"
-                                          "},"
-                                          "{"
-                                          "\"name\":\"globalVar\","
-                                          "\"configurable\":true,"
-                                          "\"enumerable\":true,"
-                                          "\"value\":{"
-                                          "\"type\":\"string\","
-                                          "\"value\":\"escargot\","
-                                          "\"description\":\"escargot\""
-                                          "}"
-                                          "}"
-                                          "]"
-                                          "}}",
-                                          jsonMessage["id"].GetUint());
+    if (jsonMessage["params"]["ownProperties"].GetBool()) {
+        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'ownProperties' is not supported!\n");
+    }
+    if (jsonMessage["params"]["accessorPropertiesOnly"].GetBool()) {
+        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'accessorPropertiesOnly' is not supported!\n");
+    }
+    if (!jsonMessage["params"]["nonIndexedPropertiesOnly"].GetBool()) {
+        ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!\n");
+    }
+    if (jsonMessage["params"]["generatePreview"].GetBool()) {
+        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'generatePreview' is not supported!\n");
+    }
 
-    sendMessage(msg, msg.length());
+    rapidjson::Document reply;
+    reply.SetObject();
 
-    return true;
+    rapidjson::Value resultObject(rapidjson::kObjectType);
+    resultObject.SetObject();
+    rapidjson::Value resultArray(rapidjson::kArrayType);
+    rapidjson::Value breakpointID(rapidjson::kStringType);
+
+    reply.AddMember("id", jsonMessage["id"].GetInt(), reply.GetAllocator());
+    reply.AddMember("result", resultObject, reply.GetAllocator());
+
+    std::string objectIdStr = jsonMessage["params"]["objectId"].GetString();
+    uint32_t objectId;
+    try {
+        objectId = stoi(objectIdStr);
+    } catch (const std::exception& e) {
+        return sendJSONDocument(reply);
+    }
+
+    if (objectId < m_objectIdVectorIndexOffset) {
+        return sendJSONDocument(reply);
+    }
+
+    reply["result"].AddMember("result", resultArray, reply.GetAllocator());
+    PropertyNameValueMap* properties = m_propertyMapsById[objectId - m_objectIdVectorIndexOffset];
+
+    for (const auto& property : *properties) {
+        const std::string& propertyName = property.first.string()->toUTF8StringData().data();
+        const Value& propertyValue = property.second;
+
+        rapidjson::Value propertyObject(rapidjson::kObjectType);
+        propertyObject.SetObject();
+
+        rapidjson::Value propertyNameStringValue = stringToRapidjsonValue(propertyName, reply.GetAllocator());
+
+        propertyObject.AddMember("name", propertyNameStringValue, reply.GetAllocator());
+        propertyObject.AddMember("configurable", true, reply.GetAllocator());
+        propertyObject.AddMember("enumerable", true, reply.GetAllocator());
+        propertyObject.AddMember("symbol", propertyValue.isSymbol(), reply.GetAllocator());
+
+        rapidjson::Value propertyValueObject(rapidjson::kObjectType);
+        propertyObject.AddMember("value", propertyValueObject, reply.GetAllocator());
+
+        std::string propertyTypeStr = objectToStringTypeName(propertyValue);
+        rapidjson::Value objectTypeValue = stringToRapidjsonValue(propertyTypeStr, reply.GetAllocator());
+
+        rapidjson::Value propertyValueString;
+        if (propertyValue.isSymbol()) {
+            propertyValueString = stringToRapidjsonValue(string_format("Symbol (%s)", propertyName.c_str()), reply.GetAllocator());
+        } else {
+            propertyValueString = stringToRapidjsonValue(propertyValue.toStringWithoutException(*state)->toUTF8StringData().data(), reply.GetAllocator());
+        }
+
+        propertyObject["value"].AddMember("type", objectTypeValue, reply.GetAllocator());
+        if (propertyValue.isObject()) {
+            propertyObject["value"].AddMember("className", stringToRapidjsonValue(propertyValue.asObject()->constructorName(*state)->toUTF8StringData().data(), reply.GetAllocator()), reply.GetAllocator());
+        }
+        propertyObject["value"].AddMember("value", propertyValueString, reply.GetAllocator());
+        propertyObject["value"].AddMember("description", propertyValueString, reply.GetAllocator()); // string representation of the object
+
+        if (propertyValue.isObject()) {
+            auto* values = new (GC) PropertyNameValueMap();
+            addObjectProperties(state, values, propertyValue.asObject());
+            rapidjson::Value propertyValueObjectIdStringValue = stringToRapidjsonValue(string_format("%d", registerValuesMap(values)), reply.GetAllocator());
+            propertyObject["value"].AddMember("objectId", propertyValueObjectIdStringValue, reply.GetAllocator());
+        }
+
+        reply["result"]["result"].PushBack(propertyObject, reply.GetAllocator());
+    }
+
+    return sendJSONDocument(reply);
 }
 
 bool DebuggerDevtools::sendSourceCode(rapidjson::Document& jsonMessage, ExecutionState* state)

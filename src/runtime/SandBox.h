@@ -34,6 +34,8 @@ struct StackTraceDataOnStack : public gc {
 
 #ifdef ESCARGOT_DEBUGGER
     uint32_t executionStateDepth;
+    ExecutionState* executionState;
+    LexicalEnvironment* lexicalEnvironment;
 #endif /* ESCARGOT_DEBUGGER */
     Optional<FunctionObject*> callee;
     bool isFunction;
@@ -48,6 +50,8 @@ struct StackTraceDataOnStack : public gc {
         , functionName(String::emptyString())
 #ifdef ESCARGOT_DEBUGGER
         , executionStateDepth(0)
+        , executionState(nullptr)
+        , lexicalEnvironment(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
         , callee(nullptr)
         , isFunction(false)

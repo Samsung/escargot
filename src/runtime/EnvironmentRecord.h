@@ -407,6 +407,8 @@ public:
 
 template <const bool onHeap>
 class DeclarativeEnvironmentRecordIndexedImpl : public DeclarativeEnvironmentRecord {
+    friend class DebuggerDevtools;
+
 public:
     DeclarativeEnvironmentRecordIndexedImpl(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
         : DeclarativeEnvironmentRecord()
