@@ -138,7 +138,7 @@ static void computeEndLocation(const char* src, size_t length, uint32_t& endLine
 
 void DebuggerDevtools::parseCompleted(String* source, String* srcName, const size_t originLineOffset, String* error)
 {
-    if (!enabled()) {
+    if (!enabled() || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
         return;
     }
 
@@ -440,6 +440,10 @@ void DebuggerDevtools::exceptionCaught(String* message, SavedStackTraceDataVecto
 
 void DebuggerDevtools::consoleOut(String* output)
 {
+    if (m_stopState != ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
+        return;
+    }
+
     rapidjson::Document message;
     message.SetObject();
 
@@ -1000,15 +1004,17 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
         return true;
     }
 
+    m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
     const char* source = jsonMessage["params"]["expression"].GetString();
     size_t sourceLen = jsonMessage["params"]["expression"].GetStringLength();
-    Value evalExpression = Value(String::fromUTF8(source, sourceLen, false));
+    Value evalExpression = Value(new Latin1String(source, sourceLen));
     Value result = Value(Value::Undefined);
     try {
         result = state->context()->globalObject()->eval(*state, evalExpression);
     } catch (const Value& val) {
         result = val;
     }
+    m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
 
     rapidjson::Document reply;
     reply.SetObject();
@@ -1044,9 +1050,25 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
         description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
         resultObj.AddMember("description", description, reply.GetAllocator());
     } else if (result.isObject()) {
-        resultObj.AddMember("type", "object", reply.GetAllocator());
-        resultObj.AddMember("className", "Object", reply.GetAllocator());
-        resultObj.AddMember("description", "Object", reply.GetAllocator());
+        Object* resObj = result.asObject();
+
+        if (resObj->isArray(*state)) {
+            rapidjson::Value description;
+
+            if (result.toStringWithoutException(*state) != nullptr) {
+                UTF8StringDataNonGCStd arrayStr = result.toStringWithoutException(*state)->toNonGCUTF8StringData();
+                std::string temp = "Array: [" + std::string(arrayStr.c_str(), arrayStr.length()) + "]";
+                description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
+            }
+
+            resultObj.AddMember("type", "array", reply.GetAllocator());
+            resultObj.AddMember("className", "Array", reply.GetAllocator());
+            resultObj.AddMember("description", description, reply.GetAllocator());
+        } else {
+            resultObj.AddMember("type", "object", reply.GetAllocator());
+            resultObj.AddMember("className", "Object", reply.GetAllocator());
+            resultObj.AddMember("description", "Object", reply.GetAllocator());
+        }
     } else if (result.isBigInt()) {
         std::string temp = std::string(result.asBigInt()->toString()->toNonGCUTF8StringData().data());
         rapidjson::Value description;
