@@ -38,7 +38,10 @@ public:
     {
         size_t start = codeBlock->currentCodeSize();
         context->m_positionToContinue = start;
+        String* previousLoopLabel = context->m_currentLoopLabel;
+        context->m_currentLoopLabel = m_label;
         m_statementNode->generateStatementByteCode(codeBlock, context);
+        context->m_currentLoopLabel = previousLoopLabel;
         size_t end = codeBlock->currentCodeSize();
         context->consumeLabelledBreakPositions(codeBlock, end, m_label, context->tryCatchWithBlockStatementCount());
         context->consumeLabelledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->tryCatchWithBlockStatementCount());
