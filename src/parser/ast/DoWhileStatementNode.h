@@ -67,11 +67,6 @@ public:
         size_t doEnd = codeBlock->currentCodeSize();
         newContext.consumeContinuePositions(codeBlock, testPos, newContext.tryCatchWithBlockStatementCount());
 
-        // Consume labeled continues targeting THIS loop with proper morphing (Issue #1571)
-        if (context->m_currentLoopLabel) {
-            newContext.consumeLabelledContinuePositions(codeBlock, testPos, context->m_currentLoopLabel, newContext.tryCatchWithBlockStatementCount());
-        }
-
         newContext.consumeBreakPositions(codeBlock, doEnd, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = testPos;
         newContext.propagateInformationTo(*context);
