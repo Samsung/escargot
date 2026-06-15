@@ -3903,6 +3903,9 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
 
 NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    // Push the null sentinel BEFORE sharing the vector with newState.
+    // ensureControlFlowRecordVector() creates the vector if it doesn't exist yet,
+    // so the subsequent setControlFlowRecordVector() always receives a non-null pointer.
     state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
     size_t newPc = programCounter + sizeof(BlockOperation);
     uint8_t* codeBuffer = byteCodeBlock->m_code.data();
@@ -3964,7 +3967,13 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
         newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
     }
 
-    Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
+    // Track the byte offset of the first instruction in this block so we can
+    // detect when a NeedsJump destination falls within our own block range.
+    size_t blockStartOffset = newPc - (size_t)codeBuffer;
+    size_t innerPc = newPc;
+
+interpretBlock:
+    Interpreter::interpret(newState, byteCodeBlock, innerPc, registerFile);
 
     if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
         return Value();
@@ -3987,6 +3996,15 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
+            // When the destination falls inside this block's range, handle it
+            // locally by re-running the inner interpreter from that position.
+            // This must be checked before the normal propagation/final-hop logic
+            // because the destination may be within this block regardless of count.
+            if (!inPauserResumeProcess && pos >= blockStartOffset && pos < code->m_blockEndPosition) {
+                innerPc = jumpTo(codeBuffer, pos);
+                state->rareData()->controlFlowRecordVector()->push_back(nullptr);
+                goto interpretBlock;
+            }
             if (record->count() && (record->outerLimitCount() < record->count())) {
                 state->rareData()->controlFlowRecordVector()->back() = record;
                 return Value();
