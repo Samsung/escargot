@@ -1840,7 +1840,10 @@ NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, Lexica
 NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
 {
     if (isLexicallyDeclaredName) {
-        state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
+        auto result = state.lexicalEnvironment()->record()->hasBinding(state, name);
+        if (result.m_index != SIZE_MAX) {
+            state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
+        }
     } else {
         while (env) {
             if (env->record()->isVarDeclarationTarget()) {
@@ -2594,7 +2597,8 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         }
 
         auto& newItem = inlineCache->m_cache[0];
-        code->m_inlineCacheProtoTraverseMaxIndex = std::max(cachedhiddenClassChain.size() - 1, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
+        size_t newProtoTraverseIndex = std::min(cachedhiddenClassChain.size() - 1, SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount - 1);
+        code->m_inlineCacheProtoTraverseMaxIndex = std::max(newProtoTraverseIndex, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
 
         newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
         block->m_inlineCacheDataSize += sizeof(size_t) * cachedhiddenClassChain.size();
@@ -2658,7 +2662,7 @@ ALWAYS_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperation(Execut
                     return;
                 }
             }
-        } else if (setObjectPreComputedCaseOperationSlowCase(state, originalObject, willBeObject, value, code, block)) {
+        } else if (code->m_inlineCacheProtoTraverseMaxIndex > 0 && code->m_inlineCacheProtoTraverseMaxIndex < SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount && setObjectPreComputedCaseOperationSlowCase(state, originalObject, willBeObject, value, code, block)) {
             return;
         }
     }
@@ -2675,8 +2679,9 @@ NEVER_INLINE bool InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
     Object* objChain[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
     ObjectStructure* objStructures[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
     const auto& maxIndex = code->m_inlineCacheProtoTraverseMaxIndex;
+    const size_t safeMaxIndex = std::min((size_t)maxIndex, (size_t)(SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount - 1));
     size_t fillCount;
-    for (fillCount = 0; fillCount <= maxIndex && obj; fillCount++) {
+    for (fillCount = 0; fillCount <= safeMaxIndex && obj; fillCount++) {
         objChain[fillCount] = obj;
         objStructures[fillCount] = obj->structure();
         obj = obj->Object::getPrototypeObject(state);
@@ -2689,6 +2694,9 @@ NEVER_INLINE bool InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
         const auto& item = cacheData[currentCacheIndex];
         const auto& cSiz = item.m_cachedhiddenClassChainLength;
         ASSERT(cSiz > 0);
+        if (UNLIKELY(cSiz >= SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount)) {
+            continue;
+        }
         bool ok = true;
         for (size_t i = 0; i < cSiz; i++) {
             if (objStructures[i] != item.m_cachedHiddenClassChainData[i]) {
@@ -2885,7 +2893,8 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
                 inlineCache->m_cache[i].m_cachedHiddenClassChainData[0] = oldClass;
             }
         }
-        code->m_inlineCacheProtoTraverseMaxIndex = std::max(cachedhiddenClassChain.size() - 1, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
+        size_t newProtoTraverseIndex = std::min(cachedhiddenClassChain.size() - 1, SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount - 1);
+        code->m_inlineCacheProtoTraverseMaxIndex = std::max(newProtoTraverseIndex, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
     }
 
     // finally, insert a valid new cache item at the end
