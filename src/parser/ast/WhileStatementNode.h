@@ -80,6 +80,12 @@ public:
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this->m_loc.index);
         newContext.consumeContinuePositions(codeBlock, whileStart, newContext.tryCatchWithBlockStatementCount());
+
+        // Consume labeled continues targeting THIS loop with proper morphing (Issue #1571)
+        if (context->m_currentLoopLabel) {
+            newContext.consumeLabelledContinuePositions(codeBlock, whileStart, context->m_currentLoopLabel, newContext.tryCatchWithBlockStatementCount());
+        }
+
         size_t whileEnd = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, whileEnd, newContext.tryCatchWithBlockStatementCount());
         if (testPos != SIZE_MAX)
