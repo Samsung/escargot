@@ -373,6 +373,12 @@ public:
         newContext.consumeContinuePositions(codeBlock, continuePosition, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = continuePosition;
 
+        // Consume labeled continues targeting THIS loop with proper morphing (Issue #1571)
+        // This ensures iterator cleanup and environment unwinding are properly sequenced
+        if (context->m_currentLoopLabel) {
+            newContext.consumeLabelledContinuePositions(codeBlock, continuePosition, context->m_currentLoopLabel, newContext.tryCatchWithBlockStatementCount());
+        }
+
         if (!m_forIn) {
             TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, &newContext, this, forOfTryStatementContext);
             TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatementContext, true);
