@@ -206,6 +206,12 @@ public:
         newContext.consumeContinuePositions(codeBlock, updatePosition, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = updatePosition;
 
+        // Consume labeled continues targeting THIS loop with proper morphing (Issue #1571)
+        // This ensures continues inside allocated blocks are properly unwound via JumpComplexCase
+        if (context->m_currentLoopLabel) {
+            newContext.consumeLabelledContinuePositions(codeBlock, updatePosition, context->m_currentLoopLabel, newContext.tryCatchWithBlockStatementCount());
+        }
+
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
