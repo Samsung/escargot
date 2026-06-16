@@ -1840,10 +1840,7 @@ NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, Lexica
 NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
 {
     if (isLexicallyDeclaredName) {
-        auto result = state.lexicalEnvironment()->record()->hasBinding(state, name);
-        if (result.m_index != SIZE_MAX) {
-            state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
-        }
+        state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
     } else {
         while (env) {
             if (env->record()->isVarDeclarationTarget()) {
