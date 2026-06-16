@@ -162,6 +162,10 @@ public:
         }
 
         ByteCodeGenerateContext newContext(*context);
+        // The labels of this loop (collected in `context`) must not be inherited by
+        // nested loops generated while emitting the head/body, otherwise an inner loop
+        // would wrongly consume a `continue <label>` that targets this loop. - Issue #1571/#1577
+        newContext.m_currentLoopLabels.clear();
 
         newContext.getRegister(); // ExecutionResult of m_right should not overwrite any reserved value
         if (m_left->type() == ASTNodeType::VariableDeclaration) {
@@ -372,6 +376,16 @@ public:
         newContext.consumeBreakPositions(codeBlock, exitPos, newContext.tryCatchWithBlockStatementCount());
         newContext.consumeContinuePositions(codeBlock, continuePosition, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = continuePosition;
+
+        // A `continue <label>` whose label targets THIS loop is semantically identical
+        // to an unlabeled `continue`, so resolve it to `continuePosition` here, before the
+        // iterator-cleanup try block of for-of is registered as a complex case. Otherwise
+        // the labeled continue would be morphed into a JumpComplexCase that unwinds the
+        // for-of try (wrongly closing the iterator and corrupting the result register),
+        // which crashed `L: for (const v of [...]) { continue L; }`. - Issue #1571/#1577
+        for (size_t i = 0; i < context->m_currentLoopLabels.size(); i++) {
+            newContext.consumeLabelledContinuePositions(codeBlock, continuePosition, context->m_currentLoopLabels[i], newContext.tryCatchWithBlockStatementCount());
+        }
 
         if (!m_forIn) {
             TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, &newContext, this, forOfTryStatementContext);

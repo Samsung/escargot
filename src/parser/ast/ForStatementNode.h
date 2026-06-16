@@ -64,6 +64,8 @@ public:
         }
 
         ByteCodeGenerateContext newContext(*context);
+        // Do not let nested loops inherit this loop's labels. - Issue #1571/#1577
+        newContext.m_currentLoopLabels.clear();
 
         newContext.getRegister(); // ExeuctionResult of m_body should not be overwritten by m_test
 

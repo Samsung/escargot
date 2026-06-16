@@ -38,10 +38,12 @@ public:
     {
         size_t start = codeBlock->currentCodeSize();
         context->m_positionToContinue = start;
-        String* previousLoopLabel = context->m_currentLoopLabel;
-        context->m_currentLoopLabel = m_label;
+        // Make this label visible to the loop that this labeled statement (possibly
+        // through a chain of labels) directly wraps, so the loop can resolve a
+        // `continue <label>` targeting itself just like an unlabeled continue. - Issue #1571/#1577
+        context->m_currentLoopLabels.push_back(m_label);
         m_statementNode->generateStatementByteCode(codeBlock, context);
-        context->m_currentLoopLabel = previousLoopLabel;
+        context->m_currentLoopLabels.pop_back();
         size_t end = codeBlock->currentCodeSize();
         context->consumeLabelledBreakPositions(codeBlock, end, m_label, context->tryCatchWithBlockStatementCount());
         context->consumeLabelledContinuePositions(codeBlock, context->m_positionToContinue, m_label, context->tryCatchWithBlockStatementCount());
