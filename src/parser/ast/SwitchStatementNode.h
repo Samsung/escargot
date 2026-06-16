@@ -53,6 +53,11 @@ public:
         m_discriminant->generateExpressionByteCode(codeBlock, &newContext, rIndex0);
         newContext.m_canSkipCopyToRegister = canSkipCopyToRegister;
 
+        // Whether the discriminant occupies its own freshly-allocated register (rather than
+        // reusing an existing variable's register). Captured here, before pushLexicalBlock
+        // may allocate a disposable-record register (for `using`) on top of it. - Issue #1577
+        bool discriminantHasOwnRegister = (rIndex0 == newContext.getLastRegisterIndex());
+
         if (firstRegister == 0 && context->shouldCareScriptExecutionResult()) {
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
@@ -64,6 +69,14 @@ public:
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_lexicalBlockIndex);
             blockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
         }
+
+        // When the switch block declares a `using` variable, pushLexicalBlock allocates a
+        // disposable-record register that lives until finalizeLexicalBlock. It sits on the
+        // register stack above the discriminant temporaries, so those temporaries can only be
+        // released (LIFO) after the disposable register is popped in finalizeLexicalBlock.
+        // Releasing them earlier (the default path below) would free the disposable register
+        // itself, letting a statement in a case body clobber it. - Issue #1577
+        bool hasUsingBlock = (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) && (blockContext.usingBlockTryStartPosition != SIZE_MAX);
 
         std::vector<size_t> jumpCodePerCaseNodePosition;
         StatementNode* nd = m_casesB->firstChild();
@@ -95,9 +108,11 @@ public:
             nd = nd->nextSibling();
         }
 
-        newContext.giveUpRegister();
-        if (registerWasSame) {
+        if (!hasUsingBlock) {
             newContext.giveUpRegister();
+            if (registerWasSame) {
+                newContext.giveUpRegister();
+            }
         }
 
         size_t jmpToDefault = SIZE_MAX;
@@ -132,6 +147,16 @@ public:
         if (m_lexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             codeBlock->finalizeLexicalBlock(&newContext, blockContext);
             newContext.m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        }
+
+        // Deferred release of the discriminant temporaries for the `using` case (see the
+        // comment where hasUsingBlock is computed). finalizeLexicalBlock above has already
+        // popped the disposable-record register, so these are now back on top. - Issue #1577
+        if (hasUsingBlock) {
+            newContext.giveUpRegister();
+            if (discriminantHasOwnRegister) {
+                newContext.giveUpRegister();
+            }
         }
 
         newContext.propagateInformationTo(*context);
