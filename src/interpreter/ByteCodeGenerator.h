@@ -183,26 +183,33 @@ struct ByteCodeGenerateContext {
     void registerJumpPositionsToComplexCase(size_t frontlimit)
     {
         ASSERT(tryCatchWithBlockStatementCount());
+        // `frontlimit` is the byte position of the first instruction of the block body
+        // (i.e. lexicalBlockStartPosition, set right after the BlockOperation opcode).
+        // A break/continue jump located at exactly that position is the very first
+        // statement of the block body and therefore IS inside the block, so it must be
+        // morphed into a JumpComplexCase to unwind the block's lexical environment.
+        // Using strictly greater-than (`>`) here would skip such a jump and leave the
+        // block environment un-popped (Issue #1571), so the comparison must be `>=`.
         for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
-            if (m_breakStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
+            if (m_breakStatementPositions[i] >= (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
                 m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], tryCatchWithBlockStatementCount()));
             }
         }
 
         for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
-            if (m_continueStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
+            if (m_continueStatementPositions[i] >= (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
                 m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], tryCatchWithBlockStatementCount()));
             }
         }
 
         for (unsigned i = 0; i < m_labelledBreakStatmentPositions.size(); i++) {
-            if (m_labelledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+            if (m_labelledBreakStatmentPositions[i].second >= (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
                 m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
             }
         }
 
         for (unsigned i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
-            if (m_labelledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
+            if (m_labelledContinueStatmentPositions[i].second >= (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
                 m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
             }
         }
