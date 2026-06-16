@@ -42,6 +42,8 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
 
         ByteCodeGenerateContext newContext(*context);
+        // Do not let nested loops inherit this loop's labels. - Issue #1571/#1577
+        newContext.m_currentLoopLabels.clear();
 
         size_t doStart = codeBlock->currentCodeSize();
         if (context->shouldCareScriptExecutionResult()) {

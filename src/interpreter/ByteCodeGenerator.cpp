@@ -64,7 +64,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_lexicalBlockIndex(0)
     , m_classInfo()
     , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector
-    , m_currentLoopLabel(nullptr)
 #if defined(ENABLE_TCO)
     , m_returnRegister(SIZE_MAX)
 #endif

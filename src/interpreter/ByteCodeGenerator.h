@@ -105,7 +105,7 @@ struct ByteCodeGenerateContext {
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
-        , m_currentLoopLabel(contextBefore.m_currentLoopLabel)
+        , m_currentLoopLabels(contextBefore.m_currentLoopLabels)
 #if defined(ENABLE_TCO)
         , m_returnRegister(contextBefore.m_returnRegister)
 #endif
@@ -398,7 +398,10 @@ struct ByteCodeGenerateContext {
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     void* m_numeralLiteralData; // should be NumeralLiteralVector
-    String* m_currentLoopLabel; // Label of the immediately enclosing loop (if in a labeled loop) - Issue #1571
+    // Labels directly targeting the loop that is about to be generated (a loop may
+    // carry more than one label, e.g. `L1: L2: for (...)`). A loop clears this list
+    // before generating its body so that nested loops do not inherit it. - Issue #1571/#1577
+    std::vector<String*> m_currentLoopLabels;
 
 #if defined(ENABLE_TCO)
     size_t m_returnRegister; // for tail call optimizaiton (TCO)
