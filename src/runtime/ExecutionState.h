@@ -226,6 +226,13 @@ public:
         return m_inStrictMode;
     }
 
+    // Used to evaluate class heritage and computed property names as strict mode
+    // code regardless of the surrounding code (a class definition is always strict).
+    void setInStrictMode(bool inStrictMode)
+    {
+        m_inStrictMode = inStrictMode;
+    }
+
     bool inExecutionStopState() const
     {
         return m_inExecutionStopState;

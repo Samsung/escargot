@@ -55,6 +55,17 @@ public:
         context->m_classInfo.m_prototypeIndex = context->getRegister();
         context->m_classInfo.m_superIndex = hasSuper ? context->getRegister() : SIZE_MAX;
 
+        // A class definition is always strict mode code. When the surrounding code
+        // is not strict, force strict mode while the heritage expression and the
+        // computed property names are evaluated. The save register is allocated last
+        // (on top of the register stack) so the completion-value register is untouched.
+        bool needStrictModeSwitch = !codeBlock->m_codeBlock->isStrict();
+        ByteCodeRegisterIndex savedStrictRegister = REGISTER_LIMIT;
+        if (needStrictModeSwitch) {
+            savedStrictRegister = context->getRegister();
+            codeBlock->pushCode(SetExecutionStateInStrictMode(ByteCodeLOC(m_loc.index), true, savedStrictRegister), context, this->m_loc.index);
+        }
+
         // add class name property if there is no 'name' static member
         if (m_class.classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name)) {
             context->m_classInfo.m_name = Optional<AtomicString>();
@@ -103,6 +114,11 @@ public:
         context->m_isLexicallyDeclaredBindingInitialization = true;
         classIdent->generateStoreByteCode(codeBlock, context, classIndex, true);
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+
+        if (needStrictModeSwitch) {
+            codeBlock->pushCode(SetExecutionStateInStrictMode(ByteCodeLOC(m_loc.index), false, savedStrictRegister), context, this->m_loc.index);
+            context->giveUpRegister(); // for drop savedStrictRegister (allocated last)
+        }
 
         if (context->m_classInfo.m_superIndex != SIZE_MAX) {
             context->giveUpRegister(); // for drop m_superIndex

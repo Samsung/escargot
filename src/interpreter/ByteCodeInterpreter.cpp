@@ -198,6 +198,8 @@ public:
     static void initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
     static bool finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
+    static void setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t& programCounter);
+
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
     static Value prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerBlock, size_t& programCounter, const Value* registerFile);
@@ -1571,6 +1573,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             if (!r) {
                 return Value();
             }
+            NEXT_INSTRUCTION();
+        }
+
+        // Rarely-used; see InterpreterSlowPath::setExecutionStateInStrictModeOperation.
+        DEFINE_OPCODE(SetExecutionStateInStrictMode)
+            :
+        {
+            InterpreterSlowPath::setExecutionStateInStrictModeOperation(*state, registerFile, programCounter);
             NEXT_INSTRUCTION();
         }
 
@@ -4881,6 +4891,23 @@ NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& stat
     DisposableResourceRecord* record = registerFile[code->m_dstRegisterIndex].asPointerValue()->asDisposableResourceRecord();
     record->m_records.pushBack(createDisposableResource(state, registerFile[code->m_srcRegisterIndex], code->m_isAsyncDisposable, NullOption));
     ADD_PROGRAM_COUNTER(InitializeDisposable);
+}
+
+// A class definition is always strict mode code. This rarely-used opcode forces
+// the running execution state into strict mode while a class's heritage expression
+// and computed property names are evaluated, then restores the previous strict flag.
+// Kept out-of-line (and away from the hot opcodes) on purpose to keep it out of the
+// interpreter's hot path.
+NEVER_INLINE void InterpreterSlowPath::setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t& programCounter)
+{
+    SetExecutionStateInStrictMode* code = (SetExecutionStateInStrictMode*)programCounter;
+    if (code->m_enter) {
+        registerFile[code->m_savedStrictRegisterIndex] = Value(state.inStrictMode());
+        state.setInStrictMode(true);
+    } else {
+        state.setInStrictMode(registerFile[code->m_savedStrictRegisterIndex].asBoolean());
+    }
+    ADD_PROGRAM_COUNTER(SetExecutionStateInStrictMode);
 }
 
 static void finalizeDisposableAwaitOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, DisposableResourceRecord* data,

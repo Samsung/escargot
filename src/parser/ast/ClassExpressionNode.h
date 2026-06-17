@@ -48,6 +48,16 @@ public:
         Node* classIdent = m_class.id();
         bool hasSuper = m_class.superClass();
 
+        // A class definition is always strict mode code. When the surrounding code
+        // is not strict, force strict mode while the heritage expression and the
+        // computed property names are evaluated.
+        bool needStrictModeSwitch = !codeBlock->m_codeBlock->isStrict();
+        ByteCodeRegisterIndex savedStrictRegister = REGISTER_LIMIT;
+        if (needStrictModeSwitch) {
+            savedStrictRegister = context->getRegister();
+            codeBlock->pushCode(SetExecutionStateInStrictMode(ByteCodeLOC(m_loc.index), true, savedStrictRegister), context, this->m_loc.index);
+        }
+
         const ClassContextInformation classInfoBefore = context->m_classInfo;
         context->m_classInfo.m_constructorIndex = dstIndex;
         context->m_classInfo.m_prototypeIndex = context->getRegister();
@@ -107,6 +117,11 @@ public:
         context->giveUpRegister(); // for drop m_bodyIndex
 
         context->m_classInfo = classInfoBefore;
+
+        if (needStrictModeSwitch) {
+            codeBlock->pushCode(SetExecutionStateInStrictMode(ByteCodeLOC(m_loc.index), false, savedStrictRegister), context, this->m_loc.index);
+            context->giveUpRegister(); // for drop savedStrictRegister
+        }
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
