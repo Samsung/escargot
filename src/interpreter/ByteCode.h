@@ -139,6 +139,7 @@ struct GlobalVariableAccessCacheItem;
     F(StoreByNameWithAddress)                         \
     F(InitializeDisposable)                           \
     F(FinalizeDisposable)                             \
+    F(SetExecutionStateInStrictMode)                  \
     F(FillOpcodeTable)                                \
     F(End)
 
@@ -3135,6 +3136,32 @@ public:
     void dump()
     {
         printf("ensure arguments object");
+    }
+#endif
+};
+
+// A class definition is always strict mode code, including its heritage
+// expression and computed property names, even when it appears inside
+// non-strict code. This opcode temporarily forces the running execution state
+// into strict mode while those parts are evaluated.
+// When m_enter is true, the current strict flag is saved into m_savedStrictRegisterIndex
+// and strict mode is turned on. When m_enter is false, the strict flag is restored
+// from m_savedStrictRegisterIndex (so that nested classes restore correctly).
+class SetExecutionStateInStrictMode : public ByteCode {
+public:
+    SetExecutionStateInStrictMode(const ByteCodeLOC& loc, bool enter, const size_t savedStrictRegisterIndex)
+        : ByteCode(Opcode::SetExecutionStateInStrictModeOpcode, loc)
+        , m_enter(enter)
+        , m_savedStrictRegisterIndex(savedStrictRegisterIndex)
+    {
+    }
+
+    bool m_enter;
+    ByteCodeRegisterIndex m_savedStrictRegisterIndex;
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("set execution state in strict mode (%s) <-> r%u", m_enter ? "enter" : "exit", m_savedStrictRegisterIndex);
     }
 #endif
 };
