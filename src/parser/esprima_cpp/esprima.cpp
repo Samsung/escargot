@@ -2574,6 +2574,16 @@ public:
 
         bool hasOptional = false;
         while (true) {
+            // If the just-parsed base carries a pending CoverInitializedName (e.g. `{ a = 0 }`)
+            // and we are about to apply a member access / call / computed access / tagged
+            // template, the base is being used as a real value and can no longer be refined
+            // into a destructuring pattern. This is an early error (e.g. `({ a = 0 }.b = 1)`).
+            if (UNLIKELY(static_cast<bool>(this->context->firstCoverInitializedNameError))) {
+                if (this->match(GuessDot) || this->match(LeftParenthesis) || this->match(LeftSquareBracket) || this->match(Period)
+                    || (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head)) {
+                    this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
+                }
+            }
             bool optional = false;
             if (this->match(GuessDot)) {
                 Marker startMarker = this->startMarker;
@@ -2744,6 +2754,16 @@ public:
         while (true) {
             if (this->match(GuessDot)) {
                 this->throwUnexpectedToken(this->lookahead);
+            }
+
+            // A pending CoverInitializedName (e.g. `{ a = 0 }`) cannot be the base of a
+            // member access / computed access / tagged template: the base is used as a
+            // real value, so the CoverInitializedName is an early error here.
+            if (UNLIKELY(static_cast<bool>(this->context->firstCoverInitializedNameError))) {
+                if (this->match(LeftSquareBracket) || this->match(Period)
+                    || (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head)) {
+                    this->throwUnexpectedToken(this->context->firstCoverInitializedNameError);
+                }
             }
 
             if (this->match(LeftSquareBracket)) {
