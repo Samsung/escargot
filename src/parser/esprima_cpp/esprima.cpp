@@ -1351,10 +1351,15 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseBindingRestElement(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false)
+    ASTNode parseBindingRestElement(ASTBuilder& builder, SmallScannerResultVector& params, KeywordKind kind = KeywordKindEnd, bool isExplicitVariableDeclaration = false, bool restrictToIdentifier = false)
     {
         MetaNode node = this->createNode();
         this->nextToken();
+        // BindingRestProperty (object binding pattern rest) only accepts a BindingIdentifier,
+        // unlike BindingRestElement (array binding pattern rest) which also accepts a BindingPattern.
+        if (restrictToIdentifier && (this->match(LeftBrace) || this->match(LeftSquareBracket))) {
+            this->throwError(Messages::RestElementMustBeFollowedByIdentifier);
+        }
         ASTNode arg = this->parsePattern(builder, params, kind, isExplicitVariableDeclaration);
         return this->finalize(node, builder.createRestElementNode(arg));
     }
@@ -1459,7 +1464,7 @@ public:
         while (!this->match(RightBrace)) {
             if (this->match(PeriodPeriodPeriod)) {
                 hasRestElement = true;
-                properties.append(this->allocator, this->parseBindingRestElement(builder, params, kind, isExplicitVariableDeclaration));
+                properties.append(this->allocator, this->parseBindingRestElement(builder, params, kind, isExplicitVariableDeclaration, true));
                 break;
             } else {
                 properties.append(this->allocator, this->parsePropertyPattern(builder, params, kind, isExplicitVariableDeclaration));

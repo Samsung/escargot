@@ -81,6 +81,7 @@ public:
     static constexpr const char* ParameterAfterRestParameter = "Rest parameter must be last formal parameter";
     static constexpr const char* DefaultRestParameter = "Unexpected token =";
     static constexpr const char* ObjectPatternAsRestParameter = "Unexpected token {";
+    static constexpr const char* RestElementMustBeFollowedByIdentifier = "`...` must be followed by an identifier in declaration contexts";
     static constexpr const char* DuplicateProtoProperty = "Duplicate __proto__ fields are not allowed in object literals";
     static constexpr const char* ConstructorSpecialMethod = "Class constructor may not be an accessor";
     static constexpr const char* ConstructorGenerator = "Class constructor may not be a generator";
