@@ -47,8 +47,9 @@ typedef Vector<PropertyNameValueMap*, GCUtil::gc_malloc_allocator<PropertyNameVa
 
 class DebuggerDevtools : public DebuggerTcp {
 public:
-    DebuggerDevtools(EscargotSocket socket, String* skipSource)
+    DebuggerDevtools(EscargotSocket socket, String* skipSource, const bool verbose = false)
         : DebuggerTcp(socket, skipSource, ESCARGOT_WS_BUFFER_SIZE, ESCARGOT_DEBUGGER_WEBSOCKET_TEXT_FRAME)
+        , m_verboseLogging(verbose)
     {
     }
 
@@ -104,6 +105,7 @@ private:
 
     uint8_t registerScript(String* url, String* source);
 
+    bool m_verboseLogging = false;
     bool m_networkEnabled = false;
     bool m_debuggerEnabled = false;
     bool m_runtimeEnabled = false;

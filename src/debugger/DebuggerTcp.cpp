@@ -323,6 +323,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
 {
     uint16_t port = 6501;
     int timeout = -1;
+    bool verbose = false;
 
     String* skipSourceName = nullptr;
     EscargotSocket clientSocket = 0;
@@ -332,6 +333,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
         const char portOption[] = "--port=";
         const char acceptTimeoutOption[] = "--accept-timeout=";
         const char skipOption[] = "--skip=";
+        const char verboseOption[] = "--verbose";
         for (size_t i = 0; i < v.size(); i++) {
             const std::string& s = v[i];
             if (s.find(portOption) == 0) {
@@ -345,6 +347,8 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
                 const char* skipStr = const_cast<const char*>(s.data() + sizeof(skipOption) - 1);
                 size_t skipLen = strlen(skipStr);
                 skipSourceName = String::fromASCII(skipStr, skipLen);
+            } else if (s.find(verboseOption) == 0) {
+                verbose = true;
             }
         }
     }
@@ -450,7 +454,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
     if (httpRouter.client() == DebuggerClient::Escargot) {
         client = new DebuggerEscargot(clientSocket, skipSourceName);
     } else {
-        client = new DebuggerDevtools(clientSocket, skipSourceName);
+        client = new DebuggerDevtools(clientSocket, skipSourceName, verbose);
     }
 
     client->enable(context);
