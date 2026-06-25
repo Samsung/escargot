@@ -1248,8 +1248,12 @@ int main(int argc, char* argv[])
                     fileName = argv[i] + sizeof("--filename-as=") - 1;
                     continue;
                 }
-                if (strcmp(argv[i], "--start-debug-server") == 0) {
-                    context->initDebugger(nullptr);
+                if (strstr(argv[i], "--start-debug-server") == argv[i]) {
+                    char* options = nullptr;
+                    if (*(argv[i] + sizeof("--start-debug-server") - 1) == '=') {
+                        options = argv[i] + sizeof("--start-debug-server");
+                    }
+                    context->initDebugger(options);
                     continue;
                 }
                 if (strcmp(argv[i], "--debugger-wait-source") == 0) {
@@ -1288,7 +1292,7 @@ int main(int argc, char* argv[])
                     continue;
                 }
             }
-            fprintf(stderr, "Cannot recognize option `%s`", argv[i]);
+            fprintf(stderr, "Cannot recognize option `%s`\n", argv[i]);
             continue;
         }
 

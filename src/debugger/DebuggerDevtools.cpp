@@ -68,7 +68,9 @@ bool DebuggerDevtools::sendMessage(const std::string& msg, const size_t length)
 
     const bool result = send(0, msg.c_str(), length == static_cast<size_t>(-1) ? msg.length() : length);
     if (result) {
-        ESCARGOT_LOG_INFO("Sent message: %s\n", msg.c_str());
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_INFO("Escargot -> Devtools: %s\n", msg.c_str());
+        }
     } else {
         ESCARGOT_LOG_ERROR("Error sending message!");
     }
@@ -101,7 +103,9 @@ void DebuggerDevtools::init(const char* options, Context* context)
 
 bool DebuggerDevtools::skipSourceCode(String* srcName) const
 {
-    ESCARGOT_LOG_INFO("Implement this: DebuggerDevtools::skipSourceCode\n");
+    if (m_verboseLogging) {
+        ESCARGOT_LOG_INFO("Implement this: DebuggerDevtools::skipSourceCode\n");
+    }
     return false;
 }
 
@@ -549,17 +553,19 @@ std::string objectToStringTypeName(const Value object)
 
 bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
-    if (jsonMessage["params"]["ownProperties"].GetBool()) {
-        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'ownProperties' is not supported!\n");
-    }
-    if (jsonMessage["params"]["accessorPropertiesOnly"].GetBool()) {
-        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'accessorPropertiesOnly' is not supported!\n");
-    }
-    if (!jsonMessage["params"]["nonIndexedPropertiesOnly"].GetBool()) {
-        ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!\n");
-    }
-    if (jsonMessage["params"]["generatePreview"].GetBool()) {
-        ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'generatePreview' is not supported!\n");
+    if (m_verboseLogging) {
+        if (jsonMessage["params"]["ownProperties"].GetBool()) {
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'ownProperties' is not supported!\n");
+        }
+        if (jsonMessage["params"]["accessorPropertiesOnly"].GetBool()) {
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'accessorPropertiesOnly' is not supported!\n");
+        }
+        if (!jsonMessage["params"]["nonIndexedPropertiesOnly"].GetBool()) {
+            ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!\n");
+        }
+        if (jsonMessage["params"]["generatePreview"].GetBool()) {
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'generatePreview' is not supported!\n");
+        }
     }
 
     rapidjson::Document reply;
@@ -742,7 +748,7 @@ bool DebuggerDevtools::setBreakpointsActive(rapidjson::Document& jsonMessage)
 bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage)
 {
     const std::string breakpointCondition = jsonMessage["params"]["condition"].GetString();
-    if (!breakpointCondition.empty()) {
+    if (!breakpointCondition.empty() && m_verboseLogging) {
         ESCARGOT_LOG_ERROR("Warning: Breakpoint conditions are not supported!");
     }
 
@@ -820,7 +826,7 @@ bool DebuggerDevtools::removeBreakpoint(rapidjson::Document& jsonMessage)
 
 bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage)
 {
-    if (jsonMessage["params"]["restrictToFunction"].GetBool()) {
+    if (jsonMessage["params"]["restrictToFunction"].GetBool() && m_verboseLogging) {
         ESCARGOT_LOG_ERROR("Warning: restrictToFunction is not supported\n");
     }
 
@@ -832,7 +838,7 @@ bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage)
         return replyOK(jsonMessage);
     }
 
-    if (scriptId != std::stoi(jsonMessage["params"]["end"]["scriptId"].GetString())) {
+    if (scriptId != std::stoi(jsonMessage["params"]["end"]["scriptId"].GetString()) && m_verboseLogging) {
         ESCARGOT_LOG_ERROR("Error: Script ranges across multiple scripts not supported!\n");
         return replyMethodNotFound(jsonMessage);
     }
@@ -953,6 +959,9 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
         result = state->context()->globalObject()->evalLocal(*state, evalExpression, state->thisValue(), byteCodeBlock->m_codeBlock, true);
     } catch (const Value& val) {
         result = val;
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_ERROR("Eval failed: %s\n", result.toStringWithoutException(*state)->toUTF8StringData().data());
+        }
     }
     m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
 
@@ -1092,7 +1101,9 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
             }
         }
 
-        printf("MESSAGE: %.*s\n", static_cast<int>(length), reinterpret_cast<const char*>(buffer));
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_INFO("Devtools -> Escargot: %.*s\n", static_cast<int>(length), reinterpret_cast<const char*>(buffer));
+        }
 
         rapidjson::Document document;
         document.Parse(reinterpret_cast<const rapidjson::GenericDocument<rapidjson::UTF8<>>::Ch*>(buffer));
@@ -1103,7 +1114,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
             return false;
         }
         const char* methodName = jsonMessage["method"].GetString();
-        if (UNLIKELY(methodName == nullptr)) {
+        if (UNLIKELY(methodName == nullptr) && m_verboseLogging) {
             ESCARGOT_LOG_ERROR("Debugger method not provided: %s\n", reinterpret_cast<const char*>(buffer));
             return false;
         }
