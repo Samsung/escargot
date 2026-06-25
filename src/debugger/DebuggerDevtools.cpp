@@ -25,7 +25,6 @@
 #include "DebuggerTcp.h"
 #include "DebuggerDevtools.h"
 #include "DebuggerHttpRouter.h"
-#include "DebuggerDevtoolsMessageBuilder.h"
 #include "interpreter/ByteCode.h"
 #include "parser/Script.h"
 #include "HeapSnapshot.h"
@@ -88,8 +87,6 @@ bool DebuggerDevtools::sendJSONDocument(const rapidjson::Document& document)
 
 void DebuggerDevtools::init(const char* options, Context* context)
 {
-    // ESCARGOT_LOG_INFO("Implement this: DebuggerDevtools::init\n");
-
     const char* msg = "{\"method\":\"Runtime.executionContextCreated\",\"params\":{"
                       "\"context\":{"
                       "\"id\":1,"
@@ -110,8 +107,8 @@ bool DebuggerDevtools::skipSourceCode(String* srcName) const
 
 uint8_t DebuggerDevtools::registerScript(String* source, String* srcName)
 {
-    std::string url(srcName->toNonGCUTF8StringData().c_str(), srcName->toNonGCUTF8StringData().length());
-    auto it = m_scriptIdByUrl.find(url);
+    std::string url(srcName->toUTF8StringData().data(), srcName->toUTF8StringData().size());
+    const auto it = m_scriptIdByUrl.find(url);
     if (it != m_scriptIdByUrl.end()) {
         return it->second;
     }
@@ -182,22 +179,13 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
     rapidjson::Document reply;
     reply.SetObject();
 
-    rapidjson::Value method(rapidjson::kStringType);
-    rapidjson::Value paramsObject(rapidjson::kObjectType);
-    rapidjson::Value resolvedBreakpointsArray(rapidjson::kArrayType);
-
     reply.AddMember("method", "Debugger.scriptParsed", reply.GetAllocator());
-    reply.AddMember("params", paramsObject, reply.GetAllocator());
+    reply.AddMember("params", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
 
-    rapidjson::Value scriptIdValue;
-    std::string scriptIdString = string_format("%d", scriptId);
-    scriptIdValue.SetString(scriptIdString.c_str(), scriptIdString.length(), reply.GetAllocator());
-    reply["params"].AddMember("scriptId", scriptIdValue, reply.GetAllocator());
+    reply["params"].AddMember("scriptId", stringToRapidjsonValue(string_format("%d", scriptId), reply.GetAllocator()), reply.GetAllocator());
 
-    rapidjson::Value urlString;
-    std::string url = srcName->toNonGCUTF8StringData();
-    urlString.SetString(url.c_str(), url.length(), reply.GetAllocator());
-    reply["params"].AddMember("url", urlString, reply.GetAllocator());
+    const std::string url(srcName->toUTF8StringData().data(), srcName->toUTF8StringData().size());
+    reply["params"].AddMember("url", stringToRapidjsonValue(url, reply.GetAllocator()), reply.GetAllocator());
 
     reply["params"].AddMember("startLine", 0, reply.GetAllocator());
     reply["params"].AddMember("startColumn", 0, reply.GetAllocator());
@@ -286,7 +274,7 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     reply.AddMember("params", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
     reply["params"].AddMember("callFrames", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
     reply["params"].AddMember("hitBreakpoints", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
-    reply["params"]["hitBreakpoints"].PushBack(stringToRapidjsonValue(string_format("%s:%lu:%lu", stopFilename, stopLine, stopColumn), reply.GetAllocator()), reply.GetAllocator());
+    reply["params"]["hitBreakpoints"].PushBack(stringToRapidjsonValue(string_format("%s:%lu:%lu", stopFilename.c_str(), stopLine, stopColumn), reply.GetAllocator()), reply.GetAllocator());
     reply["params"].AddMember("reason", stringToRapidjsonValue(breakpoint ? "Breakpoint" : "Break on start", reply.GetAllocator()), reply.GetAllocator());
 
     StackTraceDataOnStackVector stackTraceDataVector;
@@ -398,7 +386,7 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     sendJSONDocument(reply);
 }
 
-bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
         m_delay--;
@@ -440,36 +428,23 @@ void DebuggerDevtools::exceptionCaught(String* message, SavedStackTraceDataVecto
 
 void DebuggerDevtools::consoleOut(String* output)
 {
-    if (m_stopState != ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
-        return;
-    }
-
     rapidjson::Document message;
     message.SetObject();
 
-    rapidjson::Value params;
-    params.SetObject();
-
-    rapidjson::Value args = rapidjson::Value(rapidjson::kArrayType);
-
-    rapidjson::Value valueStr;
-    std::string str(output->toNonGCUTF8StringData().c_str());
-    valueStr.SetString(str.c_str(), str.length());
-    rapidjson::Value remoteObject;
-    {
-        remoteObject.SetObject();
-        remoteObject.AddMember("type", "string", message.GetAllocator());
-        remoteObject.AddMember("value", valueStr, message.GetAllocator());
-        args.PushBack(remoteObject, message.GetAllocator());
-
-        params.AddMember("type", "info", message.GetAllocator());
-        params.AddMember("args", args, message.GetAllocator());
-        params.AddMember("executionContextId", 1, message.GetAllocator());
-        params.AddMember("timestamp", 0, message.GetAllocator());
-    }
-
     message.AddMember("method", "Runtime.consoleAPICalled", message.GetAllocator());
-    message.AddMember("params", params, message.GetAllocator());
+    message.AddMember("params", rapidjson::Value(rapidjson::kObjectType), message.GetAllocator());
+    message["params"].AddMember("args", rapidjson::kArrayType, message.GetAllocator());
+
+    auto remoteObject = rapidjson::Value(rapidjson::kObjectType);
+    remoteObject.AddMember("type", "string", message.GetAllocator());
+    const auto value = std::string(output->toUTF8StringData().data(), output->toUTF8StringData().length());
+    remoteObject.AddMember("value", stringToRapidjsonValue(value, message.GetAllocator()), message.GetAllocator());
+    message["params"]["args"].PushBack(remoteObject, message.GetAllocator());
+
+    message["params"].AddMember("type", "info", message.GetAllocator());
+    message["params"].AddMember("executionContextId", 1, message.GetAllocator());
+    message["params"].AddMember("timestamp", 0, message.GetAllocator());
+
     sendJSONDocument(message);
 }
 
@@ -485,49 +460,41 @@ bool DebuggerDevtools::getWaitBeforeExitClient()
     return true;
 }
 
-template <size_t N>
-constexpr MessageType messageType(const char (&methodName)[N], const MessageHandler handler)
+bool DebuggerDevtools::resume(rapidjson::Document& jsonMessage)
 {
-    return MessageType{ methodName, handler };
-}
-
-bool DebuggerDevtools::resume(rapidjson::Document& jsonMessage, ExecutionState* state)
-{
-    replyOK(jsonMessage);
-
     if (m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
         return true;
     }
     m_stopState = nullptr;
+
+    replyOK(jsonMessage);
     return false;
 }
 
-bool DebuggerDevtools::stepInto(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::stepInto(rapidjson::Document& jsonMessage)
 {
-    replyOK(jsonMessage);
-
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
         return true;
     }
     m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+
+    replyOK(jsonMessage);
     return false;
 }
 
 bool DebuggerDevtools::stepOver(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
-    replyOK(jsonMessage);
-
     if (m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
         return true;
     }
     m_stopState = state;
+
+    replyOK(jsonMessage);
     return false;
 }
 
 bool DebuggerDevtools::stepOut(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
-    replyOK(jsonMessage);
-
     if (m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
         return true;
     }
@@ -598,13 +565,8 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
     rapidjson::Document reply;
     reply.SetObject();
 
-    rapidjson::Value resultObject(rapidjson::kObjectType);
-    resultObject.SetObject();
-    rapidjson::Value resultArray(rapidjson::kArrayType);
-    rapidjson::Value breakpointID(rapidjson::kStringType);
-
     reply.AddMember("id", jsonMessage["id"].GetInt(), reply.GetAllocator());
-    reply.AddMember("result", resultObject, reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
 
     std::string objectIdStr = jsonMessage["params"]["objectId"].GetString();
     uint32_t objectId;
@@ -618,7 +580,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
         return sendJSONDocument(reply);
     }
 
-    reply["result"].AddMember("result", resultArray, reply.GetAllocator());
+    reply["result"].AddMember("result", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
     PropertyNameValueMap* properties = m_propertyMapsById[objectId - m_objectIdVectorIndexOffset];
 
     for (const auto& property : *properties) {
@@ -635,11 +597,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
         propertyObject.AddMember("enumerable", true, reply.GetAllocator());
         propertyObject.AddMember("symbol", propertyValue.isSymbol(), reply.GetAllocator());
 
-        rapidjson::Value propertyValueObject(rapidjson::kObjectType);
-        propertyObject.AddMember("value", propertyValueObject, reply.GetAllocator());
-
-        std::string propertyTypeStr = objectToStringTypeName(propertyValue);
-        rapidjson::Value objectTypeValue = stringToRapidjsonValue(propertyTypeStr, reply.GetAllocator());
+        propertyObject.AddMember("value", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
 
         rapidjson::Value propertyValueString;
         if (propertyValue.isSymbol()) {
@@ -648,7 +606,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
             propertyValueString = stringToRapidjsonValue(propertyValue.toStringWithoutException(*state)->toUTF8StringData().data(), reply.GetAllocator());
         }
 
-        propertyObject["value"].AddMember("type", objectTypeValue, reply.GetAllocator());
+        propertyObject["value"].AddMember("type", stringToRapidjsonValue(objectToStringTypeName(propertyValue), reply.GetAllocator()), reply.GetAllocator());
         if (propertyValue.isObject()) {
             propertyObject["value"].AddMember("className", stringToRapidjsonValue(propertyValue.asObject()->constructorName(*state)->toUTF8StringData().data(), reply.GetAllocator()), reply.GetAllocator());
         }
@@ -658,8 +616,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
         if (propertyValue.isObject()) {
             auto* values = new (GC) PropertyNameValueMap();
             addObjectProperties(state, values, propertyValue.asObject());
-            rapidjson::Value propertyValueObjectIdStringValue = stringToRapidjsonValue(string_format("%d", registerValuesMap(values)), reply.GetAllocator());
-            propertyObject["value"].AddMember("objectId", propertyValueObjectIdStringValue, reply.GetAllocator());
+            propertyObject["value"].AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(values)), reply.GetAllocator()), reply.GetAllocator());
         }
 
         reply["result"]["result"].PushBack(propertyObject, reply.GetAllocator());
@@ -668,9 +625,8 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
     return sendJSONDocument(reply);
 }
 
-bool DebuggerDevtools::sendSourceCode(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::sendSourceCode(rapidjson::Document& jsonMessage)
 {
-    const uint32_t requestId = jsonMessage["id"].GetUint();
     const uint32_t scriptId = std::stoi(jsonMessage["params"]["scriptId"].GetString());
 
     const auto it = m_scriptsById.find(scriptId);
@@ -685,11 +641,17 @@ bool DebuggerDevtools::sendSourceCode(rapidjson::Document& jsonMessage, Executio
         return false;
     }
 
-    const std::string message = DebuggerDevtoolsMessageBuilder::buildSourceCodeMessage(requestId, source);
-    return sendMessage(message);
+    rapidjson::Document reply;
+    reply.SetObject();
+
+    reply.AddMember("id", jsonMessage["id"].GetUint(), reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+    reply["result"].AddMember("scriptSource", stringToRapidjsonValue(source->toUTF8StringData().data(), reply.GetAllocator()), reply.GetAllocator());
+
+    return sendJSONDocument(reply);
 }
 
-bool DebuggerDevtools::replyOK(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::replyOK(rapidjson::Document& jsonMessage)
 {
     const std::string jsonReplyString = string_format(R"({"id": %d, "result": {}})",
                                                       jsonMessage["id"].GetInt());
@@ -698,13 +660,13 @@ bool DebuggerDevtools::replyOK(rapidjson::Document& jsonMessage, ExecutionState*
     return true;
 }
 
-bool DebuggerDevtools::enableNetwork(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::enableNetwork(rapidjson::Document& jsonMessage)
 {
     this->m_networkEnabled = true;
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::enableDebugger(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::enableDebugger(rapidjson::Document& jsonMessage)
 {
     this->m_debuggerEnabled = true;
 
@@ -712,32 +674,25 @@ bool DebuggerDevtools::enableDebugger(rapidjson::Document& jsonMessage, Executio
     reply.SetObject();
 
     reply.AddMember("id", jsonMessage["id"], reply.GetAllocator());
-
-    rapidjson::Value result(rapidjson::kObjectType);
-    reply.AddMember("result", result, reply.GetAllocator());
-
-    rapidjson::Value debuggerIdValue;
-    std::string debuggerIdString = string_format("escargot-%d", rand() % 1000000);
-    debuggerIdValue.SetString(debuggerIdString.c_str(), debuggerIdString.length(), reply.GetAllocator());
-
-    reply["result"].AddMember("debuggerId", debuggerIdValue, reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+    reply["result"].AddMember("debuggerId", stringToRapidjsonValue(string_format("escargot-%d", rand() % 1000000), reply.GetAllocator()), reply.GetAllocator());
 
     return sendJSONDocument(reply);
 }
 
-bool DebuggerDevtools::enableRuntime(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::enableRuntime(rapidjson::Document& jsonMessage)
 {
     this->m_runtimeEnabled = true;
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::enableProfiler(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::enableProfiler(rapidjson::Document& jsonMessage)
 {
     this->m_profilerEnabled = true;
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::setPauseOnExceptions(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::setPauseOnExceptions(rapidjson::Document& jsonMessage)
 {
     // TODO: handdle other parameters: state: none (unset), uncaught, caught, all
     this->m_pauseOnExceptions = true;
@@ -773,7 +728,7 @@ void setBreakpointState(ByteCode* breakpoint, const bool enabled)
 #endif
 }
 
-bool DebuggerDevtools::setBreakpointsActive(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::setBreakpointsActive(rapidjson::Document& jsonMessage)
 {
     this->m_breakpointsActive = jsonMessage["params"]["active"].GetBool();
 
@@ -784,7 +739,7 @@ bool DebuggerDevtools::setBreakpointsActive(rapidjson::Document& jsonMessage, Ex
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage)
 {
     const std::string breakpointCondition = jsonMessage["params"]["condition"].GetString();
     if (!breakpointCondition.empty()) {
@@ -795,8 +750,6 @@ bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage, Exec
     if (breakpointFile.find("file://") == 0) {
         breakpointFile.erase(0, 7);
     }
-    const uint8_t scriptId = this->m_scriptIdByUrl[breakpointFile];
-    std::string scriptIdString = string_format("%d", scriptId);
 
     const uint32_t lineNumber = jsonMessage["params"]["lineNumber"].GetUint() + 1; // chrome starts line indexes at 0
     const uint32_t columnNumber = jsonMessage["params"]["columnNumber"].GetUint() + 1; // chrome starts column indexes at 0
@@ -804,31 +757,24 @@ bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage, Exec
     rapidjson::Document reply;
     reply.SetObject();
 
-    rapidjson::Value resultObject(rapidjson::kObjectType);
-    rapidjson::Value resultArray(rapidjson::kArrayType);
-    rapidjson::Value breakpointID(rapidjson::kStringType);
+    const uint8_t scriptId = this->m_scriptIdByUrl[breakpointFile];
+    rapidjson::Value scriptIdValue = stringToRapidjsonValue(string_format("%d", scriptId), reply.GetAllocator());
 
     reply.AddMember("id", jsonMessage["id"].GetInt(), reply.GetAllocator());
-    reply.AddMember("result", resultObject, reply.GetAllocator());
-    reply["result"].AddMember("locations", resultArray, reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+    reply["result"].AddMember("locations", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
 
     for (BreakpointByteCodeLocation breakpointInfo : m_breakpointInfo[scriptId]) {
         if ((lineNumber == breakpointInfo.line && (columnNumber == breakpointInfo.byteCode->m_loc.column || columnNumber == 1))
             || (reply["result"]["locations"].Empty() && breakpointInfo.line > lineNumber)) {
             rapidjson::Value locationObject(rapidjson::kObjectType);
-            rapidjson::Value scriptIdValue;
-
-            scriptIdValue.SetString(scriptIdString.c_str(), scriptIdString.length(), reply.GetAllocator());
-
             locationObject.AddMember("scriptId", scriptIdValue, reply.GetAllocator());
             locationObject.AddMember("lineNumber", breakpointInfo.line - 1, reply.GetAllocator());
             locationObject.AddMember("columnNumber", breakpointInfo.byteCode->m_loc.column - 1, reply.GetAllocator());
-
             reply["result"]["locations"].PushBack(locationObject, reply.GetAllocator());
 
             std::string breakpointIdString = string_format("%s:%d:%lu", breakpointFile.c_str(), breakpointInfo.line, breakpointInfo.byteCode->m_loc.column);
-            breakpointID.SetString(breakpointIdString.c_str(), breakpointIdString.length(), reply.GetAllocator());
-            reply["result"].AddMember("breakpointId", breakpointID, reply.GetAllocator());
+            reply["result"].AddMember("breakpointId", stringToRapidjsonValue(breakpointIdString, reply.GetAllocator()), reply.GetAllocator());
 
             /* Enable breakpoint */
             setBreakpointState(breakpointInfo.byteCode, true);
@@ -841,7 +787,7 @@ bool DebuggerDevtools::setBreakpointByUrl(rapidjson::Document& jsonMessage, Exec
     return ret;
 }
 
-bool DebuggerDevtools::removeBreakpoint(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::removeBreakpoint(rapidjson::Document& jsonMessage)
 {
     const std::string breakpointId = jsonMessage["params"]["breakpointId"].GetString();
 
@@ -872,7 +818,7 @@ bool DebuggerDevtools::removeBreakpoint(rapidjson::Document& jsonMessage, Execut
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage)
 {
     if (jsonMessage["params"]["restrictToFunction"].GetBool()) {
         ESCARGOT_LOG_ERROR("Warning: restrictToFunction is not supported\n");
@@ -899,21 +845,17 @@ bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage,
     rapidjson::Document reply;
     reply.SetObject();
 
-    rapidjson::Value resultObject(rapidjson::kObjectType);
-    rapidjson::Value resultArray(rapidjson::kArrayType);
-
     reply.AddMember("id", jsonMessage["id"].GetInt(), reply.GetAllocator());
-    reply.AddMember("result", resultObject, reply.GetAllocator());
-    reply["result"].AddMember("locations", resultArray, reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+    reply["result"].AddMember("locations", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
+
+    rapidjson::Value scriptIdValue = stringToRapidjsonValue(string_format("%d", scriptId), reply.GetAllocator());
 
     for (BreakpointByteCodeLocation breakpointInfo : m_breakpointInfo[scriptId]) {
         if (((startLine <= breakpointInfo.line && breakpointInfo.line <= endLine)
              && startColumn <= breakpointInfo.byteCode->m_loc.column && breakpointInfo.byteCode->m_loc.column <= endColumn)
             || (reply["result"]["locations"].Empty() && breakpointInfo.line > startLine && breakpointInfo.line > endLine)) {
             rapidjson::Value locationObject(rapidjson::kObjectType);
-            rapidjson::Value scriptIdValue;
-
-            scriptIdValue.SetString(scriptIdString.c_str(), scriptIdString.length(), reply.GetAllocator());
 
             locationObject.AddMember("scriptId", scriptIdValue, reply.GetAllocator());
             locationObject.AddMember("lineNumber", breakpointInfo.line - 1, reply.GetAllocator());
@@ -940,13 +882,12 @@ bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, Execut
     // Chrome might change this in the future
     rapidjson::Document progressReport;
     progressReport.SetObject();
+
     progressReport.AddMember("method", "HeapProfiler.reportHeapSnapshotProgress", progressReport.GetAllocator());
-    rapidjson::Value progressParams;
-    progressParams.SetObject();
-    progressParams.AddMember("done", 0, progressReport.GetAllocator());
-    progressParams.AddMember("total", 0, progressReport.GetAllocator());
-    progressParams.AddMember("finished", true, progressReport.GetAllocator());
-    progressReport.AddMember("params", progressParams, progressReport.GetAllocator());
+    progressReport.AddMember("params", rapidjson::Value(rapidjson::kObjectType), progressReport.GetAllocator());
+    progressReport["params"].AddMember("done", 0, progressReport.GetAllocator());
+    progressReport["params"].AddMember("total", 0, progressReport.GetAllocator());
+    progressReport["params"].AddMember("finished", true, progressReport.GetAllocator());
     sendJSONDocument(progressReport);
 
     std::ifstream file(fileName, std::ios::in);
@@ -962,14 +903,11 @@ bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, Execut
 
         rapidjson::Document snapshotChunk;
         snapshotChunk.SetObject();
-        snapshotChunk.AddMember("method", "HeapProfiler.addHeapSnapshotChunk", snapshotChunk.GetAllocator());
 
-        rapidjson::Value params;
-        params.SetObject();
-        rapidjson::Value chunk;
-        chunk.SetString(buffer, file.gcount(), snapshotChunk.GetAllocator());
-        params.AddMember("chunk", chunk, snapshotChunk.GetAllocator());
-        snapshotChunk.AddMember("params", params, snapshotChunk.GetAllocator());
+        snapshotChunk.AddMember("method", "HeapProfiler.addHeapSnapshotChunk", snapshotChunk.GetAllocator());
+        snapshotChunk.AddMember("params", rapidjson::Value(rapidjson::kObjectType), snapshotChunk.GetAllocator());
+        auto chunkStr = std::string(buffer, file.gcount());
+        snapshotChunk["params"].AddMember("chunk", stringToRapidjsonValue(chunkStr, snapshotChunk.GetAllocator()), snapshotChunk.GetAllocator());
 
         sendJSONDocument(snapshotChunk);
     }
@@ -977,7 +915,7 @@ bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, Execut
     return replyOK(jsonMessage);
 }
 
-bool DebuggerDevtools::replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::replyMethodNotFound(rapidjson::Document& jsonMessage)
 {
     const std::string jsonReplyString = string_format(R"({"id":%d,"error":{"code":-32601,"message":"'%s' wasn't found"}})",
                                                       jsonMessage["id"].GetInt(), jsonMessage["method"].GetString());
@@ -987,10 +925,10 @@ bool DebuggerDevtools::replyMethodNotFound(rapidjson::Document& jsonMessage, Exe
     return true;
 }
 
-bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState* state)
+bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock)
 {
     if (!state) {
-        const char* msg = "The debugger has already terminated!";
+        auto msg = "The debugger has already terminated!";
         consoleOut(String::fromUTF8(msg, std::strlen(msg)));
         return true;
     }
@@ -999,18 +937,20 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
         return true;
     }
 
-    const char* group = jsonMessage["params"]["objectGroup"].GetString();
-    if (std::strcmp(group, "console")) {
+    std::string group = jsonMessage["params"]["objectGroup"].GetString();
+    if (group != "console" && group != "watch-group") {
         return true;
     }
 
-    m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
     const char* source = jsonMessage["params"]["expression"].GetString();
     size_t sourceLen = jsonMessage["params"]["expression"].GetStringLength();
-    Value evalExpression = Value(new Latin1String(source, sourceLen));
-    Value result = Value(Value::Undefined);
+
+    Value evalExpression(new Latin1String(source, sourceLen));
+    Value result(Value::ForceUninitialized);
+
+    m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
     try {
-        result = state->context()->globalObject()->eval(*state, evalExpression);
+        result = state->context()->globalObject()->evalLocal(*state, evalExpression, state->thisValue(), byteCodeBlock->m_codeBlock, true);
     } catch (const Value& val) {
         result = val;
     }
@@ -1018,82 +958,84 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
 
     rapidjson::Document reply;
     reply.SetObject();
-    rapidjson::Value resultHolder;
-    resultHolder.SetObject();
 
-    rapidjson::Value resultObj;
-    resultObj.SetObject();
+    reply.AddMember("id", jsonMessage["id"], reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+
+    auto resultObj = rapidjson::Value(rapidjson::kObjectType);
+
     if (result.isString()) {
         resultObj.AddMember("type", "string", reply.GetAllocator());
 
-        std::string temp = "";
-        temp = std::string(result.asString()->toNonGCUTF8StringData().data());
-        rapidjson::Value strValue;
-        strValue.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
-        rapidjson::Value description;
-        description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
-
-        resultObj.AddMember("value", strValue, reply.GetAllocator());
-        resultObj.AddMember("description", description, reply.GetAllocator());
+        auto str = std::string(result.asString()->toUTF8StringData().data());
+        resultObj.AddMember("value", stringToRapidjsonValue(str, reply.GetAllocator()), reply.GetAllocator());
+        resultObj.AddMember("description", stringToRapidjsonValue(str, reply.GetAllocator()), reply.GetAllocator());
     } else if (result.isNumber()) {
-        std::string temp = "";
+        std::string description;
         if (result.isDouble()) {
-            temp = std::to_string(result.asDouble());
+            description = std::to_string(result.asDouble());
         } else {
-            temp = std::to_string(result.asInt32());
+            description = std::to_string(result.asInt32());
         }
 
         resultObj.AddMember("type", "number", reply.GetAllocator());
         resultObj.AddMember("value", result.asNumber(), reply.GetAllocator());
+        resultObj.AddMember("description", stringToRapidjsonValue(description, reply.GetAllocator()), reply.GetAllocator());
+    } else if (result.isBigInt()) {
+        std::string str = result.asBigInt()->toString()->toUTF8StringData().data();
 
-        rapidjson::Value description;
-        description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
-        resultObj.AddMember("description", description, reply.GetAllocator());
+        resultObj.AddMember("type", "bigint", reply.GetAllocator());
+        resultObj.AddMember("value", stringToRapidjsonValue(str, reply.GetAllocator()), reply.GetAllocator());
+        resultObj.AddMember("description", stringToRapidjsonValue(str, reply.GetAllocator()), reply.GetAllocator());
+    } else if (result.isUndefined()) {
+        resultObj.AddMember("type", "undefined", reply.GetAllocator());
     } else if (result.isObject()) {
         Object* resObj = result.asObject();
 
         if (resObj->isArray(*state)) {
-            rapidjson::Value description;
+            rapidjson::Value arrayDescription;
 
             if (result.toStringWithoutException(*state) != nullptr) {
-                UTF8StringDataNonGCStd arrayStr = result.toStringWithoutException(*state)->toNonGCUTF8StringData();
-                std::string temp = "Array: [" + std::string(arrayStr.c_str(), arrayStr.length()) + "]";
-                description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
+                UTF8StringData arrayStr = result.toStringWithoutException(*state)->toUTF8StringData();
+                arrayDescription = stringToRapidjsonValue("Array: [" + std::string(arrayStr.data(), arrayStr.length()) + "]", reply.GetAllocator());
             }
 
             resultObj.AddMember("type", "array", reply.GetAllocator());
             resultObj.AddMember("className", "Array", reply.GetAllocator());
-            resultObj.AddMember("description", description, reply.GetAllocator());
+            resultObj.AddMember("description", arrayDescription, reply.GetAllocator());
         } else {
+            rapidjson::Value objectDescription;
+
+            if (result.toStringWithoutException(*state) != nullptr) {
+                UTF8StringData objectStr = result.toStringWithoutException(*state)->toUTF8StringData();
+                objectDescription = stringToRapidjsonValue("Object: " + std::string(objectStr.data(), objectStr.length()), reply.GetAllocator());
+            }
             resultObj.AddMember("type", "object", reply.GetAllocator());
             resultObj.AddMember("className", "Object", reply.GetAllocator());
-            resultObj.AddMember("description", "Object", reply.GetAllocator());
+            resultObj.AddMember("description", objectDescription, reply.GetAllocator());
         }
-    } else if (result.isBigInt()) {
-        std::string temp = std::string(result.asBigInt()->toString()->toNonGCUTF8StringData().data());
-        rapidjson::Value description;
-        rapidjson::Value bigIntValue;
-        description.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
-        bigIntValue.SetString(temp.c_str(), temp.length(), reply.GetAllocator());
-
-        resultObj.AddMember("type", "bigint", reply.GetAllocator());
-        resultObj.AddMember("value", bigIntValue, reply.GetAllocator());
-        resultObj.AddMember("description", description, reply.GetAllocator());
-    } else if (result.isUndefined()) {
-        resultObj.AddMember("type", "undefined", reply.GetAllocator());
     } else {
-        const char* msg = "Could not determine result type of expression!";
+        auto msg = "Could not determine result type of expression!";
         consoleOut(String::fromUTF8(msg, std::strlen(msg)));
         return true;
     }
+    reply["result"].AddMember("result", resultObj, reply.GetAllocator());
 
-    resultHolder.AddMember("result", resultObj, reply.GetAllocator());
-    reply.AddMember("id", jsonMessage["id"], reply.GetAllocator());
-    reply.AddMember("result", resultHolder, reply.GetAllocator());
     sendJSONDocument(reply);
 
     return true;
 }
+
+#define MESSAGE_TYPE(n)                                                                                            \
+    template <size_t N>                                                                                            \
+    constexpr MessageTypeArg##n messageTypeArg##n(const char (&methodName)[N], const MessageHandlerArg##n handler) \
+    {                                                                                                              \
+        return MessageTypeArg##n{ methodName, (uint8_t)N, handler };                                               \
+    }
+
+MESSAGE_TYPE(1);
+MESSAGE_TYPE(2);
+MESSAGE_TYPE(3);
 
 bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
 {
@@ -1101,32 +1043,38 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
     size_t length;
 
     // NOTE: keep sorted
-    static constexpr MessageType messageTypes[] = {
-        messageType("Debugger.enable", &DebuggerDevtools::enableDebugger),
-        messageType("Debugger.evaluateOnCallFrame", &DebuggerDevtools::evaluate),
-        messageType("Debugger.getPossibleBreakpoints", &DebuggerDevtools::sendPossibleBreakpoints),
-        messageType("Debugger.getScriptSource", &DebuggerDevtools::sendSourceCode),
-        messageType("Debugger.removeBreakpoint", &DebuggerDevtools::removeBreakpoint),
-        messageType("Debugger.resume", &DebuggerDevtools::resume),
-        messageType("Debugger.setAsyncCallStackDepth", &DebuggerDevtools::replyOK), // we may be able to set something for this one
-        messageType("Debugger.setBlackboxPatterns", &DebuggerDevtools::replyOK), // we ignore this for now, but if needed set skipSourceName in DebuggerTcp
-        messageType("Debugger.setBreakpointByUrl", &DebuggerDevtools::setBreakpointByUrl),
-        messageType("Debugger.setBreakpointsActive", &DebuggerDevtools::setBreakpointsActive),
-        messageType("Debugger.setPauseOnExceptions", &DebuggerDevtools::setPauseOnExceptions),
-        messageType("Debugger.stepInto", &DebuggerDevtools::stepInto),
-        messageType("Debugger.stepOut", &DebuggerDevtools::stepOut),
-        messageType("Debugger.stepOver", &DebuggerDevtools::stepOver),
-        messageType("HeapProfiler.takeHeapSnapshot", &DebuggerDevtools::takeHeapSnapshot),
-        messageType("Network.clearAcceptedEncodingsOverride", &DebuggerDevtools::replyMethodNotFound),
-        messageType("Network.emulateNetworkConditionsByRule", &DebuggerDevtools::replyMethodNotFound),
-        messageType("Network.enable", &DebuggerDevtools::enableNetwork),
-        messageType("Network.overrideNetworkState", &DebuggerDevtools::replyMethodNotFound),
-        messageType("Network.setAttachDebugStack", &DebuggerDevtools::replyMethodNotFound),
-        messageType("Network.setBlockedURLs", &DebuggerDevtools::replyMethodNotFound),
-        messageType("Profiler.enable", &DebuggerDevtools::enableProfiler),
-        messageType("Runtime.enable", &DebuggerDevtools::enableRuntime),
-        messageType("Runtime.getProperties", &DebuggerDevtools::sendProperties),
-        messageType("Runtime.runIfWaitingForDebugger", &DebuggerDevtools::replyOK),
+    static constexpr MessageTypeArg1 messageTypesArg1[] = {
+        messageTypeArg1("Debugger.enable", &DebuggerDevtools::enableDebugger),
+        messageTypeArg1("Debugger.getPossibleBreakpoints", &DebuggerDevtools::sendPossibleBreakpoints),
+        messageTypeArg1("Debugger.getScriptSource", &DebuggerDevtools::sendSourceCode),
+        messageTypeArg1("Debugger.removeBreakpoint", &DebuggerDevtools::removeBreakpoint),
+        messageTypeArg1("Debugger.resume", &DebuggerDevtools::resume),
+        messageTypeArg1("Debugger.setAsyncCallStackDepth", &DebuggerDevtools::replyOK), // we may be able to set something for this one
+        messageTypeArg1("Debugger.setBlackboxPatterns", &DebuggerDevtools::replyOK), // we ignore this for now, but if needed set skipSourceName in DebuggerTcp
+        messageTypeArg1("Debugger.setBreakpointByUrl", &DebuggerDevtools::setBreakpointByUrl),
+        messageTypeArg1("Debugger.setBreakpointsActive", &DebuggerDevtools::setBreakpointsActive),
+        messageTypeArg1("Debugger.setPauseOnExceptions", &DebuggerDevtools::setPauseOnExceptions),
+        messageTypeArg1("Debugger.stepInto", &DebuggerDevtools::stepInto),
+        messageTypeArg1("Network.clearAcceptedEncodingsOverride", &DebuggerDevtools::replyMethodNotFound),
+        messageTypeArg1("Network.emulateNetworkConditionsByRule", &DebuggerDevtools::replyMethodNotFound),
+        messageTypeArg1("Network.enable", &DebuggerDevtools::enableNetwork),
+        messageTypeArg1("Network.overrideNetworkState", &DebuggerDevtools::replyMethodNotFound),
+        messageTypeArg1("Network.setAttachDebugStack", &DebuggerDevtools::replyMethodNotFound),
+        messageTypeArg1("Network.setBlockedURLs", &DebuggerDevtools::replyMethodNotFound),
+        messageTypeArg1("Profiler.enable", &DebuggerDevtools::enableProfiler),
+        messageTypeArg1("Runtime.enable", &DebuggerDevtools::enableRuntime),
+        messageTypeArg1("Runtime.runIfWaitingForDebugger", &DebuggerDevtools::replyOK),
+    };
+
+    static constexpr MessageTypeArg2 messageTypesArg2[] = {
+        messageTypeArg2("Debugger.stepOut", &DebuggerDevtools::stepOut),
+        messageTypeArg2("Debugger.stepOver", &DebuggerDevtools::stepOver),
+        messageTypeArg2("HeapProfiler.takeHeapSnapshot", &DebuggerDevtools::takeHeapSnapshot),
+        messageTypeArg2("Runtime.getProperties", &DebuggerDevtools::sendProperties),
+    };
+
+    static constexpr MessageTypeArg3 messageTypesArg3[] = {
+        messageTypeArg3("Debugger.evaluateOnCallFrame", &DebuggerDevtools::evaluate),
     };
 
     while (true) {
@@ -1159,16 +1107,18 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
             ESCARGOT_LOG_ERROR("Debugger method not provided: %s\n", reinterpret_cast<const char*>(buffer));
             return false;
         }
-        const uint32_t methodNameLength = strlen(methodName);
+#define FOR_EACH_MESSAGE_TYPE(messageTypesList, ...)                                                                                                                       \
+    for (const auto& message : messageTypesList) {                                                                                                                         \
+        if (!DebuggerHttpRouter::requestStartsWith(reinterpret_cast<const uint8_t*>(methodName), message.methodNameLen, message.methodName, strlen(message.methodName))) { \
+            continue;                                                                                                                                                      \
+        }                                                                                                                                                                  \
+        return (this->*message.handler)(__VA_ARGS__);                                                                                                                      \
+    }
 
-        for (const auto& message : messageTypes) {
-            // TODO: it would be better to calculate the lengths of each of the method name strings at compile time instead of using strlen()
-            if (!DebuggerHttpRouter::requestStartsWith(reinterpret_cast<const uint8_t*>(methodName), methodNameLength, message.methodName, strlen(message.methodName))) {
-                continue;
-            }
+        FOR_EACH_MESSAGE_TYPE(messageTypesArg1, jsonMessage);
+        FOR_EACH_MESSAGE_TYPE(messageTypesArg2, jsonMessage, state);
+        FOR_EACH_MESSAGE_TYPE(messageTypesArg3, jsonMessage, state, byteCodeBlock);
 
-            return (this->*message.handler)(jsonMessage, state);
-        }
         ESCARGOT_LOG_ERROR("Debugger function not supported: %s\n", reinterpret_cast<const char*>(buffer));
         this->replyMethodNotFound(jsonMessage); // maybe reply with not supported instead? if there is such a reply in the spec
     }
