@@ -72,25 +72,25 @@ protected:
     bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
 
 private:
-    bool evaluate(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool evaluate(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr, Optional<ByteCodeBlock*> byteCodeBlock = nullptr);
     bool sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool resume(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool resume(rapidjson::Document& jsonMessage);
     bool stepOver(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool stepOut(rapidjson::Document& jsonMessage, ExecutionState* state);
-    bool stepInto(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool sendSourceCode(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool replyOK(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool enableNetwork(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool enableDebugger(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool enableRuntime(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool enableProfiler(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool setPauseOnExceptions(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool setBreakpointsActive(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool setBreakpointByUrl(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool removeBreakpoint(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool sendPossibleBreakpoints(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool stepOut(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool stepInto(rapidjson::Document& jsonMessage);
+    bool sendSourceCode(rapidjson::Document& jsonMessage);
+    bool replyOK(rapidjson::Document& jsonMessage);
+    bool enableNetwork(rapidjson::Document& jsonMessage);
+    bool enableDebugger(rapidjson::Document& jsonMessage);
+    bool enableRuntime(rapidjson::Document& jsonMessage);
+    bool enableProfiler(rapidjson::Document& jsonMessage);
+    bool setPauseOnExceptions(rapidjson::Document& jsonMessage);
+    bool setBreakpointsActive(rapidjson::Document& jsonMessage);
+    bool setBreakpointByUrl(rapidjson::Document& jsonMessage);
+    bool removeBreakpoint(rapidjson::Document& jsonMessage);
+    bool sendPossibleBreakpoints(rapidjson::Document& jsonMessage);
     bool takeHeapSnapshot(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
-    bool replyMethodNotFound(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool replyMethodNotFound(rapidjson::Document& jsonMessage);
 
     uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap);
 
@@ -125,12 +125,21 @@ private:
     std::set<ByteCode*> m_setBreakPoints; // stores set breakpoints for enabling/disabling in bulk with the `Deactivate Breakpoints` button
 };
 
-using MessageHandler = bool (DebuggerDevtools::*)(rapidjson::Document&, ExecutionState* state);
+using MessageHandlerArg1 = bool (DebuggerDevtools::*)(rapidjson::Document&);
+using MessageHandlerArg2 = bool (DebuggerDevtools::*)(rapidjson::Document&, ExecutionState* state);
+using MessageHandlerArg3 = bool (DebuggerDevtools::*)(rapidjson::Document&, ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock);
 
-struct MessageType {
-    const char* methodName;
-    MessageHandler handler;
-};
+#define MESSAGE_TYPE_ARG(n)           \
+    struct MessageTypeArg##n {        \
+        const char* methodName;       \
+        const uint8_t methodNameLen;  \
+        MessageHandlerArg##n handler; \
+    };
+
+MESSAGE_TYPE_ARG(1);
+MESSAGE_TYPE_ARG(2);
+MESSAGE_TYPE_ARG(3);
+
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */
 
