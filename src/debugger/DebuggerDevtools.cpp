@@ -396,6 +396,7 @@ bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, const uint
         m_delay--;
         if (m_delay == 0) {
             processEvents(state, byteCodeBlock);
+            m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
         }
         return false;
     }
@@ -517,6 +518,31 @@ bool DebuggerDevtools::stepOut(rapidjson::Document& jsonMessage, ExecutionState*
     }
 
     m_stopState = stopState;
+
+    replyOK(jsonMessage);
+    return false;
+}
+
+bool DebuggerDevtools::pause(rapidjson::Document& jsonMessage)
+{
+    if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
+        return true;
+    }
+    m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+
+    replyOK(jsonMessage);
+    return false;
+}
+
+bool DebuggerDevtools::setSkipAllPauses(rapidjson::Document& jsonMessage, ExecutionState* state)
+{
+    if (jsonMessage["params"]["skip"].GetBool()) {
+        m_stopState = state;
+    } else {
+        m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+    }
+
+    replyOK(jsonMessage);
     return false;
 }
 
@@ -1056,6 +1082,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         messageTypeArg1("Debugger.enable", &DebuggerDevtools::enableDebugger),
         messageTypeArg1("Debugger.getPossibleBreakpoints", &DebuggerDevtools::sendPossibleBreakpoints),
         messageTypeArg1("Debugger.getScriptSource", &DebuggerDevtools::sendSourceCode),
+        messageTypeArg1("Debugger.pause", &DebuggerDevtools::pause),
         messageTypeArg1("Debugger.removeBreakpoint", &DebuggerDevtools::removeBreakpoint),
         messageTypeArg1("Debugger.resume", &DebuggerDevtools::resume),
         messageTypeArg1("Debugger.setAsyncCallStackDepth", &DebuggerDevtools::replyOK), // we may be able to set something for this one
@@ -1076,6 +1103,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
     };
 
     static constexpr MessageTypeArg2 messageTypesArg2[] = {
+        messageTypeArg2("Debugger.setSkipAllPauses", &DebuggerDevtools::setSkipAllPauses),
         messageTypeArg2("Debugger.stepOut", &DebuggerDevtools::stepOut),
         messageTypeArg2("Debugger.stepOver", &DebuggerDevtools::stepOver),
         messageTypeArg2("HeapProfiler.takeHeapSnapshot", &DebuggerDevtools::takeHeapSnapshot),

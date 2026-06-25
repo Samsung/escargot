@@ -148,6 +148,7 @@ public:
             m_delay--;
             if (m_delay == 0) {
                 processEvents(state, byteCodeBlock);
+                m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
             }
         }
 

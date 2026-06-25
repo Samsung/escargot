@@ -78,6 +78,8 @@ private:
     bool resume(rapidjson::Document& jsonMessage);
     bool stepOver(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool stepOut(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
+    bool pause(rapidjson::Document& jsonMessage);
+    bool setSkipAllPauses(rapidjson::Document& jsonMessage, ExecutionState* state);
     bool stepInto(rapidjson::Document& jsonMessage);
     bool sendSourceCode(rapidjson::Document& jsonMessage);
     bool replyOK(rapidjson::Document& jsonMessage);
