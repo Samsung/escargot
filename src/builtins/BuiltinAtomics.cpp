@@ -77,6 +77,21 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     return (static_cast<size_t>(accessIndex) * elementSize) + offset;
 }
 
+// Revalidate atomic access after potential user code execution (valueOf, etc.)
+// This prevents OOB access if the buffer was detached or resized during coercion
+static void revalidateAtomicAccess(ExecutionState& state, ArrayBuffer* buffer, size_t indexedPosition, size_t elementSize)
+{
+    // Check if buffer is detached
+    if (buffer->isDetachedBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ArrayBuffer is detached");
+    }
+
+    // Re-check bounds against current buffer length
+    if (UNLIKELY(indexedPosition + elementSize > buffer->byteLength())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
+    }
+}
+
 template <typename T>
 static T atomicOperation(volatile uint8_t* rawStart, int64_t v, AtomicBinaryOps op)
 {
@@ -179,6 +194,10 @@ static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Valu
         v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
 
+    // Revalidate access after potential user code execution (valueOf, etc.)
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    revalidateAtomicAccess(state, buffer, indexedPosition, elemSize);
+
     return getModifySetValueInBuffer(state, buffer, indexedPosition, type, v, op);
 }
 
@@ -218,8 +237,10 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
         replacement = Value(Value::DoubleToIntConvertibleTestNeeds, argv[3].toInteger(state));
     }
 
+    // Revalidate access after potential user code execution (valueOf in toInteger/toBigInt)
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(indexedPosition + elemSize <= buffer->byteLength());
+    revalidateAtomicAccess(state, buffer, indexedPosition, elemSize);
+
     uint8_t* expectedBytes = ALLOCA(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, expected, expectedBytes);
     uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
@@ -289,6 +310,10 @@ static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t a
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();
 
+    // Revalidate access after potential user code execution (valueOf in toIndex)
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    revalidateAtomicAccess(state, buffer, indexedPosition, elemSize);
+
     return buffer->getValueFromBuffer(state, indexedPosition, type);
 }
 
@@ -311,6 +336,10 @@ static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t 
     } else {
         v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
+
+    // Revalidate access after potential user code execution (valueOf in toInteger)
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    revalidateAtomicAccess(state, buffer, indexedPosition, elemSize);
 
     buffer->setValueInBuffer(state, indexedPosition, type, v);
     return v;
