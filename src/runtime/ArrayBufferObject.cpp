@@ -183,9 +183,16 @@ void* ArrayBufferObject::operator new(size_t size)
 Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(byteLength());
+    // Always check for detached buffer (not just in debug builds)
+    if (UNLIKELY(isDetachedBuffer())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ArrayBuffer is detached");
+    }
+
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= byteLength());
+    // Always check bounds (not just in debug builds)
+    if (UNLIKELY(byteindex + elemSize > byteLength())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid byte index in getValueFromBuffer");
+    }
     uint8_t* rawStart = data() + byteindex;
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
@@ -201,9 +208,16 @@ Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t bytein
 void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(byteLength());
+    // Always check for detached buffer (not just in debug builds)
+    if (UNLIKELY(isDetachedBuffer())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ArrayBuffer is detached");
+    }
+
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= byteLength());
+    // Always check bounds (not just in debug builds)
+    if (UNLIKELY(byteindex + elemSize > byteLength())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid byte index in setValueInBuffer");
+    }
     uint8_t* rawStart = data() + byteindex;
     uint8_t* rawBytes = ALLOCA(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
