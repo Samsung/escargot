@@ -209,7 +209,7 @@ bool isIndexString(String* str)
 
 static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
 
-char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
+char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen, size_t remainingLength)
 {
     unsigned length;
     const char sch = *sequence;
@@ -217,17 +217,33 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     if ((sch & 0x80) == 0)
         length = 1;
     else {
+        // Check bounds before reading ahead to prevent heap buffer overflow
+        if (remainingLength < 2) {
+            valid = false;
+            sequence++;
+            return -1;
+        }
         unsigned char ch2 = static_cast<unsigned char>(*(sequence + 1));
         if ((sch & 0xE0) == 0xC0
             && (ch2 & 0xC0) == 0x80)
             length = 2;
         else {
+            if (remainingLength < 3) {
+                valid = false;
+                sequence++;
+                return -1;
+            }
             unsigned char ch3 = static_cast<unsigned char>(*(sequence + 2));
             if ((sch & 0xF0) == 0xE0
                 && (ch2 & 0xC0) == 0x80
                 && (ch3 & 0xC0) == 0x80)
                 length = 3;
             else {
+                if (remainingLength < 4) {
+                    valid = false;
+                    sequence++;
+                    return -1;
+                }
                 unsigned char ch4 = static_cast<unsigned char>(*(sequence + 3));
                 if ((sch & 0xF8) == 0xF0
                     && (ch2 & 0xC0) == 0x80
@@ -268,7 +284,7 @@ UTF16StringDataNonGCStd utf8StringToUTF16StringNonGC(const char* buf, const size
     int charlen;
     bool valid;
     while (source < buf + len) {
-        char32_t ch = readUTF8Sequence(source, valid, charlen);
+        char32_t ch = readUTF8Sequence(source, valid, charlen, buf + len - source);
         if (!valid) { // Invalid sequence
             str += 0xFFFD;
         } else if ((uint32_t)(ch) <= 0xffff) { // BMP
