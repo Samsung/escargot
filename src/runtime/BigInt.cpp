@@ -629,7 +629,11 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src) const
 
     slimb_t v2;
 #if defined(ESCARGOT_32) || defined(OS_WINDOWS)
-    bf_get_int32(&v2, src->bf(), 0);
+    {
+        int _tmp32;
+        bf_get_int32(&_tmp32, src->bf(), 0);
+        v2 = _tmp32;
+    }
     if (v2 == std::numeric_limits<int32_t>::min()) {
         v2 = std::numeric_limits<int32_t>::min() + 1;
     }
@@ -659,7 +663,11 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src) const
 
     slimb_t v2;
 #if defined(ESCARGOT_32) || defined(OS_WINDOWS)
-    bf_get_int32(&v2, src->bf(), 0);
+    {
+        int _tmp32;
+        bf_get_int32(&_tmp32, src->bf(), 0);
+        v2 = _tmp32;
+    }
     if (v2 == std::numeric_limits<int32_t>::min()) {
         v2 = std::numeric_limits<int32_t>::min() + 1;
     }

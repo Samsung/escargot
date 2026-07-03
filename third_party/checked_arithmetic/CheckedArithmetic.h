@@ -422,6 +422,22 @@ struct ArithmeticOperations<unsigned, int, ResultType, false, true> {
     }
 };
 
+/* On platforms where uint32_t=unsigned long (e.g. arm-none-eabi),
+ * the 'unsigned long + int' combination lacks a specialization. */
+#if !defined(CHECKEDARITHMETIC_HAS_ULONG_INT)
+#if defined(__SIZEOF_LONG__) && (__SIZEOF_LONG__ == 4) && (__SIZEOF_INT__ == 4)
+template <typename ResultType>
+struct ArithmeticOperations<unsigned long, int, ResultType, false, true>
+    : ArithmeticOperations<unsigned, int, ResultType, false, true> {
+};
+template <typename ResultType>
+struct ArithmeticOperations<int, unsigned long, ResultType, true, false>
+    : ArithmeticOperations<int, unsigned, ResultType, true, false> {
+};
+#define CHECKEDARITHMETIC_HAS_ULONG_INT 1
+#endif
+#endif
+
 template <typename U, typename V, typename R>
 static inline bool safeAdd(U lhs, V rhs, R& result)
 {

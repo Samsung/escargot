@@ -105,11 +105,7 @@ inline Value::Value(bool b)
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
     u.asBits.tag = OtherPointerTag;
-#if defined(COMPILER_MSVC)
-    u.asBits.payload = (int32_t)(ptr);
-#else
-    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
-#endif
+    u.asBits.payload = static_cast<int32_t>(ptr);
 }
 
 inline Value::Value(PointerValue* ptr)
@@ -201,7 +197,7 @@ inline uint32_t Value::tag() const
     return u.asBits.tag;
 }
 
-inline int32_t Value::payload() const
+inline intptr_t Value::payload() const
 {
     return u.asBits.payload;
 }
@@ -646,22 +642,22 @@ inline Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
 
 inline Value::Value(char i)
 {
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(static_cast<int>(i));
 }
 
 inline Value::Value(unsigned char i)
 {
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(static_cast<int>(i));
 }
 
 inline Value::Value(short i)
 {
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(static_cast<int>(i));
 }
 
 inline Value::Value(unsigned short i)
 {
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(static_cast<int>(i));
 }
 
 inline Value::Value(unsigned i)
@@ -671,7 +667,7 @@ inline Value::Value(unsigned i)
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(asInt32);
+    *this = Value(static_cast<int>(asInt32));
 }
 
 inline Value::Value(long i)
@@ -681,17 +677,17 @@ inline Value::Value(long i)
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(asInt32);
+    *this = Value(static_cast<int>(asInt32));
 }
 
 inline Value::Value(unsigned long i)
 {
-    const uint32_t asInt32 = static_cast<uint32_t>(i);
-    if (UNLIKELY(asInt32 != i)) {
+    const uint32_t asUInt32 = static_cast<uint32_t>(i);
+    if (UNLIKELY(asUInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(static_cast<uint32_t>(i));
+    *this = Value(static_cast<unsigned int>(asUInt32));
 }
 
 inline Value::Value(long long i)
@@ -701,17 +697,17 @@ inline Value::Value(long long i)
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(asInt32);
+    *this = Value(static_cast<int>(asInt32));
 }
 
 inline Value::Value(unsigned long long i)
 {
-    const uint32_t asInt32 = static_cast<uint32_t>(i);
-    if (UNLIKELY(asInt32 != i)) {
+    const uint32_t asUInt32 = static_cast<uint32_t>(i);
+    if (UNLIKELY(asUInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(asInt32);
+    *this = Value(static_cast<unsigned int>(asUInt32));
 }
 
 inline bool Value::isUInt32() const

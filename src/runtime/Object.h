@@ -119,8 +119,8 @@ public:
         }
     }
 
-#if defined(OS_DARWIN)
-    // DARWIN clang defines size_t type as unsigned long instead of uint type
+#if defined(OS_DARWIN) || defined(OS_BAREMETAL)
+    // Darwin/bare-metal: size_t is a distinct type from uint32_t/uint64_t, needs explicit overload
     explicit ObjectPropertyName(ExecutionState& state, const size_t& v)
     {
         if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {

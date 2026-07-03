@@ -204,6 +204,8 @@
 #define OS_POSIX 1
 #elif defined(_POSIX_VERSION)
 #define OS_POSIX 1
+#elif defined(OS_BAREMETAL)
+/* bare-metal / RTOS target — no POSIX */
 #else
 #error "failed to detect target OS"
 #endif

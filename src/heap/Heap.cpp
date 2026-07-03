@@ -48,6 +48,9 @@ void Heap::initialize()
     });
 
     GC_set_force_unmap_on_gcollect(1);
+#if defined(OS_BAREMETAL)
+    GC_set_free_space_divisor(1);
+#endif
     initializeCustomAllocators();
 
 #ifdef PROFILE_BDWGC

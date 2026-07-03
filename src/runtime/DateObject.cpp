@@ -188,6 +188,24 @@ static int clock_gettime(int, struct timespec* spec) // C-file part
     spec->tv_nsec = wintime % 10000000i64 * 100; // nano-seconds
     return 0;
 }
+#elif defined(OS_BAREMETAL)
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+#ifndef _STRUCT_TIMESPEC
+struct timespec {
+    long tv_sec;
+    long tv_nsec;
+};
+#endif
+extern "C" uint32_t escargot_get_tick_ms(void);
+static int clock_gettime(int, struct timespec* spec)
+{
+    uint32_t ms = escargot_get_tick_ms();
+    spec->tv_sec = ms / 1000;
+    spec->tv_nsec = (ms % 1000) * 1000000;
+    return 0;
+}
 #endif
 
 time64_t DateObject::currentTime()
