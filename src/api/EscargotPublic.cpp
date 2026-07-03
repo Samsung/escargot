@@ -256,7 +256,11 @@ void* PlatformRef::threadLocalCustomData()
     return ThreadLocal::customData();
 }
 
+#if defined(OS_BAREMETAL)
+static bool g_globalsInited;
+#else
 thread_local bool g_globalsInited;
+#endif
 void Globals::initialize(PlatformRef* platform)
 {
     // initialize global value or context including thread-local variables

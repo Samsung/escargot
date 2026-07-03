@@ -36,6 +36,8 @@
 #ifndef _WIN32_WINNT
 #define 0x0602
 #endif
+#elif defined(OS_BAREMETAL)
+extern "C" void* escargot_get_stack_base(void);
 #else
 #include <pthread.h>
 #endif
@@ -104,7 +106,11 @@ public:
     std::pair<void*, size_t>* m_mappedMemories;
 };
 
+#if defined(OS_BAREMETAL)
+static std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
+#else
 thread_local std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
+#endif
 
 GlobalDeleteChecker::GlobalDeleteChecker()
 {
@@ -313,6 +319,13 @@ void ThreadLocal::initialize()
     void* stackStartAddress = reinterpret_cast<void*>(low);
     void* stackEndAddress = reinterpret_cast<void*>(high);
     size_t stackSize = reinterpret_cast<size_t>(stackEndAddress) - reinterpret_cast<size_t>(stackStartAddress);
+#elif defined(OS_BAREMETAL)
+    // On bare-metal/RTOS the stack base is provided by the platform at init time.
+    // escargot_get_stack_base() returns the lowest valid stack address for the
+    // current thread/task; it must be defined by the application.
+    void* stackStartAddress = escargot_get_stack_base();
+    void* stackEndAddress = nullptr;
+    (void)stackEndAddress;
 #else
     void* stackStartAddress;
     void* stackEndAddress;

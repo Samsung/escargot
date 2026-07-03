@@ -62,6 +62,13 @@ inline size_t systemPageSize()
     return size;
 }
 
+#elif defined(OS_BAREMETAL)
+
+inline size_t systemPageSize()
+{
+    return 4096;
+}
+
 #endif
 
 size_t pageSize()
