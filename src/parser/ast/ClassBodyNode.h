@@ -258,7 +258,16 @@ public:
                 if (hasKeyName) {
                     codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this->m_loc.index);
                 } else {
+                    // Save class constructor to temp register before evaluating computed key
+                    // to prevent the key expression from overwriting the constructor register
+                    ByteCodeRegisterIndex savedConstructorIndex = context->getRegister();
+                    codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, savedConstructorIndex), context, this->m_loc.index);
+
                     p->key()->generateExpressionByteCode(codeBlock, context, keyIndex);
+
+                    // Restore class constructor from temp register
+                    codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), savedConstructorIndex, context->m_classInfo.m_constructorIndex), context, this->m_loc.index);
+                    context->giveUpRegister(); // for savedConstructorIndex
                 }
 
                 if (p->isStatic()) {
