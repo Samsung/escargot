@@ -94,6 +94,10 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} MATCHES  "Clang") #include Clang and AppleClang
         # this feature supported after clang version 20
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-invalid-specialization)
     endif()
+    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 20)
+        # this feature supported after clang version 21
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-character-conversion)
+    endif()
     SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
     SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
     IF (ESCARGOT_SMALL_CONFIG)
