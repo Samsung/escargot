@@ -372,8 +372,8 @@ static Value builtinIteratorAsyncDispose(ExecutionState& state, Value thisValue,
         // Let result be Completion(Call(return, O, « undefined »)).
         Value result;
         try {
-            Value argv;
-            result = Object::call(state, returnValue, Value(), 1, &argv);
+            Value argv[1] = { Value() }; // undefined
+            result = Object::call(state, returnValue, O, 1, argv);
         } catch (const Value& error) {
             // IfAbruptRejectPromise(result, promiseCapability).
             Value arg = error;
@@ -395,7 +395,7 @@ static Value builtinIteratorAsyncDispose(ExecutionState& state, Value thisValue,
         // Let onFulfilled be CreateBuiltinFunction(unwrap, 1, "", « »).
         Value onFulfilled = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { return Value(); }, 1, NativeFunctionInfo::Strict));
         // Perform PerformPromiseThen(resultWrapper, onFulfilled, undefined, promiseCapability).
-        promiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, Value());
+        resultWrapper.asObject()->asPromiseObject()->then(state, onFulfilled, Value(), promiseCapability);
     }
     // Return promiseCapability.[[Promise]].
     return promiseCapability.m_promise;
