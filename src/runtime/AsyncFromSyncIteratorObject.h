@@ -36,7 +36,12 @@ public:
     // https://www.ecma-international.org/ecma-262/10.0/#sec-createasyncfromsynciterator
     static IteratorRecord* createAsyncFromSyncIterator(ExecutionState& state, IteratorRecord* syncIteratorRecord)
     {
-        return IteratorObject::getIterator(state, new AsyncFromSyncIteratorObject(state, state.context()->globalObject()->asyncFromSyncIteratorPrototype(), syncIteratorRecord), false);
+        // Create the async-from-sync iterator object
+        auto asyncIterator = new AsyncFromSyncIteratorObject(state, state.context()->globalObject()->asyncFromSyncIteratorPrototype(), syncIteratorRecord);
+        // Get the next method directly from the async iterator (per spec)
+        Value nextMethod = asyncIterator->get(state, state.context()->staticStrings().next).value(state, asyncIterator);
+        // Return the iterator record
+        return new IteratorRecord(asyncIterator, nextMethod, false);
     }
 
     virtual bool isAsyncFromSyncIteratorObject() const override

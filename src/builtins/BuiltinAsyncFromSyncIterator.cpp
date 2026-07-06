@@ -224,14 +224,18 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
         return promiseCapability.m_promise;
     }
 
+    // Let syncIteratorRecord be O.[[SyncIteratorRecord]].
+    auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
     // Let syncIterator be O.[[SyncIteratorRecord]].[[Iterator]].
-    Object* syncIterator = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord()->m_iterator;
+    Object* syncIterator = syncIteratorRecord->m_iterator;
     // Let throw be GetMethod(syncIterator, "throw").
     Value throwVariable;
     try {
         throwVariable = Object::getMethod(state, syncIterator, state.context()->staticStrings().stringThrow);
     } catch (const Value& thrownValue) {
         // IfAbruptRejectPromise(return, promiseCapability).
+        // Close the iterator
+        syncIteratorRecord->m_done = true;
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
@@ -239,8 +243,11 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 
     // If throw is undefined, then
     if (throwVariable.isUndefined()) {
-        // Perform ! Call(promiseCapability.[[Reject]], undefined, « value »).
-        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &value);
+        // Let iteratorClosed be Completion(IteratorClose(syncIteratorRecord, NormalCompletion(undefined))).
+        syncIteratorRecord->m_done = true;
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("throw is undefined"));
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
     }
@@ -251,6 +258,8 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
         result = Object::call(state, throwVariable, syncIterator, 1, &value);
     } catch (const Value& thrownValue) {
         // IfAbruptRejectPromise(result, promiseCapability).
+        // Close the iterator
+        syncIteratorRecord->m_done = true;
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
@@ -258,6 +267,8 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 
     // If Type(result) is not Object, then
     if (!result.isObject()) {
+        // Close the iterator
+        syncIteratorRecord->m_done = true;
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
         Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);

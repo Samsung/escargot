@@ -367,31 +367,16 @@ struct ArrayFromAsyncRecord : public PointerValue {
 };
 
 static PromiseObject* arrayFromAsyncAsyncAwaitOperation(ExecutionState& state, const Value& awaitValue, ArrayFromAsyncRecord* data, size_t stage);
+static Value closeAsyncIterator(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
 
-#define ASYNCITERATOR_CLOSE(iteratorRecord, stage, completion, completionHasThrownRecord)                                                                         \
-    try {                                                                                                                                                         \
-        data->m_asyncCloseReturnValue = Object::getMethod(state, iteratorRecord->m_iterator, state.context()->staticStrings().stringReturn);                      \
-    } catch (const Value& error) {                                                                                                                                \
-        if (completionHasThrownRecord) {                                                                                                                          \
-            data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion);                                                                    \
-        }                                                                                                                                                         \
-        data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);                                                                             \
-        return;                                                                                                                                                   \
-    }                                                                                                                                                             \
-    if (!data->m_asyncCloseReturnValue.isUndefined()) {                                                                                                           \
-        try {                                                                                                                                                     \
-            data->m_asyncCloseInnerResult = Object::call(state, data->m_asyncCloseReturnValue, iteratorRecord->m_iterator, 0, nullptr);                           \
-        } catch (const Value& error) {                                                                                                                            \
-            if (completionHasThrownRecord) {                                                                                                                      \
-                data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion);                                                                \
-            }                                                                                                                                                     \
-            data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);                                                                         \
-            return;                                                                                                                                               \
-        }                                                                                                                                                         \
-        arrayFromAsyncAsyncAwaitOperation(state, data->m_asyncCloseInnerResult, data, stage);                                                                     \
-        return;                                                                                                                                                   \
-    }                                                                                                                                                             \
-    ArrayFromAsyncAsyncWorkerStage##stage : if (completionHasThrownRecord) { data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion); } \
+#define ASYNCITERATOR_CLOSE(iteratorRecord, stage, completion, completionHasThrownRecord)                                      \
+    try {                                                                                                                      \
+        closeAsyncIterator(state, iteratorRecord, completion, completionHasThrownRecord);                                      \
+    } catch (const Value& error) {                                                                                             \
+        data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, error);                                          \
+        return;                                                                                                                \
+    }                                                                                                                          \
+    ArrayFromAsyncAsyncWorkerStage##stage : data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, completion); \
     return;
 
 static void builtinArrayFromAsyncAsyncWorker(ExecutionState& state, ArrayFromAsyncRecord* data)
@@ -411,9 +396,13 @@ static void builtinArrayFromAsyncAsyncWorker(ExecutionState& state, ArrayFromAsy
     } else if (data->m_awaitResumeStage == 5) {
         data->m_awaitResumeStage = 0;
         goto ArrayFromAsyncAsyncWorkerStage5;
+    } else if (data->m_awaitResumeStage == 6) {
+        data->m_awaitResumeStage = 0;
+        goto ArrayFromAsyncAsyncWorkerStage6;
     }
     // Repeat,
     while (true) {
+    ArrayFromAsyncAsyncWorkerStage6:
         // If k ≥ 2**53 - 1, then
         if (data->m_k >= ((1LL << 53) - 1)) {
             // Let error be ThrowCompletion(a newly created TypeError object).
@@ -488,6 +477,10 @@ static void builtinArrayFromAsyncAsyncWorker(ExecutionState& state, ArrayFromAsy
         }
         // Set k to k + 1.
         data->m_k++;
+        // Continue to next iteration asynchronously to allow microtasks to run between iterations
+        // This is important for correct behavior when the source array is mutated during iteration
+        arrayFromAsyncAsyncAwaitOperation(state, Value(), data, 6);
+        return;
     }
 }
 
@@ -504,6 +497,14 @@ static Value arrayFromAsyncAsyncAwaitRejectedFunction(ExecutionState& state, Val
 {
     auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
     auto data = s->internalSlot(0).asPointerValue()->asArrayFromAsyncRecord();
+    // Close the iterator before rejecting the promise
+    try {
+        closeAsyncIterator(state, data->m_iteratorRecord, *argv, true);
+    } catch (const Value& closeError) {
+        // If closing the iterator throws, reject with the close error
+        data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, closeError);
+        return Value();
+    }
     data->m_promiseCapability.m_promise->asPromiseObject()->reject(state, *argv);
     return Value();
 }
@@ -648,82 +649,134 @@ static PromiseObject* arrayFromAsyncSyncAwaitOperation(ExecutionState& state, co
     return promise;
 }
 
+// Helper function to close an async iterator (handles both async and sync iterators wrapped in async-from-sync)
+static Value closeAsyncIterator(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
+{
+    // Check if this is an async-from-sync iterator
+    if (iteratorRecord->m_iterator->isAsyncFromSyncIteratorObject()) {
+        // For async-from-sync iterators, we need to close the underlying sync iterator
+        auto asyncFromSyncIterator = iteratorRecord->m_iterator->asAsyncFromSyncIteratorObject();
+        IteratorRecord* syncIteratorRecord = asyncFromSyncIterator->syncIteratorRecord();
+        // Use the sync iterator close logic
+        return IteratorObject::iteratorClose(state, syncIteratorRecord, completionValue, hasThrowOnCompletionType);
+    } else {
+        // Regular async iterator - use the async iterator close logic
+        auto strings = &state.context()->staticStrings();
+        Value returnFunction = Object::getMethod(state, iteratorRecord->m_iterator, ObjectPropertyName(strings->stringReturn));
+        if (returnFunction.isUndefined()) {
+            if (hasThrowOnCompletionType) {
+                state.throwException(completionValue);
+            }
+            return completionValue;
+        }
+
+        Value innerResult;
+        bool innerResultHasException = false;
+        try {
+            innerResult = Object::call(state, returnFunction, iteratorRecord->m_iterator, 0, nullptr);
+        } catch (const Value& e) {
+            innerResult = e;
+            innerResultHasException = true;
+        }
+        if (hasThrowOnCompletionType) {
+            state.throwException(completionValue);
+        }
+        if (innerResultHasException) {
+            state.throwException(innerResult);
+        }
+        if (!innerResult.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator close result is not an object");
+        }
+        return completionValue;
+    }
+}
+
 
 // Array.fromAsync ( asyncItems [ , mapper [ , thisArg ] ] )
 static Value builtinArrayFromAsync(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let C be the this value.
-    const Value& C = thisValue;
-    Value mapper = argc < 2 ? Value() : argv[1];
-    Value thisArg = argc < 3 ? Value() : argv[2];
-    // If mapper is undefined, then
-    bool mapping = false;
-    if (mapper.isUndefined()) {
-        // Let mapping be false.
-    } else {
-        // Else,
-        // If IsCallable(mapper) is false, throw a TypeError exception.
-        if (!mapper.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "argument mapper is not callable nor undefined");
-        }
-        // Let mapping be true.
-        mapping = true;
-    }
-    // Let usingAsyncIterator be ? GetMethod(asyncItems, %Symbol.asyncIterator%).
-    auto usingAsyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().asyncIterator);
-    // If usingAsyncIterator is undefined, then
-    Value usingSyncIterator;
-    if (usingAsyncIterator.isUndefined()) {
-        // Let usingSyncIterator be ? GetMethod(asyncItems, %Symbol.iterator%).
-        usingSyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().iterator);
-    }
-    // Let iteratorRecord be undefined.
-    Optional<IteratorRecord*> iteratorRecord;
-    // If usingAsyncIterator is not undefined, then
-    if (!usingAsyncIterator.isUndefined()) {
-        // Set iteratorRecord to ? GetIteratorFromMethod(asyncItems, usingAsyncIterator).
-        iteratorRecord = IteratorObject::getIteratorFromMethod(state, argv[0], usingAsyncIterator);
-    } else if (!usingSyncIterator.isUndefined()) {
-        // Else if usingSyncIterator is not undefined, then
-        // Set iteratorRecord to CreateAsyncFromSyncIterator(? GetIteratorFromMethod(asyncItems, usingSyncIterator)).
-        iteratorRecord = AsyncFromSyncIteratorObject::createAsyncFromSyncIterator(state, IteratorObject::getIteratorFromMethod(state, argv[0], usingSyncIterator));
-    }
-    // If iteratorRecord is not undefined, then
-    if (iteratorRecord) {
-        // If IsConstructor(C) is true, then
-        Value A;
-        if (C.isConstructor()) {
-            // Let A be ? Construct(C).
-            A = Object::construct(state, C, 0, nullptr);
-        } else {
-            // Else,
-            // Let A be ! ArrayCreate(0).
-            A = new ArrayObject(state);
-        }
-        // Let k be 0.
-        auto record = new ArrayFromAsyncRecord(mapping, mapper, thisArg, A, iteratorRecord.value(), PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise()));
-        arrayFromAsyncAsyncAwaitOperation(state, Value(), record, 0);
-        return record->m_promiseCapability.m_promise;
-    } else {
-        // Let arrayLike be ! ToObject(asyncItems).
-        auto arrayLike = argv[0].toObject(state);
-        // Let len be ? LengthOfArrayLike(arrayLike).
-        int64_t len = static_cast<int64_t>(arrayLike->length(state));
-        Value A;
-        // If IsConstructor(C) is true, then
-        if (C.isConstructor()) {
-            // Let A be ? Construct(C, « 𝔽(len) »).
-            Value v(len);
-            A = Object::construct(state, C, 1, &v);
-        } else {
-            // Else,
-            // Let A be ? ArrayCreate(len).
-            A = new ArrayObject(state, len);
-        }
+    // Create promise capability first to ensure all errors are handled asynchronously
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
 
-        auto record = new ArrayFromAsyncSyncRecord(mapping, mapper, thisArg, A, len, arrayLike, PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise()));
-        arrayFromAsyncSyncAwaitOperation(state, Value(), record, 0);
-        return record->m_promiseCapability.m_promise;
+    try {
+        // Let C be the this value.
+        const Value& C = thisValue;
+        Value mapper = argc < 2 ? Value() : argv[1];
+        Value thisArg = argc < 3 ? Value() : argv[2];
+        // If mapper is undefined, then
+        bool mapping = false;
+        if (mapper.isUndefined()) {
+            // Let mapping be false.
+        } else {
+            // Else,
+            // If IsCallable(mapper) is false, throw a TypeError exception.
+            if (!mapper.isCallable()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "argument mapper is not callable nor undefined");
+            }
+            // Let mapping be true.
+            mapping = true;
+        }
+        // Let usingAsyncIterator be ? GetMethod(asyncItems, %Symbol.asyncIterator%).
+        auto usingAsyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().asyncIterator);
+        // If usingAsyncIterator is undefined, then
+        Value usingSyncIterator;
+        if (usingAsyncIterator.isUndefined()) {
+            // Let usingSyncIterator be ? GetMethod(asyncItems, %Symbol.iterator%).
+            usingSyncIterator = Object::getMethod(state, argv[0], state.context()->vmInstance()->globalSymbols().iterator);
+        }
+        // Let iteratorRecord be undefined.
+        Optional<IteratorRecord*> iteratorRecord;
+        // If usingAsyncIterator is not undefined, then
+        if (!usingAsyncIterator.isUndefined()) {
+            // Set iteratorRecord to ? GetIteratorFromMethod(asyncItems, usingAsyncIterator).
+            iteratorRecord = IteratorObject::getIteratorFromMethod(state, argv[0], usingAsyncIterator);
+        } else if (!usingSyncIterator.isUndefined()) {
+            // Else if usingSyncIterator is not undefined, then
+            // Set iteratorRecord to CreateAsyncFromSyncIterator(? GetIteratorFromMethod(asyncItems, usingSyncIterator)).
+            iteratorRecord = AsyncFromSyncIteratorObject::createAsyncFromSyncIterator(state, IteratorObject::getIteratorFromMethod(state, argv[0], usingSyncIterator));
+        }
+        // If iteratorRecord is not undefined, then
+        if (iteratorRecord) {
+            // If IsConstructor(C) is true, then
+            Value A;
+            if (C.isConstructor()) {
+                // Let A be ? Construct(C).
+                A = Object::construct(state, C, 0, nullptr);
+            } else {
+                // Else,
+                // Let A be ! ArrayCreate(0).
+                A = new ArrayObject(state);
+            }
+            // Let k be 0.
+            auto record = new ArrayFromAsyncRecord(mapping, mapper, thisArg, A, iteratorRecord.value(), promiseCapability);
+            // Start the iteration synchronously for the first element
+            builtinArrayFromAsyncAsyncWorker(state, record);
+            return record->m_promiseCapability.m_promise;
+        } else {
+            // Let arrayLike be ! ToObject(asyncItems).
+            auto arrayLike = argv[0].toObject(state);
+            // Let len be ? LengthOfArrayLike(arrayLike).
+            int64_t len = static_cast<int64_t>(arrayLike->length(state));
+            Value A;
+            // If IsConstructor(C) is true, then
+            if (C.isConstructor()) {
+                // Let A be ? Construct(C, « 𝔽(len) »).
+                Value v(len);
+                A = Object::construct(state, C, 1, &v);
+            } else {
+                // Else,
+                // Let A be ? ArrayCreate(len).
+                A = new ArrayObject(state, len);
+            }
+
+            auto record = new ArrayFromAsyncSyncRecord(mapping, mapper, thisArg, A, len, arrayLike, promiseCapability);
+            arrayFromAsyncSyncAwaitOperation(state, Value(), record, 0);
+            return record->m_promiseCapability.m_promise;
+        }
+    } catch (const Value& error) {
+        // Reject the promise asynchronously for any errors
+        promiseCapability.m_promise->asPromiseObject()->reject(state, error);
+        return promiseCapability.m_promise;
     }
 }
 
