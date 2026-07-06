@@ -744,19 +744,24 @@ class TestSuite(object):
     if len(cases) == 0:
       ReportError("No tests to run")
     progress = ProgressIndicator(len(cases))
-    if logname:
-      self.logf = open(logname, "w", encoding="utf-8")
+    
+    # Initialize file handles to None - will be opened after multiprocessing
+    self.logf = None
+    self.outfile = None
+    
+    # Prepare JUnit XML structure before multiprocessing (but don't open file yet)
+    TestSuitesElement = None
+    TestSuiteElement = None
     if junitfile:
-      self.outfile = open(junitfile, "w", encoding="utf-8")
       TestSuitesElement = xmlj.Element("testsuites")
       TestSuiteElement = xmlj.Element("testsuite")
       TestSuitesElement.append(TestSuiteElement)
-      TestSuiteElement.attrib["name "] = "test262"
+      TestSuiteElement.attrib["name"] = "test262"
       for x in range(len(EXCLUDE_LIST)):
-        if self.ShouldRun (str(EXCLUDE_LIST[x].encode('utf-8','ignore')), tests):
+        if self.ShouldRun(EXCLUDE_LIST[x], tests):
           SkipCaseElement = xmlj.Element("testcase")
-          SkipCaseElement.attrib["classname"] = str(EXCLUDE_LIST[x]).encode('utf-8','ignore')
-          SkipCaseElement.attrib["name"] = str(EXCLUDE_LIST[x]).encode('utf-8','ignore')
+          SkipCaseElement.attrib["classname"] = EXCLUDE_LIST[x]
+          SkipCaseElement.attrib["name"] = EXCLUDE_LIST[x]
           SkipElement = xmlj.Element("skipped")
           SkipElement.attrib["message"] = str(EXCLUDE_REASON[x].firstChild.nodeValue)
           SkipCaseElement.append(SkipElement)
@@ -779,6 +784,15 @@ class TestSuite(object):
     for cr in casesResult:
       resultTemp[cr[0]] = cr[1]
 
+    pool.close()
+    pool.join()
+    
+    # Open log/junit files AFTER multiprocessing is complete to avoid pickle errors
+    if logname:
+      self.logf = open(logname, "w", encoding="utf-8")
+    if junitfile:
+      self.outfile = open(junitfile, "wb")  # Binary mode for XML write
+
     for case in cases:
       #result = case.Run(command_template)
       result = resultTemp[cases.index(case)]
@@ -794,19 +808,23 @@ class TestSuite(object):
       if junitfile:
         TestCaseElement = result.XmlAssemble(result)
         TestSuiteElement.append(TestCaseElement)
-        if case == cases[len(cases)-1]:
-             xmlj.ElementTree(TestSuitesElement).write(junitfile, "UTF-8")
       if logname:
         self.WriteLog(result)
       progress.HasRun(result, print_full)
 
-    pool.close()
-    pool.join()
+    # Write JUnit XML file after all tests are done
+    if junitfile:
+      xmlj.ElementTree(TestSuitesElement).write(self.outfile, "UTF-8")
+      self.outfile.close()
 
     if print_summary:
       self.PrintSummary(progress, logname)
     elif print_full:
       self.PrintFull(progress, logname)
+    
+    # Close log file AFTER PrintSummary/PrintFull
+    if logname:
+      self.logf.close()
     '''
       if full_summary:
         self.PrintFailureOutput(progress, logname)
