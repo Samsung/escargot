@@ -236,6 +236,10 @@ class TestResult(object):
         # some tc has own $DONE function
         return self.exit_code != 0
     else:
+        # Check for AsyncTestFailure marker first
+        if 'Test262:AsyncTestFailure' in self.stdout:
+            return True
+        # If no AsyncTestComplete marker, the test didn't complete properly
         return 'Test262:AsyncTestComplete' not in self.stdout
 
   def HasUnexpectedOutcome(self):
@@ -309,7 +313,7 @@ class TestCase(object):
     return 'raw' in self.testRecord
 
   def IsAsyncTest(self):
-    return '$DONE(' in self.test or '$DONE,' in self.test or '$DONE)' in self.test
+    return '$DONE(' in self.test or '$DONE,' in self.test or '$DONE)' in self.test or 'asyncTest(' in self.test
 
   def GetIncludeList(self):
     if self.testRecord.get('includes'):

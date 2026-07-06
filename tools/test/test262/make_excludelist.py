@@ -63,7 +63,7 @@ def run_all_test262(engine, arch):
         if isfile(join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')):
             os.environ['ESCARGOT_LD_PRELOAD'] = join(PROJECT_SOURCE_DIR, 'backtrace-hooking-64.so')
         
-    proc = Popen(['pypy', join(PROJECT_SOURCE_DIR, 'tools', 'run-tests.py'), 
+    proc = Popen(['python3', join(PROJECT_SOURCE_DIR, 'tools', 'run-tests.py'), 
         '--arch=%s' % arch, '--engine', engine, 'test262'],
         stdout=PIPE, stderr=PIPE)
     out, _ = proc.communicate()
