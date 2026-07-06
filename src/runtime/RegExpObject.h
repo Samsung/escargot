@@ -63,18 +63,29 @@ public:
     struct RegExpCacheKey {
         RegExpCacheKey(String* body, Option option)
             : m_body(body)
-            , m_multiline(option & RegExpObject::Option::MultiLine)
             , m_ignoreCase(option & RegExpObject::Option::IgnoreCase)
+            , m_multiline(option & RegExpObject::Option::MultiLine)
+            , m_dotAll(option & RegExpObject::Option::DotAll)
+            , m_unicode(option & RegExpObject::Option::Unicode)
+            , m_unicodeSets(option & RegExpObject::Option::UnicodeSets)
         {
         }
 
         bool operator==(const RegExpCacheKey& otherKey) const
         {
-            return (m_body == otherKey.m_body) && (m_multiline == otherKey.m_multiline) && (m_ignoreCase == otherKey.m_ignoreCase);
+            return (m_body == otherKey.m_body)
+                && (m_ignoreCase == otherKey.m_ignoreCase)
+                && (m_multiline == otherKey.m_multiline)
+                && (m_dotAll == otherKey.m_dotAll)
+                && (m_unicode == otherKey.m_unicode)
+                && (m_unicodeSets == otherKey.m_unicodeSets);
         }
         String* m_body;
-        bool m_multiline : 1;
         bool m_ignoreCase : 1;
+        bool m_multiline : 1;
+        bool m_dotAll : 1;
+        bool m_unicode : 1;
+        bool m_unicodeSets : 1;
     };
 
     struct RegExpCacheEntry {
@@ -260,7 +271,14 @@ template <>
 struct hash<Escargot::RegExpObject::RegExpCacheKey> {
     size_t operator()(Escargot::RegExpObject::RegExpCacheKey const& x) const
     {
-        return x.m_body->hashValue();
+        size_t hash = x.m_body->hashValue();
+        // Combine compilation-affecting flags into hash
+        hash ^= static_cast<size_t>(x.m_ignoreCase) << 1;
+        hash ^= static_cast<size_t>(x.m_multiline) << 2;
+        hash ^= static_cast<size_t>(x.m_dotAll) << 3;
+        hash ^= static_cast<size_t>(x.m_unicode) << 4;
+        hash ^= static_cast<size_t>(x.m_unicodeSets) << 5;
+        return hash;
     }
 };
 
