@@ -40,6 +40,17 @@ public:
     bool m_done;
 };
 
+class ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject : public NativeFunctionObject {
+public:
+    ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject(ExecutionState& state, NativeFunctionInfo info, IteratorRecord* record)
+        : NativeFunctionObject(state, info)
+        , m_syncIteratorRecord(record)
+    {
+    }
+
+    IteratorRecord* m_syncIteratorRecord;
+};
+
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-async-from-sync-iterator-value-unwrap-functions
 static Value asyncFromSyncIteratorValueUnwrapLogic(ExecutionState& state, ScriptAsyncFromSyncIteratorHelperFunctionObject* activeFunctionObject, const Value& value)
@@ -55,8 +66,18 @@ static Value asyncFromSyncIteratorValueUnwrap(ExecutionState& state, Value thisV
     return asyncFromSyncIteratorValueUnwrapLogic(state, (ScriptAsyncFromSyncIteratorHelperFunctionObject*)state.resolveCallee(), argv[0]);
 }
 
+static Value asyncFromSyncIteratorCloseOnReject(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto F = (ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject*)state.resolveCallee();
+    IteratorRecord* syncIteratorRecord = F->m_syncIteratorRecord;
+    const Value& error = argv[0];
+
+    IteratorObject::iteratorClose(state, syncIteratorRecord, error, true);
+    return Value();
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-asyncfromsynciteratorcontinuation
-static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* result, PromiseReaction::Capability promiseCapability)
+static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* result, PromiseReaction::Capability promiseCapability, IteratorRecord* syncIteratorRecord, bool closeOnRejection)
 {
     // Let done be IteratorComplete(result).
     bool done;
@@ -83,20 +104,32 @@ static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* re
     try {
         valueWrapper = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), value)->asPromiseObject();
     } catch (const Value& thrownValue) {
-        // * added step from 2020 (esid: language/statements/for-await-of/async-from-sync-iterator-continuation-abrupt-completion-get-constructor.js)
-        // IfAbruptRejectPromise(valueWrapper, promiseCapability).
+        if (!done && closeOnRejection) {
+            try {
+                IteratorObject::iteratorClose(state, syncIteratorRecord, thrownValue, true);
+            } catch (const Value& closeError) {
+                Value argv = closeError;
+                Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+                return promiseCapability.m_promise;
+            }
+        }
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
     }
 
-    // Let steps be the algorithm steps defined in Async-from-Sync Iterator Value Unwrap Functions.
-    // Let onFulfilled be CreateBuiltinFunction(steps, « [[Done]] »).
-    // Set onFulfilled.[[Done]] to done.
     auto onFulfilled = new ScriptAsyncFromSyncIteratorHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncFromSyncIteratorValueUnwrap, 1), done);
-    // Perform ! PerformPromiseThen(valueWrapper, onFulfilled, undefined, promiseCapability).
-    valueWrapper->then(state, onFulfilled, Value(), promiseCapability);
-    // Return promiseCapability.[[Promise]].
+
+    Value onRejected;
+    if (closeOnRejection && !done) {
+        onRejected = new ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject(state, NativeFunctionInfo(AtomicString(), asyncFromSyncIteratorCloseOnReject, 1), syncIteratorRecord);
+    }
+
+    if (onRejected.isEmpty()) {
+        valueWrapper->then(state, onFulfilled, Value(), promiseCapability);
+    } else {
+        valueWrapper->then(state, onFulfilled, onRejected, promiseCapability);
+    }
     return promiseCapability.m_promise;
 }
 
@@ -133,7 +166,7 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
         return promiseCapability.m_promise;
     }
     // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
-    return asyncFromSyncIteratorContinuation(state, result, promiseCapability);
+    return asyncFromSyncIteratorContinuation(state, result, promiseCapability, syncIteratorRecord, true);
 }
 
 static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -153,8 +186,8 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
     }
-    // Let syncIterator be O.[[SyncIteratorRecord]].[[Iterator]].
-    Object* syncIterator = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord()->m_iterator;
+    auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
+    Object* syncIterator = syncIteratorRecord->m_iterator;
     // Let return be GetMethod(syncIterator, "return").
     Value returnVariable;
     try {
@@ -203,7 +236,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
         return promiseCapability.m_promise;
     }
     // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
-    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
+    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability, syncIteratorRecord, true);
 }
 
 static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -226,16 +259,19 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 
     // Let syncIteratorRecord be O.[[SyncIteratorRecord]].
     auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
-    // Let syncIterator be O.[[SyncIteratorRecord]].[[Iterator]].
     Object* syncIterator = syncIteratorRecord->m_iterator;
     // Let throw be GetMethod(syncIterator, "throw").
     Value throwVariable;
     try {
         throwVariable = Object::getMethod(state, syncIterator, state.context()->staticStrings().stringThrow);
     } catch (const Value& thrownValue) {
-        // IfAbruptRejectPromise(return, promiseCapability).
-        // Close the iterator
-        syncIteratorRecord->m_done = true;
+        try {
+            IteratorObject::iteratorClose(state, syncIteratorRecord, thrownValue, true);
+        } catch (const Value& closeError) {
+            Value argv = closeError;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            return promiseCapability.m_promise;
+        }
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
@@ -243,12 +279,15 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 
     // If throw is undefined, then
     if (throwVariable.isUndefined()) {
-        // Let iteratorClosed be Completion(IteratorClose(syncIteratorRecord, NormalCompletion(undefined))).
-        syncIteratorRecord->m_done = true;
-        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        try {
+            IteratorObject::iteratorClose(state, syncIteratorRecord, Value(), false);
+        } catch (const Value& closeError) {
+            Value argv = closeError;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            return promiseCapability.m_promise;
+        }
         Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("throw is undefined"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
-        // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
     }
 
@@ -257,26 +296,32 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     try {
         result = Object::call(state, throwVariable, syncIterator, 1, &value);
     } catch (const Value& thrownValue) {
-        // IfAbruptRejectPromise(result, promiseCapability).
-        // Close the iterator
-        syncIteratorRecord->m_done = true;
+        try {
+            IteratorObject::iteratorClose(state, syncIteratorRecord, thrownValue, true);
+        } catch (const Value& closeError) {
+            Value argv = closeError;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            return promiseCapability.m_promise;
+        }
         Value argv = thrownValue;
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
         return promiseCapability.m_promise;
     }
 
-    // If Type(result) is not Object, then
     if (!result.isObject()) {
-        // Close the iterator
-        syncIteratorRecord->m_done = true;
-        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        try {
+            IteratorObject::iteratorClose(state, syncIteratorRecord, Value(), false);
+        } catch (const Value& closeError) {
+            Value argv = closeError;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+            return promiseCapability.m_promise;
+        }
         Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
-        // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
     }
     // Return ! AsyncFromSyncIteratorContinuation(result, promiseCapability).
-    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
+    return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability, syncIteratorRecord, true);
 }
 
 void GlobalObject::initializeAsyncFromSyncIterator(ExecutionState& state)
