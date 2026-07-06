@@ -606,12 +606,24 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                    if (LIKELY(idx < arr->arrayLength(*state))) {
-                        arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                        ADD_PROGRAM_COUNTER(SetObjectOperation);
-                        NEXT_INSTRUCTION();
+                    // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
+                    // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+                    if (LIKELY(property.isUInt32())) {
+                        uint32_t idx = property.asUInt32();
+                        if (LIKELY(idx < arr->arrayLength(*state))) {
+                            arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                            ADD_PROGRAM_COUNTER(SetObjectOperation);
+                            NEXT_INSTRUCTION();
+                        }
+                    } else if (property.isString()) {
+                        uint32_t idx = property.asString()->tryToUseAsIndex32();
+                        if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
+                            arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                            ADD_PROGRAM_COUNTER(SetObjectOperation);
+                            NEXT_INSTRUCTION();
+                        }
                     }
+                    // For Object or other types, fall through to slow case to avoid side effects
                 }
             }
             JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
