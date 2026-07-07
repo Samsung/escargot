@@ -77,8 +77,20 @@ public:
 
         // for the case of function (x = x) {...}
         // set m_inParameterInitialization to false at first m_left->generateStoreByteCode, so addInitializedParameterNames is called by second m_left->generateStoreByteCode.
+        // Only do this when m_left is a plain identifier (the self-reference case). For a
+        // destructuring pattern left (e.g. function ({ [e.b]: e } = {}) {}) the computed
+        // property keys are expressions that may reference not-yet-initialized parameters, so
+        // the reference-before-initialization check must stay enabled while the pattern is stored.
         bool oldInParameterInitialization = context->m_inParameterInitialization;
-        context->m_inParameterInitialization = false;
+        if (m_left->isIdentifier()) {
+            context->m_inParameterInitialization = false;
+        }
+
+        // Snapshot the initialized parameter names: the "value provided" branch below and the
+        // "default value" branch are mutually exclusive at runtime, so the default branch (and
+        // the default expression m_right, which per spec is evaluated before the pattern is
+        // bound) must not see the names bound by this branch as already initialized.
+        std::vector<AtomicString> initializedParameterNamesBefore = context->m_initializedParameterNames;
 
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateStoreByteCode(codeBlock, context, srcRegister, false);
@@ -90,6 +102,12 @@ public:
 
         // undefined case, set default node
         codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+
+        // restore initialized parameter names so the default branch re-checks parameter
+        // references (e.g. the computed keys of the pattern) instead of reusing the state
+        // accumulated by the "value provided" branch above.
+        context->m_initializedParameterNames = std::move(initializedParameterNamesBefore);
+
         size_t rightIndex = m_right->getRegister(codeBlock, context);
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_right->generateExpressionByteCode(codeBlock, context, rightIndex);
