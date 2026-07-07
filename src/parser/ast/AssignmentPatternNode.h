@@ -92,6 +92,14 @@ public:
         // bound) must not see the names bound by this branch as already initialized.
         std::vector<AtomicString> initializedParameterNamesBefore = context->m_initializedParameterNames;
 
+        // Same reasoning for lexically declared names: the "value provided" branch below
+        // initializes the bound name(s) (which records them as lexically declared, suppressing
+        // the TDZ check for stack-allocated let/const bindings). The default expression m_right
+        // is evaluated before the binding is initialized (e.g. for (let { a: n = typeof n } of x)),
+        // so it must still see the name(s) as uninitialized. Snapshot here and restore before the
+        // default branch below.
+        std::vector<std::pair<size_t, AtomicString>> lexicallyDeclaredNamesBefore = *context->m_lexicallyDeclaredNames;
+
         m_left->generateResolveAddressByteCode(codeBlock, context);
         m_left->generateStoreByteCode(codeBlock, context, srcRegister, false);
 
@@ -107,6 +115,11 @@ public:
         // references (e.g. the computed keys of the pattern) instead of reusing the state
         // accumulated by the "value provided" branch above.
         context->m_initializedParameterNames = std::move(initializedParameterNamesBefore);
+
+        // restore lexically declared names so the default expression re-checks the temporal
+        // dead zone (e.g. `typeof n` in the default of `n`) instead of reusing the state
+        // accumulated by the "value provided" branch above.
+        *context->m_lexicallyDeclaredNames = std::move(lexicallyDeclaredNamesBefore);
 
         size_t rightIndex = m_right->getRegister(codeBlock, context);
         m_left->generateResolveAddressByteCode(codeBlock, context);
