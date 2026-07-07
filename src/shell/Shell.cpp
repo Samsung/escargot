@@ -38,6 +38,15 @@
 
 #include "api/EscargotPublic.h"
 
+#if defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER)
+extern "C" {
+const char* __asan_default_options()
+{
+    return "detect_stack_use_after_return=0";
+}
+}
+#endif
+
 #if defined(ESCARGOT_ENABLE_TEST)
 // these header & function below are used for Escargot internal development
 // general client doesn't need this
