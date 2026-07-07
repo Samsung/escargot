@@ -1919,8 +1919,24 @@ NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& st
         while (env) {
             if (idx == count) {
                 EnvironmentRecord::BindingSlot slot = env->record()->hasBinding(state, code->m_name);
-                if (slot.m_index == SIZE_MAX && state.inStrictMode()) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
+                // If slot.m_index == SIZE_MAX, binding was deleted (e.g., delete in with statement)
+                // For ObjectEnvironmentRecord (with statement), set to binding object instead of calling setMutableBindingByBindingSlot
+                if (slot.m_index == SIZE_MAX) {
+                    if (env->record()->isObjectEnvironmentRecord()) {
+                        Object* bindingObj = env->record()->asObjectEnvironmentRecord()->bindingObject();
+                        if (state.inStrictMode()) {
+                            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
+                        }
+                        bindingObj->setThrowsExceptionWhenStrictMode(state, code->m_name, value, bindingObj);
+                        return;
+                    } else {
+                        if (state.inStrictMode()) {
+                            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
+                        }
+                        GlobalObject* o = state.context()->globalObject();
+                        o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
+                        return;
+                    }
                 }
                 env->record()->setMutableBindingByBindingSlot(state, slot, code->m_name, value);
                 return;
