@@ -290,6 +290,22 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
         } else if (isAsyncGenerator) {
             pauser->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::SuspendedYield;
             returnValue = AsyncGeneratorObject::asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
+            // asyncGeneratorResolve() can synchronously drive this same generator through
+            // another full resume (e.g. when a subsequent next() request is already queued),
+            // which runs executionResumeOperation() and, as a side effect, clears
+            // m_inExecutionStopState along the very execution state chain (&state..originalState)
+            // that *this* pause() call is still unwinding. Restore it here, otherwise the
+            // still-unwinding blockOperation()/tryOperation() frames above us on the C++ stack
+            // read a stale "not stopped" flag and fall through past the end of the (already
+            // fully consumed) bytecode block.
+            ExecutionState* restoreState = &state;
+            while (true) {
+                restoreState->m_inExecutionStopState = true;
+                if (restoreState == originalState) {
+                    break;
+                }
+                restoreState = restoreState->parent();
+            }
         }
     } else {
         ASSERT(reason == PauseReason::Await || reason == PauseReason::GeneratorsInitialize);
