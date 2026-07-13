@@ -474,4 +474,58 @@ TEST(Napi, WeakReferenceStaleAfterGC)
     napi_delete_reference(napiEnv->env(), ref);
 }
 
+static int g_removeWrapFinalizeCount = 0;
+
+static void RemoveWrapFinalizeCallback(node_api_basic_env env, void* data, void* hint)
+{
+    g_removeWrapFinalizeCount++;
+}
+
+TEST(Napi, RemoveWrapSuppressesFinalizer)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    g_removeWrapFinalizeCount = 0;
+
+    // Wrap an object with a finalizer, then immediately napi_remove_wrap it,
+    // inside its own Evaluator::execute call so no local variable in this
+    // test's own stack frame keeps referencing the object once this call
+    // returns (same "own call frame" discipline as Napi.FactoryWrap above).
+    Evaluator::EvaluatorResult r1 = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
+            env->executionState = state;
+            ObjectRef* obj = ObjectRef::create(state);
+            napi_wrap(env, ToNapi(obj), nullptr, RemoveWrapFinalizeCallback, nullptr, nullptr);
+
+            void* removed = nullptr;
+            napi_remove_wrap(env, ToNapi(obj), &removed);
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env());
+    ASSERT_TRUE(r1.isSuccessful()) << r1.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+
+    // napi_remove_wrap itself must not invoke the finalizer
+    EXPECT_EQ(g_removeWrapFinalizeCount, 0);
+
+    // "clear stack" + churn + gc x5, same pattern as Napi.FactoryWrap: nothing
+    // else roots the object created above, so this must collect it - and the
+    // finalizer must stay suppressed even once that actually happens.
+    Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* {
+            return ValueRef::create(100);
+        },
+        StringRef::createFromUTF8("qwer"));
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    EXPECT_EQ(g_removeWrapFinalizeCount, 0);
+}
+
 #endif // ENABLE_NAPI

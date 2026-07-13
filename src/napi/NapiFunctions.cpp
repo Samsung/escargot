@@ -104,6 +104,9 @@ struct WrapFinalizeData {
 static void NapiWrapFinalizer(void* self, void* data)
 {
     WrapFinalizeData* wrapData = reinterpret_cast<WrapFinalizeData*>(data);
+    // the object is being collected, so its napi_remove_wrap lookup entry
+    // would otherwise dangle once this same address is reused later
+    wrapData->env->napiEnv->takeWrapFinalizerData(reinterpret_cast<ObjectRef*>(self));
     wrapData->finalizeCb(wrapData->env, wrapData->nativeObject, wrapData->finalizeHint);
     delete wrapData;
 }
@@ -360,6 +363,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, v
         wrapData->nativeObject = native_object;
         wrapData->finalizeHint = finalize_hint;
         Memory::gcRegisterFinalizer(obj, NapiWrapFinalizer, wrapData);
+        env->napiEnv->setWrapFinalizerData(obj, wrapData);
     }
 
     if (result != nullptr) {
@@ -385,10 +389,15 @@ ESCARGOT_NAPI_EXPORT napi_status napi_remove_wrap(napi_env env, napi_value js_ob
         *result = obj->extraData();
     }
     obj->setExtraData(nullptr);
-    // does not unregister the napi_wrap finalizer yet (would need the
-    // WrapFinalizeData pointer stashed somewhere retrievable); harmless for
-    // every TC that currently exercises this PoC, since none of them expect
-    // the finalizer to be suppressed after remove_wrap
+
+    // suppress the napi_wrap finalizer: a real Node-API remove_wrap must not
+    // invoke it, neither now nor when obj is eventually collected
+    void* wrapDataRaw = env->napiEnv->takeWrapFinalizerData(obj);
+    if (wrapDataRaw != nullptr) {
+        WrapFinalizeData* wrapData = reinterpret_cast<WrapFinalizeData*>(wrapDataRaw);
+        Memory::gcUnregisterFinalizer(obj, NapiWrapFinalizer, wrapData);
+        delete wrapData;
+    }
     return napi_ok;
 }
 

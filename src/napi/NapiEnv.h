@@ -21,6 +21,7 @@
 #ifndef __EscargotNapiEnv__
 #define __EscargotNapiEnv__
 
+#include "Escargot.h"
 #include "api/EscargotPublic.h"
 
 #include <node_api.h>
@@ -114,12 +115,38 @@ public:
         return m_persistentValueRefMap.get();
     }
 
+    // per-object side storage for napi_wrap's WrapFinalizeData* (NapiFunctions.cpp),
+    // so napi_remove_wrap can find and unregister the GC finalizer napi_wrap
+    // registered without needing extraData() for it - that slot must stay
+    // exactly the caller's native_object, per napi_unwrap's contract. Cleared
+    // by whichever happens first: napi_remove_wrap, or the wrap finalizer
+    // itself once the wrapped object is actually collected. `obj` is a
+    // non-owning key: safe because Escargot's GC never moves objects, and
+    // every insertion is paired with an eventual removal along one of those
+    // two paths, so a collected object's address is never left stale here.
+    void setWrapFinalizerData(ObjectRef* obj, void* data)
+    {
+        m_wrapFinalizerData[obj] = data;
+    }
+
+    void* takeWrapFinalizerData(ObjectRef* obj)
+    {
+        auto iter = m_wrapFinalizerData.find(obj);
+        if (iter == m_wrapFinalizerData.end()) {
+            return nullptr;
+        }
+        void* data = iter->second;
+        m_wrapFinalizerData.erase(iter);
+        return data;
+    }
+
 private:
     NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context);
 
     PersistentRefHolder<VMInstanceRef> m_vmInstance;
     PersistentRefHolder<ContextRef> m_context;
     PersistentRefHolder<PersistentValueRefMap> m_persistentValueRefMap;
+    HashMap<ObjectRef*, void*> m_wrapFinalizerData;
     napi_env__ m_env;
 };
 
