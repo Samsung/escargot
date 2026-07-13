@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 namespace Escargot {
 namespace Napi {
@@ -79,6 +80,49 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_undefined(napi_env env, napi_value* re
 ESCARGOT_NAPI_EXPORT napi_status napi_create_double(napi_env env, double value, napi_value* result)
 {
     *result = ToNapi(ValueRef::create(value));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_global(napi_env env, napi_value* result)
+{
+    *result = ToNapi(env->context()->globalObject());
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_create_object(napi_env env, napi_value* result)
+{
+    *result = ToNapi(ObjectRef::create(env->executionState));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_create_string_utf8(napi_env env, const char* str, size_t length, napi_value* result)
+{
+    size_t byteLength = (length == NAPI_AUTO_LENGTH) ? strlen(str) : length;
+    *result = ToNapi(StringRef::createFromUTF8(str, byteLength));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_value object, const char* utf8name, napi_value value)
+{
+    ObjectRef* obj = FromNapi(object)->asObject();
+    obj->set(env->executionState, StringRef::createFromUTF8(utf8name, strlen(utf8name)), FromNapi(value));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value recv, napi_value func, size_t argc, const napi_value* argv, napi_value* result)
+{
+    ExecutionStateRef* state = env->executionState;
+    ValueRef* fn = FromNapi(func);
+
+    std::vector<ValueRef*> args(argc);
+    for (size_t i = 0; i < argc; i++) {
+        args[i] = FromNapi(argv[i]);
+    }
+
+    ValueRef* callResult = fn->call(state, FromNapi(recv), argc, args.data());
+    if (result != nullptr) {
+        *result = ToNapi(callResult);
+    }
     return napi_ok;
 }
 

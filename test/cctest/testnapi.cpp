@@ -34,6 +34,7 @@ using namespace Escargot::Napi;
 #include "gtest/gtest.h"
 
 #include <dlfcn.h>
+#include <cstring>
 
 typedef napi_value (*NapiRegisterModuleFn)(napi_env, napi_value);
 
@@ -67,6 +68,187 @@ TEST(Napi, TwoFunctionArguments)
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     EXPECT_EQ(result.result->asNumber(), 8);
+
+    dlclose(handle);
+}
+
+// captures what a JS-side callback was invoked with, so the C++ test body can
+// inspect it afterward; plain file-static globals since NativeFunctionInfo
+// only accepts capture-less function pointers (no per-instance user data
+// short of the extraData() mechanism napi_create_function itself uses)
+static ValueRef* g_callbackArg = nullptr;
+static ValueRef* g_callbackThis = nullptr;
+
+static ValueRef* RecordCallbackArgAndThis(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall)
+{
+    g_callbackArg = argc > 0 ? argv[0] : ValueRef::createUndefined();
+    g_callbackThis = thisValue;
+    return ValueRef::createUndefined();
+}
+
+TEST(Napi, Callbacks)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_3_CALLBACKS_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    g_callbackArg = nullptr;
+    g_callbackThis = nullptr;
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            napi_env__ envData;
+            envData.napiEnv = env;
+            envData.executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
+
+            AtomicStringRef* cbName = AtomicStringRef::create(state->context(), "cb", 2);
+            FunctionObjectRef* cb = FunctionObjectRef::create(state, FunctionObjectRef::NativeFunctionInfo(cbName, RecordCallbackArgAndThis, 1, true, false));
+
+            // RunCallback(cb) should call cb.call(global, 'hello world')
+            ValueRef* runCallback = exportsResult->get(state, StringRef::createFromASCII("RunCallback"));
+            ValueRef* runCallbackArgs[1] = { cb };
+            runCallback->call(state, ValueRef::createUndefined(), 1, runCallbackArgs);
+
+            return ValueRef::createUndefined();
+        },
+        napiEnv, registerModule);
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    ASSERT_NE(g_callbackArg, nullptr);
+    ASSERT_TRUE(g_callbackArg->isString());
+    EXPECT_TRUE(g_callbackArg->asString()->equalsWithASCIIString("hello world", strlen("hello world")));
+
+    dlclose(handle);
+}
+
+TEST(Napi, CallbackRecv)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_3_CALLBACKS_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    g_callbackArg = nullptr;
+    g_callbackThis = nullptr;
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            napi_env__ envData;
+            envData.napiEnv = env;
+            envData.executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
+
+            AtomicStringRef* cbName = AtomicStringRef::create(state->context(), "cb", 2);
+            FunctionObjectRef* cb = FunctionObjectRef::create(state, FunctionObjectRef::NativeFunctionInfo(cbName, RecordCallbackArgAndThis, 0, true, false));
+
+            ObjectRef* desiredRecv = ObjectRef::create(state);
+
+            // RunCallbackWithRecv(cb, desiredRecv) should call cb.call(desiredRecv)
+            ValueRef* runCallbackWithRecv = exportsResult->get(state, StringRef::createFromASCII("RunCallbackWithRecv"));
+            ValueRef* args[2] = { cb, desiredRecv };
+            runCallbackWithRecv->call(state, ValueRef::createUndefined(), 2, args);
+
+            return desiredRecv;
+        },
+        napiEnv, registerModule);
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    ASSERT_NE(g_callbackThis, nullptr);
+    // Escargot's GC (Boehm) never moves objects, so comparing the raw pointers
+    // captured by the callback against the desiredRecv returned from the lambda
+    // is a valid identity check
+    EXPECT_EQ(g_callbackThis, result.result);
+
+    dlclose(handle);
+}
+
+TEST(Napi, ObjectFactory)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_4_OBJECT_FACTORY_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            napi_env__ envData;
+            envData.napiEnv = env;
+            envData.executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            ValueRef* factory = FromNapi(returnedExports);
+
+            ValueRef* helloArgs[1] = { StringRef::createFromASCII("hello") };
+            ValueRef* obj1 = factory->call(state, ValueRef::createUndefined(), 1, helloArgs);
+            ValueRef* worldArgs[1] = { StringRef::createFromASCII("world") };
+            ValueRef* obj2 = factory->call(state, ValueRef::createUndefined(), 1, worldArgs);
+
+            ValueRef* msg1 = obj1->asObject()->get(state, StringRef::createFromASCII("msg"));
+            ValueRef* msg2 = obj2->asObject()->get(state, StringRef::createFromASCII("msg"));
+
+            bool ok = msg1->isString() && msg2->isString()
+                && msg1->asString()->equalsWithASCIIString("hello", strlen("hello"))
+                && msg2->asString()->equalsWithASCIIString("world", strlen("world"));
+            return ValueRef::create(ok);
+        },
+        napiEnv, registerModule);
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    EXPECT_TRUE(result.result->asBoolean());
+
+    dlclose(handle);
+}
+
+TEST(Napi, FunctionFactory)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_5_FUNCTION_FACTORY_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            napi_env__ envData;
+            envData.napiEnv = env;
+            envData.executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            ValueRef* factory = FromNapi(returnedExports);
+
+            ValueRef* fn = factory->call(state, ValueRef::createUndefined(), 0, nullptr);
+            return fn->call(state, ValueRef::createUndefined(), 0, nullptr);
+        },
+        napiEnv, registerModule);
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    ASSERT_TRUE(result.result->isString());
+    EXPECT_TRUE(result.result->asString()->equalsWithASCIIString("hello world", strlen("hello world")));
 
     dlclose(handle);
 }

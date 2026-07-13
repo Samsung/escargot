@@ -351,19 +351,32 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
 
     IF (ESCARGOT_NAPI)
         # build real Node-API TCs (vendored under test/napi-tc) into .so files the
-        # cctest binary dlopen()s directly
+        # cctest binary dlopen()s directly. Add the TC's directory name here as
+        # more of test/napi-tc/test/js-native-api/* get supported.
         SET (NAPI_TEST_ADDON_DIR ${CMAKE_BINARY_DIR}/napi_test_addons)
-        SET (NAPI_2_FUNCTION_ARGUMENTS_SRC ${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api/2_function_arguments/2_function_arguments.c)
-        SET (NAPI_2_FUNCTION_ARGUMENTS_SO ${NAPI_TEST_ADDON_DIR}/2_function_arguments.so)
-        ADD_CUSTOM_COMMAND (
-            OUTPUT ${NAPI_2_FUNCTION_ARGUMENTS_SO}
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-            COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -I${ESCARGOT_THIRD_PARTY_ROOT}/node_api_headers/include ${NAPI_2_FUNCTION_ARGUMENTS_SRC} -o ${NAPI_2_FUNCTION_ARGUMENTS_SO}
-            DEPENDS ${NAPI_2_FUNCTION_ARGUMENTS_SRC}
-            COMMENT "Building napi test addon 2_function_arguments.so"
+        SET (NAPI_TEST_TCS
+            2_function_arguments
+            3_callbacks
+            4_object_factory
+            5_function_factory
         )
-        ADD_CUSTOM_TARGET (napi_test_addons ALL DEPENDS ${NAPI_2_FUNCTION_ARGUMENTS_SO})
+        SET (NAPI_TEST_ADDON_SOS)
+        FOREACH (NAPI_TEST_TC ${NAPI_TEST_TCS})
+            SET (NAPI_TEST_TC_SRC ${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api/${NAPI_TEST_TC}/${NAPI_TEST_TC}.c)
+            SET (NAPI_TEST_TC_SO ${NAPI_TEST_ADDON_DIR}/${NAPI_TEST_TC}.so)
+            ADD_CUSTOM_COMMAND (
+                OUTPUT ${NAPI_TEST_TC_SO}
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
+                COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -I${ESCARGOT_THIRD_PARTY_ROOT}/node_api_headers/include ${NAPI_TEST_TC_SRC} -o ${NAPI_TEST_TC_SO}
+                DEPENDS ${NAPI_TEST_TC_SRC}
+                COMMENT "Building napi test addon ${NAPI_TEST_TC}.so"
+            )
+            LIST (APPEND NAPI_TEST_ADDON_SOS ${NAPI_TEST_TC_SO})
+
+            STRING (TOUPPER ${NAPI_TEST_TC} NAPI_TEST_TC_UPPER)
+            TARGET_COMPILE_DEFINITIONS (${ESCARGOT_CCTEST_TARGET} PRIVATE NAPI_${NAPI_TEST_TC_UPPER}_SO_PATH="${NAPI_TEST_TC_SO}")
+        ENDFOREACH()
+        ADD_CUSTOM_TARGET (napi_test_addons ALL DEPENDS ${NAPI_TEST_ADDON_SOS})
         ADD_DEPENDENCIES (${ESCARGOT_CCTEST_TARGET} napi_test_addons)
-        TARGET_COMPILE_DEFINITIONS (${ESCARGOT_CCTEST_TARGET} PRIVATE NAPI_2_FUNCTION_ARGUMENTS_SO_PATH="${NAPI_2_FUNCTION_ARGUMENTS_SO}")
     ENDIF()
 ENDIF()
