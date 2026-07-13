@@ -18,11 +18,11 @@
  *  USA
  */
 
-// Drives the real, unmodified Node-API TC vendored at
-// test/napi-tc/test/js-native-api/2_function_arguments.
-// There is no require()/module-loader integration yet, so this dlopen()s the
+// Drives the real, unmodified Node-API TCs vendored at
+// test/napi-tc/test/js-native-api/*.
+// There is no require()/module-loader integration yet, so this dlopen()s each
 // compiled addon directly and calls its exported napi_register_module_v1,
-// reproducing the same assertion the addon's own test.js makes.
+// reproducing the same assertions each addon's own test.js makes.
 
 #include "api/EscargotPublic.h"
 #include "napi/NapiEnv.h"
@@ -50,13 +50,11 @@ TEST(Napi, TwoFunctionArguments)
     ASSERT_NE(registerModule, nullptr) << dlerror();
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            napi_env__ envData;
-            envData.napiEnv = env;
-            envData.executionState = state;
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
-            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
 
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
             ValueRef* addFn = exportsResult->get(state, StringRef::createFromASCII("add"));
@@ -64,7 +62,7 @@ TEST(Napi, TwoFunctionArguments)
             ValueRef* args[2] = { ValueRef::create(3), ValueRef::create(5) };
             return addFn->call(state, ValueRef::createUndefined(), 2, args);
         },
-        napiEnv, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     EXPECT_EQ(result.result->asNumber(), 8);
@@ -101,13 +99,11 @@ TEST(Napi, Callbacks)
     g_callbackThis = nullptr;
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            napi_env__ envData;
-            envData.napiEnv = env;
-            envData.executionState = state;
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
-            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
 
             AtomicStringRef* cbName = AtomicStringRef::create(state->context(), "cb", 2);
@@ -120,7 +116,7 @@ TEST(Napi, Callbacks)
 
             return ValueRef::createUndefined();
         },
-        napiEnv, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     ASSERT_NE(g_callbackArg, nullptr);
@@ -145,13 +141,11 @@ TEST(Napi, CallbackRecv)
     g_callbackThis = nullptr;
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            napi_env__ envData;
-            envData.napiEnv = env;
-            envData.executionState = state;
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
-            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
 
             AtomicStringRef* cbName = AtomicStringRef::create(state->context(), "cb", 2);
@@ -166,7 +160,7 @@ TEST(Napi, CallbackRecv)
 
             return desiredRecv;
         },
-        napiEnv, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     ASSERT_NE(g_callbackThis, nullptr);
@@ -190,13 +184,11 @@ TEST(Napi, ObjectFactory)
     ASSERT_NE(registerModule, nullptr) << dlerror();
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            napi_env__ envData;
-            envData.napiEnv = env;
-            envData.executionState = state;
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
-            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
             ValueRef* factory = FromNapi(returnedExports);
 
             ValueRef* helloArgs[1] = { StringRef::createFromASCII("hello") };
@@ -212,7 +204,7 @@ TEST(Napi, ObjectFactory)
                 && msg2->asString()->equalsWithASCIIString("world", strlen("world"));
             return ValueRef::create(ok);
         },
-        napiEnv, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     EXPECT_TRUE(result.result->asBoolean());
@@ -232,19 +224,17 @@ TEST(Napi, FunctionFactory)
     ASSERT_NE(registerModule, nullptr) << dlerror();
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            napi_env__ envData;
-            envData.napiEnv = env;
-            envData.executionState = state;
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
-            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
             ValueRef* factory = FromNapi(returnedExports);
 
             ValueRef* fn = factory->call(state, ValueRef::createUndefined(), 0, nullptr);
             return fn->call(state, ValueRef::createUndefined(), 0, nullptr);
         },
-        napiEnv, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     ASSERT_TRUE(result.result->isString());
@@ -264,16 +254,8 @@ TEST(Napi, ObjectWrap)
     NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
     ASSERT_NE(registerModule, nullptr) << dlerror();
 
-    // envData lives in this TEST's own stack frame (not a nested lambda's),
-    // so it is still valid later when we force GC below and MyObject's
-    // wrapped-instance finalizer (which captures this env pointer) runs -
-    // otherwise it would dangle once the exercise lambda below returns and
-    // this test's leftover garbage could crash a *later* test's GC pass.
-    napi_env__ envData;
-    envData.napiEnv = napiEnv;
-
     Evaluator::EvaluatorResult result = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, napi_env__* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
             env->executionState = state;
 
             ObjectRef* exports = ObjectRef::create(state);
@@ -321,15 +303,21 @@ TEST(Napi, ObjectWrap)
 
             return ValueRef::create(ok);
         },
-        &envData, registerModule);
+        napiEnv->env(), registerModule);
 
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     EXPECT_TRUE(result.result->asBoolean());
 
-    // Flush out the wrapped MyObject instances created above before this
-    // test ends, while envData (captured by their napi_wrap finalizer) is
-    // still alive - see the comment on envData above. Same "clear stack +
-    // churn + gc x5" pattern as test/cctest/testapi.cpp's WeakPtr.*/Finalizer.Basic.
+    // Flush out the wrapped MyObject instances created above before this test
+    // ends. This is not about env safety anymore (env now lives as long as
+    // NapiEnv itself, see NapiEnv::env()) - it is about not leaving
+    // unreachable-but-uncollected napi_wrap'd garbage sitting in the shared
+    // Boehm heap. Left alone, it can get opportunistically finalized at an
+    // arbitrary later point (e.g. mid-construction of a *different* test's
+    // brand-new VMInstance, which is an unsafe time to run addon code) -
+    // this actually crashed FactoryWrap when this cleanup was missing. Same
+    // "clear stack + churn + gc x5" pattern as
+    // test/cctest/testapi.cpp's WeakPtr.*/Finalizer.Basic.
     Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* {
             return ValueRef::create(100);
@@ -358,12 +346,10 @@ TEST(Napi, FactoryWrap)
     NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
     ASSERT_NE(registerModule, nullptr) << dlerror();
 
-    napi_env__ envData;
-    envData.napiEnv = napiEnv;
     ObjectRef* exports = nullptr;
 
     Evaluator::EvaluatorResult r1 = Evaluator::execute(
-        napiEnv->context(), [](ExecutionStateRef* state, napi_env__* env, NapiRegisterModuleFn registerModule, ObjectRef** exportsOut) -> ValueRef* {
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule, ObjectRef** exportsOut) -> ValueRef* {
             env->executionState = state;
             ObjectRef* exportsObj = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exportsObj));
@@ -373,7 +359,7 @@ TEST(Napi, FactoryWrap)
             EXPECT_EQ(finalizeCount->asNumber(), 0);
             return ValueRef::createUndefined();
         },
-        &envData, registerModule, &exports);
+        napiEnv->env(), registerModule, &exports);
     ASSERT_TRUE(r1.isSuccessful()) << r1.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
 
     // napi_wrap creates a weak napi_ref (refcount 0, see NapiFunctions.cpp),
@@ -386,7 +372,7 @@ TEST(Napi, FactoryWrap)
         // Evaluator::execute call, so no local variable in FactoryWrap's own
         // stack frame keeps referencing it once this call returns.
         Evaluator::EvaluatorResult r2 = Evaluator::execute(
-            napiEnv->context(), [](ExecutionStateRef* state, napi_env__* env, ObjectRef* exports, int base) -> ValueRef* {
+            napiEnv->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* exports, int base) -> ValueRef* {
                 env->executionState = state;
                 ValueRef* createObject = exports->get(state, StringRef::createFromASCII("createObject"));
                 ValueRef* args[1] = { ValueRef::create(base) };
@@ -398,7 +384,7 @@ TEST(Napi, FactoryWrap)
                 EXPECT_EQ(plusOne->call(state, objRef, 0, nullptr)->asNumber(), base + 3);
                 return ValueRef::createUndefined();
             },
-            &envData, exports, base);
+            napiEnv->env(), exports, base);
         ASSERT_TRUE(r2.isSuccessful()) << r2.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
 
         // "clear stack": an unrelated Evaluator::execute call reuses the
@@ -422,13 +408,13 @@ TEST(Napi, FactoryWrap)
         Memory::gc();
 
         Evaluator::EvaluatorResult r3 = Evaluator::execute(
-            napiEnv->context(), [](ExecutionStateRef* state, napi_env__* env, ObjectRef* exports, int expectedCount) -> ValueRef* {
+            napiEnv->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* exports, int expectedCount) -> ValueRef* {
                 env->executionState = state;
                 ValueRef* finalizeCount = exports->get(state, StringRef::createFromASCII("finalizeCount"));
                 EXPECT_EQ(finalizeCount->asNumber(), expectedCount);
                 return ValueRef::createUndefined();
             },
-            &envData, exports, round + 1);
+            napiEnv->env(), exports, round + 1);
         ASSERT_TRUE(r3.isSuccessful()) << r3.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
     }
 

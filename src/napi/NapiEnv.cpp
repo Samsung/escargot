@@ -76,6 +76,7 @@ NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefH
     , m_context(std::move(context))
     , m_persistentValueRefMap(PersistentValueRefMap::create())
 {
+    m_env.napiEnv = this;
 }
 
 NapiEnv::~NapiEnv()

@@ -62,26 +62,6 @@ inline ValueRef* FromNapi(napi_value value)
     return reinterpret_cast<ValueRef*>(value);
 }
 
-// the real napi_env__ definition (only forward-declared by node_api.h)
-struct EnvData {
-    NapiEnv* napiEnv = nullptr;
-    ExecutionStateRef* executionState = nullptr; // only valid for the duration of the current call
-    OptionalRef<ValueRef> pendingException;
-    std::string lastErrorMessage;
-    napi_extended_error_info lastErrorInfo;
-
-    // napi_set_instance_data/napi_get_instance_data; the finalizer is not
-    // invoked anywhere yet (no environment-teardown hook exists in this PoC)
-    void* instanceData = nullptr;
-    napi_finalize instanceDataFinalizer = nullptr;
-    void* instanceDataFinalizeHint = nullptr;
-
-    ContextRef* context()
-    {
-        return napiEnv->context();
-    }
-};
-
 // data stashed on a native FunctionObjectRef via setExtraData(), so the
 // callback trampoline can find the user's napi_callback + data pointer
 struct CallbackData {
@@ -92,10 +72,6 @@ struct CallbackData {
 
 } // namespace Napi
 } // namespace Escargot
-
-// the opaque type node_api.h forward-declares; napi_env is `EnvData*` in disguise
-struct napi_env__ : public Escargot::Napi::EnvData {
-};
 
 // the opaque type node_api.h forward-declares for napi_get_cb_info et al.
 struct napi_callback_info__ {

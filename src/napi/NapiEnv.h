@@ -23,15 +23,50 @@
 
 #include "api/EscargotPublic.h"
 
+#include <node_api.h>
+
+#include <string>
+
 namespace Escargot {
 namespace Napi {
 
 class NapiPlatform;
+class NapiEnv;
 
-// Owns the VMInstanceRef + ContextRef pair that a napi_env will be backed by.
-// This is scaffolding only: napi_env is not defined here yet (that needs the
-// vendored node-api type headers); N-API function implementations will later
-// wrap a NapiEnv* behind the opaque `napi_env` pointer.
+// the real napi_env__ definition (only forward-declared by node_api.h).
+// Owned directly by NapiEnv (see NapiEnv::m_env below) instead of being
+// stack-allocated per call/per test: a napi_callback (e.g. a napi_wrap
+// finalizer) can run later than the call that created it, so the env it
+// captures must stay valid for as long as NapiEnv itself does, not just for
+// one Evaluator::execute invocation.
+struct EnvData {
+    NapiEnv* napiEnv = nullptr;
+    ExecutionStateRef* executionState = nullptr; // only valid for the duration of the current call
+    OptionalRef<ValueRef> pendingException;
+    std::string lastErrorMessage;
+    napi_extended_error_info lastErrorInfo;
+
+    // napi_set_instance_data/napi_get_instance_data; the finalizer is not
+    // invoked anywhere yet (no environment-teardown hook exists in this PoC)
+    void* instanceData = nullptr;
+    napi_finalize instanceDataFinalizer = nullptr;
+    void* instanceDataFinalizeHint = nullptr;
+
+    ContextRef* context(); // defined below, out-of-line (needs NapiEnv complete)
+};
+
+} // namespace Napi
+} // namespace Escargot
+
+// the opaque type node_api.h forward-declares; napi_env is `EnvData*` in disguise
+struct napi_env__ : public Escargot::Napi::EnvData {
+};
+
+namespace Escargot {
+namespace Napi {
+
+// Owns the VMInstanceRef + ContextRef pair (and the napi_env__ itself) that a
+// napi_env is backed by.
 class NapiEnv {
 public:
     // process-wide setup/teardown; call once before creating any NapiEnv, and once at shutdown
@@ -59,6 +94,15 @@ public:
         return m_context.get();
     }
 
+    // the napi_env to pass across the N-API boundary; valid for as long as
+    // this NapiEnv is. Callers must still set env()->executionState before
+    // making napi_* calls, since that part is only valid for the duration of
+    // the current Evaluator::execute call.
+    napi_env env()
+    {
+        return &m_env;
+    }
+
     // runs every job queued on this env's VMInstance (e.g. resolved Promise reactions)
     void drainPendingJobs();
 
@@ -76,10 +120,16 @@ private:
     PersistentRefHolder<VMInstanceRef> m_vmInstance;
     PersistentRefHolder<ContextRef> m_context;
     PersistentRefHolder<PersistentValueRefMap> m_persistentValueRefMap;
+    napi_env__ m_env;
 };
 
 } // namespace Napi
 } // namespace Escargot
+
+inline Escargot::ContextRef* Escargot::Napi::EnvData::context()
+{
+    return napiEnv->context();
+}
 
 #endif
 #endif // ENABLE_NAPI
