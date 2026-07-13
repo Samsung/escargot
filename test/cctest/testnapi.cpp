@@ -253,4 +253,74 @@ TEST(Napi, FunctionFactory)
     dlclose(handle);
 }
 
+TEST(Napi, ObjectWrap)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_MYOBJECT_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, NapiEnv* env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            napi_env__ envData;
+            envData.napiEnv = env;
+            envData.executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(&envData, ToNapi(exports));
+            ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
+
+            ValueRef* cons = exportsResult->get(state, StringRef::createFromASCII("MyObject"));
+
+            ValueRef* ctorArgs[1] = { ValueRef::create(9) };
+            ValueRef* obj = cons->construct(state, 1, ctorArgs);
+            ObjectRef* objRef = obj->asObject();
+
+            bool ok = true;
+            ok = ok && objRef->get(state, StringRef::createFromASCII("value"))->asNumber() == 9;
+
+            objRef->set(state, StringRef::createFromASCII("value"), ValueRef::create(10));
+            ok = ok && objRef->get(state, StringRef::createFromASCII("value"))->asNumber() == 10;
+            ok = ok && objRef->get(state, StringRef::createFromASCII("valueReadonly"))->asNumber() == 10;
+
+            // valueReadonly has no setter (napi_define_class's `value`
+            // descriptor's setter field is null), so this assignment must fail
+            bool setSucceeded = objRef->set(state, StringRef::createFromASCII("valueReadonly"), ValueRef::create(14));
+            ok = ok && !setSucceeded;
+            ok = ok && objRef->get(state, StringRef::createFromASCII("valueReadonly"))->asNumber() == 10;
+
+            ValueRef* plusOne = objRef->get(state, StringRef::createFromASCII("plusOne"));
+            ok = ok && plusOne->call(state, objRef, 0, nullptr)->asNumber() == 11;
+            ok = ok && plusOne->call(state, objRef, 0, nullptr)->asNumber() == 12;
+            ok = ok && plusOne->call(state, objRef, 0, nullptr)->asNumber() == 13;
+
+            ValueRef* multiply = objRef->get(state, StringRef::createFromASCII("multiply"));
+
+            ValueRef* noArgResult = multiply->call(state, objRef, 0, nullptr);
+            ok = ok && noArgResult->asObject()->get(state, StringRef::createFromASCII("value"))->asNumber() == 13;
+
+            ValueRef* tenArgs[1] = { ValueRef::create(10) };
+            ValueRef* tenResult = multiply->call(state, objRef, 1, tenArgs);
+            ok = ok && tenResult->asObject()->get(state, StringRef::createFromASCII("value"))->asNumber() == 130;
+
+            ValueRef* negArgs[1] = { ValueRef::create(-1) };
+            ValueRef* newObj = multiply->call(state, objRef, 1, negArgs);
+            ok = ok && newObj->asObject()->get(state, StringRef::createFromASCII("value"))->asNumber() == -13;
+            ok = ok && newObj->asObject()->get(state, StringRef::createFromASCII("valueReadonly"))->asNumber() == -13;
+            ok = ok && (newObj != obj);
+
+            return ValueRef::create(ok);
+        },
+        napiEnv, registerModule);
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    EXPECT_TRUE(result.result->asBoolean());
+
+    dlclose(handle);
+}
+
 #endif // ENABLE_NAPI

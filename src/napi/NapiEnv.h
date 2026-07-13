@@ -62,11 +62,20 @@ public:
     // runs every job queued on this env's VMInstance (e.g. resolved Promise reactions)
     void drainPendingJobs();
 
+    // backs napi_ref: PersistentValueRefMap::add()/remove() are the GC-root
+    // primitives napi_create_reference/napi_reference_ref/unref/delete_reference
+    // build on for strong (refcount > 0) references
+    PersistentValueRefMap* persistentValueRefMap()
+    {
+        return m_persistentValueRefMap.get();
+    }
+
 private:
     NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context);
 
     PersistentRefHolder<VMInstanceRef> m_vmInstance;
     PersistentRefHolder<ContextRef> m_context;
+    PersistentRefHolder<PersistentValueRefMap> m_persistentValueRefMap;
 };
 
 } // namespace Napi

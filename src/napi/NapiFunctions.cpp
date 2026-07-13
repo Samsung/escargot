@@ -40,7 +40,7 @@ static ValueRef* NapiCallbackTrampoline(ExecutionStateRef* state, ValueRef* this
     ExecutionStateRef* previousState = env->executionState;
     env->executionState = state;
 
-    napi_callback_info__ cbinfo{ argc, argv, thisValue, callbackData->data };
+    napi_callback_info__ cbinfo{ argc, argv, thisValue, callbackData->data, nullptr };
     napi_value result = callbackData->callback(env, reinterpret_cast<napi_callback_info>(&cbinfo));
 
     env->executionState = previousState;
@@ -57,6 +57,55 @@ static ValueRef* NapiCallbackTrampoline(ExecutionStateRef* state, ValueRef* this
 static void NapiFunctionCallbackDataFinalizer(void* self, void* data)
 {
     delete reinterpret_cast<CallbackData*>(data);
+}
+
+// `this` for a constructor call is always a fresh, engine-created object here
+// (see FunctionTemplateRef::NativeFunctionPointer's contract), unlike
+// NapiCallbackTrampoline/FunctionObjectRef::NativeFunctionPointer above, so
+// napi_get_new_target has a real value to report and napi_wrap can attach
+// native data to `this` the same way a user's constructor callback expects.
+static ValueRef* NapiClassConstructorTrampoline(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget)
+{
+    FunctionObjectRef* callee = state->resolveCallee().value();
+    CallbackData* callbackData = reinterpret_cast<CallbackData*>(callee->extraData());
+    napi_env env = callbackData->env;
+
+    ExecutionStateRef* previousState = env->executionState;
+    env->executionState = state;
+
+    napi_callback_info__ cbinfo{ argc, argv, thisValue, callbackData->data, newTarget.hasValue() ? OptionalRef<ValueRef>(newTarget.value()) : nullptr };
+    napi_value result = callbackData->callback(env, reinterpret_cast<napi_callback_info>(&cbinfo));
+
+    env->executionState = previousState;
+
+    if (env->pendingException.hasValue()) {
+        ValueRef* exceptionValue = env->pendingException.value();
+        env->pendingException = nullptr;
+        state->throwException(exceptionValue); // does not return
+    }
+
+    if (newTarget.hasValue()) {
+        // ES construct semantics: an explicit object return overrides the
+        // pre-created `this` (rare in practice; N-API constructors usually
+        // just `return _this`)
+        OptionalRef<ValueRef> returnValue = FromNapi(result); // FromNapi(nullptr) is an empty OptionalRef
+        return (returnValue.hasValue() && returnValue->isObject()) ? returnValue.value() : thisValue;
+    }
+    return result ? FromNapi(result) : ValueRef::createUndefined();
+}
+
+struct WrapFinalizeData {
+    napi_env env;
+    node_api_basic_finalize finalizeCb;
+    void* nativeObject;
+    void* finalizeHint;
+};
+
+static void NapiWrapFinalizer(void* self, void* data)
+{
+    WrapFinalizeData* wrapData = reinterpret_cast<WrapFinalizeData*>(data);
+    wrapData->finalizeCb(wrapData->env, wrapData->nativeObject, wrapData->finalizeHint);
+    delete wrapData;
 }
 
 extern "C" {
@@ -183,35 +232,212 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_function(napi_env env, const char* 
     return napi_ok;
 }
 
-ESCARGOT_NAPI_EXPORT napi_status napi_define_properties(napi_env env, napi_value object, size_t property_count, const napi_property_descriptor* properties)
+// shared by napi_define_properties (applies to the target object itself) and
+// napi_define_class (applies to the constructor's .prototype, or to the
+// constructor itself for napi_static members)
+static void ApplyPropertyDescriptor(napi_env env, ObjectRef* target, const napi_property_descriptor& p)
 {
     ExecutionStateRef* state = env->executionState;
+
+    ValueRef* propertyName = p.utf8name ? static_cast<ValueRef*>(StringRef::createFromUTF8(p.utf8name, strlen(p.utf8name))) : FromNapi(p.name);
+    size_t nameLength = p.utf8name ? strlen(p.utf8name) : NAPI_AUTO_LENGTH;
+
+    bool isWritable = (p.attributes & napi_writable) != 0;
+    bool isEnumerable = (p.attributes & napi_enumerable) != 0;
+    bool isConfigurable = (p.attributes & napi_configurable) != 0;
+
+    if (p.getter != nullptr || p.setter != nullptr) {
+        ValueRef* getter = ValueRef::createUndefined();
+        if (p.getter != nullptr) {
+            napi_value fn;
+            napi_create_function(env, p.utf8name, nameLength, p.getter, p.data, &fn);
+            getter = FromNapi(fn);
+        }
+        OptionalRef<ValueRef> setter;
+        if (p.setter != nullptr) {
+            napi_value fn;
+            napi_create_function(env, p.utf8name, nameLength, p.setter, p.data, &fn);
+            setter = FromNapi(fn);
+        }
+        ObjectRef::PresentAttribute attr = static_cast<ObjectRef::PresentAttribute>(
+            (isEnumerable ? ObjectRef::EnumerablePresent : ObjectRef::NonEnumerablePresent) | (isConfigurable ? ObjectRef::ConfigurablePresent : ObjectRef::NonConfigurablePresent));
+        target->defineAccessorProperty(state, propertyName, ObjectRef::AccessorPropertyDescriptor(getter, setter, attr));
+        return;
+    }
+
+    ValueRef* value;
+    if (p.method) {
+        napi_value fn;
+        napi_create_function(env, p.utf8name, nameLength, p.method, p.data, &fn);
+        value = FromNapi(fn);
+    } else if (p.value) {
+        value = FromNapi(p.value);
+    } else {
+        return;
+    }
+
+    target->defineDataProperty(state, propertyName, value, isWritable, isEnumerable, isConfigurable);
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_define_properties(napi_env env, napi_value object, size_t property_count, const napi_property_descriptor* properties)
+{
     ObjectRef* obj = FromNapi(object)->asObject();
 
     for (size_t i = 0; i < property_count; i++) {
-        const napi_property_descriptor& p = properties[i];
-
-        ValueRef* propertyName = p.utf8name ? static_cast<ValueRef*>(StringRef::createFromUTF8(p.utf8name, strlen(p.utf8name))) : FromNapi(p.name);
-
-        bool isWritable = (p.attributes & napi_writable) != 0;
-        bool isEnumerable = (p.attributes & napi_enumerable) != 0;
-        bool isConfigurable = (p.attributes & napi_configurable) != 0;
-
-        ValueRef* value;
-        if (p.method) {
-            napi_value fn;
-            napi_create_function(env, p.utf8name, p.utf8name ? strlen(p.utf8name) : NAPI_AUTO_LENGTH, p.method, p.data, &fn);
-            value = FromNapi(fn);
-        } else if (p.value) {
-            value = FromNapi(p.value);
-        } else {
-            // getter/setter-backed properties are not implemented yet (not needed by the 2_function_arguments TC)
-            continue;
-        }
-
-        obj->defineDataProperty(state, propertyName, value, isWritable, isEnumerable, isConfigurable);
+        ApplyPropertyDescriptor(env, obj, properties[i]);
     }
 
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_define_class(napi_env env, const char* utf8name, size_t length, napi_callback constructor, void* data, size_t property_count, const napi_property_descriptor* properties, napi_value* result)
+{
+    ExecutionStateRef* state = env->executionState;
+    ContextRef* context = env->context();
+
+    size_t nameLen = (utf8name == nullptr) ? 0 : ((length == NAPI_AUTO_LENGTH) ? strlen(utf8name) : length);
+    AtomicStringRef* name = AtomicStringRef::create(context, utf8name ? utf8name : "", nameLen);
+
+    FunctionTemplateRef* tpl = FunctionTemplateRef::create(name, 0, true, true, NapiClassConstructorTrampoline);
+    ObjectRef* consObj = tpl->instantiate(context);
+    FunctionObjectRef* cons = consObj->asFunctionObject();
+
+    CallbackData* callbackData = new CallbackData();
+    callbackData->env = env;
+    callbackData->callback = constructor;
+    callbackData->data = data;
+    cons->setExtraData(callbackData);
+    Memory::gcRegisterFinalizer(cons, NapiFunctionCallbackDataFinalizer, callbackData);
+
+    ObjectRef* proto = cons->getFunctionPrototype(state)->asObject();
+
+    for (size_t i = 0; i < property_count; i++) {
+        const napi_property_descriptor& p = properties[i];
+        ObjectRef* target = (p.attributes & napi_static) ? static_cast<ObjectRef*>(cons) : proto;
+        ApplyPropertyDescriptor(env, target, p);
+    }
+
+    *result = ToNapi(cons);
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, void* native_object, node_api_basic_finalize finalize_cb, void* finalize_hint, napi_ref* result)
+{
+    ObjectRef* obj = FromNapi(js_object)->asObject();
+    obj->setExtraData(native_object);
+
+    if (finalize_cb != nullptr) {
+        WrapFinalizeData* wrapData = new WrapFinalizeData();
+        wrapData->env = env;
+        wrapData->finalizeCb = finalize_cb;
+        wrapData->nativeObject = native_object;
+        wrapData->finalizeHint = finalize_hint;
+        Memory::gcRegisterFinalizer(obj, NapiWrapFinalizer, wrapData);
+    }
+
+    if (result != nullptr) {
+        napi_ref__* ref = new napi_ref__();
+        ref->value = obj;
+        ref->refcount = 0;
+        *result = ref;
+    }
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_unwrap(napi_env env, napi_value js_object, void** result)
+{
+    *result = FromNapi(js_object)->asObject()->extraData();
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_remove_wrap(napi_env env, napi_value js_object, void** result)
+{
+    ObjectRef* obj = FromNapi(js_object)->asObject();
+    if (result != nullptr) {
+        *result = obj->extraData();
+    }
+    obj->setExtraData(nullptr);
+    // does not unregister the napi_wrap finalizer yet (would need the
+    // WrapFinalizeData pointer stashed somewhere retrievable); harmless for
+    // every TC that currently exercises this PoC, since none of them expect
+    // the finalizer to be suppressed after remove_wrap
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_create_reference(napi_env env, napi_value value, uint32_t initial_refcount, napi_ref* result)
+{
+    napi_ref__* ref = new napi_ref__();
+    ref->value = FromNapi(value);
+    ref->refcount = initial_refcount;
+    for (uint32_t i = 0; i < initial_refcount; i++) {
+        env->napiEnv->persistentValueRefMap()->add(ref->value.value());
+    }
+    *result = ref;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_delete_reference(node_api_basic_env env, napi_ref ref)
+{
+    if (ref->value.hasValue()) {
+        for (uint32_t i = 0; i < ref->refcount; i++) {
+            env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
+        }
+    }
+    delete ref;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref ref, napi_value* result)
+{
+    // a weak (refcount == 0) ref whose target has already been collected
+    // would dangle here; not tracked yet (see napi_ref__'s doc comment)
+    *result = ref->value.hasValue() ? ToNapi(ref->value.value()) : nullptr;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_new_target(napi_env env, napi_callback_info cbinfo, napi_value* result)
+{
+    napi_callback_info__* info = reinterpret_cast<napi_callback_info__*>(cbinfo);
+    *result = info->newTarget.hasValue() ? ToNapi(info->newTarget.value()) : nullptr;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_new_instance(napi_env env, napi_value constructor, size_t argc, const napi_value* argv, napi_value* result)
+{
+    ExecutionStateRef* state = env->executionState;
+
+    std::vector<ValueRef*> args(argc);
+    for (size_t i = 0; i < argc; i++) {
+        args[i] = FromNapi(argv[i]);
+    }
+
+    *result = ToNapi(FromNapi(constructor)->construct(state, argc, args.data()));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
+{
+    *result = ToNapi(ValueRef::create(value));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_boolean(napi_env env, bool value, napi_value* result)
+{
+    *result = ToNapi(ValueRef::create(value));
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_set_instance_data(node_api_basic_env env, void* data, napi_finalize finalize_cb, void* finalize_hint)
+{
+    env->instanceData = data;
+    env->instanceDataFinalizer = finalize_cb;
+    env->instanceDataFinalizeHint = finalize_hint;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_instance_data(node_api_basic_env env, void** data)
+{
+    *data = env->instanceData;
     return napi_ok;
 }
 

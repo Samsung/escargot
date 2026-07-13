@@ -74,6 +74,7 @@ NapiEnv* NapiEnv::create(VMInstanceRef* sharedVMInstance)
 NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context)
     : m_vmInstance(std::move(vmInstance))
     , m_context(std::move(context))
+    , m_persistentValueRefMap(PersistentValueRefMap::create())
 {
 }
 

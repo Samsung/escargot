@@ -70,6 +70,12 @@ struct EnvData {
     std::string lastErrorMessage;
     napi_extended_error_info lastErrorInfo;
 
+    // napi_set_instance_data/napi_get_instance_data; the finalizer is not
+    // invoked anywhere yet (no environment-teardown hook exists in this PoC)
+    void* instanceData = nullptr;
+    napi_finalize instanceDataFinalizer = nullptr;
+    void* instanceDataFinalizeHint = nullptr;
+
     ContextRef* context()
     {
         return napiEnv->context();
@@ -97,6 +103,19 @@ struct napi_callback_info__ {
     Escargot::ValueRef** argv;
     Escargot::ValueRef* thisValue;
     void* data;
+    Escargot::OptionalRef<Escargot::ValueRef> newTarget; // present only for a `new`-invoked constructor call
+};
+
+// the opaque type node_api.h forward-declares for napi_create_reference et al.
+// `value` is a raw GC pointer, not itself rooted by this struct; refcount > 0
+// means it has been added to the env's PersistentValueRefMap that many times
+// (which is what actually roots it), matching napi_ref's own weak(0)/strong(>0)
+// semantics. A weak ref's `value` can go stale once its target is collected -
+// this PoC does not yet track that (no finalizer clears it, so it never
+// becomes empty on its own yet).
+struct napi_ref__ {
+    Escargot::OptionalRef<Escargot::ValueRef> value;
+    uint32_t refcount;
 };
 
 #endif
