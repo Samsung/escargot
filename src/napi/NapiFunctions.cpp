@@ -108,6 +108,17 @@ static void NapiWrapFinalizer(void* self, void* data)
     delete wrapData;
 }
 
+// clears a weak napi_ref's target once it is collected, so
+// napi_get_reference_value stops returning a dangling pointer. `ref` itself
+// is a plain (non-GC) heap allocation, so callers must unregister this
+// finalizer (see napi_delete_reference) before deleting `ref`, or a later
+// collection would invoke it with a dangling `data`.
+static void NapiWeakRefFinalizer(void* self, void* data)
+{
+    napi_ref__* ref = reinterpret_cast<napi_ref__*>(data);
+    ref->value = nullptr;
+}
+
 extern "C" {
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_last_error_info(node_api_basic_env env, const napi_extended_error_info** result)
@@ -355,6 +366,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, v
         napi_ref__* ref = new napi_ref__();
         ref->value = obj;
         ref->refcount = 0;
+        Memory::gcRegisterFinalizer(obj, NapiWeakRefFinalizer, ref);
         *result = ref;
     }
     return napi_ok;
@@ -388,6 +400,13 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_reference(napi_env env, napi_value 
     for (uint32_t i = 0; i < initial_refcount; i++) {
         env->napiEnv->persistentValueRefMap()->add(ref->value.value());
     }
+    // weak (refcount == 0) refs are not rooted by the map above, so track
+    // collection of the target directly; non-heap values (undefined/number/
+    // boolean/...) can never be collected, so skip those (isStoredInHeap()
+    // is the same check PersistentValueRefMap::add/remove use internally)
+    if (initial_refcount == 0 && ref->value.value()->isStoredInHeap()) {
+        Memory::gcRegisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
+    }
     *result = ref;
     return napi_ok;
 }
@@ -398,6 +417,9 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_reference(node_api_basic_env env, n
         for (uint32_t i = 0; i < ref->refcount; i++) {
             env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
         }
+        if (ref->refcount == 0 && ref->value.value()->isStoredInHeap()) {
+            Memory::gcUnregisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
+        }
     }
     delete ref;
     return napi_ok;
@@ -405,8 +427,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_reference(node_api_basic_env env, n
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref ref, napi_value* result)
 {
-    // a weak (refcount == 0) ref whose target has already been collected
-    // would dangle here; not tracked yet (see napi_ref__'s doc comment)
+    // a weak (refcount == 0) ref's value is cleared by NapiWeakRefFinalizer
+    // once its target is collected, so this no longer dangles
     *result = ref->value.hasValue() ? ToNapi(ref->value.value()) : nullptr;
     return napi_ok;
 }

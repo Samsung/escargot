@@ -421,4 +421,57 @@ TEST(Napi, FactoryWrap)
     dlclose(handle);
 }
 
+TEST(Napi, WeakReferenceStaleAfterGC)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    napi_ref ref = nullptr;
+
+    // Create the target object and the weak (refcount 0) napi_ref to it
+    // inside their own Evaluator::execute call, so no local variable in this
+    // test's own stack frame keeps referencing the object once this call
+    // returns (same "own call frame" discipline as Napi.FactoryWrap above).
+    Evaluator::EvaluatorResult r1 = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, napi_ref* refOut) -> ValueRef* {
+            env->executionState = state;
+            ObjectRef* obj = ObjectRef::create(state);
+            napi_create_reference(env, ToNapi(obj), 0, refOut);
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env(), &ref);
+    ASSERT_TRUE(r1.isSuccessful()) << r1.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+
+    napi_value value = reinterpret_cast<napi_value>(static_cast<uintptr_t>(1));
+    napi_get_reference_value(napiEnv->env(), ref, &value);
+    EXPECT_NE(value, nullptr);
+
+    // Overwrite the stale pointer bit pattern this test's own stack slot is
+    // still holding before collecting, so Boehm's conservative stack scan
+    // doesn't keep the object alive through it (the nested-call trick below
+    // only clears the *inner* lambda's frame, not this function's own).
+    value = reinterpret_cast<napi_value>(static_cast<uintptr_t>(1));
+
+    // "clear stack" + churn + gc x5, same pattern as Napi.FactoryWrap: nothing
+    // else roots the object created above, so this must collect it.
+    Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* {
+            return ValueRef::create(100);
+        },
+        StringRef::createFromUTF8("qwer"));
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    napi_get_reference_value(napiEnv->env(), ref, &value);
+    EXPECT_EQ(value, nullptr);
+
+    napi_delete_reference(napiEnv->env(), ref);
+}
+
 #endif // ENABLE_NAPI
