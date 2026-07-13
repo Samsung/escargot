@@ -81,6 +81,30 @@ NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefH
 
 NapiEnv::~NapiEnv()
 {
+    // Best-effort: flush any napi_wrap'd/finalizer-bearing garbage created
+    // through this env before its Context/VMInstance actually go away below
+    // (member destructors run after this body, in reverse declaration
+    // order). Left alone, such garbage can otherwise sit uncollected and get
+    // opportunistically finalized far later - even mid-construction of a
+    // totally unrelated NapiEnv's VMInstance - which is not a safe time to
+    // run arbitrary addon finalizer code (this actually crashed a test once,
+    // see napi-notes.md). Same "clear stack + churn + gc x5" pattern used in
+    // test/cctest/testnapi.cpp and test/cctest/testapi.cpp's WeakPtr.*/Finalizer.Basic.
+    //
+    // Must run before NapiEnv::globalFinalize() (Globals::finalize()) tears
+    // down the GC itself; callers are expected to destroy every NapiEnv first.
+    ContextRef* ctx = m_context.get();
+    Evaluator::execute(ctx, [](ExecutionStateRef* state) -> ValueRef* {
+        return ValueRef::create(100);
+    });
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
 }
 
 void NapiEnv::drainPendingJobs()
