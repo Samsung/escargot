@@ -351,23 +351,31 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
 
     IF (ESCARGOT_NAPI)
         # build real Node-API TCs (vendored under test/napi-tc) into .so files the
-        # cctest binary dlopen()s directly. Add the TC's source file (relative to
-        # test/js-native-api/) here as more TCs get supported; the .so is named
-        # after the source file's stem (matching its binding.gyp target_name),
+        # cctest binary dlopen()s directly. Add the TC's source file(s), relative
+        # to test/js-native-api/, here as more TCs get supported; join multiple
+        # sources for one addon with `|` (see 7_factory_wrap). The .so is named
+        # after the FIRST source's stem (matching its binding.gyp target_name),
         # not necessarily its containing directory.
         SET (NAPI_TEST_ADDON_DIR ${CMAKE_BINARY_DIR}/napi_test_addons)
-        SET (NAPI_TEST_TC_SRCS
+        SET (NAPI_TEST_TC_ENTRIES
             2_function_arguments/2_function_arguments.c
             3_callbacks/3_callbacks.c
             4_object_factory/4_object_factory.c
             5_function_factory/5_function_factory.c
             6_object_wrap/myobject.cc
+            7_factory_wrap/7_factory_wrap.cc|7_factory_wrap/myobject.cc
         )
         SET (NAPI_TEST_ADDON_SOS)
-        FOREACH (NAPI_TEST_TC_SRC_REL ${NAPI_TEST_TC_SRCS})
-            SET (NAPI_TEST_TC_SRC ${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api/${NAPI_TEST_TC_SRC_REL})
-            GET_FILENAME_COMPONENT (NAPI_TEST_TC_NAME ${NAPI_TEST_TC_SRC_REL} NAME_WE)
-            GET_FILENAME_COMPONENT (NAPI_TEST_TC_EXT ${NAPI_TEST_TC_SRC_REL} EXT)
+        FOREACH (NAPI_TEST_TC_ENTRY ${NAPI_TEST_TC_ENTRIES})
+            STRING (REPLACE "|" ";" NAPI_TEST_TC_SRC_RELS ${NAPI_TEST_TC_ENTRY})
+            SET (NAPI_TEST_TC_SRCS)
+            FOREACH (NAPI_TEST_TC_SRC_REL ${NAPI_TEST_TC_SRC_RELS})
+                LIST (APPEND NAPI_TEST_TC_SRCS ${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api/${NAPI_TEST_TC_SRC_REL})
+            ENDFOREACH()
+
+            LIST (GET NAPI_TEST_TC_SRC_RELS 0 NAPI_TEST_TC_FIRST_SRC_REL)
+            GET_FILENAME_COMPONENT (NAPI_TEST_TC_NAME ${NAPI_TEST_TC_FIRST_SRC_REL} NAME_WE)
+            GET_FILENAME_COMPONENT (NAPI_TEST_TC_EXT ${NAPI_TEST_TC_FIRST_SRC_REL} EXT)
             SET (NAPI_TEST_TC_SO ${NAPI_TEST_ADDON_DIR}/${NAPI_TEST_TC_NAME}.so)
 
             IF (${NAPI_TEST_TC_EXT} STREQUAL ".c")
@@ -379,8 +387,8 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
             ADD_CUSTOM_COMMAND (
                 OUTPUT ${NAPI_TEST_TC_SO}
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -I${ESCARGOT_THIRD_PARTY_ROOT}/node_api_headers/include ${NAPI_TEST_TC_SRC} -o ${NAPI_TEST_TC_SO}
-                DEPENDS ${NAPI_TEST_TC_SRC}
+                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -I${ESCARGOT_THIRD_PARTY_ROOT}/node_api_headers/include ${NAPI_TEST_TC_SRCS} -o ${NAPI_TEST_TC_SO}
+                DEPENDS ${NAPI_TEST_TC_SRCS}
                 COMMENT "Building napi test addon ${NAPI_TEST_TC_NAME}.so"
             )
             LIST (APPEND NAPI_TEST_ADDON_SOS ${NAPI_TEST_TC_SO})

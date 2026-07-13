@@ -132,6 +132,12 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_double(napi_env env, double value, 
     return napi_ok;
 }
 
+ESCARGOT_NAPI_EXPORT napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
+{
+    *result = ToNapi(ValueRef::create(value));
+    return napi_ok;
+}
+
 ESCARGOT_NAPI_EXPORT napi_status napi_get_global(napi_env env, napi_value* result)
 {
     *result = ToNapi(env->context()->globalObject());
@@ -207,6 +213,16 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_double(napi_env env, napi_value 
         return napi_number_expected;
     }
     *result = v->asNumber();
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_get_value_uint32(napi_env env, napi_value value, uint32_t* result)
+{
+    ValueRef* v = FromNapi(value);
+    if (!v->isNumber()) {
+        return napi_number_expected;
+    }
+    *result = v->toUint32(env->executionState);
     return napi_ok;
 }
 
