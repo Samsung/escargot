@@ -76,9 +76,14 @@ public:
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
-            for (size_t i = 0; i < bi->identifiers().size(); i++) {
-                newContext.giveUpRegister();
-            }
+            // NOTE: nameRegisters[0..size-1] (the pre-block temporaries holding this
+            // iteration's binding values) are deliberately NOT released here.
+            // pushLexicalBlock() below may allocate an extra register (the
+            // using-disposal accumulator) off the same register stack; releasing
+            // these temporaries first would let that allocation alias one of them,
+            // corrupting the value it still holds (register aliasing -> type
+            // confusion, see issue #1604). They are released later, in the
+            // "after body" half of this function, once nothing can alias them.
 
             newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
@@ -126,7 +131,6 @@ public:
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
-            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
 
             size_t reverse = bi->identifiers().size() - 1;
@@ -136,6 +140,21 @@ public:
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+                newContext.giveUpRegister();
+            }
+
+            // These temporaries (above) must be fully released (LIFO) before
+            // finalizeLexicalBlock() runs, since it releases the using-disposal
+            // accumulator register allocated in pushLexicalBlock() -- that
+            // register sits directly underneath them on the register stack, and
+            // giveUpRegister() only ever frees the current top entry.
+            codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
+
+            // Only now is it safe to release the "before body" temporaries kept
+            // reserved at the top of generateBodyByteCode: the using-disposal
+            // accumulator register (if any) that used to sit above them on the
+            // register stack has just been released by finalizeLexicalBlock().
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
                 newContext.giveUpRegister();
             }
         }
