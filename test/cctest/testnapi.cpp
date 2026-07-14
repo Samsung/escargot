@@ -649,4 +649,159 @@ TEST(Napi, SetInstanceDataFinalizerRunsOnEnvDestruction)
     EXPECT_EQ(g_instanceDataFinalizeSeenData, &instanceData);
 }
 
+TEST(Napi, HandleScopeOpenCloseAndMismatch)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+    napi_env env = napiEnv->env();
+
+    napi_handle_scope outer = nullptr;
+    napi_handle_scope inner = nullptr;
+    ASSERT_EQ(napi_open_handle_scope(env, &outer), napi_ok);
+    ASSERT_EQ(napi_open_handle_scope(env, &inner), napi_ok);
+
+    // Closing out of LIFO order must fail and must not actually pop anything.
+    EXPECT_EQ(napi_close_handle_scope(env, outer), napi_handle_scope_mismatch);
+
+    ASSERT_EQ(napi_close_handle_scope(env, inner), napi_ok);
+    ASSERT_EQ(napi_close_handle_scope(env, outer), napi_ok);
+
+    napi_escapable_handle_scope escapable = nullptr;
+    ASSERT_EQ(napi_open_escapable_handle_scope(env, &escapable), napi_ok);
+
+    napi_value escapee = ToNapi(ValueRef::create(7));
+    napi_value escaped = nullptr;
+    ASSERT_EQ(napi_escape_handle(env, escapable, escapee, &escaped), napi_ok);
+    EXPECT_EQ(escaped, escapee);
+
+    // A second escape from the same scope must be rejected.
+    napi_value escapedAgain = nullptr;
+    EXPECT_EQ(napi_escape_handle(env, escapable, escapee, &escapedAgain), napi_escape_called_twice);
+
+    ASSERT_EQ(napi_close_escapable_handle_scope(env, escapable), napi_ok);
+}
+
+// thrown from a native FunctionObjectRef passed into NewScopeWithException
+// (test_handle_scope.c), standing in for the TC's own `() => { throw new
+// RangeError(); }`
+static ValueRef* ThrowRangeError(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall)
+{
+    state->throwException(RangeErrorObjectRef::create(state, StringRef::createFromASCII("boom")));
+    return ValueRef::createUndefined();
+}
+
+static int g_markerAfterCallFunction = 0;
+
+TEST(Napi, CallFunctionReportsExceptionAsPendingStatus)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    g_markerAfterCallFunction = 0;
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
+            env->executionState = state;
+
+            AtomicStringRef* throwName = AtomicStringRef::create(state->context(), "throwRangeError", strlen("throwRangeError"));
+            FunctionObjectRef* throwFn = FunctionObjectRef::create(state, FunctionObjectRef::NativeFunctionInfo(throwName, ThrowRangeError, 0, true, false));
+
+            napi_value callResult = nullptr;
+            napi_status status = napi_call_function(env, ToNapi(ValueRef::createUndefined()), ToNapi(throwFn), 0, nullptr, &callResult);
+
+            // Proves control actually returned here instead of a raw C++
+            // exception unwinding straight past napi_call_function's caller.
+            g_markerAfterCallFunction++;
+
+            if (status != napi_pending_exception) {
+                return ValueRef::create(1);
+            }
+
+            bool isPending = false;
+            napi_is_exception_pending(env, &isPending);
+            if (!isPending) {
+                return ValueRef::create(2);
+            }
+
+            napi_value exception = nullptr;
+            napi_get_and_clear_last_exception(env, &exception);
+            if (!FromNapi(exception)->isObject()) {
+                return ValueRef::create(3);
+            }
+
+            bool stillPending = true;
+            napi_is_exception_pending(env, &stillPending);
+            if (stillPending) {
+                return ValueRef::create(4);
+            }
+
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env());
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+    EXPECT_EQ(g_markerAfterCallFunction, 1);
+    EXPECT_TRUE(result.result->isUndefined());
+}
+
+TEST(Napi, HandleScope)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    void* handle = dlopen(NAPI_TEST_HANDLE_SCOPE_SO_PATH, RTLD_NOW);
+    ASSERT_NE(handle, nullptr) << dlerror();
+
+    NapiRegisterModuleFn registerModule = reinterpret_cast<NapiRegisterModuleFn>(dlsym(handle, "napi_register_module_v1"));
+    ASSERT_NE(registerModule, nullptr) << dlerror();
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
+            env->executionState = state;
+
+            ObjectRef* exports = ObjectRef::create(state);
+            napi_value returnedExports = registerModule(env, ToNapi(exports));
+            ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
+
+            // NewScope: open a handle scope, create an object in it, close it.
+            ValueRef* newScope = exportsResult->get(state, StringRef::createFromASCII("NewScope"));
+            newScope->call(state, ValueRef::createUndefined(), 0, nullptr);
+
+            // NewScopeEscape: object created inside an escapable scope must
+            // still be usable after the scope closes.
+            ValueRef* newScopeEscape = exportsResult->get(state, StringRef::createFromASCII("NewScopeEscape"));
+            ValueRef* escapeResult = newScopeEscape->call(state, ValueRef::createUndefined(), 0, nullptr);
+            if (!escapeResult->isObject()) {
+                state->throwException(StringRef::createFromASCII("NewScopeEscape did not return an object"));
+            }
+
+            // NewScopeEscapeTwice: the TC's own NODE_API_ASSERT aborts the
+            // process if napi_escape_handle doesn't reject the second call,
+            // so simply returning here is the pass condition.
+            ValueRef* newScopeEscapeTwice = exportsResult->get(state, StringRef::createFromASCII("NewScopeEscapeTwice"));
+            newScopeEscapeTwice->call(state, ValueRef::createUndefined(), 0, nullptr);
+
+            // NewScopeWithException: the callback passed in throws a
+            // RangeError; the TC's own NODE_API_ASSERT aborts the process if
+            // napi_call_function doesn't report napi_pending_exception for
+            // it. That RangeError is left pending on `env` on purpose (the
+            // TC never clears it), so NapiCallbackTrampoline rethrows it
+            // once this native function returns - propagating out as a real
+            // JS exception, same as test.js's assert.throws(..., RangeError).
+            AtomicStringRef* throwName = AtomicStringRef::create(state->context(), "throwRangeError", strlen("throwRangeError"));
+            FunctionObjectRef* throwFn = FunctionObjectRef::create(state, FunctionObjectRef::NativeFunctionInfo(throwName, ThrowRangeError, 0, true, false));
+            ValueRef* newScopeWithException = exportsResult->get(state, StringRef::createFromASCII("NewScopeWithException"));
+            ValueRef* excArgs[1] = { throwFn };
+            newScopeWithException->call(state, ValueRef::createUndefined(), 1, excArgs);
+
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env(), registerModule);
+
+    ASSERT_FALSE(result.isSuccessful());
+    ASSERT_TRUE(result.error.value()->isObject());
+
+    dlclose(handle);
+}
+
 #endif // ENABLE_NAPI

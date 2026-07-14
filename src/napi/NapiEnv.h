@@ -54,6 +54,15 @@ struct EnvData {
     napi_finalize instanceDataFinalizer = nullptr;
     void* instanceDataFinalizeHint = nullptr;
 
+    // handle-scope bookkeeping (napi_open_handle_scope/napi_close_handle_scope/
+    // napi_open_escapable_handle_scope/napi_close_escapable_handle_scope,
+    // NapiFunctions.cpp). napi_value doesn't need real handle buffering here -
+    // it's already the GC pointer itself (see ToNapi/FromNapi in
+    // NapiTypes.h) - so this exists purely to enforce proper open/close
+    // nesting order (LIFO, for napi_handle_scope_mismatch), the same way
+    // V8's real handle scope stack does. Full type defined in NapiTypes.h.
+    napi_handle_scope__* topHandleScope = nullptr;
+
     ContextRef* context(); // defined below, out-of-line (needs NapiEnv complete)
 };
 

@@ -364,6 +364,7 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
             5_function_factory/5_function_factory.c
             6_object_wrap/myobject.cc
             7_factory_wrap/7_factory_wrap.cc|7_factory_wrap/myobject.cc
+            test_handle_scope/test_handle_scope.c
         )
         SET (NAPI_TEST_ADDON_SOS)
         FOREACH (NAPI_TEST_TC_ENTRY ${NAPI_TEST_TC_ENTRIES})

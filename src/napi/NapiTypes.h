@@ -48,10 +48,12 @@ namespace Napi {
 // (`struct napi_value__*` and friends); nothing ever dereferences the
 // pointee, so we punn them directly onto Escargot's own GC pointers instead
 // of allocating a wrapper per value. This is safe because Escargot's GC
-// (Boehm) never moves objects. This is a temporary simplification: proper
-// handle-scope rooting still needs to be designed,
-// so values are only valid while their originating ValueRef* is otherwise
-// reachable (e.g. still on the interpreter stack).
+// (Boehm) never moves objects, and Boehm conservatively scans the native
+// stack/registers, so a napi_value sitting in a native local variable is
+// already a GC root on its own - no V8-style handle buffer is needed to keep
+// it alive. napi_open_handle_scope/napi_close_handle_scope and friends
+// (NapiFunctions.cpp) exist purely to satisfy the js_native_api.h API
+// contract (nesting order, escape-once semantics), not to root anything.
 inline napi_value ToNapi(ValueRef* value)
 {
     return reinterpret_cast<napi_value>(value);
@@ -98,6 +100,25 @@ struct napi_ref__ {
     Escargot::OptionalRef<Escargot::ValueRef> value;
     uint32_t refcount;
     bool weakFinalizerRegistered = false;
+};
+
+// the opaque types node_api.h forward-declares for napi_open_handle_scope/
+// napi_open_escapable_handle_scope et al (NapiFunctions.cpp). `parent` forms
+// an intrusive singly-linked stack via napi_env__::topHandleScope
+// (NapiEnv.h), enforcing LIFO close order the same way V8's real handle
+// scope stack does - napi_close_handle_scope/napi_close_escapable_handle_scope
+// return napi_handle_scope_mismatch if `scope` isn't currently the innermost
+// open one. No handle buffer is needed here: napi_value is already the GC
+// pointer itself (see ToNapi/FromNapi above), so unlike V8 there's nothing
+// for napi_escape_handle to copy between scopes - it just enforces the
+// "at most once per scope" rule (napi_escape_called_twice) that
+// js_native_api.h's contract requires.
+struct napi_handle_scope__ {
+    napi_handle_scope__* parent = nullptr;
+};
+
+struct napi_escapable_handle_scope__ : public napi_handle_scope__ {
+    bool escapeCalled = false;
 };
 
 #endif

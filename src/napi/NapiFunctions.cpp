@@ -202,15 +202,32 @@ ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value rec
 {
     ExecutionStateRef* state = env->executionState;
     ValueRef* fn = FromNapi(func);
+    ValueRef* thisArg = FromNapi(recv);
 
     std::vector<ValueRef*> args(argc);
     for (size_t i = 0; i < argc; i++) {
         args[i] = FromNapi(argv[i]);
     }
 
-    ValueRef* callResult = fn->call(state, FromNapi(recv), argc, args.data());
+    // ValueRef::call() throws a raw C++ exception (Escargot::Value, by
+    // value) on an uncaught JS exception, with nothing in between catching
+    // it - it must not be allowed to cross this function's own stack frame,
+    // or N-API's "exceptions never cross an API call boundary" contract
+    // breaks. Evaluator::execute's ExecutionStateRef* overload runs the call
+    // in a nested SandBox that catches it for us.
+    Evaluator::EvaluatorResult callResult = Evaluator::execute(
+        state, [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
+            return fn->call(state, thisArg, argc, argv);
+        },
+        fn, thisArg, argc, args.data());
+
+    if (!callResult.isSuccessful()) {
+        env->pendingException = callResult.error.value();
+        return napi_pending_exception;
+    }
+
     if (result != nullptr) {
-        *result = ToNapi(callResult);
+        *result = ToNapi(callResult.result);
     }
     return napi_ok;
 }
@@ -502,6 +519,58 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref
     // a weak (refcount == 0) ref's value is cleared by NapiWeakRefFinalizer
     // once its target is collected, so this no longer dangles
     *result = ref->value.hasValue() ? ToNapi(ref->value.value()) : nullptr;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result)
+{
+    napi_handle_scope__* scope = new napi_handle_scope__();
+    scope->parent = env->topHandleScope;
+    env->topHandleScope = scope;
+    *result = scope;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_close_handle_scope(napi_env env, napi_handle_scope scope)
+{
+    if (scope == nullptr || scope != env->topHandleScope) {
+        return napi_handle_scope_mismatch;
+    }
+    env->topHandleScope = scope->parent;
+    delete scope;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_open_escapable_handle_scope(napi_env env, napi_escapable_handle_scope* result)
+{
+    napi_escapable_handle_scope__* scope = new napi_escapable_handle_scope__();
+    scope->parent = env->topHandleScope;
+    env->topHandleScope = scope;
+    *result = scope;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_close_escapable_handle_scope(napi_env env, napi_escapable_handle_scope scope)
+{
+    if (scope == nullptr || scope != env->topHandleScope) {
+        return napi_handle_scope_mismatch;
+    }
+    env->topHandleScope = scope->parent;
+    delete scope;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_escape_handle(napi_env env, napi_escapable_handle_scope scope, napi_value escapee, napi_value* result)
+{
+    if (scope->escapeCalled) {
+        return napi_escape_called_twice;
+    }
+    scope->escapeCalled = true;
+    // napi_value is already the GC pointer itself (see ToNapi/FromNapi in
+    // NapiTypes.h), so there is nothing to actually copy into an outer
+    // scope's buffer - `escapee` is already reachable however the caller is
+    // holding it.
+    *result = escapee;
     return napi_ok;
 }
 
