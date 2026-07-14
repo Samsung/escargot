@@ -528,4 +528,87 @@ TEST(Napi, RemoveWrapSuppressesFinalizer)
     EXPECT_EQ(g_removeWrapFinalizeCount, 0);
 }
 
+TEST(Napi, ReferenceRefUnref)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    napi_ref ref = nullptr;
+
+    // Create the target object and a strong (refcount 1) napi_ref to it
+    // inside its own Evaluator::execute call, so no local variable in this
+    // test's own stack frame keeps referencing the object once this call
+    // returns (same "own call frame" discipline as Napi.FactoryWrap above).
+    Evaluator::EvaluatorResult r1 = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, napi_ref* refOut) -> ValueRef* {
+            env->executionState = state;
+            ObjectRef* obj = ObjectRef::create(state);
+            napi_create_reference(env, ToNapi(obj), 1, refOut);
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env(), &ref);
+    ASSERT_TRUE(r1.isSuccessful()) << r1.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+
+    uint32_t count = 0;
+    ASSERT_EQ(napi_reference_ref(napiEnv->env(), ref, &count), napi_ok);
+    EXPECT_EQ(count, 2u);
+
+    ASSERT_EQ(napi_reference_unref(napiEnv->env(), ref, &count), napi_ok);
+    EXPECT_EQ(count, 1u);
+
+    // Still strong (count 1): must survive a collection pass. "clear stack" +
+    // churn + gc x5, same pattern as Napi.FactoryWrap above.
+    Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* {
+            return ValueRef::create(100);
+        },
+        StringRef::createFromUTF8("qwer"));
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    napi_value value = reinterpret_cast<napi_value>(static_cast<uintptr_t>(1));
+    napi_get_reference_value(napiEnv->env(), ref, &value);
+    EXPECT_NE(value, nullptr);
+
+    ASSERT_EQ(napi_reference_unref(napiEnv->env(), ref, &count), napi_ok);
+    EXPECT_EQ(count, 0u);
+
+    // Overwrite the stale pointer bit pattern this test's own stack slot is
+    // still holding before collecting, so Boehm's conservative stack scan
+    // doesn't keep the object alive through it (same reasoning as
+    // Napi.WeakReferenceStaleAfterGC above). Now weak (count 0): must
+    // actually be collected this time.
+    value = reinterpret_cast<napi_value>(static_cast<uintptr_t>(1));
+    Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* {
+            return ValueRef::create(100);
+        },
+        StringRef::createFromUTF8("qwer"));
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    napi_get_reference_value(napiEnv->env(), ref, &value);
+    EXPECT_EQ(value, nullptr);
+
+    // Decrementing an already-weak (count 0) ref must error, not underflow.
+    EXPECT_EQ(napi_reference_unref(napiEnv->env(), ref, &count), napi_generic_failure);
+
+    // Strengthening a weak ref whose target is already gone must error too.
+    EXPECT_EQ(napi_reference_ref(napiEnv->env(), ref, &count), napi_generic_failure);
+
+    napi_delete_reference(napiEnv->env(), ref);
+}
+
 #endif // ENABLE_NAPI

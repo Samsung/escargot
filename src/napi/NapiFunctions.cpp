@@ -122,6 +122,26 @@ static void NapiWeakRefFinalizer(void* self, void* data)
     ref->value = nullptr;
 }
 
+// idempotent: safe to call whenever `ref` is (or becomes) weak, regardless of
+// whether NapiWeakRefFinalizer is already registered for it
+static void RegisterWeakRefFinalizerIfNeeded(napi_ref__* ref)
+{
+    if (!ref->weakFinalizerRegistered && ref->value.hasValue() && ref->value.value()->isStoredInHeap()) {
+        Memory::gcRegisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
+        ref->weakFinalizerRegistered = true;
+    }
+}
+
+// idempotent counterpart of RegisterWeakRefFinalizerIfNeeded; call before
+// `ref` stops being weak (napi_reference_ref) or is deleted (napi_delete_reference)
+static void UnregisterWeakRefFinalizerIfNeeded(napi_ref__* ref)
+{
+    if (ref->weakFinalizerRegistered && ref->value.hasValue()) {
+        Memory::gcUnregisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
+        ref->weakFinalizerRegistered = false;
+    }
+}
+
 extern "C" {
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_last_error_info(node_api_basic_env env, const napi_extended_error_info** result)
@@ -370,7 +390,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, v
         napi_ref__* ref = new napi_ref__();
         ref->value = obj;
         ref->refcount = 0;
-        Memory::gcRegisterFinalizer(obj, NapiWeakRefFinalizer, ref);
+        RegisterWeakRefFinalizerIfNeeded(ref);
         *result = ref;
     }
     return napi_ok;
@@ -410,11 +430,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_reference(napi_env env, napi_value 
         env->napiEnv->persistentValueRefMap()->add(ref->value.value());
     }
     // weak (refcount == 0) refs are not rooted by the map above, so track
-    // collection of the target directly; non-heap values (undefined/number/
-    // boolean/...) can never be collected, so skip those (isStoredInHeap()
-    // is the same check PersistentValueRefMap::add/remove use internally)
-    if (initial_refcount == 0 && ref->value.value()->isStoredInHeap()) {
-        Memory::gcRegisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
+    // collection of the target directly; RegisterWeakRefFinalizerIfNeeded
+    // skips non-heap values (undefined/number/boolean/...) on its own, since
+    // those can never be collected
+    if (initial_refcount == 0) {
+        RegisterWeakRefFinalizerIfNeeded(ref);
     }
     *result = ref;
     return napi_ok;
@@ -426,11 +446,54 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_reference(node_api_basic_env env, n
         for (uint32_t i = 0; i < ref->refcount; i++) {
             env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
         }
-        if (ref->refcount == 0 && ref->value.value()->isStoredInHeap()) {
-            Memory::gcUnregisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
-        }
+        UnregisterWeakRefFinalizerIfNeeded(ref);
     }
     delete ref;
+    return napi_ok;
+}
+
+// napi_reference_ref/napi_reference_unref can move `ref` between weak
+// (refcount == 0) and strong (refcount > 0) any number of times over its
+// life. Each call adds/removes exactly one PersistentValueRefMap rooting
+// unit, same as napi_create_reference's initial add() loop - so ref->refcount
+// stays equal to how many add() calls this ref has contributed for its
+// value, which is what napi_delete_reference's own remove() loop assumes.
+// Only the 0<->non-zero crossing also flips the weak-staleness finalizer.
+ESCARGOT_NAPI_EXPORT napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result)
+{
+    if (ref->refcount == 0 && !ref->value.hasValue()) {
+        // weak ref whose target is already gone - nothing to strengthen
+        return napi_generic_failure;
+    }
+
+    bool wasWeak = (ref->refcount == 0);
+    ref->refcount++;
+    env->napiEnv->persistentValueRefMap()->add(ref->value.value());
+    if (wasWeak) {
+        UnregisterWeakRefFinalizerIfNeeded(ref);
+    }
+    if (result != nullptr) {
+        *result = ref->refcount;
+    }
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result)
+{
+    if (ref->refcount == 0) {
+        return napi_generic_failure;
+    }
+
+    ref->refcount--;
+    if (ref->value.hasValue()) {
+        env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
+    }
+    if (ref->refcount == 0) {
+        RegisterWeakRefFinalizerIfNeeded(ref);
+    }
+    if (result != nullptr) {
+        *result = ref->refcount;
+    }
     return napi_ok;
 }
 

@@ -86,12 +86,18 @@ struct napi_callback_info__ {
 // `value` is a raw GC pointer, not itself rooted by this struct; refcount > 0
 // means it has been added to the env's PersistentValueRefMap that many times
 // (which is what actually roots it), matching napi_ref's own weak(0)/strong(>0)
-// semantics. A weak ref's `value` is cleared to empty once its target is
-// collected, via a finalizer registered on the target (NapiWeakRefFinalizer
-// in NapiFunctions.cpp) - see napi_create_reference/napi_wrap/napi_delete_reference.
+// semantics - napi_reference_ref/napi_reference_unref (NapiFunctions.cpp) can
+// move a ref between the two any number of times over its life. A weak ref's
+// `value` is cleared to empty once its target is collected, via a finalizer
+// registered on the target (NapiWeakRefFinalizer in NapiFunctions.cpp) - see
+// napi_create_reference/napi_wrap/napi_delete_reference/napi_reference_unref.
+// `weakFinalizerRegistered` tracks whether that finalizer is currently
+// registered, so the weak<->strong transitions above don't register it twice
+// (which the underlying finalizer list does not itself deduplicate).
 struct napi_ref__ {
     Escargot::OptionalRef<Escargot::ValueRef> value;
     uint32_t refcount;
+    bool weakFinalizerRegistered = false;
 };
 
 #endif
