@@ -81,6 +81,14 @@ NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefH
 
 NapiEnv::~NapiEnv()
 {
+    // napi_set_instance_data's finalizer runs exactly once, here at
+    // environment teardown - this is the only teardown hook this PoC has.
+    if (m_env.instanceDataFinalizer != nullptr) {
+        napi_finalize finalizer = m_env.instanceDataFinalizer;
+        m_env.instanceDataFinalizer = nullptr;
+        finalizer(&m_env, m_env.instanceData, m_env.instanceDataFinalizeHint);
+    }
+
     // Best-effort: flush any napi_wrap'd/finalizer-bearing garbage created
     // through this env before its Context/VMInstance actually go away below
     // (member destructors run after this body, in reverse declaration

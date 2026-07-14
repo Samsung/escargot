@@ -611,4 +611,42 @@ TEST(Napi, ReferenceRefUnref)
     napi_delete_reference(napiEnv->env(), ref);
 }
 
+static int g_instanceDataFinalizeCount = 0;
+static void* g_instanceDataFinalizeSeenData = nullptr;
+
+static void InstanceDataFinalizeCallback(napi_env env, void* data, void* hint)
+{
+    g_instanceDataFinalizeCount++;
+    g_instanceDataFinalizeSeenData = data;
+}
+
+TEST(Napi, SetInstanceDataFinalizerRunsOnEnvDestruction)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    g_instanceDataFinalizeCount = 0;
+    g_instanceDataFinalizeSeenData = nullptr;
+
+    int instanceData = 42;
+    ASSERT_EQ(napi_set_instance_data(napiEnv->env(), &instanceData, InstanceDataFinalizeCallback, nullptr), napi_ok);
+
+    void* got = nullptr;
+    ASSERT_EQ(napi_get_instance_data(napiEnv->env(), &got), napi_ok);
+    EXPECT_EQ(got, &instanceData);
+
+    // must not fire before teardown
+    EXPECT_EQ(g_instanceDataFinalizeCount, 0);
+
+    // Unlike every other Napi.* test above, this NapiEnv must actually be
+    // destroyed (not leaked) - the whole point here is exercising
+    // ~NapiEnv()'s teardown hook. Safe because nothing in this test suite
+    // calls NapiEnv::globalFinalize() afterward (see NapiEnv.h's ordering
+    // requirement: every NapiEnv must be destroyed before that call).
+    delete napiEnv;
+
+    EXPECT_EQ(g_instanceDataFinalizeCount, 1);
+    EXPECT_EQ(g_instanceDataFinalizeSeenData, &instanceData);
+}
+
 #endif // ENABLE_NAPI

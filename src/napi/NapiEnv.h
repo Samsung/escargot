@@ -47,8 +47,9 @@ struct EnvData {
     std::string lastErrorMessage;
     napi_extended_error_info lastErrorInfo;
 
-    // napi_set_instance_data/napi_get_instance_data; the finalizer is not
-    // invoked anywhere yet (no environment-teardown hook exists in this PoC)
+    // napi_set_instance_data/napi_get_instance_data; the finalizer is
+    // invoked once from ~NapiEnv() (NapiEnv.cpp), the only environment-
+    // teardown hook this PoC has
     void* instanceData = nullptr;
     napi_finalize instanceDataFinalizer = nullptr;
     void* instanceDataFinalizeHint = nullptr;
