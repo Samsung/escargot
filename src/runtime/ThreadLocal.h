@@ -45,7 +45,10 @@ public:
     typedef void (*OnEventListener)(void* data);
     typedef std::vector<std::pair<OnEventListener, void*>> EventListenerVector;
 
-    GCEventListenerSet() {}
+    GCEventListenerSet()
+        : m_isFullGC(false)
+    {
+    }
     ~GCEventListenerSet()
     {
         reset();
@@ -76,6 +79,25 @@ public:
         return m_reclaimEndListeners;
     }
 
+    // set by the bdwgc start callback (GC_set_start_callback), which bdwgc invokes
+    // only right before a full GC; consumed (and cleared) by the next MARK_START event
+    void markFullGC()
+    {
+        m_isFullGC = true;
+    }
+
+    bool isFullGCFlag() const
+    {
+        return m_isFullGC;
+    }
+
+    bool consumeFullGCFlag()
+    {
+        bool result = m_isFullGC;
+        m_isFullGC = false;
+        return result;
+    }
+
     void reset();
 
 private:
@@ -83,6 +105,7 @@ private:
     Optional<EventListenerVector*> m_markEndListeners;
     Optional<EventListenerVector*> m_reclaimStartListeners;
     Optional<EventListenerVector*> m_reclaimEndListeners;
+    bool m_isFullGC;
 };
 
 // ThreadLocal has thread-local values

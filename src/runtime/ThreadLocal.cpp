@@ -195,8 +195,19 @@ void GCEventListenerSet::reset()
     }
 }
 
+static void genericGCFullGCStartCallback()
+{
+    if (!ThreadLocal::isInited()) {
+        return;
+    }
+    ThreadLocal::gcEventListenerSet().markFullGC();
+}
+
 static void genericGCEventListener(GC_EventType evtType)
 {
+    if (!ThreadLocal::isInited()) {
+        return;
+    }
     GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
     Optional<GCEventListenerSet::EventListenerVector*> listeners;
 
@@ -376,6 +387,9 @@ void ThreadLocal::initialize()
     g_gcEventListenerSet = new GCEventListenerSet();
     // in addition, register genericGCEventListener here too
     GC_set_on_collection_event(genericGCEventListener);
+    if (GC_is_incremental_mode()) {
+        GC_set_start_callback(genericGCFullGCStartCallback);
+    }
 
     // g_astAllocator
     g_astAllocator = new ASTAllocator();
@@ -437,6 +451,9 @@ void ThreadLocal::finalize()
     delete g_gcEventListenerSet;
     g_gcEventListenerSet = nullptr;
     GC_set_on_collection_event(nullptr);
+    if (GC_is_incremental_mode()) {
+        GC_set_start_callback(nullptr);
+    }
 
     // g_astAllocator
     delete g_astAllocator;

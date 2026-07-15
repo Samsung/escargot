@@ -461,6 +461,7 @@ private:
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
     size_t m_maxCompiledByteCodeSize;
+    size_t m_gcTimeLimit;
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     uint64_t m_lastCompressibleStringsTestTime;
