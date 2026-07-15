@@ -115,7 +115,7 @@ thread_local std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
 GlobalDeleteChecker::GlobalDeleteChecker()
 {
     m_mappedMemories = reinterpret_cast<std::pair<void*, size_t>*>(malloc(sizeof(std::pair<void*, size_t>) * m_mappedMemoriesAllocatedSize));
-    GC_set_os_get_mem_proc([](void* ptr, size_t length) {
+    GC_set_on_os_get_mem([](void* ptr, size_t length) {
         if (g_globalDeleteChecker->m_mappedMemoriesSize == g_globalDeleteChecker->m_mappedMemoriesAllocatedSize) {
             std::pair<void*, size_t>* newBuf = reinterpret_cast<std::pair<void*, size_t>*>(
                 malloc(sizeof(std::pair<void*, size_t>) * g_globalDeleteChecker->m_mappedMemoriesSize * 2));
