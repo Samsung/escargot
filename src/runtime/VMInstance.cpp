@@ -200,6 +200,10 @@ void* VMInstance::operator new(size_t size)
 void vmMarkStartCallback(void* data)
 {
 #if !defined(ESCARGOT_DEBUGGER)
+    if (GC_is_incremental_mode() && !ThreadLocal::gcEventListenerSet().isFullGCFlag()) {
+        return;
+    }
+
     // in debugger mode, do not remove ByteCodeBlock
     VMInstance* self = (VMInstance*)data;
 
@@ -221,6 +225,12 @@ void vmMarkStartCallback(void* data)
                 v[i]->m_codeBlock->setByteCodeBlock(nullptr);
             }
         }
+        // NOTE
+        // we cannot give up gc recalim or marking
+        // since we disconnect ByteCodeBlock
+        // that's why I extend gc time limit
+        self->m_gcTimeLimit = GC_get_time_limit();
+        GC_set_time_limit(GC_TIME_UNLIMITED);
     }
 #endif
 }
@@ -228,6 +238,10 @@ void vmMarkStartCallback(void* data)
 void vmReclaimEndCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
+
+    if (GC_is_incremental_mode() && !ThreadLocal::gcEventListenerSet().consumeFullGCFlag()) {
+        return;
+    }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     auto currentTick = fastTickCount();
@@ -257,6 +271,7 @@ void vmReclaimEndCallback(void* data)
                 currentCodeSizeTotal += v[i]->memoryAllocatedSize();
             }
         }
+        GC_set_time_limit(self->m_gcTimeLimit);
     }
 
     /*
@@ -343,6 +358,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_lastGCMarkStartTickCount(fastTickCount())
     , m_compiledByteCodeSize(0)
     , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)
+    , m_gcTimeLimit(0)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)
     , m_compressibleStringsUncomressedBufferSize(0)
