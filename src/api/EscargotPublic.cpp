@@ -261,14 +261,14 @@ static bool g_globalsInited;
 #else
 thread_local bool g_globalsInited;
 #endif
-void Globals::initialize(PlatformRef* platform)
+void Globals::initialize(PlatformRef* platform, InitializeOption option)
 {
     // initialize global value or context including thread-local variables
     // this function should be invoked once at the start of the program
     // argument `platform` will be deleted automatically when Globals::finalize called
     RELEASE_ASSERT(!g_globalsInited);
     Global::initialize(new PlatformBridge(platform));
-    ThreadLocal::initialize();
+    ThreadLocal::initialize(static_cast<uint32_t>(option));
     g_globalsInited = true;
 }
 
@@ -290,12 +290,12 @@ bool Globals::isInitialized()
     return g_globalsInited;
 }
 
-void Globals::initializeThread()
+void Globals::initializeThread(InitializeOption option)
 {
     // initialize thread-local variables
     // this function should be invoked at the start of sub-thread
     RELEASE_ASSERT(!g_globalsInited);
-    ThreadLocal::initialize();
+    ThreadLocal::initialize(static_cast<uint32_t>(option));
     g_globalsInited = true;
 }
 

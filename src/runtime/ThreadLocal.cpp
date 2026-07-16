@@ -25,6 +25,7 @@
 #include "runtime/String.h"
 #include "runtime/Value.h"
 #include "parser/ASTAllocator.h"
+#include "api/EscargotPublic.h"
 #include "BumpPointerAllocator.h"
 #if defined(ENABLE_WASM)
 #include "wasm.h"
@@ -130,6 +131,9 @@ GlobalDeleteChecker::GlobalDeleteChecker()
 
 GlobalDeleteChecker::~GlobalDeleteChecker()
 {
+    // call GC_deinit for releasing bdwgc's vdb resource
+    GC_deinit();
+
     for (size_t i = 0; i < m_mappedMemoriesSize; i++) {
         auto e = m_mappedMemories[i];
 #if defined(OS_WINDOWS)
@@ -262,10 +266,22 @@ Optional<size_t*> checkPthreadKey(pthread_key_t key, char* tlsBase)
 }
 #endif
 
-void ThreadLocal::initialize()
+static void initGcFlags(Globals::InitializeOption optionFromGlobal)
+{
+#if defined(OS_POSIX)
+    if (static_cast<uint32_t>(optionFromGlobal & Globals::InitializeOption::PreferIncrementalGC)) {
+        setenv("GC_ENABLE_INCREMENTAL", "1", 1);
+    }
+#endif
+}
+
+void ThreadLocal::initialize(uint32_t optionFromGlobal)
 {
     // initialize should be invoked only once in each thread
     ESCARGOT_RELEASE_ASSERT(!inited);
+
+    initGcFlags(static_cast<Globals::InitializeOption>(optionFromGlobal));
+
 #if defined(ENABLE_THREADING)
     if (!g_globalDeleteChecker) {
         g_globalDeleteChecker = std::unique_ptr<GlobalDeleteChecker>(new GlobalDeleteChecker());

@@ -210,7 +210,7 @@ class ThreadLocal {
 #endif
 
 public:
-    static void initialize();
+    static void initialize(uint32_t optionFromGlobal = 0);
     static void finalize();
     static bool isInited()
     {
