@@ -129,14 +129,37 @@ ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 
 class ESCARGOT_EXPORT Globals {
 public:
+    // InitializeOption is a bit-flag enum that can be combined with the | operator.
+    // Pass it to initialize / initializeThread to prefer specific runtime behaviors.
+    enum class InitializeOption : uint32_t {
+        None = 0,
+        // Prefer using incremental garbage collection if the GC supports it.
+        PreferIncrementalGC = 1 << 0,
+    };
+
+    friend inline InitializeOption operator|(InitializeOption a, InitializeOption b)
+    {
+        return static_cast<InitializeOption>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    }
+
+    friend inline InitializeOption operator&(InitializeOption a, InitializeOption b)
+    {
+        return static_cast<InitializeOption>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+    }
+
+    friend inline InitializeOption operator~(InitializeOption a)
+    {
+        return static_cast<InitializeOption>(~static_cast<uint32_t>(a));
+    }
+
     // Escargot has thread-independent Globals.
     // Users should call initialize, finalize once in the main program
-    static void initialize(PlatformRef* platform);
+    static void initialize(PlatformRef* platform, InitializeOption option = InitializeOption::None);
     static void finalize();
 
     // Globals also used for thread initialization
     // Users need to call initializeThread, finalizeThread function for each thread
-    static void initializeThread();
+    static void initializeThread(InitializeOption option = InitializeOption::None);
     static void finalizeThread();
 
     static bool isInitialized();
