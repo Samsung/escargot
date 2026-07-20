@@ -3293,11 +3293,11 @@ public:
 #endif
 };
 
-typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
-typedef Vector<JumpFlowRecord, std::allocator<JumpFlowRecord>> ByteCodeJumpFlowRecordData;
+typedef Vector<Value, std::allocator<Value>, VectorDefaultComputeReservedCapacityFunction, StorePositiveNumberAsOddNumber> ByteCodeNumeralLiteralData;
+typedef Vector<JumpFlowRecord, std::allocator<JumpFlowRecord>, VectorDefaultComputeReservedCapacityFunction, StorePositiveNumberAsOddNumber> ByteCodeJumpFlowRecordData;
 
-typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> ByteCodeStringLiteralData;
-typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeOtherLiteralData;
+typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>, VectorDefaultComputeReservedCapacityFunction, StorePositiveNumberAsOddNumber> ByteCodeStringLiteralData;
+typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>, VectorDefaultComputeReservedCapacityFunction, StorePositiveNumberAsOddNumber> ByteCodeOtherLiteralData;
 
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef HashMap<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
@@ -3439,7 +3439,7 @@ public:
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"
     ByteCodeRegisterIndex m_requiredTotalRegisterNumber : REGISTER_INDEX_IN_BIT;
-    size_t m_inlineCacheDataSize;
+    StorePositiveNumberAsOddNumber m_inlineCacheDataSize;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;

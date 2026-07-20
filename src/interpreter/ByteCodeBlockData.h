@@ -186,8 +186,8 @@ public:
 
 protected:
     uint8_t* m_buffer;
-    size_t m_size;
-    size_t m_capacity;
+    StorePositiveNumberAsOddNumber m_size;
+    StorePositiveNumberAsOddNumber m_capacity;
 };
 } // namespace Escargot
 
