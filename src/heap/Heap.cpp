@@ -22,6 +22,8 @@
 #include "Heap.h"
 #include "LeakChecker.h"
 
+#include <gc/gc_disclaim.h>
+
 namespace Escargot {
 
 void Heap::initialize()
@@ -29,6 +31,8 @@ void Heap::initialize()
     // disable data area searching in bdwgc
     GC_set_no_dls(1);
     GC_init();
+    GC_init_finalized_malloc();
+
     RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
 
 #if defined(OS_ANDROID)

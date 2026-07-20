@@ -27,6 +27,8 @@
 #include "parser/ast/AST.h"
 #include "parser/esprima_cpp/esprima.h"
 
+#include <gc/gc_disclaim.h>
+
 namespace Escargot {
 
 OpcodeTable g_opcodeTable;
@@ -110,8 +112,9 @@ ByteCodeBlock::ByteCodeBlock()
     // This constructor is used to allocate a ByteCodeBlock on the stack
 }
 
-static void clearByteCodeBlock(ByteCodeBlock* self)
+static void clearByteCodeBlock(void* obj, void* cd)
 {
+    ByteCodeBlock* self = (ByteCodeBlock*)obj;
 #ifdef ESCARGOT_DEBUGGER
     if (!self->m_isOwnerMayFreed) {
         Debugger* debugger = self->codeBlock()->context()->debugger();
@@ -141,24 +144,20 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
 {
     auto& v = m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
     v.push_back(this);
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        ByteCodeBlock* self = (ByteCodeBlock*)obj;
-        clearByteCodeBlock(self); }, nullptr, nullptr, nullptr);
+
+#ifdef ESCARGOT_DEBUGGER
+    GC_REGISTER_FINALIZER_NO_ORDER(this, clearByteCodeBlock, nullptr, nullptr, nullptr);
+#endif
 }
 
 void* ByteCodeBlock::operator new(size_t size)
 {
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ByteCodeBlock)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_stringLiteralData));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_otherLiteralData));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ByteCodeBlock, m_codeBlock));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ByteCodeBlock));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#ifdef ESCARGOT_DEBUGGER
+    return GC_MALLOC(size);
+#else
+    constexpr static GC_finalizer_closure data = { clearByteCodeBlock, nullptr };
+    return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void ByteCodeBlock::fillLOCData(Context* context, ByteCodeLOCData* locData)

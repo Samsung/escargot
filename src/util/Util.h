@@ -77,6 +77,62 @@ public:
         return m_data >> 1;
     }
 
+    StorePositiveNumberAsOddNumber& operator=(const size_t& src)
+    {
+        ASSERT(src < std::numeric_limits<size_t>::max() / 2);
+        m_data = (src << 1) | 0x1;
+        return *this;
+    }
+
+    // pre-increment
+    StorePositiveNumberAsOddNumber& operator++()
+    {
+        ASSERT(operator size_t() < std::numeric_limits<size_t>::max() / 2);
+        m_data += 2;
+        return *this;
+    }
+
+    // post-increment
+    size_t operator++(int)
+    {
+        size_t ret = operator size_t();
+        ASSERT(ret < std::numeric_limits<size_t>::max() / 2);
+        m_data += 2;
+        return ret;
+    }
+
+    // pre-decrement
+    StorePositiveNumberAsOddNumber& operator--()
+    {
+        ASSERT(operator size_t() > 0);
+        m_data -= 2;
+        return *this;
+    }
+
+    // post-decrement
+    size_t operator--(int)
+    {
+        size_t ret = operator size_t();
+        ASSERT(ret > 0);
+        m_data -= 2;
+        return ret;
+    }
+
+    StorePositiveNumberAsOddNumber& operator+=(size_t c)
+    {
+        ASSERT(c < std::numeric_limits<size_t>::max() / 2);
+        ASSERT(operator size_t() + c < std::numeric_limits<size_t>::max() / 2);
+        m_data += (c << 1);
+        return *this;
+    }
+
+    StorePositiveNumberAsOddNumber& operator-=(size_t c)
+    {
+        ASSERT(c <= operator size_t());
+        m_data -= (c << 1);
+        return *this;
+    }
+
 private:
     size_t m_data;
 };

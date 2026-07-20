@@ -2598,7 +2598,6 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             auto inlineCache = code->m_complexInlineCache = new GetObjectInlineCacheComplexCaseData(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
-            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCaseData) - sizeof(GetObjectInlineCacheSimpleCaseData);
             currentCodeSizeTotal += sizeof(GetObjectInlineCacheComplexCaseData) - sizeof(GetObjectInlineCacheSimpleCaseData);
             for (size_t i = 0; i < GetObjectInlineCacheSimpleCaseData::inlineBufferSize && old->m_cachedStructures[i]; i++) {
                 inlineCache->m_cache.pushBack(GetObjectInlineCacheData());
@@ -2612,6 +2611,8 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                 item.m_cachedIndex = old->m_cachedIndexes[i];
                 item.m_isPlainDataProperty = true;
             }
+            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCaseData);
+            block->m_inlineCacheDataSize -= sizeof(GetObjectInlineCacheSimpleCaseData);
         } else if (code->m_inlineCacheMode == GetObjectPreComputedCase::None) {
             code->m_complexInlineCache = new GetObjectInlineCacheComplexCaseData(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);

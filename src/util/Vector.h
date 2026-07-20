@@ -104,7 +104,7 @@ struct ComputeReservedCapacityFunctionWithLog2AndPercent {
 
 using VectorDefaultComputeReservedCapacityFunction = ComputeReservedCapacityFunctionWithPercent<>;
 
-template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
+template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction, typename SizeType = size_t>
 class Vector : public gc {
 public:
     Vector()
@@ -122,7 +122,7 @@ public:
         resize(siz);
     }
 
-    Vector(Vector<T, Allocator, ComputeReservedCapacityFunction>&& other)
+    Vector(Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>&& other)
         : m_buffer(other.m_buffer)
         , m_size(other.m_size)
         , m_capacity(other.m_capacity)
@@ -132,7 +132,7 @@ public:
         other.m_capacity = 0;
     }
 
-    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other)
+    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>& other)
         : m_buffer(nullptr)
         , m_size(0)
         , m_capacity(0)
@@ -154,7 +154,7 @@ public:
         }
     }
 
-    const Vector<T, Allocator, ComputeReservedCapacityFunction>& operator=(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other)
+    const Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>& operator=(const Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>& other)
     {
         if (&other == this)
             return *this;
@@ -170,7 +170,7 @@ public:
         return *this;
     }
 
-    const Vector<T, Allocator, ComputeReservedCapacityFunction>& operator=(Vector<T, Allocator, ComputeReservedCapacityFunction>&& other)
+    const Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>& operator=(Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>&& other)
     {
         if (&other == this)
             return *this;
@@ -188,7 +188,7 @@ public:
         return *this;
     }
 
-    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction>& other, const T& newItem)
+    Vector(const Vector<T, Allocator, ComputeReservedCapacityFunction, SizeType>& other, const T& newItem)
     {
         m_size = other.size() + 1;
         ComputeReservedCapacityFunction f;
@@ -426,7 +426,7 @@ public:
         if (newSize) {
             if (m_capacity < newSize) {
                 T* newBuffer = Allocator().allocate(newSize);
-                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(static_cast<size_t>(m_size), newSize));
 
                 if (m_buffer)
                     Allocator().deallocate(m_buffer, m_capacity);
@@ -447,7 +447,7 @@ public:
                 ComputeReservedCapacityFunction f;
                 size_t newCapacity = f(newSize);
                 T* newBuffer = Allocator().allocate(newCapacity);
-                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(static_cast<size_t>(m_size), newSize));
 
                 if (m_buffer)
                     Allocator().deallocate(m_buffer, m_capacity);
@@ -513,11 +513,11 @@ public:
 
 protected:
     T* m_buffer;
-    size_t m_size;
-    size_t m_capacity;
+    SizeType m_size;
+    SizeType m_capacity;
 };
 
-template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
+template <typename T, typename Allocator, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction, typename SizeType = size_t>
 class VectorWithNoSize : public gc {
 public:
     VectorWithNoSize()
@@ -526,8 +526,8 @@ public:
     {
     }
 
-    const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& other) = delete;
-    VectorWithNoSize(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction>& other, const T& newItem) = delete;
+    const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction, SizeType>& operator=(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction, SizeType>& other) = delete;
+    VectorWithNoSize(const VectorWithNoSize<T, Allocator, ComputeReservedCapacityFunction, SizeType>& other, const T& newItem) = delete;
     ~VectorWithNoSize()
     {
         if (m_buffer)
@@ -627,10 +627,10 @@ public:
 
 protected:
     T* m_buffer;
-    size_t m_capacity;
+    SizeType m_capacity;
 };
 
-template <typename T, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction>
+template <typename T, typename ComputeReservedCapacityFunction = VectorDefaultComputeReservedCapacityFunction, typename SizeType = size_t>
 class VectorWithNoSizeUseGCRealloc : public gc {
 public:
     VectorWithNoSizeUseGCRealloc()
@@ -639,8 +639,8 @@ public:
     {
     }
 
-    const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& operator=(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& other) = delete;
-    VectorWithNoSizeUseGCRealloc(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction>& other, const T& newItem) = delete;
+    const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction, SizeType>& operator=(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction, SizeType>& other) = delete;
+    VectorWithNoSizeUseGCRealloc(const VectorWithNoSizeUseGCRealloc<T, ComputeReservedCapacityFunction, SizeType>& other, const T& newItem) = delete;
     ~VectorWithNoSizeUseGCRealloc()
     {
         if (m_buffer) {
@@ -741,7 +741,7 @@ public:
 
 protected:
     T* m_buffer;
-    size_t m_capacity;
+    SizeType m_capacity;
 };
 
 // Vector for special purpose
