@@ -21,7 +21,9 @@
 #define __EscargotInfo__
 
 #ifndef ESCARGOT_VERSION
-#define ESCARGOT_VERSION "@ESCARGOT_BUILD_VERSION@"
+#define ESCARGOT_VERSION "@ESCARGOT_VERSION@"
 #endif
+
+#cmakedefine ESCARGOT_BUILD "@ESCARGOT_BUILD@"
 
 #endif

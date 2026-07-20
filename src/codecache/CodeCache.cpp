@@ -189,7 +189,11 @@ bool CodeCache::tryInitCacheList()
         fclose(listFile);
         return false;
     }
+#ifdef ESCARGOT_BUILD
+    std::string currentVer = ESCARGOT_BUILD;
+#else
     std::string currentVer = ESCARGOT_VERSION;
+#endif
     ASSERT(currentVer.length() > 0);
     size_t currentVerHash = std::hash<std::string>{}(currentVer);
     if (UNLIKELY(currentVerHash != cacheVerHash)) {
