@@ -83,6 +83,7 @@ public:
     static Optional<BigInt*> parseString(String* str, int radix = 10);
     static void throwBFException(ExecutionState& state, int status);
 
+    static void clear(void* self, void* cd);
     void* operator new(size_t size);
     void* operator new(size_t, void* p)
     {

@@ -295,23 +295,22 @@ std::string BigIntData::toNonGCStdString()
     }
 }
 
-void* BigInt::operator new(size_t size)
+void BigInt::clear(void* obj, void* cd)
 {
-    return GC_MALLOC_ATOMIC(size);
+    BigInt* self = (BigInt*)obj;
+    bf_delete(&self->m_bf);
 }
 
-void BigInt::initFinalizer()
+void* BigInt::operator new(size_t size)
 {
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        BigInt* self = (BigInt*)obj;
-        bf_delete(&self->m_bf); }, nullptr, nullptr, nullptr);
+    constexpr static GC_finalizer_closure data = { BigInt::clear, nullptr };
+    return GC_finalized_atomic_malloc(size, &data);
 }
 
 BigInt::BigInt()
     : m_typeTag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
 {
     bf_init(ThreadLocal::bfContext(), &m_bf);
-    initFinalizer();
 }
 
 static void setBigInt(bf_t* bf, uint64_t num)
@@ -357,7 +356,6 @@ BigInt::BigInt(bf_t bf)
     : m_typeTag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
     , m_bf(bf)
 {
-    initFinalizer();
 }
 
 Optional<BigInt*> BigInt::parseString(const char* buf, size_t length, int radix)
