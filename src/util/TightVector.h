@@ -22,7 +22,7 @@
 
 namespace Escargot {
 
-template <typename T, typename Allocator>
+template <typename T, typename Allocator, typename SizeType = size_t>
 class TightVector : public gc {
 public:
     TightVector()
@@ -38,7 +38,7 @@ public:
         resize(siz);
     }
 
-    TightVector(TightVector<T, Allocator>&& other)
+    TightVector(TightVector<T, Allocator, SizeType>&& other)
     {
         m_size = other.size();
         m_buffer = other.m_buffer;
@@ -46,7 +46,7 @@ public:
         other.m_size = 0;
     }
 
-    TightVector(const TightVector<T, Allocator>& other)
+    TightVector(const TightVector<T, Allocator, SizeType>& other)
     {
         if (other.size()) {
             m_size = other.size();
@@ -58,7 +58,7 @@ public:
         }
     }
 
-    const TightVector<T, Allocator>& operator=(const TightVector<T, Allocator>& other)
+    const TightVector<T, Allocator, SizeType>& operator=(const TightVector<T, Allocator, SizeType>& other)
     {
         if (&other == this)
             return *this;
@@ -73,7 +73,7 @@ public:
         return *this;
     }
 
-    const TightVector<T, Allocator>& operator=(TightVector<T, Allocator>&& other)
+    const TightVector<T, Allocator, SizeType>& operator=(TightVector<T, Allocator, SizeType>&& other)
     {
         if (&other == this)
             return *this;
@@ -89,7 +89,7 @@ public:
         return *this;
     }
 
-    TightVector(const TightVector<T, Allocator>& other, const T& newItem)
+    TightVector(const TightVector<T, Allocator, SizeType>& other, const T& newItem)
     {
         m_size = other.size() + 1;
         m_buffer = Allocator().allocate(m_size);
@@ -323,7 +323,7 @@ public:
 
 protected:
     T* m_buffer;
-    size_t m_size;
+    SizeType m_size;
 };
 
 template <typename T, typename Allocator>
