@@ -27,8 +27,6 @@
 #include "parser/ast/AST.h"
 #include "parser/esprima_cpp/esprima.h"
 
-#include <gc/gc_disclaim.h>
-
 namespace Escargot {
 
 OpcodeTable g_opcodeTable;

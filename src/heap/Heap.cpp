@@ -22,8 +22,6 @@
 #include "Heap.h"
 #include "LeakChecker.h"
 
-#include <gc/gc_disclaim.h>
-
 namespace Escargot {
 
 void Heap::initialize()
