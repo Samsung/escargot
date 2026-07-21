@@ -140,9 +140,9 @@ public:
         return m_implBufferAccessData.bufferAs16Bit;
     }
 
-    ALWAYS_INLINE::Escargot::String* impl()
+    ALWAYS_INLINE ::Escargot::String* impl() const
     {
-        return m_impl.value();
+        return const_cast<::Escargot::String*>(m_impl.value());
     }
 
     template <const size_t srcLen>

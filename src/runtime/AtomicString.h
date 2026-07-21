@@ -59,6 +59,7 @@ public:
     AtomicString(AtomicStringMap* map, const char* src, size_t len, FromExternalMemoryTag);
     AtomicString(AtomicStringMap* map, const LChar* src, size_t len);
     AtomicString(AtomicStringMap* map, const char16_t* src, size_t len);
+    AtomicString(AtomicStringMap* map, String* name);
     AtomicString(ExecutionState& ec, String* name)
         : AtomicString(ec.context(), name)
     {
@@ -125,6 +126,7 @@ private:
     void init(AtomicStringMap* ec, const char* src, size_t len, bool fromExternalMemory = false);
     void init(AtomicStringMap* ec, const LChar* str, size_t len);
     void init(AtomicStringMap* ec, const char16_t* src, size_t len);
+    void init(AtomicStringMap* ec, String* name);
     void init(Context* c, String* name);
     void initStaticString(AtomicStringMap* ec, String* name);
     String* m_string;

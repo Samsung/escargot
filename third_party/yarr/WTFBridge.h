@@ -243,6 +243,7 @@ bool findBitInWord(T word, size_t& startOrResultIndex, size_t endIndex, bool val
 }
 
 #include "runtime/String.h"
+#include "runtime/AtomicString.h"
 #include "CheckedArithmetic.h"
 
 namespace WTF {

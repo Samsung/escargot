@@ -69,6 +69,11 @@ AtomicString::AtomicString(AtomicStringMap* map, const char16_t* src, size_t len
     init(map, src, len);
 }
 
+AtomicString::AtomicString(AtomicStringMap* map, String* str)
+{
+    init(map, str);
+}
+
 class ASCIIStringOnStack : public String {
 public:
     ASCIIStringOnStack(const char* str, size_t len)
@@ -309,9 +314,8 @@ void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
     name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
 }
 
-void AtomicString::init(Context* c, String* name)
+void AtomicString::init(AtomicStringMap* ec, String* name)
 {
-    AtomicStringMap* ec = c->atomicStringMap();
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         if (name->isStringView() || name->isCompressibleString() || name->isReloadableString()) {
@@ -333,5 +337,10 @@ void AtomicString::init(Context* c, String* name)
         m_string = iter.operator*();
         name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
+}
+
+void AtomicString::init(Context* c, String* name)
+{
+    init(c->atomicStringMap(), name);
 }
 } // namespace Escargot
