@@ -296,7 +296,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {
             JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
-            yarrPattern = new JSC::Yarr::YarrPattern(source, WTF::OptionSet<JSC::Yarr::Flags>((JSC::Yarr::Flags)option), errorCode);
+            yarrPattern = new JSC::Yarr::YarrPattern(state.context()->atomicStringMap(), source, WTF::OptionSet<JSC::Yarr::Flags>((JSC::Yarr::Flags)option), errorCode);
             yarrError = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got too complicated RegExp pattern to process");
@@ -538,7 +538,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
                             value = indexValue;
                         }
                     }
-                    groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                    groups->directDefineOwnProperty(state, ObjectPropertyName(*it),
                                                     ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
                 }
             }
@@ -575,7 +575,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
                     }
                 }
 
-                groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                groups->directDefineOwnProperty(state, ObjectPropertyName(*it),
                                                 ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
             }
         }

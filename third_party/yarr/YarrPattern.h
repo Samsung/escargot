@@ -559,7 +559,7 @@ struct TermChain {
 
 
 struct YarrPattern : public gc {
-    JS_EXPORT_PRIVATE YarrPattern(StringView pattern, OptionSet<Flags>, ErrorCode&);
+    JS_EXPORT_PRIVATE YarrPattern(::Escargot::AtomicStringMap* map, StringView pattern, OptionSet<Flags>, ErrorCode&);
 
     void resetForReparsing()
     {
@@ -753,31 +753,22 @@ struct YarrPattern : public gc {
     PatternDisjunction* m_body { nullptr };
     Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
-    ::Escargot::Vector<String, GCUtil::gc_malloc_allocator<String>> m_captureGroupNames;
+    Vector<::Escargot::AtomicString> m_captureGroupNames;
     // The contents of the RHS Vector of m_namedGroupToParenIndices depends on whether the String is a
     // duplicate named group or not.
     // For a named group that is only used once in the pattern, the vector size is one and the only entry
     // is the subpatterenId for a non-duplicate named group.
     // For a duplicate named group, the size will be greater than 2. The first vector entry it is the
     // duplicateNamedGroupId. Subsequent vector entries are the subpatternId's for that duplicateNamedGroupId.
-    HashMap<String, Vector<unsigned>> m_namedGroupToParenIndices;
+    HashMap<::Escargot::AtomicString, Vector<unsigned>> m_namedGroupToParenIndices;
     Vector<unsigned> m_duplicateNamedGroupForSubpatternId;
-    String m_atom;
+    // unused variable m_atom
+    // String m_atom;
 
-    void* operator new(size_t size)
-    {
-        static MAY_THREAD_LOCAL bool typeInited = false;
-        static MAY_THREAD_LOCAL GC_descr descr;
-        if (!typeInited) {
-            GC_word obj_bitmap[GC_BITMAP_SIZE(YarrPattern)] = { 0 };
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_captureGroupNames));
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(YarrPattern, m_atom));
-            descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(YarrPattern));
-            typeInited = true;
-        }
-        return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-    }
+    // NOTE(weak pointer)
+    ::Escargot::AtomicStringMap* m_atomicStringMap;
 
+    void* operator new(size_t size);
 private:
     ErrorCode compile(StringView patternString);
 

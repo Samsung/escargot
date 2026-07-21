@@ -1081,12 +1081,12 @@ public:
 
         m_pattern.m_hasNamedCaptureGroups = true;
 
-        auto addResult = m_pattern.m_namedGroupToParenIndices.add(groupName, Vector<unsigned>());
+        auto addResult = m_pattern.m_namedGroupToParenIndices.add(::Escargot::AtomicString(m_pattern.m_atomicStringMap, groupName.impl()), Vector<unsigned>());
         auto& thisGroupNameSubpatternIds = addResult.iterator->second;
         if (addResult.isNewEntry) {
             while (m_pattern.m_captureGroupNames.size() < subpatternId)
-                m_pattern.m_captureGroupNames.append(String());
-            m_pattern.m_captureGroupNames.append(groupName);
+                m_pattern.m_captureGroupNames.append(::Escargot::AtomicString());
+            m_pattern.m_captureGroupNames.append(::Escargot::AtomicString(m_pattern.m_atomicStringMap, groupName.impl()));
 
             thisGroupNameSubpatternIds.append(subpatternId);
         } else if (thisGroupNameSubpatternIds.size() == 2) {
@@ -1104,7 +1104,7 @@ public:
             UnresolvedForwardReference& unresolvedForwardReference = m_forwardReferencesInLookbehind[i];
             auto term = unresolvedForwardReference.term();
             if (unresolvedForwardReference.hasNamedGroup()) {
-                auto namedGroupIndicesIter = m_pattern.m_namedGroupToParenIndices.find(unresolvedForwardReference.namedGroup());
+                auto namedGroupIndicesIter = m_pattern.m_namedGroupToParenIndices.find(::Escargot::AtomicString(m_pattern.m_atomicStringMap, unresolvedForwardReference.namedGroup().impl()));
                 if (namedGroupIndicesIter == m_pattern.m_namedGroupToParenIndices.end())
                     continue;
 
@@ -1488,8 +1488,9 @@ public:
 
     void atomNamedBackReference(const String& subpatternName)
     {
-        ASSERT(m_pattern.m_namedGroupToParenIndices.find(subpatternName) != m_pattern.m_namedGroupToParenIndices.end());
-        auto parenIndices = m_pattern.m_namedGroupToParenIndices.get(subpatternName);
+        ::Escargot::AtomicString atomicSubpatternName(m_pattern.m_atomicStringMap, subpatternName.impl());
+        ASSERT(m_pattern.m_namedGroupToParenIndices.find(atomicSubpatternName) != m_pattern.m_namedGroupToParenIndices.end());
+        auto parenIndices = m_pattern.m_namedGroupToParenIndices.get(atomicSubpatternName);
 
         if (parenIndices.size() == 2) {
             // If this isn't a duplicate group, we need to go through the same analysis as a non-named backreferece to determine if
@@ -2014,7 +2015,7 @@ public:
 
         // Finish padding out m_captureGroupNames vector.
         while (m_pattern.m_captureGroupNames.size() <= m_pattern.m_numSubpatterns)
-            m_pattern.m_captureGroupNames.append(String());
+            m_pattern.m_captureGroupNames.append(::Escargot::AtomicString());
 
         for (auto& namedGroupIndicies : m_pattern.m_namedGroupToParenIndices) {
             if (namedGroupIndicies.second.size() == 2) {
@@ -2305,12 +2306,13 @@ ErrorCode YarrPattern::compile(StringView patternString)
 
     constructor.setupNamedCaptures();
 
-    m_atom = constructor.extractAtom();
+    // NOTE(unused)
+    // m_atom = constructor.extractAtom();
 
     return ErrorCode::NoError;
 }
 
-YarrPattern::YarrPattern(StringView pattern, OptionSet<Flags> flags, ErrorCode& error)
+YarrPattern::YarrPattern(::Escargot::AtomicStringMap* map, StringView pattern, OptionSet<Flags> flags, ErrorCode& error)
     : m_containsBackreferences(false)
     , m_containsBOL(false)
     , m_containsLookbehinds(false)
@@ -2320,16 +2322,22 @@ YarrPattern::YarrPattern(StringView pattern, OptionSet<Flags> flags, ErrorCode& 
     , m_hasNamedCaptureGroups(false)
     , m_saveInitialStartValue(false)
     , m_flags(flags)
+    , m_atomicStringMap(map)
 {
-    GC_REGISTER_FINALIZER_NO_ORDER(
-         this, [](void* obj, void*) {
-             YarrPattern* self = static_cast<YarrPattern*>(obj);
-             self->~YarrPattern();
-         },
-         nullptr, nullptr, nullptr);
-
     ASSERT(m_flags != Flags::DeletedValue);
     error = compile(pattern);
+}
+
+static void yarrPatternClear(void* obj, void* cd)
+{
+    YarrPattern* self = reinterpret_cast<YarrPattern*>(obj);
+    self->~YarrPattern();
+}
+
+void* YarrPattern::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { yarrPatternClear, nullptr };
+    return GC_finalized_atomic_malloc(size, &data);
 }
 
 std::unique_ptr<CharacterClass> anycharCreate()

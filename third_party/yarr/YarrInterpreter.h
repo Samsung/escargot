@@ -479,9 +479,16 @@ public:
 struct BytecodePattern : public gc {
     WTF_MAKE_TZONE_ALLOCATED(BytecodePattern);
 public:
+    static void bytecodePatternClear(void* obj, void* cd)
+    {
+        BytecodePattern* self = reinterpret_cast<BytecodePattern*>(obj);
+        self->~BytecodePattern();
+    }
+
     void* operator new(size_t size)
     {
-        return GC_MALLOC_ATOMIC(size);
+        constexpr static GC_finalizer_closure data = { bytecodePatternClear, nullptr };
+        return GC_finalized_atomic_malloc(size, &data);
     }
 
     BytecodePattern(std::unique_ptr<ByteDisjunction> body, Vector<std::unique_ptr<ByteDisjunction>>& parenthesesInfoToAdopt, YarrPattern& pattern, BumpPointerAllocator* allocator, unsigned offsetVectorBaseForNamedCaptures, unsigned offsetsSize)
@@ -492,13 +499,6 @@ public:
         , m_offsetsSize(offsetsSize)
         , m_duplicateNamedGroupForSubpatternId(pattern.m_duplicateNamedGroupForSubpatternId)
     {
-        GC_REGISTER_FINALIZER_NO_ORDER(
-            this, [](void* obj, void*) {
-                BytecodePattern* self = static_cast<BytecodePattern*>(obj);
-                self->~BytecodePattern();
-            },
-            nullptr, nullptr, nullptr);
-
         m_body->terms.shrinkToFit();
 
         newlineCharacterClass = pattern.newlineCharacterClass();
