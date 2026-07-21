@@ -29,6 +29,25 @@
 
 namespace Escargot {
 
+static void intlSegmenterClear(void* obj, void* cd)
+{
+    IntlSegmenterObject* self = reinterpret_cast<IntlSegmenterObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlSegmenterObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlSegmenterClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlSegmenterObject::clearNativeResources()
+{
+    if (m_icuSegmenter) {
+        ubrk_close(m_icuSegmenter);
+    }
+}
+
 IntlSegmenterObject::IntlSegmenterObject(ExecutionState& state, Value locales, Value options)
     : IntlSegmenterObject(state, state.context()->globalObject()->intlSegmenterPrototype(), locales, options)
 {
@@ -84,12 +103,6 @@ IntlSegmenterObject::IntlSegmenterObject(ExecutionState& state, Object* proto, V
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize Segmenter");
     }
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlSegmenterObject* self = (IntlSegmenterObject*)obj;
-        ubrk_close(self->m_icuSegmenter);
-    },
-                 nullptr);
 }
 
 Object* IntlSegmenterObject::resolvedOptions(ExecutionState& state)

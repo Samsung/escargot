@@ -31,6 +31,14 @@ public:
     TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainDate isoDate, ISO8601::PlainTime plainTime, Calendar calendar);
     TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, unsigned underMicrosecondValue, Calendar calendar);
 
+    void* operator new(size_t size);
+    void clearNativeResources();
+    // Objects allocated via GC_finalized_malloc must not be freed with GC_FREE or delete.
+    // Calling delete would invoke GC_FREE internally, which crashes because the memory
+    // was not allocated by GC_malloc. The no-op operator delete below prevents this.
+    void operator delete(void*) {}
+    void operator delete[](void*) = delete;
+
     virtual bool isTemporalPlainDateTimeObject() const override
     {
         return true;

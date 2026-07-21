@@ -30,6 +30,15 @@ class IntlDisplayNamesObject : public DerivedObject {
 public:
     IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+    void clearNativeResources();
+    // Objects allocated via GC_finalized_malloc must not be freed with GC_FREE or delete.
+    // Calling delete would invoke GC_FREE internally, which crashes because the memory
+    // was not allocated by GC_malloc. The no-op operator delete below prevents this.
+    void operator delete(void*) {}
+    void operator delete[](void*) = delete;
+
     Value of(ExecutionState& state, const Value& code);
 
     virtual bool isIntlDisplayNamesObject() const override

@@ -33,6 +33,25 @@
 
 namespace Escargot {
 
+static void intlListFormatClear(void* obj, void* cd)
+{
+    IntlListFormatObject* self = reinterpret_cast<IntlListFormatObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlListFormatObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlListFormatClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlListFormatObject::clearNativeResources()
+{
+    if (m_icuListFormatter) {
+        ulistfmt_close(m_icuListFormatter);
+    }
+}
+
 IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
     , m_locale(nullptr)
@@ -116,12 +135,6 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize ListFormat");
         return;
     }
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlListFormatObject* self = (IntlListFormatObject*)obj;
-        ulistfmt_close(self->m_icuListFormatter);
-    },
-                 nullptr);
 }
 
 // https://tc39.es/ecma402/#sec-createstringlistfromiterable

@@ -30,6 +30,25 @@
 
 namespace Escargot {
 
+static void intlDisplayNamesClear(void* obj, void* cd)
+{
+    IntlDisplayNamesObject* self = reinterpret_cast<IntlDisplayNamesObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlDisplayNamesObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlDisplayNamesClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlDisplayNamesObject::clearNativeResources()
+{
+    if (m_icuLocaleDisplayNames) {
+        uldn_close(m_icuLocaleDisplayNames);
+    }
+}
+
 IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
     , m_style(nullptr)
@@ -126,12 +145,6 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DisplayNames");
         return;
     }
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlDisplayNamesObject* self = (IntlDisplayNamesObject*)obj;
-        uldn_close(self->m_icuLocaleDisplayNames);
-    },
-                 nullptr);
 }
 
 // https://tc39.es/intl-displaynames-v2/#sec-isvaliddatetimefieldcode

@@ -145,6 +145,14 @@ IntlCollator::CollatorResolvedOptions IntlCollator::resolvedOptions(ExecutionSta
     return opt;
 }
 
+static void intlCollatorClear(void* obj, void* cd)
+{
+    Object* self = reinterpret_cast<Object*>(obj);
+    if (self->extraData()) {
+        ucol_close((UCollator*)self->extraData());
+    }
+}
+
 void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* realm, Value locales, Value options)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-10.1.1.1
@@ -157,7 +165,9 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
 
     // Set the [[initializedIntlObject]] internal property of collator to true.
-    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
+    constexpr static GC_finalizer_closure data = { intlCollatorClear, nullptr };
+    collator->setInternalSlot(new (GC_finalized_malloc(sizeof(Object), &data)) Object(state, Object::PrototypeIsNull));
+    collator->internalSlot()->defineOwnProperty(state, ObjectPropertyName(initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
 
     // Let requestedLocales be the result of calling the
     // CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
@@ -413,12 +423,6 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         }
 
         internalSlot->setExtraData(ucollator);
-
-        internalSlot->addFinalizer([](PointerValue* obj, void* data) {
-            Object* self = (Object*)obj;
-            ucol_close((UCollator*)self->extraData());
-        },
-                                   nullptr);
     }
 
     if (ip.isUndefined()) {

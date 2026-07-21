@@ -63,6 +63,25 @@
 
 namespace Escargot {
 
+static void intlDurationFormatClear(void* obj, void* cd)
+{
+    IntlDurationFormatObject* self = reinterpret_cast<IntlDurationFormatObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlDurationFormatObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlDurationFormatClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlDurationFormatObject::clearNativeResources()
+{
+    if (m_icuListFormatter) {
+        ulistfmt_close(m_icuListFormatter);
+    }
+}
+
 static const char* const intlDurationFormatRelevantExtensionKeys[1] = { "nu" };
 static size_t intlDurationFormatRelevantExtensionKeysLength = 1;
 static const size_t indexOfExtensionKeyNu = 0;
@@ -330,12 +349,6 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DurationFormat");
     }
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlDurationFormatObject* self = (IntlDurationFormatObject*)obj;
-        ulistfmt_close(self->m_icuListFormatter);
-    },
-                 nullptr);
 }
 
 std::pair<String*, String*> IntlDurationFormatObject::data(size_t index)

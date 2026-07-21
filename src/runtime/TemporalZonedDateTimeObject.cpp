@@ -30,6 +30,25 @@
 
 namespace Escargot {
 
+static void temporalZonedDateTimeClear(void* obj, void* cd)
+{
+    TemporalZonedDateTimeObject* self = reinterpret_cast<TemporalZonedDateTimeObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* TemporalZonedDateTimeObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { temporalZonedDateTimeClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void TemporalZonedDateTimeObject::clearNativeResources()
+{
+    if (m_icuCalendar) {
+        ucal_close(m_icuCalendar);
+    }
+}
+
 #define CHECK_ICU()                                                                                           \
     if (U_FAILURE(status)) {                                                                                  \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
@@ -75,12 +94,6 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
     }
 
     m_icuCalendar = m_calendarID.createICUCalendar(state);
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalZonedDateTimeObject* self = (TemporalZonedDateTimeObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
 
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime(*m_epochNanoseconds).floorEpochMilliseconds(), &status);

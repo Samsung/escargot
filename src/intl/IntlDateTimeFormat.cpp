@@ -507,6 +507,28 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
     }
 }
 
+void intlDateTimeFormatClear(void* obj, void* cd)
+{
+    IntlDateTimeFormatObject* self = reinterpret_cast<IntlDateTimeFormatObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlDateTimeFormatObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlDateTimeFormatClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlDateTimeFormatObject::clearNativeResources()
+{
+    if (m_icuDateFormat) {
+        udat_close(m_icuDateFormat);
+    }
+    if (m_icuDateIntervalFormat) {
+        udtitvfmt_close(m_icuDateIntervalFormat.value());
+    }
+}
+
 IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone)
     : IntlDateTimeFormatObject(state, state.context()->globalObject()->intlDateTimeFormatPrototype(), locales, options, toLocaleStringTimeZone)
 {
@@ -689,15 +711,6 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     m_hourCycle = result.newHourCycle;
     m_timeZoneICU = result.timeZoneICU.value();
     m_icuDateFormat = result.icuDateFormat.value();
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
-        udat_close(self->m_icuDateFormat);
-        if (self->m_icuDateIntervalFormat) {
-            udtitvfmt_close(self->m_icuDateIntervalFormat.value());
-        }
-    },
-                 nullptr);
 }
 
 String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder)

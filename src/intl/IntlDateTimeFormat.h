@@ -31,6 +31,15 @@ public:
     IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
     IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+    void clearNativeResources();
+    // Objects allocated via GC_finalized_malloc must not be freed with GC_FREE or delete.
+    // Calling delete would invoke GC_FREE internally, which crashes because the memory
+    // was not allocated by GC_malloc. The no-op operator delete below prevents this.
+    void operator delete(void*) {}
+    void operator delete[](void*) = delete;
+
     virtual bool isIntlDateTimeFormatObject() const override
     {
         return true;

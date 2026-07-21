@@ -33,6 +33,25 @@
 
 namespace Escargot {
 
+static void temporalPlainDateClear(void* obj, void* cd)
+{
+    TemporalPlainDateObject* self = reinterpret_cast<TemporalPlainDateObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* TemporalPlainDateObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { temporalPlainDateClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void TemporalPlainDateObject::clearNativeResources()
+{
+    if (m_icuCalendar) {
+        ucal_close(m_icuCalendar);
+    }
+}
+
 #define CHECK_ICU()                                                                                           \
     if (U_FAILURE(status)) {                                                                                  \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
@@ -48,12 +67,6 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     }
 
     m_icuCalendar = calendar.createICUCalendar(state);
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
 
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(isoDate).floorEpochMilliseconds(), &status);
@@ -76,12 +89,6 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     , m_calendarID(calendar)
     , m_icuCalendar(fieldResolveResult.first)
 {
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
-
     if (fieldResolveResult.second) {
         *m_plainDate = fieldResolveResult.second.value();
     } else {
@@ -110,12 +117,6 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     , m_calendarID(calendar)
     , m_icuCalendar(icuCalendar)
 {
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
-
     UErrorCode status = U_ZERO_ERROR;
 
     auto y = calendar.year(state, m_icuCalendar);
