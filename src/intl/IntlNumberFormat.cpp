@@ -310,6 +310,19 @@ struct IntlNumberFormatData {
     Optional<UNumberRangeFormatter*> numberRangeFormatter;
 };
 
+static void intlNumberFormatClear(void* obj, void* cd)
+{
+    Object* self = reinterpret_cast<Object*>(obj);
+    if (self->extraData()) {
+        auto ud = reinterpret_cast<IntlNumberFormatData*>(self->extraData());
+        unumf_close(ud->numberFormatter);
+        if (ud->numberRangeFormatter) {
+            unumrf_close(ud->numberRangeFormatter.value());
+        }
+        delete ud;
+    }
+}
+
 void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
@@ -327,7 +340,9 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     // Set the [[initializedIntlObject]] internal property of dateTimeFormat to true.
-    numberFormat->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state, initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
+    constexpr static GC_finalizer_closure fData = { intlNumberFormatClear, nullptr };
+    numberFormat->setInternalSlot(new (GC_finalized_malloc(sizeof(Object), &fData)) Object(state, Object::PrototypeIsNull));
+    numberFormat->internalSlot()->defineOwnProperty(state, ObjectPropertyName(state, initializedIntlObject), ObjectPropertyDescriptor(Value(true)));
 
     // Let requestedLocales be the result of calling the
     // CanonicalizeLocaleList abstract operation (defined in 9.2.1) with argument locales.
@@ -629,16 +644,6 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     numberFormat->internalSlot()->setExtraData(data);
-    numberFormat->internalSlot()->addFinalizer([](PointerValue* obj, void* data) {
-        Object* self = (Object*)obj;
-        auto ud = reinterpret_cast<IntlNumberFormatData*>(self->extraData());
-        unumf_close(ud->numberFormatter);
-        if (ud->numberRangeFormatter) {
-            unumrf_close(ud->numberRangeFormatter.value());
-        }
-        delete ud;
-    },
-                                               nullptr);
 }
 
 void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult,

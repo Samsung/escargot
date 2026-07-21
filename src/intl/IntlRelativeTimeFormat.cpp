@@ -32,6 +32,28 @@
 
 namespace Escargot {
 
+static void intlRelativeTimeFormatClear(void* obj, void* cd)
+{
+    IntlRelativeTimeFormatObject* self = reinterpret_cast<IntlRelativeTimeFormatObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* IntlRelativeTimeFormatObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { intlRelativeTimeFormatClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void IntlRelativeTimeFormatObject::clearNativeResources()
+{
+    if (m_icuRelativeDateTimeFormatter) {
+        ureldatefmt_close(m_icuRelativeDateTimeFormatter);
+    }
+    if (m_icuNumberFormat) {
+        unum_close(m_icuNumberFormat);
+    }
+}
+
 static const char* const intlRelativeTimeFormatRelevantExtensionKeys[1] = { "nu" };
 static size_t intlRelativeTimeFormatRelevantExtensionKeysLength = 1;
 static const size_t indexOfExtensionKeyNu = 0;
@@ -183,13 +205,6 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
     }
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        IntlRelativeTimeFormatObject* self = (IntlRelativeTimeFormatObject*)obj;
-        ureldatefmt_close(self->m_icuRelativeDateTimeFormatter);
-        unum_close(self->m_icuNumberFormat);
-    },
-                 nullptr);
 }
 
 static URelativeDateTimeUnit icuRelativeTimeUnitFromString(String* unit)

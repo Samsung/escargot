@@ -53,6 +53,25 @@
 
 namespace Escargot {
 
+static void temporalPlainDateTimeClear(void* obj, void* cd)
+{
+    TemporalPlainDateTimeObject* self = reinterpret_cast<TemporalPlainDateTimeObject*>(obj);
+    self->clearNativeResources();
+}
+
+void* TemporalPlainDateTimeObject::operator new(size_t size)
+{
+    constexpr static GC_finalizer_closure data = { temporalPlainDateTimeClear, nullptr };
+    return GC_finalized_malloc(size, &data);
+}
+
+void TemporalPlainDateTimeObject::clearNativeResources()
+{
+    if (m_icuCalendar) {
+        ucal_close(m_icuCalendar);
+    }
+}
+
 #define CHECK_ICU()                                                                                           \
     if (U_FAILURE(status)) {                                                                                  \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
@@ -69,12 +88,6 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     }
 
     m_icuCalendar = calendar.createICUCalendar(state);
-
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateTimeObject* self = (TemporalPlainDateTimeObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
 
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(isoDate, plainTime)).floorEpochMilliseconds(), &status);
@@ -106,12 +119,6 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     , m_calendarID(calendar)
     , m_icuCalendar(icuCalendar)
 {
-    addFinalizer([](PointerValue* obj, void* data) {
-        TemporalPlainDateTimeObject* self = (TemporalPlainDateTimeObject*)obj;
-        ucal_close(self->m_icuCalendar);
-    },
-                 nullptr);
-
     ASSERT(underMicrosecondValue < 1000 * 1000);
     UErrorCode status = U_ZERO_ERROR;
 

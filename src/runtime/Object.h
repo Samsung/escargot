@@ -1075,8 +1075,7 @@ public:
     Object* internalSlot()
     {
         ASSERT(!isArrayObject());
-        ASSERT(hasRareData());
-        return rareData()->m_internalSlot;
+        return hasInternalSlot() ? rareData()->m_internalSlot : nullptr;
     }
 
     bool hasInternalSlot()

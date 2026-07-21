@@ -74,6 +74,14 @@ public:
     TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar);
     TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, Int128 epochNanoseconds, ComputedTimeZone timeZone, Calendar calendar);
 
+    void* operator new(size_t size);
+    void clearNativeResources();
+    // Objects allocated via GC_finalized_malloc must not be freed with GC_FREE or delete.
+    // Calling delete would invoke GC_FREE internally, which crashes because the memory
+    // was not allocated by GC_malloc. The no-op operator delete below prevents this.
+    void operator delete(void*) {}
+    void operator delete[](void*) = delete;
+
     virtual bool isTemporalZonedDateTimeObject() const override
     {
         return true;
