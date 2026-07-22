@@ -79,6 +79,18 @@ void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, G
     *to = NULL;
 }
 
+int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr)
+{
+    ByteCodeBlock* current = (ByteCodeBlock*)ptr;
+    arr[0].from = (GC_word*)&current->m_stringLiteralData;
+    arr[0].to = (GC_word*)current->m_stringLiteralData.data();
+    arr[1].from = (GC_word*)&current->m_otherLiteralData;
+    arr[1].to = (GC_word*)current->m_otherLiteralData.data();
+    arr[2].from = (GC_word*)&current->m_codeBlock;
+    arr[2].to = (GC_word*)current->m_codeBlock;
+    return 0;
+}
+
 void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
     GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
@@ -249,6 +261,10 @@ void initializeCustomAllocators()
                                                              FALSE,
                                                              TRUE);
 
+    s_gcKinds[HeapObjectKind::ByteCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInByteCodeBlock, 3>), 0), FALSE, TRUE);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::ByteCodeBlockKind], ByteCodeBlock::clearByteCodeBlockFromDisclaimGC, 1);
+
     s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
                                                                                 FALSE,
@@ -358,6 +374,14 @@ Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
     Value* ret;
     ret = (Value*)GC_GENERIC_MALLOC(size, kind);
     return ret;
+}
+
+template <>
+ByteCodeBlock* CustomAllocator<ByteCodeBlock>::allocate(size_type GC_n, const void*)
+{
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::ByteCodeBlockKind];
+    return (ByteCodeBlock*)GC_GENERIC_MALLOC(sizeof(ByteCodeBlock), kind);
 }
 
 template <>

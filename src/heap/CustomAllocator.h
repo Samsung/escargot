@@ -49,6 +49,7 @@ class ExecutionState;
 
 enum HeapObjectKind : unsigned {
     ValueVectorKind = 0,
+    ByteCodeBlockKind,
     GetObjectInlineCacheDataVectorKind,
     SetObjectInlineCacheDataVectorKind,
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)

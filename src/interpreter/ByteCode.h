@@ -3307,6 +3307,9 @@ public:
     explicit ByteCodeBlock();
     explicit ByteCodeBlock(InterpretedCodeBlock* codeBlock);
 
+    static int clearByteCodeBlockFromDisclaimGC(void* obj);
+    static void clearByteCodeBlock(void* obj, void* cd);
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -3432,6 +3435,7 @@ public:
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLOCData(Context* c, ByteCodeLOCData* locData);
 
+    bool m_isAlive : 1; // alive mark for clearByteCodeBlock
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
     bool m_needsExtendedExecutionState : 1;
@@ -3439,7 +3443,7 @@ public:
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"
     ByteCodeRegisterIndex m_requiredTotalRegisterNumber : REGISTER_INDEX_IN_BIT;
-    StorePositiveNumberAsOddNumber m_inlineCacheDataSize;
+    size_t m_inlineCacheDataSize;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
