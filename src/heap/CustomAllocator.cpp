@@ -24,6 +24,7 @@
 #include "runtime/Value.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/BackingStore.h"
 #include "runtime/WeakRefObject.h"
 #include "runtime/WeakMapObject.h"
 #include "runtime/FinalizationRegistryObject.h"
@@ -90,6 +91,30 @@ int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[2].to = (GC_word*)current->m_codeBlock;
     return 0;
 }
+
+int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
+{
+    NonSharedBackingStore* current = (NonSharedBackingStore*)ptr;
+    arr[0].from = (GC_word*)&current->m_observerItems;
+    arr[0].to = (GC_word*)current->m_observerItems.data();
+    arr[1].from = (GC_word*)&current->m_deleterData;
+    if (!current->m_isResizable) {
+        arr[1].to = (GC_word*)current->m_deleterData;
+    } else {
+        arr[1].to = nullptr;
+    }
+    return 0;
+}
+
+#if defined(ENABLE_THREADING)
+int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
+{
+    SharedBackingStore* current = (SharedBackingStore*)ptr;
+    arr[0].from = (GC_word*)&current->m_observerItems;
+    arr[0].to = (GC_word*)current->m_observerItems.data();
+    return 0;
+}
+#endif
 
 void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
@@ -265,6 +290,16 @@ void initializeCustomAllocators()
                                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInByteCodeBlock, 3>), 0), FALSE, TRUE);
     GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::ByteCodeBlockKind], ByteCodeBlock::clearByteCodeBlockFromDisclaimGC, 1);
 
+    s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind] = GC_new_kind(GC_new_free_list(),
+                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInNonSharedBackingStore, 2>), 0), FALSE, TRUE);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind], NonSharedBackingStore::clearNonSharedBackingStore, 1);
+
+#if defined(ENABLE_THREADING)
+    s_gcKinds[HeapObjectKind::SharedBackingStoreKind] = GC_new_kind(GC_new_free_list(),
+                                                                    GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInSharedBackingStore, 1>), 0), FALSE, TRUE);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::SharedBackingStoreKind], SharedBackingStore::clearSharedBackingStore, 1);
+#endif
+
     s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
                                                                                 FALSE,
@@ -383,6 +418,24 @@ ByteCodeBlock* CustomAllocator<ByteCodeBlock>::allocate(size_type GC_n, const vo
     int kind = s_gcKinds[HeapObjectKind::ByteCodeBlockKind];
     return (ByteCodeBlock*)GC_GENERIC_MALLOC(sizeof(ByteCodeBlock), kind);
 }
+
+template <>
+NonSharedBackingStore* CustomAllocator<NonSharedBackingStore>::allocate(size_type GC_n, const void*)
+{
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind];
+    return (NonSharedBackingStore*)GC_GENERIC_MALLOC(sizeof(NonSharedBackingStore), kind);
+}
+
+#if defined(ENABLE_THREADING)
+template <>
+SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n, const void*)
+{
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::SharedBackingStoreKind];
+    return (SharedBackingStore*)GC_GENERIC_MALLOC(sizeof(SharedBackingStore), kind);
+}
+#endif
 
 template <>
 GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(size_type GC_n, const void*)

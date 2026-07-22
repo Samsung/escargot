@@ -50,6 +50,10 @@ class ExecutionState;
 enum HeapObjectKind : unsigned {
     ValueVectorKind = 0,
     ByteCodeBlockKind,
+    NonSharedBackingStoreKind,
+#if defined(ENABLE_THREADING)
+    SharedBackingStoreKind,
+#endif
     GetObjectInlineCacheDataVectorKind,
     SetObjectInlineCacheDataVectorKind,
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)

@@ -104,6 +104,11 @@ protected:
 using BackingStoreDeleterCallback = void (*)(void* data, size_t length, void* deleterData);
 
 class BackingStore : public gc, public BufferAddressObserverManager<BackingStore> {
+    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+#if defined(ENABLE_THREADING)
+    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+#endif
+
 public:
     static BackingStore* createDefaultNonSharedBackingStore(size_t byteLength);
     static BackingStore* createDefaultResizableNonSharedBackingStore(size_t byteLength, size_t maxByteLength);
@@ -158,6 +163,7 @@ protected:
 
 class NonSharedBackingStore : public BackingStore {
     friend class BackingStore;
+    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
 
 public:
     virtual bool isShared() const override
@@ -193,6 +199,8 @@ public:
 
     virtual void resize(size_t newByteLength) override;
     virtual void reallocate(size_t newByteLength) override;
+
+    static int clearNonSharedBackingStore(void* obj);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -312,6 +320,7 @@ private:
 
 class SharedBackingStore : public BackingStore {
     friend class BackingStore;
+    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
 
 public:
     virtual bool isShared() const override
@@ -360,6 +369,8 @@ public:
     }
 
     virtual void resize(size_t newByteLength) override;
+
+    static int clearSharedBackingStore(void* obj);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
