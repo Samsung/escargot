@@ -99,7 +99,8 @@ void SetGlobalVariable::dump()
 #endif
 
 ByteCodeBlock::ByteCodeBlock()
-    : m_shouldClearStack(false)
+    : m_isAlive(true)
+    , m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
     , m_requiredOperandRegisterNumber(2)
@@ -110,7 +111,7 @@ ByteCodeBlock::ByteCodeBlock()
     // This constructor is used to allocate a ByteCodeBlock on the stack
 }
 
-static void clearByteCodeBlock(void* obj, void* cd)
+void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
 {
     ByteCodeBlock* self = (ByteCodeBlock*)obj;
 #ifdef ESCARGOT_DEBUGGER
@@ -131,8 +132,24 @@ static void clearByteCodeBlock(void* obj, void* cd)
     }
 }
 
+int ByteCodeBlock::clearByteCodeBlockFromDisclaimGC(void* obj)
+{
+#if !defined(NDEBUG)
+    obj = GC_USR_PTR_FROM_BASE(obj);
+#endif
+    ByteCodeBlock* self = (ByteCodeBlock*)obj;
+    if (!self->m_isAlive) {
+        // already freed
+        return 0;
+    }
+    self->m_isAlive = true;
+    clearByteCodeBlock(obj, nullptr);
+    return 0;
+}
+
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
-    : m_shouldClearStack(false)
+    : m_isAlive(true)
+    , m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
     , m_requiredOperandRegisterNumber(2)
@@ -153,8 +170,7 @@ void* ByteCodeBlock::operator new(size_t size)
 #ifdef ESCARGOT_DEBUGGER
     return GC_MALLOC(size);
 #else
-    constexpr static GC_finalizer_closure data = { clearByteCodeBlock, nullptr };
-    return GC_finalized_malloc(size, &data);
+    return CustomAllocator<ByteCodeBlock>().allocate(1);
 #endif
 }
 
