@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "BackingStore.h"
+#include "heap/CustomAllocator.h"
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
 
@@ -59,9 +60,6 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
     , m_isResizable(false)
 {
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
-        self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData); }, nullptr, nullptr, nullptr);
 }
 
 NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, size_t maxByteLength, bool isAllocatedByPlatform)
@@ -73,24 +71,32 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     , m_isResizable(true)
 {
     ASSERT(isAllocatedByPlatform);
+}
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
-        self->m_deleter(self->m_data, self->m_maxByteLength, nullptr); }, nullptr, nullptr, nullptr);
+int NonSharedBackingStore::clearNonSharedBackingStore(void* obj)
+{
+#if !defined(NDEBUG)
+    obj = GC_USR_PTR_FROM_BASE(obj);
+#endif
+    NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
+    // check vptr to see if this is still a valid NonSharedBackingStore
+    if (*(void**)self == nullptr) {
+        // already freed
+        return 0;
+    }
+    if (!self->m_isResizable) {
+        self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData);
+    } else {
+        self->m_deleter(self->m_data, self->m_maxByteLength, nullptr);
+    }
+    // zero the vptr to mark as cleaned
+    *(void**)self = nullptr;
+    return 0;
 }
 
 void* NonSharedBackingStore::operator new(size_t size)
 {
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(NonSharedBackingStore)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_observerItems));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_deleterData));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NonSharedBackingStore));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    return CustomAllocator<NonSharedBackingStore>().allocate(1);
 }
 
 void NonSharedBackingStore::resize(size_t newByteLength)
@@ -176,10 +182,23 @@ SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
 {
     // increase reference count
     sharedInfo->ref();
+}
 
-    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        SharedBackingStore* self = (SharedBackingStore*)obj;
-        self->sharedDataBlockInfo()->deref(); }, nullptr, nullptr, nullptr);
+int SharedBackingStore::clearSharedBackingStore(void* obj)
+{
+#if !defined(NDEBUG)
+    obj = GC_USR_PTR_FROM_BASE(obj);
+#endif
+    SharedBackingStore* self = (SharedBackingStore*)obj;
+    // check vptr to see if this is still a valid SharedBackingStore
+    if (*(void**)self == nullptr) {
+        // already freed
+        return 0;
+    }
+    self->sharedDataBlockInfo()->deref();
+    // zero the vptr to mark as cleaned
+    *(void**)self = nullptr;
+    return 0;
 }
 
 void SharedBackingStore::resize(size_t newByteLength)
@@ -193,15 +212,7 @@ void SharedBackingStore::resize(size_t newByteLength)
 
 void* SharedBackingStore::operator new(size_t size)
 {
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(SharedBackingStore)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SharedBackingStore, m_observerItems));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SharedBackingStore));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+    return CustomAllocator<SharedBackingStore>().allocate(1);
 }
 #endif
 
