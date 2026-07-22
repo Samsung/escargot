@@ -538,22 +538,36 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Build in riscv64 container
+    - name: Install cross-compile toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build pkg-config python3 \
+          gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+    - name: Cross-compile for riscv64
+      env:
+        CC: riscv64-linux-gnu-gcc
+        CXX: riscv64-linux-gnu-g++
+      run: |
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/riscv64 \
+          -DCMAKE_SYSTEM_NAME=Linux \
+          -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
+          -DESCARGOT_TEMPORAL=ON \
+          -DESCARGOT_TCO=ON \
+          -DESCARGOT_TEST=ON \
+          -DESCARGOT_SHADOWREALM=ON \
+          -DESCARGOT_OUTPUT=shell \
+          -GNinja
+        ninja -Cout/riscv64
+    - name: Run tests in riscv64 container
       uses: uraimo/run-on-arch-action@v3
       with:
         arch: riscv64
-        distro: ubuntu22.04
-
-        # Install deps into the container. With the token, the container will be cached
-        # The image is cached publically like a package
+        distro: ubuntu24.04
         githubToken: ${{ github.token }}
-
         install: |
           apt-get update
-          apt-get install -y cmake build-essential ninja-build pkg-config python3 git libicu-dev
+          apt-get install -y python3 libicu74
         run: |
-          cmake -H. -Bout/riscv64 -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
-          ninja -Cout/riscv64
           python3 ./tools/run-tests.py --engine="./out/riscv64/escargot" new-es intl sunspider-js
 
   build-test-debugger:
