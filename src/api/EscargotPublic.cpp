@@ -754,6 +754,17 @@ uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
     } else {
         if (iter.value().asUInt32() == 1) {
             self->erase(iter);
+            // tsl::robin_map's erase() only marks the bucket empty (it runs
+            // the stored pair's destructor, a no-op for a raw pointer key) -
+            // it does not clear the bucket's memory. Since this map's
+            // backing array is itself GC-managed and thus conservatively
+            // scanned, that leftover ValueRef* bit pattern can still look
+            // like a live root, keeping `ptr` alive until some unrelated
+            // future insert() happens to reuse that exact bucket. Force a
+            // fresh (GC_malloc-zeroed) backing array now instead of relying
+            // on that, so a fully-unrooted value becomes collectible right
+            // away, as callers of this "0 means unrooted" API expect.
+            self->rehash(0);
             return 0;
         } else {
             iter.value() = EncodedValue(iter.value().asUInt32() - 1);

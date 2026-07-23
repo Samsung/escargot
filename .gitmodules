@@ -30,3 +30,17 @@
     path = test/web-tooling-benchmark
     url = https://github.com/v8/web-tooling-benchmark
     ignore = untracked
+[submodule "third_party/node_api_headers"]
+	path = third_party/node_api_headers
+	url = https://github.com/nodejs/node-api-headers.git
+[submodule "test/napi-tc"]
+    path = test/napi-tc
+    url = https://github.com/nodejs/node.git
+    ignore = untracked
+	shallow = true
+	# this points at the nodejs/node monorepo; a plain `submodule update`
+	# would check out its ENTIRE tree (large). `update = none` makes
+	# generic `git submodule update --init [--recursive]` (what every other
+	# CI job's `submodules: true` checkout runs) skip it automatically.
+	# Only fetch it deliberately with a sparse checkout.
+	update = none

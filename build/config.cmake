@@ -71,7 +71,7 @@ SET (CFLAGS_FROM_ENV ${CFLAGS_FROM_ENV} ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
 SET (LDFLAGS_FROM_ENV ${LDFLAGS_FROM_ENV} ${ESCARGOT_LDFLAGS_FROM_EXTERNAL})
 
 # ESCARGOT COMMON LDFLAGS
-SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -fvisibility=hidden)
+# Note: -fvisibility=hidden is set in target.cmake for the compiler
 
 # bdwgc
 IF (${ESCARGOT_MODE} STREQUAL "debug")
@@ -125,6 +125,12 @@ IF (ESCARGOT_LIBICU_SUPPORT)
         SET (ESCARGOT_INCDIRS ${ESCARGOT_INCDIRS} ${ICU_INCLUDE_DIRS})
         SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} ${ICU_LIBRARIES})
     ENDIF()
+ENDIF()
+
+# napi_define_class needs FunctionTemplateRef, which is gated behind
+# ENABLE_EXTENDED_API; default it on for NAPI unless the caller already chose
+IF (ESCARGOT_NAPI AND NOT DEFINED ESCARGOT_USE_EXTENDED_API)
+    SET (ESCARGOT_USE_EXTENDED_API ON)
 ENDIF()
 
 IF (ESCARGOT_USE_EXTENDED_API)
@@ -186,6 +192,19 @@ ENDIF()
 
 IF (ESCARGOT_SHADOWREALM)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_SHADOWREALM)
+ENDIF()
+
+IF (ESCARGOT_NAPI)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_NAPI)
+    SET (ESCARGOT_INCDIRS ${ESCARGOT_INCDIRS} ${ESCARGOT_THIRD_PARTY_ROOT}/node_api_headers/include)
+    SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} dl)
+    # napi_* symbols live in this binary itself; addons are dlopen()'d with
+    # unresolved napi_* references (same as real Node, which also needs
+    # -rdynamic on its own executable for the same reason). Each napi_*
+    # definition carries its own default-visibility attribute (see
+    # ESCARGOT_NAPI_EXPORT in NapiTypes.h) instead of overriding
+    # -fvisibility=hidden for the whole binary.
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -rdynamic)
 ENDIF()
 
 IF (ESCARGOT_TLS_ACCESS_BY_ADDRESS)
