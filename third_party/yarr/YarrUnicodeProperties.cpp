@@ -113,11 +113,119 @@ std::optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodeP
     return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
 }
 
+#if defined(ENABLE_ICU)
+// Build a regex \p{...} character class by asking the runtime ICU for the
+// property's code point set (via a uset pattern), instead of carrying hardcoded
+// range tables in the binary. If the running ICU is older/limited and does not
+// recognize the property pattern, an empty CharacterClass is returned: this
+// degrades gracefully (the class simply matches nothing) and never crashes.
+static std::unique_ptr<CharacterClass> buildUnicodeCharacterClassFromICU(unsigned unicodePropertyIndex)
+{
+    auto characterClass = makeUnique<CharacterClass>();
+
+    if (unicodePropertyIndex >= (sizeof(unicodePropertyPatterns) / sizeof(unicodePropertyPatterns[0]))) {
+        return characterClass;
+    }
+
+    const char* pattern = unicodePropertyPatterns[unicodePropertyIndex];
+    UChar patternBuffer[160];
+    int32_t patternLength = 0;
+    while (pattern[patternLength] && patternLength < 159) {
+        patternBuffer[patternLength] = static_cast<UChar>(static_cast<unsigned char>(pattern[patternLength]));
+        patternLength++;
+    }
+    patternBuffer[patternLength] = 0;
+
+    UErrorCode status = U_ZERO_ERROR;
+    USet* set = uset_openPattern(patternBuffer, patternLength, &status);
+    if (U_FAILURE(status) || !set) {
+        if (set) {
+            uset_close(set);
+        }
+        return characterClass;
+    }
+
+    bool hasBMP = false;
+    bool hasNonBMP = false;
+    int32_t itemCount = uset_getItemCount(set);
+    for (int32_t i = 0; i < itemCount; i++) {
+        UChar32 start = 0;
+        UChar32 end = 0;
+        UChar strBuffer[256];
+        UErrorCode itemStatus = U_ZERO_ERROR;
+        int32_t strLength = uset_getItem(set, i, &start, &end, strBuffer, 256, &itemStatus);
+        if (U_FAILURE(itemStatus)) {
+            continue;
+        }
+
+        if (strLength <= 0) {
+            // Code point range [start, end]. Yarr's CharacterClass splits its
+            // single-character/range storage at the ASCII boundary (0x7F): the
+            // matcher (testCharacterClass) searches m_matches/m_ranges for
+            // ASCII input and m_matchesUnicode/m_rangesUnicode for non-ASCII
+            // (>= 0x80) input, regardless of whether the code point is BMP or
+            // not. m_characterWidths is a separate axis (BMP vs non-BMP, split
+            // at 0xFFFF) that only drives surrogate-pair reading.
+            char32_t lo = static_cast<char32_t>(start);
+            char32_t hi = static_cast<char32_t>(end);
+            if (lo <= 0x7F) {
+                char32_t asciiEnd = hi < 0x7F ? hi : 0x7F;
+                if (lo == asciiEnd) {
+                    characterClass->m_matches.append(lo);
+                } else {
+                    characterClass->m_ranges.append(CharacterRange(lo, asciiEnd));
+                }
+            }
+            if (hi >= 0x80) {
+                char32_t uStart = lo > 0x80 ? lo : 0x80;
+                if (uStart == hi) {
+                    characterClass->m_matchesUnicode.append(hi);
+                } else {
+                    characterClass->m_rangesUnicode.append(CharacterRange(uStart, hi));
+                }
+            }
+            if (lo <= 0xFFFF) {
+                hasBMP = true;
+            }
+            if (hi > 0xFFFF) {
+                hasNonBMP = true;
+            }
+        } else {
+            // Multi-code-point string (v-flag sequence property). Decode UTF-16.
+            Vector<char32_t> codePoints;
+            for (int32_t j = 0; j < strLength;) {
+                UChar32 c = strBuffer[j++];
+                if (c >= 0xD800 && c <= 0xDBFF && j < strLength) {
+                    UChar32 low = strBuffer[j];
+                    if (low >= 0xDC00 && low <= 0xDFFF) {
+                        c = (c << 10) + low - 0x35FDC00;
+                        j++;
+                    }
+                }
+                codePoints.append(c);
+            }
+            characterClass->m_strings.append(std::move(codePoints));
+        }
+    }
+    uset_close(set);
+
+    if (hasBMP && hasNonBMP) {
+        characterClass->m_characterWidths = CharacterClassWidths::HasBothBMPAndNonBMP;
+    } else if (hasNonBMP) {
+        characterClass->m_characterWidths = CharacterClassWidths::HasNonBMPChars;
+    } else if (hasBMP) {
+        characterClass->m_characterWidths = CharacterClassWidths::HasBMPChars;
+    }
+
+    return characterClass;
+}
+#endif
+
 std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
 {
     unsigned unicodePropertyIndex = static_cast<unsigned>(unicodeClassID) - static_cast<unsigned>(BuiltInCharacterClassID::BaseUnicodePropertyID);
 #if defined(ENABLE_ICU)
-    return createCharacterClassFunctions[unicodePropertyIndex]();
+    return buildUnicodeCharacterClassFromICU(unicodePropertyIndex);
 #else
     return nullptr;
 #endif

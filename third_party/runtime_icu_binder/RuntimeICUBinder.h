@@ -96,9 +96,12 @@ namespace RuntimeICUBinder {
     F(uldn_languageDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
     F(uldn_regionDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* region, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
     F(uldn_scriptDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)        \
-    F(uldn_keyValueDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* key, const char* value, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)
+    F(uldn_keyValueDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* key, const char* value, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t) \
+    F(uset_openPattern, USet*(CALLCONV*)(const UChar* pattern, int32_t patternLength, UErrorCode* ec), USet*) \
+    F(uset_getItemCount, int32_t(CALLCONV*)(const USet* set), int32_t) \
+    F(uset_getItem, int32_t(CALLCONV*)(const USet* set, int32_t itemIndex, UChar32* start, UChar32* end, UChar* str, int32_t strCapacity, UErrorCode* ec), int32_t)
 
-#define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                                 \
+#define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                               \
     F(u_getVersion, void(CALLCONV*)(UVersionInfo versionArray), void)                                                                                                                                          \
     F(u_setDataDirectory, void(CALLCONV*)(const char*), void)                                                                                                                                                  \
     F(u_setTimeZoneFilesDirectory, void(CALLCONV*)(const char*, UErrorCode*), void)                                                                                                                            \
@@ -109,7 +112,8 @@ namespace RuntimeICUBinder {
     F(ubidi_close, void(CALLCONV*)(UBiDi * pBiDi), void)                                                                                                                                                       \
     F(ubidi_setPara, void(CALLCONV*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                       \
     F(ubidi_getLogicalRun, void(CALLCONV*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)                                                                     \
-    F(uldn_close, void(CALLCONV*)(ULocaleDisplayNames * ldn), void)
+    F(uldn_close, void(CALLCONV*)(ULocaleDisplayNames * ldn), void) \
+    F(uset_close, void(CALLCONV*)(USet * set), void)
 
 #define FOR_EACH_I18N_OP(F)                                                                                                                                                                                                                \
     F(vzone_openID, VZone*(CALLCONV*)(const UChar*, int32_t), VZone*)                                                                                                                                                                      \
