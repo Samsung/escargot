@@ -30,6 +30,8 @@
 #include "runtime/FinalizationRegistryObject.h"
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -154,6 +156,66 @@ void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word**
 }
 #endif
 
+static ByteCodeBlock* byteCodeBlockToTrace(InterpretedCodeBlock* codeBlock)
+{
+    ByteCodeBlock* block = codeBlock->byteCodeBlock();
+    if (block && codeBlock->parent() && codeBlock->context()->vmInstance()->isPruningCompiledByteCodes()) {
+        // a bytecode pruning cycle is in progress: do not trace the ByteCodeBlock reference
+        // so that blocks reachable only through it are collected at the end of this cycle.
+        // blocks in use are kept alive by the conservative stack scan, and dying blocks
+        // disconnect themselves from their CodeBlock in the disclaim callback.
+        // ByteCodeBlocks of top-level CodeBlocks are preserved (managed by Script)
+        return nullptr;
+    }
+    return block;
+}
+
+int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
+{
+    InterpretedCodeBlock* current = (InterpretedCodeBlock*)ptr;
+    arr[0].from = (GC_word*)&current->m_context;
+    arr[0].to = (GC_word*)current->m_context;
+    arr[1].from = (GC_word*)&current->m_script;
+    arr[1].to = (GC_word*)current->m_script;
+    arr[2].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[2].to = (GC_word*)byteCodeBlockToTrace(current);
+    arr[3].from = (GC_word*)&current->m_parent;
+    arr[3].to = (GC_word*)current->m_parent;
+    arr[4].from = (GC_word*)&current->m_children;
+    arr[4].to = (GC_word*)current->m_children;
+    arr[5].from = (GC_word*)&current->m_parameterNames;
+    arr[5].to = (GC_word*)current->m_parameterNames.data();
+    arr[6].from = (GC_word*)&current->m_identifierInfos;
+    arr[6].to = (GC_word*)current->m_identifierInfos.data();
+    arr[7].from = (GC_word*)&current->m_blockInfos;
+    arr[7].to = (GC_word*)current->m_blockInfos;
+    return 0;
+}
+
+int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_result* arr)
+{
+    InterpretedCodeBlockWithRareData* current = (InterpretedCodeBlockWithRareData*)ptr;
+    arr[0].from = (GC_word*)&current->m_context;
+    arr[0].to = (GC_word*)current->m_context;
+    arr[1].from = (GC_word*)&current->m_script;
+    arr[1].to = (GC_word*)current->m_script;
+    arr[2].from = (GC_word*)&current->m_byteCodeBlock;
+    arr[2].to = (GC_word*)byteCodeBlockToTrace(current);
+    arr[3].from = (GC_word*)&current->m_parent;
+    arr[3].to = (GC_word*)current->m_parent;
+    arr[4].from = (GC_word*)&current->m_children;
+    arr[4].to = (GC_word*)current->m_children;
+    arr[5].from = (GC_word*)&current->m_parameterNames;
+    arr[5].to = (GC_word*)current->m_parameterNames.data();
+    arr[6].from = (GC_word*)&current->m_identifierInfos;
+    arr[6].to = (GC_word*)current->m_identifierInfos.data();
+    arr[7].from = (GC_word*)&current->m_blockInfos;
+    arr[7].to = (GC_word*)current->m_blockInfos;
+    arr[8].from = (GC_word*)&current->m_rareData;
+    arr[8].to = (GC_word*)current->m_rareData;
+    return 0;
+}
+
 #if !defined(NDEBUG)
 int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
 {
@@ -187,52 +249,6 @@ int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
     arr[4].from = (GC_word*)&current->m_observerItems;
     arr[4].to = (GC_word*)current->m_observerItems.data();
 
-    return 0;
-}
-
-int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
-{
-    InterpretedCodeBlock* current = (InterpretedCodeBlock*)ptr;
-    arr[0].from = (GC_word*)&current->m_context;
-    arr[0].to = (GC_word*)current->m_context;
-    arr[1].from = (GC_word*)&current->m_script;
-    arr[1].to = (GC_word*)current->m_script;
-    arr[2].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[2].to = (GC_word*)current->m_byteCodeBlock;
-    arr[3].from = (GC_word*)&current->m_parent;
-    arr[3].to = (GC_word*)current->m_parent;
-    arr[4].from = (GC_word*)&current->m_children;
-    arr[4].to = (GC_word*)current->m_children;
-    arr[5].from = (GC_word*)&current->m_parameterNames;
-    arr[5].to = (GC_word*)current->m_parameterNames.data();
-    arr[6].from = (GC_word*)&current->m_identifierInfos;
-    arr[6].to = (GC_word*)current->m_identifierInfos.data();
-    arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos;
-    return 0;
-}
-
-int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_result* arr)
-{
-    InterpretedCodeBlockWithRareData* current = (InterpretedCodeBlockWithRareData*)ptr;
-    arr[0].from = (GC_word*)&current->m_context;
-    arr[0].to = (GC_word*)current->m_context;
-    arr[1].from = (GC_word*)&current->m_script;
-    arr[1].to = (GC_word*)current->m_script;
-    arr[2].from = (GC_word*)&current->m_byteCodeBlock;
-    arr[2].to = (GC_word*)current->m_byteCodeBlock;
-    arr[3].from = (GC_word*)&current->m_parent;
-    arr[3].to = (GC_word*)current->m_parent;
-    arr[4].from = (GC_word*)&current->m_children;
-    arr[4].to = (GC_word*)current->m_children;
-    arr[5].from = (GC_word*)&current->m_parameterNames;
-    arr[5].to = (GC_word*)current->m_parameterNames.data();
-    arr[6].from = (GC_word*)&current->m_identifierInfos;
-    arr[6].to = (GC_word*)current->m_identifierInfos.data();
-    arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos;
-    arr[8].from = (GC_word*)&current->m_rareData;
-    arr[8].to = (GC_word*)current->m_rareData;
     return 0;
 }
 
@@ -317,6 +333,16 @@ void initializeCustomAllocators()
                                                                          TRUE);
 #endif
 
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
+                                                                      FALSE,
+                                                                      TRUE);
+
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind] = GC_new_kind(GC_new_free_list(),
+                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0),
+                                                                                  FALSE,
+                                                                                  TRUE);
+
 #ifdef NDEBUG
     GC_word objBitmap[GC_BITMAP_SIZE(ArrayObject)] = { 0 };
     GC_set_bit(objBitmap, GC_WORD_OFFSET(ArrayObject, m_structure));
@@ -339,16 +365,6 @@ void initializeCustomAllocators()
                                                                               GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 5>), 0),
                                                                               FALSE,
                                                                               TRUE);
-
-    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
-                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
-                                                                      FALSE,
-                                                                      TRUE);
-
-    s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind] = GC_new_kind(GC_new_free_list(),
-                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0),
-                                                                                  FALSE,
-                                                                                  TRUE);
 
     s_gcKinds[HeapObjectKind::WeakRefObjectKind] = GC_new_kind(GC_new_free_list(),
                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakRefObject, 3>), 0),
@@ -498,17 +514,6 @@ ArrayObject* CustomAllocator<ArrayObject>::allocate(size_type GC_n, const void*)
     return (ArrayObject*)GC_GENERIC_MALLOC(sizeof(ArrayObject), kind);
 }
 
-#if !defined(NDEBUG)
-template <>
-ArrayBufferObject* CustomAllocator<ArrayBufferObject>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (ArrayBufferObject*)GC_MALLOC(sizeof(ArrayBufferObject));
-    ASSERT(GC_n == 1);
-    int kind = s_gcKinds[HeapObjectKind::ArrayBufferObjectKind];
-    return (ArrayBufferObject*)GC_GENERIC_MALLOC(sizeof(ArrayBufferObject), kind);
-}
-
 template <>
 InterpretedCodeBlock* CustomAllocator<InterpretedCodeBlock>::allocate(size_type GC_n, const void*)
 {
@@ -527,6 +532,17 @@ InterpretedCodeBlockWithRareData* CustomAllocator<InterpretedCodeBlockWithRareDa
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind];
     return (InterpretedCodeBlockWithRareData*)GC_GENERIC_MALLOC(sizeof(InterpretedCodeBlockWithRareData), kind);
+}
+
+#if !defined(NDEBUG)
+template <>
+ArrayBufferObject* CustomAllocator<ArrayBufferObject>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (ArrayBufferObject*)GC_MALLOC(sizeof(ArrayBufferObject));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::ArrayBufferObjectKind];
+    return (ArrayBufferObject*)GC_GENERIC_MALLOC(sizeof(ArrayBufferObject), kind);
 }
 
 template <>

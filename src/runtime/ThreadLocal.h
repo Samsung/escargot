@@ -80,7 +80,8 @@ public:
     }
 
     // set by the bdwgc start callback (GC_set_start_callback), which bdwgc invokes
-    // only right before a full GC; consumed (and cleared) by the next MARK_START event
+    // only right before a full GC; cleared once by the event dispatcher after
+    // all RECLAIM_END listeners of that cycle have run (see genericGCEventListener)
     void markFullGC()
     {
         m_isFullGC = true;
@@ -91,11 +92,9 @@ public:
         return m_isFullGC;
     }
 
-    bool consumeFullGCFlag()
+    void clearFullGCFlag()
     {
-        bool result = m_isFullGC;
         m_isFullGC = false;
-        return result;
     }
 
     void reset();

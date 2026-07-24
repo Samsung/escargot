@@ -60,10 +60,10 @@ enum HeapObjectKind : unsigned {
     EncodedSmallValueVectorKind,
 #endif
     ArrayObjectKind,
-#if !defined(NDEBUG)
-    ArrayBufferObjectKind,
     InterpretedCodeBlockKind,
     InterpretedCodeBlockWithRareDataKind,
+#if !defined(NDEBUG)
+    ArrayBufferObjectKind,
     WeakRefObjectKind,
     FinalizationRegistryObjectItemKind,
     WeakMapObjectDataItemKind,
