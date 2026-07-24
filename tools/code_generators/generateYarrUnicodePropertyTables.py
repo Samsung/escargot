@@ -32,6 +32,7 @@ import optparse
 import os
 import re
 import struct
+import sys
 from functools import cmp_to_key
 from hasher import stringHash
 
@@ -229,6 +230,7 @@ class PropertyData:
     def __init__(self, name):
         self.name = name
         self.aliases = []
+        self.icuPattern = None
         self.index = len(PropertyData.allPropertyData)
         self.hasBMPCharacters = False
         self.hasNonBMPCharacters = False
@@ -603,19 +605,10 @@ class PropertyData:
 
     @classmethod
     def dumpAll(cls, file):
+        file.write("static constinit const char* const unicodePropertyPatterns[{}] = {{\n".format(len(cls.allPropertyData)))
         for propertyData in cls.allPropertyData:
-            propertyData.dump(file, propertyData != cls.allPropertyData[-1])
-
-        file.write("using CreateCharacterClass = std::unique_ptr<CharacterClass> (*)();\n")
-        file.write("static constinit CreateCharacterClass createCharacterClassFunctions[{}] = {{\n   ".format(len(cls.allPropertyData)))
-        functionsOnThisLine = 0
-        for propertyData in cls.allPropertyData:
-            file.write(" {},".format(propertyData.getCreateFuncName()))
-            functionsOnThisLine = functionsOnThisLine + 1
-            if functionsOnThisLine == 4:
-                file.write("\n   ")
-                functionsOnThisLine = 0
-
+            escapedPattern = propertyData.icuPattern.replace("\\", "\\\\").replace("\"", "\\\"")
+            file.write("    \"{}\",\n".format(escapedPattern))
         file.write("};\n\n")
 
     @classmethod
@@ -1148,6 +1141,27 @@ if __name__ == "__main__":
     sequenceProperty = SequenceProperty()
     sequenceProperty.parsePropertyFile(emojiSequencesFile)
     sequenceProperty.parsePropertyFile(emojiZWJSequencesFile)
+
+    def _tag(collection, fmt):
+        for pd in collection.values():
+            pd.icuPattern = fmt.format(pd.name)
+
+    _tag(generalCategory.propertyDataByCategory, "[\\p{{{}}}]")
+    _tag(binaryProperty.propertyDataByProperty, "[\\p{{{}}}]")
+    _tag(scripts.scriptsByName, "[\\p{{Script={}}}]")
+    _tag(scripts.scriptExtensionsByName, "[\\p{{Script_Extensions={}}}]")
+    _tag(sequenceProperty.propertyDataByProperty, "[\\p{{{}}}]")
+
+    if getattr(scripts, "unknownScript", None) is not None and scripts.unknownScript.icuPattern is None:
+        scripts.unknownScript.icuPattern = "[\\p{Script=Unknown}]"
+
+    if sequenceProperty.RGIEmojiPropertyData.icuPattern is None:
+        sequenceProperty.RGIEmojiPropertyData.icuPattern = "[\\p{RGI_Emoji}]"
+
+    for pd in PropertyData.allPropertyData:
+        if pd.icuPattern is None:
+            pd.icuPattern = "[\\p{{{}}}]".format(pd.name)
+            sys.stderr.write("warning: no ICU pattern kind tagged for index={} name={}, defaulted\n".format(pd.index, pd.name))
 
     PropertyData.dumpAll(propertyDataHFile)
     generalCategory.dump(propertyDataHFile)

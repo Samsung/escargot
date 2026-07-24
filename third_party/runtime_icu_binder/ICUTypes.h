@@ -29,6 +29,11 @@
 
 typedef char16_t UChar;
 typedef int32_t UChar32;
+
+// Opaque Unicode set handle (icu4c uset.h). Used to build regex \p{...}
+// character classes from the runtime ICU instead of hardcoded tables.
+struct USet;
+typedef struct USet USet;
 typedef int8_t UBool;
 typedef double UDate;
 

@@ -61,6 +61,11 @@
 #define u_charDirection RuntimeICUBinder::ICU::instance().u_charDirection
 #define u_isblank RuntimeICUBinder::ICU::instance().u_isblank
 
+#define uset_openPattern RuntimeICUBinder::ICU::instance().uset_openPattern
+#define uset_getItemCount RuntimeICUBinder::ICU::instance().uset_getItemCount
+#define uset_getItem RuntimeICUBinder::ICU::instance().uset_getItem
+#define uset_close RuntimeICUBinder::ICU::instance().uset_close
+
 #define unorm2_getNFCInstance RuntimeICUBinder::ICU::instance().unorm2_getNFCInstance
 #define unorm2_getNFDInstance RuntimeICUBinder::ICU::instance().unorm2_getNFDInstance
 #define unorm2_getNFKCInstance RuntimeICUBinder::ICU::instance().unorm2_getNFKCInstance
