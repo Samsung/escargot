@@ -237,6 +237,12 @@ static void genericGCEventListener(GC_EventType evtType)
             listeners->at(i).first(listeners->at(i).second);
         }
     }
+
+    if (evtType == GC_EVENT_RECLAIM_END) {
+        // the full GC cycle (if any) is finished now. clearing the flag here (instead of
+        // consuming it in a listener) lets every listener of this cycle observe it
+        list.clearFullGCFlag();
+    }
 }
 
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)

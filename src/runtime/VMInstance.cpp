@@ -214,23 +214,22 @@ void vmMarkStartCallback(void* data)
         self->m_regexpCache->clear();
     }
 
-    auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-    if ((currentCodeSizeTotal > self->maxCompiledByteCodeSize() && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesWhileGC)) || UNLIKELY(inIdleMode && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesEnterIdle))) {
-        currentCodeSizeTotal = std::numeric_limits<size_t>::max();
-
-        auto& v = self->compiledByteCodeBlocks();
-        for (size_t i = 0; i < v.size(); i++) {
-            // ByteCodeBlock of top CodeBlock should be remove by Script class
-            if (v[i]->m_codeBlock->parent()) {
-                v[i]->m_codeBlock->setByteCodeBlock(nullptr);
-            }
-        }
+    if (!self->m_isPruningCompiledByteCodes
+        && ((self->compiledByteCodeSize() > self->maxCompiledByteCodeSize() && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesWhileGC)) || UNLIKELY(inIdleMode && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesEnterIdle)))) {
         // NOTE
-        // we cannot give up gc recalim or marking
-        // since we disconnect ByteCodeBlock
-        // that's why I extend gc time limit
-        self->m_gcTimeLimit = GC_get_time_limit();
-        GC_set_time_limit(GC_TIME_UNLIMITED);
+        // start a bytecode pruning cycle. while this flag is set, the mark procedure of
+        // InterpretedCodeBlock does not trace m_byteCodeBlock references (see CustomAllocator.cpp),
+        // so ByteCodeBlocks reachable only through their CodeBlock are collected at the end of
+        // this GC cycle. references from the stack or from paused execution states (generators)
+        // keep their blocks alive as usual, and the mutator always observes valid references:
+        // dying blocks disconnect themselves from their CodeBlock in the disclaim callback
+        // before their memory is reclaimed.
+        // this works for both non-incremental GC (blocks are swept within the same collection)
+        // and incremental GC (marking may be abandoned and resumed freely; blocks used while
+        // the cycle is in progress survive via the stack rescan of the final mark pause).
+        // MARK_START can be fired multiple times in one incremental cycle (each stopped-mark
+        // attempt), so the flag guards against re-entering
+        self->m_isPruningCompiledByteCodes = true;
     }
 #endif
 }
@@ -239,7 +238,7 @@ void vmReclaimEndCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
 
-    if (GC_is_incremental_mode() && !ThreadLocal::gcEventListenerSet().consumeFullGCFlag()) {
+    if (GC_is_incremental_mode() && !ThreadLocal::gcEventListenerSet().isFullGCFlag()) {
         return;
     }
 
@@ -253,31 +252,18 @@ void vmReclaimEndCallback(void* data)
     }
 #endif
 
-    auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-
-    if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
-        GC_invoke_finalizers();
-
-        // we need to check this because ~VMInstance can be called by GC_invoke_finalizers
-        if (!self->m_isFinalized) {
-            currentCodeSizeTotal = 0;
-            auto& v = self->compiledByteCodeBlocks();
-            for (size_t i = 0; i < v.size(); i++) {
-                if (v[i]->m_codeBlock->parent()) {
-                    v[i]->m_codeBlock->setByteCodeBlock(v[i]);
-                    ASSERT(v[i]->m_codeBlock->byteCodeBlock() == v[i]);
-                }
-
-                currentCodeSizeTotal += v[i]->memoryAllocatedSize();
-            }
-        }
-        GC_set_time_limit(self->m_gcTimeLimit);
+    if (self->m_isPruningCompiledByteCodes) {
+        // the pruning cycle started at MARK_START is finished.
+        // dead ByteCodeBlocks already subtracted their registered size from
+        // compiledByteCodeSize() through the disclaim callback (this kind is swept
+        // eagerly since it is registered with mark-unconditionally)
+        self->m_isPruningCompiledByteCodes = false;
     }
 
     /*
     if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
         printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
-        printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
+        printf("bytecode Size %f KiB\n", self->compiledByteCodeSize() / 1024.f);
         printf("regexp cache size %zu\n", self->regexpCache()->size());
     }
     */
@@ -285,12 +271,10 @@ void vmReclaimEndCallback(void* data)
 
 VMInstance::~VMInstance()
 {
-    {
-        auto& v = compiledByteCodeBlocks();
-        for (size_t i = 0; i < v.size(); i++) {
-            v[i]->m_isOwnerMayFreed = true;
-        }
-    }
+    // set this first; the ByteCodeBlock disclaim callback reads it (through
+    // CodeBlocks which outlive this VMInstance) to skip touching dead owners
+    m_isFinalized = true;
+
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     {
         auto& v = compressibleStrings();
@@ -308,7 +292,9 @@ VMInstance::~VMInstance()
     }
 #endif
 
-    m_isFinalized = true;
+    // the mark procedure may still read this flag through CodeBlocks
+    // which outlive this VMInstance
+    m_isPruningCompiledByteCodes = false;
 
     // remove gc event callback
     if (ThreadLocal::isInited()) {
@@ -358,7 +344,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_lastGCMarkStartTickCount(fastTickCount())
     , m_compiledByteCodeSize(0)
     , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)
-    , m_gcTimeLimit(0)
+    , m_isPruningCompiledByteCodes(false)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)
     , m_compressibleStringsUncomressedBufferSize(0)

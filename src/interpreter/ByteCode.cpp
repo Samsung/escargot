@@ -103,6 +103,7 @@ ByteCodeBlock::ByteCodeBlock()
     , m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
+    , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_inlineCacheDataSize(0)
@@ -114,21 +115,30 @@ ByteCodeBlock::ByteCodeBlock()
 void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
 {
     ByteCodeBlock* self = (ByteCodeBlock*)obj;
+    // accessing m_codeBlock here is safe since this kind is registered with
+    // mark-unconditionally, which keeps referents of dying blocks alive
+    // (in debugger builds the finalizer mechanism gives the same guarantee)
+    VMInstance* vm = self->m_codeBlock->context()->vmInstance();
 #ifdef ESCARGOT_DEBUGGER
-    if (!self->m_isOwnerMayFreed) {
+    if (!vm->isFinalized()) {
         Debugger* debugger = self->codeBlock()->context()->debugger();
         if (debugger != nullptr && self->codeBlock()->markDebugging()) {
             debugger->byteCodeReleaseNotification(self);
         }
     }
 #endif
+    size_t accountedByteCodeSize = self->m_isAccounted ? self->m_code.size() : 0;
     self->m_code.clear();
     self->m_numeralLiteralData.clear();
     self->m_jumpFlowRecordData.clear();
 
-    if (!self->m_isOwnerMayFreed) {
-        auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
-        v.erase(std::find(v.begin(), v.end(), self));
+    if (!vm->isFinalized()) {
+        // disconnect the (untraced during pruning) reference from the owner CodeBlock
+        if (self->m_codeBlock->byteCodeBlock() == self) {
+            self->m_codeBlock->setByteCodeBlock(nullptr);
+        }
+        ASSERT(vm->compiledByteCodeSize() >= accountedByteCodeSize);
+        vm->compiledByteCodeSize() -= accountedByteCodeSize;
     }
 }
 
@@ -152,17 +162,34 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     , m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
+    , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_inlineCacheDataSize(0)
     , m_codeBlock(codeBlock)
 {
-    auto& v = m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
-    v.push_back(this);
-
 #ifdef ESCARGOT_DEBUGGER
     GC_REGISTER_FINALIZER_NO_ORDER(this, clearByteCodeBlock, nullptr, nullptr, nullptr);
 #endif
+}
+
+void ByteCodeBlock::accountCompiledByteCodeSize()
+{
+    ASSERT(!m_isAccounted);
+    m_isAccounted = true;
+    auto& currentCodeSizeTotal = m_codeBlock->context()->vmInstance()->compiledByteCodeSize();
+    ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max() - m_code.size());
+    currentCodeSizeTotal += m_code.size();
+    // Pruning of compiled bytecode only happens as part of a GC cycle, and GC is
+    // triggered by heap allocation pressure which does not account for this size.
+    // On a workload that compiles a lot of code but allocates few objects, the
+    // total can therefore stay above SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX
+    // until the next natural GC. If that ever becomes a real problem, consider
+    // starting a collection here (e.g. GC_start_incremental_collection() when
+    // incremental GC is enabled) once the total exceeds the limit — but it needs
+    // hysteresis (skip if a collection is already running, back off if the last
+    // one failed to get below the limit) to avoid thrashing when the live
+    // bytecode legitimately exceeds the limit.
 }
 
 void* ByteCodeBlock::operator new(size_t size)

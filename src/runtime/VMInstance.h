@@ -219,14 +219,19 @@ public:
     bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
     void executePendingJobFromAnotherThread();
 
-    std::vector<ByteCodeBlock*>& compiledByteCodeBlocks()
-    {
-        return m_compiledByteCodeBlocks;
-    }
-
     size_t& compiledByteCodeSize()
     {
         return m_compiledByteCodeSize;
+    }
+
+    bool isPruningCompiledByteCodes() const
+    {
+        return m_isPruningCompiledByteCodes;
+    }
+
+    bool isFinalized() const
+    {
+        return m_isFinalized;
     }
 
     size_t maxCompiledByteCodeSize()
@@ -458,10 +463,14 @@ private:
 
     HashSet<ObjectStructure*, ObjectStructureHash, ObjectStructureEqualTo, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_rootedObjectStructure;
 
-    std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
+    // sum of the sizes registered by ByteCodeBlock::accountCompiledByteCodeSize();
+    // each block's registered amount is subtracted back in its disclaim callback
     size_t m_compiledByteCodeSize;
     size_t m_maxCompiledByteCodeSize;
-    size_t m_gcTimeLimit;
+    // true while a bytecode pruning GC cycle is in progress.
+    // the InterpretedCodeBlock mark procedure skips tracing m_byteCodeBlock
+    // references of this VM while this flag is set
+    bool m_isPruningCompiledByteCodes;
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     uint64_t m_lastCompressibleStringsTestTime;
