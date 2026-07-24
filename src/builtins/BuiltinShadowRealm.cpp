@@ -151,11 +151,9 @@ void GlobalObject::installShadowRealm(ExecutionState& state)
     m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(state.context()->staticStrings().ShadowRealm.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->evaluate),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->evaluate, builtinShadowRealmEvaluate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_shadowRealmPrototype->defineBuiltinFunction(state, strings->evaluate, builtinShadowRealmEvaluate, 1);
 
-    m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->importValue),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->importValue, builtinShadowRealmImportValue, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_shadowRealmPrototype->defineBuiltinFunction(state, strings->importValue, builtinShadowRealmImportValue, 2);
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().ShadowRealm),
                         ObjectPropertyDescriptor(m_shadowRealm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -46,6 +46,13 @@
 
 namespace Escargot {
 
+void Object::defineBuiltinFunction(ExecutionState& state, const AtomicString& name, NativeFunctionPointer fn, size_t argc)
+{
+    directDefineOwnProperty(state, ObjectPropertyName(name),
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(name, fn, argc, NativeFunctionInfo::Strict)),
+                                                     (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+}
+
 GlobalObject::GlobalObject(ExecutionState& state)
 #if defined(ENABLE_EXTENDED_API)
     : PrototypeObject(state, Object::createBuiltinObjectPrototype(state))

@@ -162,23 +162,17 @@ void GlobalObject::installWeakMap(ExecutionState& state)
     m_weakMapPrototype->setGlobalIntrinsicObject(state, true);
     m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringDelete, builtinWeakMapDelete, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringDelete, builtinWeakMapDelete, 1);
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get, builtinWeakMapGet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().get, builtinWeakMapGet, 1);
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsert),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsert, builtinWeakMapGetOrInsert, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().getOrInsert, builtinWeakMapGetOrInsert, 2);
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsertComputed),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsertComputed, builtinWeakMapGetOrInsertComputed, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().getOrInsertComputed, builtinWeakMapGetOrInsertComputed, 2);
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinWeakMapHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().has, builtinWeakMapHas, 1);
 
-    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set, builtinWeakMapSet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakMapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().set, builtinWeakMapSet, 2);
 
     m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                 ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakMap.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -290,18 +290,15 @@ void GlobalObject::installFunction(ExecutionState& state)
     m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
                                                  ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinFunctionToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_functionPrototype->defineBuiltinFunction(state, state.context()->staticStrings().toString, builtinFunctionToString, 0);
 
     m_functionApply = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinFunctionApply, 2, NativeFunctionInfo::Strict));
     m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().apply),
                                                  ObjectPropertyDescriptor(m_functionApply, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().call),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().call, builtinFunctionCall, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_functionPrototype->defineBuiltinFunction(state, state.context()->staticStrings().call, builtinFunctionCall, 1);
 
-    m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bind),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bind, builtinFunctionBind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_functionPrototype->defineBuiltinFunction(state, state.context()->staticStrings().bind, builtinFunctionBind, 1);
 
     m_functionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().hasInstance)),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));

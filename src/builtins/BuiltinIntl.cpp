@@ -1992,8 +1992,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlSegmentsIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_intlSegmentsIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_intlSegmentsIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinIntlSegmentsIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_intlSegmentsIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinIntlSegmentsIteratorNext, 0);
 #endif
 
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),

@@ -2387,10 +2387,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FunctionObject* typedArrayFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->TypedArray, builtinTypedArrayConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     typedArrayFunction->setGlobalIntrinsicObject(state);
 
-    typedArrayFunction->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTypedArrayFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayFunction->directDefineOwnProperty(state, ObjectPropertyName(strings->of),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->of, builtinTypedArrayOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayFunction->defineBuiltinFunction(state, strings->from, builtinTypedArrayFrom, 1);
+    typedArrayFunction->defineBuiltinFunction(state, strings->of, builtinTypedArrayOf, 0);
     {
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
@@ -2402,70 +2400,41 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     // %TypedArray%.prototype
     Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
     typedArrayPrototype->setGlobalIntrinsicObject(state, true);
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->subarray),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->subarray, builtinTypedArraySubArray, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->set),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->set, builtinTypedArraySet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->some),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinTypedArraySome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->sort),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->sort, builtinTypedArraySort, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toReversed),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toReversed, builtinTypedArrayToReversed, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toSorted),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toSorted, builtinTypedArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->copyWithin),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->every),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->every, builtinTypedArrayEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->fill),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fill, builtinTypedArrayFill, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->filter),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->filter, builtinTypedArrayFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->find),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinTypedArrayFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->findIndex),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findIndex, builtinTypedArrayFindIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->findLast),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findLast, builtinTypedArrayFindLast, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->findLastIndex),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findLastIndex, builtinTypedArrayFindLastIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->forEach),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->forEach, builtinTypedArrayForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->join),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->join, builtinTypedArrayJoin, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->map),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->map, builtinTypedArrayMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reduce),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reduce, builtinTypedArrayReduce, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reduceRight),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reduceRight, builtinTypedArrayReduceRight, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reverse),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reverse, builtinTypedArrayReverse, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinTypedArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTypedArrayToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTypedArrayWith, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineBuiltinFunction(state, strings->subarray, builtinTypedArraySubArray, 2);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->set, builtinTypedArraySet, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->some, builtinTypedArraySome, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->sort, builtinTypedArraySort, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->toReversed, builtinTypedArrayToReversed, 0);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->toSorted, builtinTypedArrayToSorted, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->copyWithin, builtinTypedArrayCopyWithin, 2);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->every, builtinTypedArrayEvery, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->fill, builtinTypedArrayFill, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->filter, builtinTypedArrayFilter, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->find, builtinTypedArrayFind, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->findIndex, builtinTypedArrayFindIndex, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->findLast, builtinTypedArrayFindLast, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->findLastIndex, builtinTypedArrayFindLastIndex, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->forEach, builtinTypedArrayForEach, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->join, builtinTypedArrayJoin, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->map, builtinTypedArrayMap, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->reduce, builtinTypedArrayReduce, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->reduceRight, builtinTypedArrayReduceRight, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->reverse, builtinTypedArrayReverse, 0);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->slice, builtinTypedArraySlice, 2);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->toLocaleString, builtinTypedArrayToLocaleString, 0);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->with, builtinTypedArrayWith, 2);
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.tostring
     // The initial value of the %TypedArray%.prototype.toString data property is the same built-in function object as the Array.prototype.toString method
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
                                                  ObjectPropertyDescriptor(m_arrayToString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->indexOf),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lastIndexOf),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinTypedArrayLastIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->includes),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinTypedArrayIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->keys),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->keys, builtinTypedArrayKeys, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->entries),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->entries, builtinTypedArrayEntries, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->at),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->at, builtinTypedArrayAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineBuiltinFunction(state, strings->indexOf, builtinTypedArrayIndexOf, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->lastIndexOf, builtinTypedArrayLastIndexOf, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->includes, builtinTypedArrayIncludes, 1);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->keys, builtinTypedArrayKeys, 0);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->entries, builtinTypedArrayEntries, 0);
+    typedArrayPrototype->defineBuiltinFunction(state, strings->at, builtinTypedArrayAt, 1);
 
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(strings->values, builtinTypedArrayValues, 0, NativeFunctionInfo::Strict));
@@ -2520,22 +2489,16 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
 #undef INSTALL_TYPEDARRAY
 
-    m_uint8Array->directDefineOwnProperty(state, ObjectPropertyName(strings->fromHex),
-                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromHex, builtinUint8ArrayFromHex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8Array->defineBuiltinFunction(state, strings->fromHex, builtinUint8ArrayFromHex, 1);
 
-    m_uint8Array->directDefineOwnProperty(state, ObjectPropertyName(strings->fromBase64),
-                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromBase64, builtinUint8ArrayFromBase64, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8Array->defineBuiltinFunction(state, strings->fromBase64, builtinUint8ArrayFromBase64, 1);
 
-    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toHex),
-                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toHex, builtinUint8ArrayToHex, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->toHex, builtinUint8ArrayToHex, 0);
 
-    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->setFromHex),
-                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromHex, builtinUint8ArraySetFromHex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->setFromHex, builtinUint8ArraySetFromHex, 1);
 
-    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toBase64),
-                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toBase64, builtinUint8ArrayToBase64, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->toBase64, builtinUint8ArrayToBase64, 0);
 
-    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->setFromBase64),
-                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromBase64, builtinUint8ArraySetFromBase64, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->setFromBase64, builtinUint8ArraySetFromBase64, 1);
 }
 } // namespace Escargot

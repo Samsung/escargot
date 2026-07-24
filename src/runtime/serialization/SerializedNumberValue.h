@@ -39,16 +39,16 @@ public:
     }
 
 protected:
-    virtual void serializeValueData(std::ostringstream& outputStream) override
+    virtual void serializeValueData(std::string& output) override
     {
-        outputStream << m_value;
-        outputStream << std::endl;
+        using namespace SerializerDetail;
+        writePOD(output, m_value);
     }
 
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
+    static std::unique_ptr<SerializedValue> deserializeFrom(SerializerDetail::Reader& reader)
     {
-        double v;
-        inputStream >> v;
+        double v = 0;
+        reader.readPOD(v);
         return std::unique_ptr<SerializedValue>(new SerializedNumberValue(v));
     }
 
