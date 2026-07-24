@@ -3414,17 +3414,12 @@ public:
         return m_code.size();
     }
 
-    size_t memoryAllocatedSize()
-    {
-        size_t siz = m_code.capacity();
-        siz += sizeof(ByteCodeBlock);
-        siz += m_numeralLiteralData.size() * sizeof(Value);
-        siz += m_jumpFlowRecordData.size() * sizeof(JumpFlowRecord);
-        siz += m_stringLiteralData.size() * sizeof(intptr_t);
-        siz += m_otherLiteralData.size() * sizeof(intptr_t);
-        siz += m_inlineCacheDataSize;
-        return siz;
-    }
+    // adds m_code.size() to VMInstance::compiledByteCodeSize(); the disclaim
+    // callback subtracts the same amount (m_code never changes after generation,
+    // so nothing needs to be remembered). literal data and inline cache memory
+    // are intentionally not counted — they can grow at runtime, which would
+    // break the add/subtract symmetry
+    void accountCompiledByteCodeSize();
 
     bool needsExtendedExecutionState() const
     {
@@ -3439,6 +3434,7 @@ public:
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
     bool m_needsExtendedExecutionState : 1;
+    bool m_isAccounted : 1; // whether accountCompiledByteCodeSize() has run
     // number of bytecode registers used for bytecode operation like adding...moving...
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"

@@ -254,24 +254,16 @@ void vmReclaimEndCallback(void* data)
 
     if (self->m_isPruningCompiledByteCodes) {
         // the pruning cycle started at MARK_START is finished.
-        // dead ByteCodeBlocks already removed themselves from compiledByteCodeBlocks()
-        // through the disclaim callback (this kind is swept eagerly since it is registered
-        // with mark-unconditionally), so recompute the total size over the survivors
+        // dead ByteCodeBlocks already subtracted their registered size from
+        // compiledByteCodeSize() through the disclaim callback (this kind is swept
+        // eagerly since it is registered with mark-unconditionally)
         self->m_isPruningCompiledByteCodes = false;
-        if (!self->m_isFinalized) {
-            size_t currentCodeSizeTotal = 0;
-            auto& v = self->compiledByteCodeBlocks();
-            for (size_t i = 0; i < v.size(); i++) {
-                currentCodeSizeTotal += v[i]->memoryAllocatedSize();
-            }
-            self->compiledByteCodeSize() = currentCodeSizeTotal;
-        }
     }
 
     /*
     if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
         printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
-        printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
+        printf("bytecode Size %f KiB\n", self->compiledByteCodeSize() / 1024.f);
         printf("regexp cache size %zu\n", self->regexpCache()->size());
     }
     */
@@ -279,12 +271,10 @@ void vmReclaimEndCallback(void* data)
 
 VMInstance::~VMInstance()
 {
-    {
-        auto& v = compiledByteCodeBlocks();
-        for (size_t i = 0; i < v.size(); i++) {
-            v[i]->m_isOwnerMayFreed = true;
-        }
-    }
+    // set this first; the ByteCodeBlock disclaim callback reads it (through
+    // CodeBlocks which outlive this VMInstance) to skip touching dead owners
+    m_isFinalized = true;
+
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     {
         auto& v = compressibleStrings();
@@ -302,7 +292,6 @@ VMInstance::~VMInstance()
     }
 #endif
 
-    m_isFinalized = true;
     // the mark procedure may still read this flag through CodeBlocks
     // which outlive this VMInstance
     m_isPruningCompiledByteCodes = false;

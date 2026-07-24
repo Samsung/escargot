@@ -826,6 +826,10 @@ ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlo
 
     ByteCodeBlock* block = m_cacheReader->loadByteCodeBlock(context, codeBlock);
 
+    if (LIKELY(block != nullptr)) {
+        block->accountCompiledByteCodeSize();
+    }
+
     // clear and finish
     m_cacheReader->clearBuffer();
     m_status = Status::FINISH;
@@ -878,9 +882,6 @@ void CodeCache::loadAllByteCodeBlockOfFunctions(Context* context, std::vector<In
                 ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
                                   codeBlock->functionStart().index, codeBlock->src().length());
 #endif
-                auto& currentCodeSizeTotal = context->vmInstance()->compiledByteCodeSize();
-                ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
-                currentCodeSizeTotal += codeBlock->m_byteCodeBlock->memoryAllocatedSize();
             }
         }
     }
