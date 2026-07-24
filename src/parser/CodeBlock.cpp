@@ -43,26 +43,9 @@ void* NativeCodeBlock::operator new(size_t size)
 
 void* InterpretedCodeBlock::operator new(size_t size)
 {
-#ifdef NDEBUG
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlock)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlock));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
+    // uses a custom GC kind (not a static typed descriptor) so that the mark procedure
+    // can skip tracing m_byteCodeBlock while a bytecode pruning cycle is in progress
     return CustomAllocator<InterpretedCodeBlock>().allocate(1);
-#endif
 }
 
 InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
@@ -87,27 +70,9 @@ InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx,
 
 void* InterpretedCodeBlockWithRareData::operator new(size_t size)
 {
-#ifdef NDEBUG
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlockWithRareData));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
+    // uses a custom GC kind (not a static typed descriptor) so that the mark procedure
+    // can skip tracing m_byteCodeBlock while a bytecode pruning cycle is in progress
     return CustomAllocator<InterpretedCodeBlockWithRareData>().allocate(1);
-#endif
 }
 
 void* InterpretedCodeBlock::BlockInfo::operator new(size_t size)

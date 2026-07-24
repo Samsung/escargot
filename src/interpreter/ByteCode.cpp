@@ -127,6 +127,12 @@ void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
     self->m_jumpFlowRecordData.clear();
 
     if (!self->m_isOwnerMayFreed) {
+        // disconnect the (untraced during pruning) reference from the owner CodeBlock.
+        // accessing m_codeBlock here is safe since this kind is registered with
+        // mark-unconditionally, which keeps referents of dying blocks alive
+        if (self->m_codeBlock->byteCodeBlock() == self) {
+            self->m_codeBlock->setByteCodeBlock(nullptr);
+        }
         auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
         v.erase(std::find(v.begin(), v.end(), self));
     }

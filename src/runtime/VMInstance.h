@@ -229,6 +229,11 @@ public:
         return m_compiledByteCodeSize;
     }
 
+    bool isPruningCompiledByteCodes() const
+    {
+        return m_isPruningCompiledByteCodes;
+    }
+
     size_t maxCompiledByteCodeSize()
     {
         return m_maxCompiledByteCodeSize;
@@ -461,7 +466,10 @@ private:
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
     size_t m_maxCompiledByteCodeSize;
-    size_t m_gcTimeLimit;
+    // true while a bytecode pruning GC cycle is in progress.
+    // the InterpretedCodeBlock mark procedure skips tracing m_byteCodeBlock
+    // references of this VM while this flag is set
+    bool m_isPruningCompiledByteCodes;
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     uint64_t m_lastCompressibleStringsTestTime;
