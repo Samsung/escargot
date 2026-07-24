@@ -24,6 +24,7 @@ Escargot is an open-source project that allows developers to contribute to its d
   * [macOS](#macOS)
   * [Android](#Android)
   * [Windows](#Windows)
+  * [Bare-metal / RTOS](#Bare-metal--RTOS)
 * [Testing](#Testing-)
 * [Contributing](#Contributing-)
 * [Research Papers](#Research-Papers-)
@@ -38,6 +39,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 | macOS | x64/aarch64 |
 | Windows | Win32/x64 |
 | Android | x86/x64/arm/aarch64 |
+| Bare-metal / RTOS | arm/aarch64/x86/x64/riscv64 |
 
 ### Build Options
 
@@ -45,7 +47,7 @@ The following build options are supported when generating build rules using cmak
 
 | **Option** | **Description** | **Flag** | **Value** | **Default** |
 |-|-|-|-|-|
-| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows | |
+| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows/baremetal | |
 | **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
 | **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
 | **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
@@ -122,6 +124,44 @@ cd build/android/
 ./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
 ./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
 ```
+
+### Bare-metal / RTOS
+
+Escargot runs on bare-metal and RTOS targets with no OS underneath
+(no pthreads, no `mmap`, no filesystem). `-DESCARGOT_HOST=baremetal`
+configures the engine side of this (`-DOS_BAREMETAL=1` and friends,
+ICU/threading defaulted off):
+
+```sh
+cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm ... /path/to/escargot
+```
+
+A full port additionally needs its own small CMake project for BDWGC
+(`third_party/GCutil`) and a `PlatformRef` implementation providing the
+RTOS's task stack bounds and tick source. See
+[`docs/porting/RTOS_PORTING_GUIDE.md`](docs/porting/RTOS_PORTING_GUIDE.md)
+for the full checklist and code contract, and
+[`samples/rtos/freertos/`](samples/rtos/freertos) for a complete, working
+in-tree sample (FreeRTOS / Cortex-M55, QEMU `mps3-an547`) — cross-compiled
+and boot-tested under QEMU by the `RTOS-FreeRTOS` CI job
+(`.github/workflows/rtos-freertos.yml`) whenever engine or sample sources
+change. See [`docs/FreeRTOS-Porting.md`](docs/FreeRTOS-Porting.md) for the
+detailed porting report behind that sample.
+
+A second reference port, NuttX / Cortex-M55 (same QEMU target), is also
+in-tree: [`samples/rtos/nuttx/`](samples/rtos/nuttx) has the escargot NSH
+app (`interpreters-escargot/`, meant to be dropped into your own
+NuttX+apps checkout's `apps/interpreters/`) and the out-of-tree CMake
+project that builds the engine for it (`escargot-lib-cmake/`). Unlike
+FreeRTOS-Kernel, NuttX itself isn't vendored as a submodule here (a NuttX
+app fundamentally needs a full NuttX+apps source tree, not a standalone
+library dependency) — CI-verified instead by the `RTOS-NuttX` job
+(`.github/workflows/rtos-nuttx.yml`), which checks out NuttX + its `apps`
+monorepo at pinned commits (cached across runs) and boot-tests the same
+way. See [`docs/NuttX-Porting.md`](docs/NuttX-Porting.md) for the detailed
+porting report behind that sample. Both ports' shared contract and
+checklist are in
+[`docs/porting/RTOS_PORTING_GUIDE.md`](docs/porting/RTOS_PORTING_GUIDE.md).
 
 ### Windows
 

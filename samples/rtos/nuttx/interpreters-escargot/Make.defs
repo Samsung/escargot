@@ -1,0 +1,7 @@
+############################################################################
+# apps/interpreters/escargot/Make.defs
+############################################################################
+
+ifneq ($(CONFIG_INTERPRETERS_ESCARGOT),)
+CONFIGURED_APPS += $(APPDIR)/interpreters/escargot
+endif

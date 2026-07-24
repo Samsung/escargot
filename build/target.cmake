@@ -216,6 +216,37 @@ ELSEIF (${ESCARGOT_HOST} STREQUAL "windows")
         MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
     ENDIF()
 
+ELSEIF (${ESCARGOT_HOST} STREQUAL "baremetal")
+    # Bare-metal/RTOS embedders (FreeRTOS, NuttX, ... -- see
+    # docs/porting/RTOS_PORTING_GUIDE.md). This host value only captures
+    # the ENGINE-side (escargot target) compile definitions/flags a
+    # bare-metal port needs; it deliberately does NOT attempt to build
+    # BDWGC (third_party/GCutil) here too -- that needs a much smaller,
+    # NOSYS-specific source subset and flag set (see
+    # third_party/GCutil/include/private/gcconfig.h's own NOSYS/ARM32
+    # branch) that genuinely differs per target/toolchain, so each RTOS
+    # port keeps its own small, separate CMake project for that (see
+    # e.g. the two proven reference ports' own CMakeLists.txt for the
+    # full picture). No PkgConfig requirement (no ICU on these targets --
+    # ESCARGOT_LIBICU_SUPPORT already defaults OFF for this host, see
+    # root CMakeLists.txt), no -lpthread/-lrt (no thread runtime).
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DOS_BAREMETAL=1)
+    SET (ESCARGOT_LDFLAGS -Wl,--gc-sections)
+    IF ((${ESCARGOT_ARCH} STREQUAL "x64") OR (${ESCARGOT_ARCH} STREQUAL "x86_64"))
+        SET (ESCARGOT_BUILD_64BIT ON)
+    ELSEIF ((${ESCARGOT_ARCH} STREQUAL "x86") OR (${ESCARGOT_ARCH} STREQUAL "i686"))
+        SET (ESCARGOT_BUILD_32BIT ON)
+    ELSEIF (${ESCARGOT_ARCH} STREQUAL "arm")
+        SET (ESCARGOT_BUILD_32BIT ON)
+    ELSEIF (${ESCARGOT_ARCH} STREQUAL "aarch64")
+        SET (ESCARGOT_BUILD_64BIT ON)
+    ELSEIF (${ESCARGOT_ARCH} STREQUAL "riscv64")
+        SET (ESCARGOT_BUILD_64BIT ON)
+        SET (ESCARGOT_BUILD_64BIT_LARGE ON)
+    ELSE()
+        MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
+    ENDIF()
+
 ELSE()
     MESSAGE (FATAL_ERROR ${ESCARGOT_HOST} " with " ${ESCARGOT_ARCH} " is unsupported")
 ENDIF()
