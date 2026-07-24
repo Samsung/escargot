@@ -74,6 +74,10 @@
 #include "DateObject.h"
 #include "Context.h"
 #include "runtime/VMInstance.h"
+#if defined(OS_BAREMETAL)
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
+#endif
 
 #if defined(ENABLE_TEMPORAL)
 #include "runtime/TemporalInstantObject.h"
@@ -198,10 +202,12 @@ struct timespec {
     long tv_nsec;
 };
 #endif
-extern "C" uint32_t escargot_get_tick_ms(void);
+// tick source comes from the embedder's Platform (see
+// PlatformRef::tickMs() in src/api/EscargotPublic.h), not a free-standing
+// extern "C" function.
 static int clock_gettime(int, struct timespec* spec)
 {
-    uint32_t ms = escargot_get_tick_ms();
+    uint32_t ms = Global::platform()->tickMs();
     spec->tv_sec = ms / 1000;
     spec->tv_nsec = (ms % 1000) * 1000000;
     return 0;

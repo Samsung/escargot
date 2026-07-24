@@ -204,6 +204,28 @@ public:
     }
 #endif
 
+#if defined(OS_BAREMETAL)
+    virtual void* stackBase() override
+    {
+        return m_platform->stackBase();
+    }
+
+    virtual void* stackTop() override
+    {
+        return m_platform->stackTop();
+    }
+
+    virtual uint32_t tickMs() override
+    {
+        return m_platform->tickMs();
+    }
+
+    virtual const char* tzName(int index) override
+    {
+        return m_platform->tzName(index);
+    }
+#endif
+
 private:
     PlatformRef* m_platform;
 };

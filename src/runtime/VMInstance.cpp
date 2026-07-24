@@ -644,6 +644,15 @@ void VMInstance::ensureTzname()
     if (m_tzname[0].size()) {
         return;
     }
+#if defined(OS_BAREMETAL)
+    // No ::tzset()/::tzname on these targets in general -- go through the
+    // embedder-provided PlatformRef hook instead (see
+    // docs/porting/RTOS_PORTING_GUIDE.md). A port whose libc genuinely has
+    // a working ::tzset()/::tzname can just forward to it from its own
+    // PlatformRef::tzName() implementation.
+    m_tzname[0] = Global::platform()->tzName(0);
+    m_tzname[1] = Global::platform()->tzName(1);
+#else
     tzset();
 #if defined(OS_WINDOWS)
     m_tzname[0] = ::_tzname[0];
@@ -651,6 +660,7 @@ void VMInstance::ensureTzname()
 #else
     m_tzname[0] = ::tzname[0];
     m_tzname[1] = ::tzname[1];
+#endif
 #endif
 }
 #endif

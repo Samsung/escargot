@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config INTERPRETERS_ESCARGOT
+	bool "Escargot JavaScript engine"
+	default n
+	---help---
+		Run a prebuilt libescargot.a (Samsung Escargot JS engine) NSH command.
+		The static library is built out-of-tree via CMake against the same
+		arm-none-eabi flags as this board config; see
+		apps/interpreters/escargot/Makefile.
+
+if INTERPRETERS_ESCARGOT
+
+config INTERPRETERS_ESCARGOT_PRIORITY
+	int "escargot task priority"
+	default 100
+
+config INTERPRETERS_ESCARGOT_STACKSIZE
+	int "escargot stack size"
+	default 262144
+
+endif

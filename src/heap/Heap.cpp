@@ -21,6 +21,10 @@
 
 #include "Heap.h"
 #include "LeakChecker.h"
+#if defined(OS_BAREMETAL)
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
+#endif
 
 namespace Escargot {
 
@@ -28,6 +32,18 @@ void Heap::initialize()
 {
     // disable data area searching in bdwgc
     GC_set_no_dls(1);
+#if defined(OS_BAREMETAL)
+    // Bare-metal/RTOS builds: tell BDWGC where the current task's stack
+    // starts (cold/high end) *before* GC_init() runs, using the
+    // officially-supported runtime override (see third_party/GCutil's
+    // include/gc/gc.h: GC_set_stackbottom() "could be used for setting
+    // GC_stackbottom value ... before the collector is initialized").
+    // This is what lets gcconfig.h stay free of any per-RTOS-port
+    // STACKBOTTOM logic -- see docs/porting/RTOS_PORTING_GUIDE.md.
+    struct GC_stack_base sb;
+    sb.mem_base = Global::platform()->stackTop();
+    GC_set_stackbottom(nullptr, &sb);
+#endif
     GC_init();
     GC_init_finalized_malloc();
 

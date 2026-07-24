@@ -1,0 +1,161 @@
+From a6d172699e7195d7b91b4cb7a831d956f329feb8 Mon Sep 17 00:00:00 2001
+From: Seonghyun Kim <sh8281.kim@samsung.com>
+Date: Fri, 24 Jul 2026 15:18:47 +0900
+Subject: [PATCH] mps3-an547: fix OS-heap/custom-linker-layout collision for
+ Escargot port
+
+The board's stock heap-region macros unconditionally donate the entire
+EXTMEM/DDR window at 0x60000000 to the OS allocator. A custom linker
+script relocating an application's .text/.rodata/.ARM.exidx/.ARM.extab
+and a linker-reserved heap into that same base address collides with
+this: a large-enough task stack gets served from inside the running
+code, and CONFIG_STACK_COLORATION's fill loop then overwrites the
+kernel's own exception_common with the coloring pattern -- surfacing as
+a "Lockup: can't escalate 3 to HardFault" at PC == exception_common that
+looks stack-size-related but isn't (bumping stack size only moves the
+failure point proportionally). Fix: start the donated OS-heap region
+32 MB past the base, past whatever the custom flash.ld actually uses.
+
+flash.ld itself adds the ddr region split (vectors stay at 0x0, .text/
+unwind tables/a 16 MB GC-heap NOLOAD region move to ddr@0x60000000) that
+made an Escargot JS-engine app buildable/linkable on this board at all.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+---
+ arch/arm/src/mps/hardware/mps_memorymap.h  | 33 +++++++++++++++++--
+ boards/arm/mps/mps3-an547/scripts/flash.ld | 38 ++++++++++++++++++----
+ 2 files changed, 62 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm/src/mps/hardware/mps_memorymap.h b/arch/arm/src/mps/hardware/mps_memorymap.h
+index 351dae87..76d07b56 100644
+--- a/arch/arm/src/mps/hardware/mps_memorymap.h
++++ b/arch/arm/src/mps/hardware/mps_memorymap.h
+@@ -106,8 +106,37 @@
+ #define PRIMARY_RAM_SIZE   MPS_PSRAM_SIZE
+ 
+ #if CONFIG_MM_REGIONS > 1
+-#define REGION1_RAM_START  MPS_EXTMEM_START
+-#define REGION1_RAM_SIZE   MPS_EXTMEM_SIZE
++/* NOTE (escargot-nuttx port): the stock assumption here is that ALL of
++ * the 2GB EXTMEM/DDR window (0x60000000-0xdfffffff -- confirmed
++ * genuinely backed by real RAM in QEMU's mps3-an547 model via the
++ * monitor's "info mtree") is free and can be donated whole to the OS
++ * heap. That is true for the stock board layout, where .text/.data live
++ * in the small on-chip SRAM, not here. Our custom
++ * boards/arm/mps/mps3-an547/scripts/flash.ld instead relocates
++ * Escargot's .text/.rodata/.ARM.exidx/.ARM.extab AND a 16MB
++ * linker-reserved BDWGC heap (see the `.gc_heap` section /
++ * __gc_heap_start__ / __gc_heap_size__) into a 32MB `ddr` MEMORY region
++ * that starts at this SAME base address (0x60000000). Donating the
++ * whole 2GB span unmodified (as the stock macros below did) meant
++ * NuttX's own heap allocator (kumm_malloc, via arm_addregion() below)
++ * could -- and did -- hand out memory starting at 0x60000010, i.e.
++ * *inside our own running code*, to any task requesting a large stack
++ * (e.g. the escargot_main task's multi-MB stack). up_create_stack()'s
++ * subsequent CONFIG_STACK_COLORATION write loop (arm_stack_color())
++ * then overwrote NuttX's own exception_common (and everything else in
++ * the low few MB of `ddr`) with the stack-coloring fill pattern,
++ * corrupting the running kernel's own code. That -- not a stack-size or
++ * GC bug -- was the actual root cause of the long-standing "Lockup:
++ * can't escalate 3 to HardFault" crash always landing at
++ * PC == exception_common (see ~/nuttx-escargot/PROGRESS.md, Update 8).
++ * Fix: start the donated OS-heap region 32MB past MPS_EXTMEM_START --
++ * i.e. past the end of the `ddr` region our linker script actually
++ * uses -- so the OS heap allocator can never again overlap our own
++ * code/GC-heap. If flash.ld's `ddr` LENGTH ever changes, this 0x02000000
++ * offset must be updated to match.
++ */
++#define REGION1_RAM_START  (MPS_EXTMEM_START + 0x02000000)
++#define REGION1_RAM_SIZE   (MPS_EXTMEM_SIZE  - 0x02000000)
+ 
+ #endif /* CONFIG_MM_REGIONS > 1 */
+ 
+diff --git a/boards/arm/mps/mps3-an547/scripts/flash.ld b/boards/arm/mps/mps3-an547/scripts/flash.ld
+index afe01a5d..c808ab62 100644
+--- a/boards/arm/mps/mps3-an547/scripts/flash.ld
++++ b/boards/arm/mps/mps3-an547/scripts/flash.ld
+@@ -25,6 +25,7 @@
+ MEMORY
+ {
+   flash (rx)  : ORIGIN = 0x00000000, LENGTH = 512K
++  ddr   (rx)  : ORIGIN = 0x60000000, LENGTH = 32M
+   sram1 (rwx) : ORIGIN = 0x01000000, LENGTH = 2M
+   sram2 (rwx) : ORIGIN = 0x22000000, LENGTH = 2M
+ }
+@@ -35,11 +36,23 @@ ENTRY(__start)
+ 
+ SECTIONS
+ {
+-    .text : {
++    /* Only the vector table needs to live at the hardware-fixed reset
++     * address (VTOR resets to 0). Everything else (bulk .text/.rodata,
++     * exception tables) goes in the much larger `ddr` region — the
++     * 512K `flash` alias at 0x0 is nowhere near big enough for a full
++     * JS engine with C++ exceptions/RTTI enabled. Reset_Handler's
++     * address in the vector table is just a pointer value, so it can
++     * point into `ddr` with no special handling. */
++    .vectors : {
+         _stext = ABSOLUTE(.);
+ #ifndef CONFIG_BUILD_PIC /* We need change vectors use pic */
+         *(.vectors)
+ #endif
++        _etext = ABSOLUTE(.);
++    } > flash
++
++    .text : {
++        _stextddr = ABSOLUTE(.);
+         *(.text .text.*)
+         *(.fixup)
+         *(.gnu.warning)
+@@ -49,31 +62,42 @@ SECTIONS
+         *(.glue_7t)
+         *(.gcc_except_table)
+         *(.gnu.linkonce.r.*)
+-        _etext = ABSOLUTE(.);
+-    } > flash
++        _etextddr = ABSOLUTE(.);
++    } > ddr
+ 
+     .init_section : ALIGN(4) {
+         _sinit = ABSOLUTE(.);
+         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+         KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
+         _einit = ABSOLUTE(.);
+-    } > flash
++    } > ddr
+ 
+     __llvm_prf_names : {
+         __start__llvm_prf_names = .;
+         KEEP (*(__llvm_prf_names))
+         __end__llvm_prf_names = .;
+-    } > flash
++    } > ddr
+ 
+     .ARM.extab : ALIGN(4) {
+         *(.ARM.extab*)
+-    } > flash
++    } > ddr
+ 
+     .ARM.exidx : ALIGN(4) {
+         __exidx_start = ABSOLUTE(.);
+         *(.ARM.exidx*)
+         __exidx_end = ABSOLUTE(.);
+-    } > flash
++    } > ddr
++
++    /* Fixed region reserved for BDWGC's heap, bump-allocated directly by
++     * escargot_platform.cxx's sbrk() (no malloc() involved) -- same idea
++     * as the FreeRTOS port's linker-reserved GC heap. Comes right after
++     * the rest of .text/.data-load/etc in `ddr` (32M total, code is only
++     * ~2M), sized generously since there's plenty of room. */
++    .gc_heap (NOLOAD) : ALIGN(8) {
++        __gc_heap_start__ = ABSOLUTE(.);
++        . = . + 16M;
++    } > ddr
++    __gc_heap_size__ = . - __gc_heap_start__;
+ 
+     .tdata : {
+         _stdata = ABSOLUTE(.);
+-- 
+2.43.0
+

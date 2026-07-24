@@ -38,6 +38,20 @@ IF (NOT DEFINED ESCARGOT_HOST)
     ENDIF()
 ENDIF()
 
+# Bare-metal/RTOS ports (see docs/porting/RTOS_PORTING_GUIDE.md) have no
+# thread runtime and no ICU on the target -- default both off unless the
+# caller explicitly overrides. Must run before the generic ESCARGOT_THREADING
+# default below, and before build/config.cmake's ESCARGOT_LIBICU_SUPPORT
+# default, so those generic "ON" defaults don't clobber this first.
+IF (${ESCARGOT_HOST} STREQUAL "baremetal")
+    IF (NOT DEFINED ESCARGOT_THREADING)
+        SET (ESCARGOT_THREADING OFF)
+    ENDIF()
+    IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT)
+        SET (ESCARGOT_LIBICU_SUPPORT OFF)
+    ENDIF()
+ENDIF()
+
 IF (NOT DEFINED ESCARGOT_MODE)
     SET (ESCARGOT_MODE "release")
 ENDIF()

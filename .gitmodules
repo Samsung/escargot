@@ -30,3 +30,6 @@
     path = test/web-tooling-benchmark
     url = https://github.com/v8/web-tooling-benchmark
     ignore = untracked
+[submodule "samples/rtos/freertos/FreeRTOS-Kernel"]
+	path = samples/rtos/freertos/FreeRTOS-Kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
