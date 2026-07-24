@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
+#include <ostream>
 #include <limits>
 #include <locale>
 #include <string>

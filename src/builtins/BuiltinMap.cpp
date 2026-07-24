@@ -250,42 +250,31 @@ void GlobalObject::installMap(ExecutionState& state)
     }
 
     // Map.groupBy
-    m_map->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groupBy),
-                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().groupBy, builtinMapGroupBy, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_map->defineBuiltinFunction(state, state.context()->staticStrings().groupBy, builtinMapGroupBy, 2);
 
     m_mapPrototype = new MapObject(state, m_objectPrototype);
     m_mapPrototype->setGlobalIntrinsicObject(state, true);
     m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_map, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().clear),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().clear, builtinMapClear, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().clear, builtinMapClear, 0);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringDelete, builtinMapDelete, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringDelete, builtinMapDelete, 1);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get, builtinMapGet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().get, builtinMapGet, 1);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsert),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsert, builtinMapGetOrInsert, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().getOrInsert, builtinMapGetOrInsert, 2);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsertComputed),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsertComputed, builtinMapGetOrInsertComputed, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().getOrInsertComputed, builtinMapGetOrInsertComputed, 2);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinMapHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().has, builtinMapHas, 1);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set, builtinMapSet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().set, builtinMapSet, 2);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().forEach),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinMapForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().forEach, builtinMapForEach, 1);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().keys, builtinMapKeys, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().keys, builtinMapKeys, 0);
 
-    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinMapValues, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapPrototype->defineBuiltinFunction(state, state.context()->staticStrings().values, builtinMapValues, 0);
 
     auto entFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinMapEntries, 0, NativeFunctionInfo::Strict));
     m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries),
@@ -306,8 +295,7 @@ void GlobalObject::installMap(ExecutionState& state)
     m_mapIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_mapIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinMapIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_mapIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinMapIteratorNext, 0);
 
     m_mapIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(Value(String::fromASCII("Map Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

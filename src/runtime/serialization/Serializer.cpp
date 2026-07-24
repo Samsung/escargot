@@ -63,7 +63,7 @@ std::unique_ptr<SerializedValue> Serializer::serialize(const Value& value)
     return nullptr;
 }
 
-bool Serializer::serializeInto(const Value& value, std::ostringstream& output)
+bool Serializer::serializeInto(const Value& value, std::string& output)
 {
     auto sv = serialize(value);
     if (sv) {
@@ -73,24 +73,31 @@ bool Serializer::serializeInto(const Value& value, std::ostringstream& output)
     return false;
 }
 
-std::unique_ptr<SerializedValue> Serializer::deserializeFrom(std::istringstream& input)
+std::unique_ptr<SerializedValue> Serializer::deserializeFrom(const char* data, size_t len, size_t& offset)
 {
-    unsigned char type;
-    input >> type;
+    SerializerDetail::Reader reader(data, len, offset);
+    uint8_t type = 0;
+    if (!reader.readPOD(type)) {
+        return nullptr;
+    }
+    std::unique_ptr<SerializedValue> result;
     switch (type) {
-#define DECLARE_SERIALIZABLE_TYPE(name) \
-    case SerializedValue::Type::name:   \
-        return Serialized##name##Value::deserializeFrom(input);
+#define DECLARE_SERIALIZABLE_TYPE(name)                                 \
+    case SerializedValue::Type::name:                                  \
+        result = Serialized##name##Value::deserializeFrom(reader); \
+        break;
         FOR_EACH_SERIALIZABLE_TYPE(DECLARE_SERIALIZABLE_TYPE)
 #undef DECLARE_SERIALIZABLE_TYPE
 #if defined(ENABLE_THREADING)
     case SerializedValue::Type::SharedArrayBufferObject:
-        return SerializedSharedArrayBufferObjectValue::deserializeFrom(input);
+        result = SerializedSharedArrayBufferObjectValue::deserializeFrom(reader);
+        break;
 #endif
     default:
         break;
     }
-    return nullptr;
+    offset = reader.pos;
+    return result;
 }
 
 } // namespace Escargot

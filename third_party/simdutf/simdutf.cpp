@@ -13473,7 +13473,6 @@ simdutf_really_inline size_t utf8_length_from_latin1(const char *buf,
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 
 namespace simdutf {
 namespace scalar {

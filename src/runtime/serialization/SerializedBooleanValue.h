@@ -39,17 +39,18 @@ public:
     }
 
 protected:
-    virtual void serializeValueData(std::ostringstream& outputStream) override
+    virtual void serializeValueData(std::string& output) override
     {
-        outputStream << m_value;
-        outputStream << std::endl;
+        using namespace SerializerDetail;
+        uint8_t b = m_value ? 1 : 0;
+        writePOD(output, b);
     }
 
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
+    static std::unique_ptr<SerializedValue> deserializeFrom(SerializerDetail::Reader& reader)
     {
-        bool v;
-        inputStream >> v;
-        return std::unique_ptr<SerializedValue>(new SerializedBooleanValue(v));
+        uint8_t b = 0;
+        reader.readPOD(b);
+        return std::unique_ptr<SerializedValue>(new SerializedBooleanValue(b != 0));
     }
 
     SerializedBooleanValue(bool value)

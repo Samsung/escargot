@@ -95,9 +95,32 @@ namespace std {
 
 inline string to_string(const Escargot::Int128& val)
 {
-    std::stringstream ss;
-    ss << val;
-    return ss.str();
+    // Manual base-10 conversion. Avoids std::stringstream/operator<< which
+    // would drag the full C++ locale facet set into the binary (see the
+    // <iostream>/<sstream> removal work for the RTOS/small build).
+    if (val == 0) {
+        return string("0");
+    }
+    // Accumulate digits in negative space so INT128_MIN does not overflow.
+    Escargot::Int128 v = val;
+    const bool negative = v < 0;
+    char buf[43];
+    int i = sizeof(buf);
+    if (negative) {
+        while (v != 0) {
+            int digit = static_cast<int>(-(v % 10));
+            buf[--i] = static_cast<char>('0' + digit);
+            v /= 10;
+        }
+        buf[--i] = '-';
+    } else {
+        while (v != 0) {
+            int digit = static_cast<int>(v % 10);
+            buf[--i] = static_cast<char>('0' + digit);
+            v /= 10;
+        }
+    }
+    return string(buf + i, buf + sizeof(buf));
 }
 
 inline Escargot::Int128 abs(const Escargot::Int128& value)

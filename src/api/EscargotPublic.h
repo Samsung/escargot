@@ -2178,8 +2178,8 @@ public:
 class ESCARGOT_EXPORT SerializerRef {
 public:
     // returns the serialization was successful
-    static bool serializeInto(ValueRef* value, std::ostringstream& output);
-    static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& input);
+    static bool serializeInto(ValueRef* value, std::string& output);
+    static ValueRef* deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset);
 };
 
 class ESCARGOT_EXPORT ScriptParserRef {

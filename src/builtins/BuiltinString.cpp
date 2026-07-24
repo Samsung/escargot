@@ -1652,90 +1652,64 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinStringToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->toString, builtinStringToString, 0);
 
     // $21.1.3.4 String.prototype.concat
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->concat),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->concat, builtinStringConcat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->concat, builtinStringConcat, 1);
 
     // $21.1.3.8 String.prototype.indexOf
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->indexOf),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinStringIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->indexOf, builtinStringIndexOf, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lastIndexOf),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lastIndexOf, builtinStringLastIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->lastIndexOf, builtinStringLastIndexOf, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->localeCompare),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->localeCompare, builtinStringLocaleCompare, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->localeCompare, builtinStringLocaleCompare, 1);
 
     // $21.1.3.16 String.prototype.slice
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinStringSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->slice, builtinStringSlice, 2);
 
     // $21.1.3.19 String.prototype.substring
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->substring),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->substring, builtinStringSubstring, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->substring, builtinStringSubstring, 2);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->substr),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->substr, builtinStringSubstr, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->substr, builtinStringSubstr, 2);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->match),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->match, builtinStringMatch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->match, builtinStringMatch, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->matchAll),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->matchAll, builtinStringMatchAll, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->matchAll, builtinStringMatchAll, 1);
 
 #if defined(ENABLE_ICU)
     // The length property of the normalize method is 0.
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->normalize),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->normalize, builtinStringNormalize, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->normalize, builtinStringNormalize, 0);
 #endif // ENABLE_ICU
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->repeat),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->repeat, builtinStringRepeat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->repeat, builtinStringRepeat, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->replace),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->replace, builtinStringReplace, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->replace, builtinStringReplace, 2);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->replaceAll),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->replaceAll, builtinStringReplaceAll, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->replaceAll, builtinStringReplaceAll, 2);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->search),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->search, builtinStringSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->search, builtinStringSearch, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->split),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->split, builtinStringSplit, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->split, builtinStringSplit, 2);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->charCodeAt),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->charCodeAt, builtinStringCharCodeAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->charCodeAt, builtinStringCharCodeAt, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->codePointAt),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->codePointAt, builtinStringCodePointAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->codePointAt, builtinStringCodePointAt, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->charAt),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->charAt, builtinStringCharAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->charAt, builtinStringCharAt, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLowerCase),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLowerCase, builtinStringToLowerCase, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->toLowerCase, builtinStringToLowerCase, 0);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toUpperCase),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toUpperCase, builtinStringToUpperCase, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->toUpperCase, builtinStringToUpperCase, 0);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleLowerCase),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleLowerCase, builtinStringToLocaleLowerCase, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->toLocaleLowerCase, builtinStringToLocaleLowerCase, 0);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleUpperCase),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleUpperCase, builtinStringToLocaleUpperCase, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->toLocaleUpperCase, builtinStringToLocaleUpperCase, 0);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->trim),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->trim, builtinStringTrim, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->trim, builtinStringTrim, 0);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->padStart),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->padStart, builtinStringPadStart, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->padStart, builtinStringPadStart, 1);
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->padEnd),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->padEnd, builtinStringPadEnd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringPrototype->defineBuiltinFunction(state, strings->padEnd, builtinStringPadEnd, 1);
 
     FunctionObject* trimStart = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimStart, builtinStringTrimStart, 0, NativeFunctionInfo::Strict));
     FunctionObject* trimEnd = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimEnd, builtinStringTrimEnd, 0, NativeFunctionInfo::Strict));
@@ -1820,22 +1794,18 @@ void GlobalObject::installString(ExecutionState& state)
 
 #undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
 
-    m_string->directDefineOwnProperty(state, ObjectPropertyName(strings->fromCharCode),
-                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCharCode, builtinStringFromCharCode, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_string->defineBuiltinFunction(state, strings->fromCharCode, builtinStringFromCharCode, 1);
 
-    m_string->directDefineOwnProperty(state, ObjectPropertyName(strings->fromCodePoint),
-                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromCodePoint, builtinStringFromCodePoint, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_string->defineBuiltinFunction(state, strings->fromCodePoint, builtinStringFromCodePoint, 1);
 
-    m_string->directDefineOwnProperty(state, ObjectPropertyName(strings->raw),
-                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->raw, builtinStringRaw, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_string->defineBuiltinFunction(state, strings->raw, builtinStringRaw, 1);
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
     m_stringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_stringIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinStringIteratorNext, 0);
 
     m_stringIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                        ObjectPropertyDescriptor(Value(String::fromASCII("String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

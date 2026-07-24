@@ -1200,6 +1200,10 @@ public:
 #undef DECLARE_LAZY_STATIC_STRING
 
     void initStaticStrings();
+    // Out-of-line helper so the hundreds of static-string registrations in
+    // initStaticStrings() collapse to a single call each instead of inlining
+    // the ASCIIStringFromExternalMemory construction at every site (code-size).
+    NEVER_INLINE void initStaticStringImpl(AtomicString& as, const char* str, size_t len);
 
     const size_t dtoaCacheSize; // 5;
     mutable Vector<std::pair<double, ::Escargot::String*>, GCUtil::gc_malloc_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
