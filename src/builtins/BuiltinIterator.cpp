@@ -1118,11 +1118,9 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iterator = new NativeFunctionObject(state, NativeFunctionInfo(strings->Iterator, builtinIteratorConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_iterator->setGlobalIntrinsicObject(state);
 
-    m_iterator->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
-                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinIteratorFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iterator->defineBuiltinFunction(state, strings->from, builtinIteratorFrom, 1);
 
-    m_iterator->directDefineOwnProperty(state, ObjectPropertyName(strings->concat),
-                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->concat, builtinIteratorConcat, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iterator->defineBuiltinFunction(state, strings->concat, builtinIteratorConcat, 0);
 
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
@@ -1132,11 +1130,9 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_wrapForValidIteratorPrototype = new Object(state, m_iteratorPrototype);
     m_wrapForValidIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_wrapForValidIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->next),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->next, builtinWrapForValidIteratorPrototypeNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_wrapForValidIteratorPrototype->defineBuiltinFunction(state, strings->next, builtinWrapForValidIteratorPrototypeNext, 0);
 
-    m_wrapForValidIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->stringReturn),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringReturn, builtinWrapForValidIteratorPrototypeReturn, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_wrapForValidIteratorPrototype->defineBuiltinFunction(state, strings->stringReturn, builtinWrapForValidIteratorPrototypeReturn, 0);
 
     m_iteratorHelperPrototype = new Object(state, m_iteratorPrototype);
     m_iteratorHelperPrototype->setGlobalIntrinsicObject(state, true);
@@ -1144,44 +1140,31 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iteratorHelperPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                        ObjectPropertyDescriptor(String::fromASCII("Iterator Helper"), ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_iteratorHelperPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->next),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->next, builtinIteratorHelperPrototypeNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorHelperPrototype->defineBuiltinFunction(state, strings->next, builtinIteratorHelperPrototypeNext, 0);
 
-    m_iteratorHelperPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->stringReturn),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringReturn, builtinIteratorHelperPrototypeReturn, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorHelperPrototype->defineBuiltinFunction(state, strings->stringReturn, builtinIteratorHelperPrototypeReturn, 0);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->map),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->map, builtinIteratorMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->map, builtinIteratorMap, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->filter),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->filter, builtinIteratorFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->filter, builtinIteratorFilter, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->every),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->every, builtinIteratorEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->every, builtinIteratorEvery, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reduce),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reduce, builtinIteratorReduce, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->reduce, builtinIteratorReduce, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->find),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinIteratorFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->find, builtinIteratorFind, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->some),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinIteratorSome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->some, builtinIteratorSome, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->take),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->take, builtinIteratorTake, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->take, builtinIteratorTake, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->forEach),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->forEach, builtinIteratorForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->forEach, builtinIteratorForEach, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->drop),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->drop, builtinIteratorDrop, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->drop, builtinIteratorDrop, 1);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toArray),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toArray, builtinIteratorToArray, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->toArray, builtinIteratorToArray, 0);
 
-    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->flatMap),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->flatMap, builtinIteratorFlatMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->defineBuiltinFunction(state, strings->flatMap, builtinIteratorFlatMap, 1);
 
     directDefineOwnProperty(state, ObjectPropertyName(strings->Iterator),
                             ObjectPropertyDescriptor(m_iterator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

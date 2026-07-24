@@ -131,14 +131,11 @@ void GlobalObject::installWeakSet(ExecutionState& state)
 
     m_weakSetPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_weakSetPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringDelete, builtinWeakSetDelete, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakSetPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringDelete, builtinWeakSetDelete, 1);
 
-    m_weakSetPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinWeakSetHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakSetPrototype->defineBuiltinFunction(state, state.context()->staticStrings().has, builtinWeakSetHas, 1);
 
-    m_weakSetPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().add),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().add, builtinWeakSetAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakSetPrototype->defineBuiltinFunction(state, state.context()->staticStrings().add, builtinWeakSetAdd, 1);
 
     m_weakSetPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                 ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakSet.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

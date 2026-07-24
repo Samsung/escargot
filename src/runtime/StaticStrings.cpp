@@ -23,18 +23,23 @@
 
 namespace Escargot {
 
+void StaticStrings::initStaticStringImpl(AtomicString& as, const char* str, size_t len)
+{
+    as.initStaticString(m_atomicStringMap, new ASCIIStringFromExternalMemory(str, len));
+}
+
 void StaticStrings::initStaticStrings()
 {
     AtomicStringMap* atomicStringMap = m_atomicStringMap;
     atomicStringMap->insert(String::emptyString());
 
-#define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIStringFromExternalMemory(#name, sizeof(#name) - 1));
+#define INIT_STATIC_STRING(name) initStaticStringImpl(name, #name, sizeof(#name) - 1);
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
     FOR_EACH_STATIC_WASM_STRING(INIT_STATIC_STRING)
     FOR_EACH_STATIC_THREADING_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
 
-#define INIT_STATIC_STRING(atomicString, name) atomicString.initStaticString(atomicStringMap, new ASCIIStringFromExternalMemory(name, sizeof(name) - 1))
+#define INIT_STATIC_STRING(atomicString, name) initStaticStringImpl(atomicString, name, sizeof(name) - 1)
 
     INIT_STATIC_STRING(stringBreak, "break");
     INIT_STATIC_STRING(stringCase, "case");

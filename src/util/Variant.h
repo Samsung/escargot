@@ -20,7 +20,6 @@
 #ifndef __EscargotVariant__
 #define __EscargotVariant__
 
-#include <iostream>
 #include <string>
 #include "util/Optional.h"
 

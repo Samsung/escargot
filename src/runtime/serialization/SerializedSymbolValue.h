@@ -43,39 +43,27 @@ public:
     }
 
 protected:
-    virtual void serializeValueData(std::ostringstream& outputStream) override
+    virtual void serializeValueData(std::string& output) override
     {
+        using namespace SerializerDetail;
+        uint8_t hasValue = m_value ? 1 : 0;
+        writePOD(output, hasValue);
         if (m_value) {
-            outputStream << true;
-            outputStream << std::endl;
             size_t s = m_value.value().size();
-            outputStream << s;
-            outputStream << std::endl;
-            for (size_t i = 0; i < s; i++) {
-                outputStream << (m_value.value())[i];
-            }
-        } else {
-            outputStream << false;
-            outputStream << std::endl;
+            writePOD(output, s);
+            writeBytes(output, m_value.value().data(), s);
         }
     }
 
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
+    static std::unique_ptr<SerializedValue> deserializeFrom(SerializerDetail::Reader& reader)
     {
-        bool hasValue;
-        inputStream >> hasValue;
+        uint8_t hasValue = 0;
+        reader.readPOD(hasValue);
         if (hasValue) {
-            size_t s;
-            inputStream >> s;
+            size_t s = 0;
+            reader.readPOD(s);
             std::string str;
-            str.reserve(s);
-
-            for (size_t i = 0; i < s; i++) {
-                char ch;
-                inputStream >> ch;
-                str.push_back(ch);
-            }
-
+            reader.readString(str, s);
             return std::unique_ptr<SerializedValue>(new SerializedSymbolValue(std::move(str)));
         }
         return std::unique_ptr<SerializedValue>(new SerializedSymbolValue());

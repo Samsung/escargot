@@ -92,12 +92,9 @@ void GlobalObject::installAsyncGenerator(ExecutionState& state)
     m_asyncGenerator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_asyncGeneratorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
     m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_asyncGenerator, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinAsyncGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinAsyncGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinAsyncGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncGeneratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinAsyncGeneratorNext, 1);
+    m_asyncGeneratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringReturn, builtinAsyncGeneratorReturn, 1);
+    m_asyncGeneratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringThrow, builtinAsyncGeneratorThrow, 1);
 
     m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                        ObjectPropertyDescriptor(state.context()->staticStrings().AsyncGenerator.string(), ObjectPropertyDescriptor::ConfigurablePresent));

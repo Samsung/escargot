@@ -291,17 +291,13 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
         m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->detached), detachedDesc);
     }
 
-    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resize),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resize, builtinArrayBufferResize, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->defineBuiltinFunction(state, strings->resize, builtinArrayBufferResize, 1);
 
-    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->transfer),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transfer, builtinArrayBufferTransfer, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->defineBuiltinFunction(state, strings->transfer, builtinArrayBufferTransfer, 0);
 
-    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->transferToFixedLength),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transferToFixedLength, builtinArrayBufferTransferToFixedLength, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->defineBuiltinFunction(state, strings->transferToFixedLength, builtinArrayBufferTransferToFixedLength, 0);
 
-    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->defineBuiltinFunction(state, strings->slice, builtinArrayBufferSlice, 2);
 
     m_arrayBuffer->setFunctionPrototype(state, m_arrayBufferPrototype);
 

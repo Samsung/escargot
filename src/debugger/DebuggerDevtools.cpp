@@ -20,6 +20,7 @@
 #include <string>
 #include <stdexcept>
 #include <fstream>
+#include <sstream>
 
 #include "Escargot.h"
 #include "DebuggerTcp.h"

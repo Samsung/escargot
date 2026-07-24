@@ -5170,14 +5170,14 @@ bool PlatformRef::isCustomLoggingEnabled()
 #endif
 }
 
-bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
+bool SerializerRef::serializeInto(ValueRef* value, std::string& output)
 {
     return Serializer::serializeInto(toImpl(value), output);
 }
 
-ValueRef* SerializerRef::deserializeFrom(ContextRef* context, std::istringstream& input)
+ValueRef* SerializerRef::deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset)
 {
-    std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(input);
+    std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(data, len, offset);
 
     if (!value) {
         return ValueRef::createUndefined();

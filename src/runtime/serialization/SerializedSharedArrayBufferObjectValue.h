@@ -42,25 +42,20 @@ public:
     }
 
 protected:
-    virtual void serializeValueData(std::ostringstream& outputStream) override
+    virtual void serializeValueData(std::string& output) override
     {
-        outputStream << m_bufferData->byteLength();
-        uint8_t* buffer = reinterpret_cast<uint8_t*>(m_bufferData->data());
-        for (size_t i = 0; i < m_bufferData->byteLength(); i++) {
-            outputStream << buffer[i];
-        }
-        outputStream << std::endl;
+        using namespace SerializerDetail;
+        size_t byteLength = m_bufferData->byteLength();
+        writePOD(output, byteLength);
+        writeBytes(output, m_bufferData->data(), byteLength);
     }
 
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
+    static std::unique_ptr<SerializedValue> deserializeFrom(SerializerDetail::Reader& reader)
     {
-        size_t size;
-        inputStream >> size;
+        size_t size = 0;
+        reader.readPOD(size);
         BackingStore* bs = SharedBackingStore::createDefaultSharedBackingStore(size);
-        uint8_t* buffer = reinterpret_cast<uint8_t*>(bs->data());
-        for (size_t i = 0; i < size; i++) {
-            inputStream >> buffer[i];
-        }
+        reader.readBytes(bs->data(), size);
         return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(bs->sharedDataBlockInfo()));
     }
 

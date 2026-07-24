@@ -407,20 +407,15 @@ void GlobalObject::installNumber(ExecutionState& state)
 
     m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinNumberToString, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineBuiltinFunction(state, strings->toString, builtinNumberToString, 1);
 
-    m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinNumberToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineBuiltinFunction(state, strings->toLocaleString, builtinNumberToLocaleString, 0);
 
-    m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toFixed),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toFixed, builtinNumberToFixed, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineBuiltinFunction(state, strings->toFixed, builtinNumberToFixed, 1);
 
-    m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toExponential),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toExponential, builtinNumberToExponential, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineBuiltinFunction(state, strings->toExponential, builtinNumberToExponential, 1);
 
-    m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toPrecision),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toPrecision, builtinNumberToPrecision, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberPrototype->defineBuiltinFunction(state, strings->toPrecision, builtinNumberToPrecision, 1);
 
     // $20.1.3.26 Number.prototype.valueOf
     m_numberPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf),

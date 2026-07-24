@@ -182,11 +182,9 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
         m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
     }
 
-    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->grow),
-                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinSharedArrayBufferGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->defineBuiltinFunction(state, strings->grow, builtinSharedArrayBufferGrow, 1);
 
-    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
-                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->defineBuiltinFunction(state, strings->slice, builtinSharedArrayBufferSlice, 2);
 
     m_sharedArrayBuffer->setFunctionPrototype(state, m_sharedArrayBufferPrototype);
 

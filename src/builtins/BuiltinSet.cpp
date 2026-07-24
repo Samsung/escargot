@@ -669,49 +669,36 @@ void GlobalObject::installSet(ExecutionState& state)
     m_setPrototypeObject->setGlobalIntrinsicObject(state, true);
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().clear),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().clear, builtinSetClear, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().clear, builtinSetClear, 0);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringDelete),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringDelete, builtinSetDelete, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().stringDelete, builtinSetDelete, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinSetHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().has, builtinSetHas, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().add),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().add, builtinSetAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().add, builtinSetAdd, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().forEach),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinSetForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().forEach, builtinSetForEach, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringUnion),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringUnion, builtinSetUnion, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().stringUnion, builtinSetUnion, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().intersection),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().intersection, builtinSetIntersection, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().intersection, builtinSetIntersection, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isDisjointFrom),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isDisjointFrom, builtinSetIsDisjointFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isDisjointFrom, builtinSetIsDisjointFrom, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().difference),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().difference, builtinSetDifference, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().difference, builtinSetDifference, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isSubsetOf),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isSubsetOf, builtinSetIsSubsetOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isSubsetOf, builtinSetIsSubsetOf, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isSupersetOf),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isSupersetOf, builtinSetIsSupersetOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isSupersetOf, builtinSetIsSupersetOf, 1);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().symmetricDifference),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symmetricDifference, builtinSetSymmetricDifference, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().symmetricDifference, builtinSetSymmetricDifference, 1);
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), values);
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), values);
 
-    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().entries, builtinSetEntries, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().entries, builtinSetEntries, 0);
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                   ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -727,8 +714,7 @@ void GlobalObject::installSet(ExecutionState& state)
     m_setIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_setIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinSetIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_setIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinSetIteratorNext, 0);
 
     m_setIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(Value(String::fromASCII("Set Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
