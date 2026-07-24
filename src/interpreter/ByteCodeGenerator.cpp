@@ -307,6 +307,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ctx.checkAllDataUsed();
 #endif
 
+    block->accountCompiledByteCodeSize();
+
     return block;
 }
 
