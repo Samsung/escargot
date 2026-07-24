@@ -4,7 +4,7 @@ project(escargot-rtos C CXX ASM)
 
 set(CMAKE_EXE_LINKER_FLAGS
     "-T ${CMAKE_SOURCE_DIR}/startup/an552_ns.ld \
-    -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map \
+    -flto -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map \
     --specs=nosys.specs"
     CACHE STRING "" FORCE)
 
