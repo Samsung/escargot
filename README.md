@@ -145,8 +145,7 @@ for the full checklist and code contract, and
 in-tree sample (FreeRTOS / Cortex-M55, QEMU `mps3-an547`) — cross-compiled
 and boot-tested under QEMU by the `RTOS-FreeRTOS` CI job
 (`.github/workflows/rtos-freertos.yml`) whenever engine or sample sources
-change. See [`docs/FreeRTOS-Porting.md`](docs/FreeRTOS-Porting.md) for the
-detailed porting report behind that sample.
+change.
 
 A second reference port, NuttX / Cortex-M55 (same QEMU target), is also
 in-tree: [`samples/rtos/nuttx/`](samples/rtos/nuttx) has the escargot NSH
@@ -158,9 +157,7 @@ app fundamentally needs a full NuttX+apps source tree, not a standalone
 library dependency) — CI-verified instead by the `RTOS-NuttX` job
 (`.github/workflows/rtos-nuttx.yml`), which checks out NuttX + its `apps`
 monorepo at pinned commits (cached across runs) and boot-tests the same
-way. See [`docs/NuttX-Porting.md`](docs/NuttX-Porting.md) for the detailed
-porting report behind that sample. Both ports' shared contract and
-checklist are in
+way. Both ports' shared contract and checklist are in
 [`docs/porting/RTOS_PORTING_GUIDE.md`](docs/porting/RTOS_PORTING_GUIDE.md).
 
 ### Windows

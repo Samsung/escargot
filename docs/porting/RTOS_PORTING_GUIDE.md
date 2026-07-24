@@ -3,14 +3,12 @@
 Short, generic checklist + contract for porting Escargot to a new
 bare-metal/RTOS target (Zephyr, ThreadX, Mbed OS, a from-scratch bare-metal
 scheduler, ...). This is deliberately NOT a narrative walkthrough of any
-one port -- for the full worked-example story (bugs found, exact commands,
-memory maps, SunSpider numbers) see:
+one port -- for two complete, CI-verified worked examples, see:
 
 - [`samples/rtos/freertos/`](../../samples/rtos/freertos) -- the FreeRTOS /
-  Cortex-M55 (QEMU mps3-an547) bare-metal port, now an in-tree, CI-verified
+  Cortex-M55 (QEMU mps3-an547) bare-metal port, an in-tree, CI-verified
   sample (see `.github/workflows/rtos-freertos.yml`) built directly against
-  this repo's own sources. Full worked-example write-up: this repo's own
-  [`docs/FreeRTOS-Porting.md`](../FreeRTOS-Porting.md).
+  this repo's own sources.
 - [`samples/rtos/nuttx/`](../../samples/rtos/nuttx) -- the NuttX /
   Cortex-M55 (QEMU mps3-an547) port, also an in-tree, CI-verified sample
   (`.github/workflows/rtos-nuttx.yml`): `interpreters-escargot/` is the
@@ -21,13 +19,11 @@ memory maps, SunSpider numbers) see:
   source tree, not a standalone library dependency, so the CI job checks
   those out at pinned commits instead (see that job and
   `samples/rtos/nuttx/patches/` for a one-file board patch this exact pin
-  needed). Full worked-example write-up: this repo's own
-  [`docs/NuttX-Porting.md`](../NuttX-Porting.md).
+  needed).
 
 Both are proven working (26/26 SunSpider 1.0.2, 15/15 exception regression
-cases). Read both reports' "bugs found" and "porting guide for other
-RTOSes" sections first if you want the full reasoning -- this document
-only gives you the distilled checklist and the code contract those two
+cases). This document only gives you the distilled checklist and the code
+contract those two
 ports converged on.
 
 ## 0. Build the engine itself: `-DESCARGOT_HOST=baremetal`
@@ -368,10 +364,8 @@ own "향후 과제" (future work) sections:
   build**, not BDWGC -- see §0 for why that's a deliberate scope
   decision, not an oversight.
 
-For the full narrative of how this contract and checklist were derived
-(bugs hit, exact diffs, before/after comparisons), see
-`~/escargot-rtos/docs/porting-report.md` / this repo's own
-[`docs/FreeRTOS-Porting.md`](../FreeRTOS-Porting.md), and
-`~/nuttx-escargot/docs/porting-report.md` / this repo's own
-[`docs/NuttX-Porting.md`](../NuttX-Porting.md) -- those are retrospective
-reports, not guides, so that history lives there rather than here.
+This contract and checklist were derived from getting both
+[`samples/rtos/freertos/`](../../samples/rtos/freertos) and
+[`samples/rtos/nuttx/`](../../samples/rtos/nuttx) working end to end
+(bugs hit, exact fixes) -- see those samples and their CI jobs for the
+concrete, buildable result rather than a narrative write-up.
