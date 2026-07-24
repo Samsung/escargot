@@ -186,6 +186,17 @@
 #define OS_WINDOWS 1
 #elif _WIN64
 #define OS_WINDOWS 1
+#elif defined(OS_BAREMETAL)
+/* bare-metal / RTOS target — no POSIX. Checked BEFORE the generic
+ * Apple/Linux/Unix/_POSIX_VERSION heuristics below: some bare-metal
+ * targets' libc has a partial POSIX compatibility layer (e.g. NuttX) that
+ * itself defines _POSIX_VERSION (or is detected as __unix__) even though
+ * there is no real POSIX environment underneath. -DOS_BAREMETAL=1 is an
+ * explicit, deliberate flag the embedder passes for exactly this target
+ * class (see docs/porting/RTOS_PORTING_GUIDE.md) and must take priority
+ * over those incidental heuristics, not lose to them by being last in
+ * this #elif chain.
+ */
 #elif __APPLE__
 #define OS_DARWIN 1
 #include "TargetConditionals.h"
@@ -204,8 +215,6 @@
 #define OS_POSIX 1
 #elif defined(_POSIX_VERSION)
 #define OS_POSIX 1
-#elif defined(OS_BAREMETAL)
-/* bare-metal / RTOS target — no POSIX */
 #else
 #error "failed to detect target OS"
 #endif

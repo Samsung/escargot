@@ -1,5 +1,5 @@
 # This project lives at samples/rtos/nuttx/escargot-lib-cmake/ inside the
-# main Escargot repo. It builds libescargot.a/libgc.a for NuttX as an
+# main Escargot repo. It builds libescargot.a/libgc-lib.a for NuttX as an
 # out-of-tree CMake project (deliberately NOT folded into NuttX's own Make
 # build -- see apps/interpreters/escargot/Makefile's ESCARGOT_PREBUILT,
 # ../interpreters-escargot/Makefile in this same samples dir, and
@@ -60,134 +60,77 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS_STR}")
 # samples/rtos/freertos/CMakeLists.txt, so the engine root is four
 # directories up here (that file's own ESCARGOT_ROOT uses ../../../ from
 # one level shallower).
+#
+# Instead of hand-duplicating the engine's own source-file globs/defines
+# here, reuse the main repo's own top-level CMakeLists.txt (build/config.cmake
+# + build/escargot.cmake) as a subdirectory, with ESCARGOT_HOST=baremetal
+# (see build/target.cmake) doing the ENGINE-side (compile defs/flags/-std
+# override) work. That top-level project deliberately does NOT build
+# runtime_icu_binder for ESCARGOT_HOST=baremetal (see the guards in
+# build/escargot.cmake) -- it unconditionally needs <dlfcn.h>, which doesn't
+# exist on this newlib/nosys target, so it stays out of scope entirely.
+# BDWGC (third_party/GCutil) IS built as part of this same add_subdirectory()
+# -- its own CMakeLists.txt has a NOSYS/bare-metal mode
+# (GCUTIL_NOSYS_BAREMETAL) that build/escargot.cmake add_subdirectory()s
+# unconditionally; this port only needs to set the GCUTIL_* cache variables
+# below before calling add_subdirectory() so GCutil's own CMakeLists.txt
+# picks them up.
 set(ESCARGOT_ROOT  ${CMAKE_SOURCE_DIR}/../../../..)
-set(ESCARGOT_SRC   ${ESCARGOT_ROOT}/src)
 set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
-set(ESCARGOT_DEFS
-    -DOS_BAREMETAL=1
-    -DESCARGOT_SMALL_CONFIG
-    -DNDEBUG
+set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
+set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
+set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
+set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
+# Extra bare-metal-only tuning the main build doesn't model as first-class
+# options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized
+# for a hosted OS thread, far too large here) and abort-on-OOM instead of the
+# default throw (no exception-safe recovery story for GC allocation failure
+# on this target).
+set(ESCARGOT_CXXFLAGS_FROM_EXTERNAL
     -DGC_NEW_ABORTS_ON_OOM
-    -DENABLE_COMPRESSIBLE_STRING
-    -DENABLE_RELOADABLE_STRING
-    -DESCARGOT
-    -DESCARGOT_32=1
     -DSTACK_FREESPACE_FROM_LIMIT=4096
     -DSTACK_USAGE_LIMIT=131072
-)
+    CACHE STRING "" FORCE)
 
-set(ESCARGOT_INCS
-    ${ESCARGOT_SRC}
-    ${ESCARGOT_ROOT}/build/escargot_generated
-    ${THIRD}
-    ${THIRD}/GCutil/include
-    ${THIRD}/libbf
-    ${THIRD}/robin_map/include
-    ${THIRD}/yarr
-    ${THIRD}/double_conversion
-    ${THIRD}/rapidjson/include
-    ${THIRD}/runtime_icu_binder
-    ${THIRD}/xsum
-    ${THIRD}/simdutf
-    ${THIRD}/checked_arithmetic
-    ${THIRD}/lz4
-)
+# BDWGC (bare-metal NOSYS mode): GCUTIL_NOSYS_BAREMETAL picks GCutil's own
+# NOSYS source list + define set over its normal hosted ones.
+# GCUTIL_CFLAGS_FROM_EXTERNAL supplies this port's own extra requirement:
+# NuttX's libc doesn't provide the underscore-prefixed _setjmp/_longjmp
+# aliases newlib does, and mach_dep.c calls them directly, so remap them
+# here rather than baking a NuttX-specific remap into GCutil's own shared
+# NOSYS define set. All three must be set BEFORE add_subdirectory() below,
+# since that's what actually pulls in third_party/GCutil (build/escargot.cmake
+# add_subdirectory()s it as part of the same call, no separate one needed
+# here). Do NOT set GCUTIL_ENABLE_THREADING -- no thread runtime on this
+# target.
+#
+# Note: this produces a target named "gc-lib" (GCutil's own, fixed target
+# name), not the "gc" this project used to hand-roll itself -- see
+# ../interpreters-escargot/Makefile (libgc-lib.a, not libgc.a) and install()
+# below.
+set(GCUTIL_NOSYS_BAREMETAL ON CACHE BOOL "" FORCE)
+set(GCUTIL_INITIAL_HEAP_SIZE "(1*1024*1024)" CACHE STRING "" FORCE)
+set(GCUTIL_CFLAGS_FROM_EXTERNAL -D_setjmp=setjmp -D_longjmp=longjmp CACHE STRING "" FORCE)
 
-file(GLOB_RECURSE ESCARGOT_CPPSRC ${ESCARGOT_SRC}/*.cpp)
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/shell/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/wasm/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/debugger/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/codecache/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/intl/.*")
-list(APPEND ESCARGOT_CPPSRC ${ESCARGOT_SRC}/wasm/BuiltinWASM.cpp)
+# Force ALL static-library outputs -- the engine subdirectory's own nested
+# libescargot.a, and GCutil's own nested libgc-lib.a -- to land flatly at
+# this project's own build-directory root instead of under their respective
+# add_subdirectory() binary dirs. ../interpreters-escargot/Makefile's
+# `context::` rule (the external NuttX-side consumer of this project's
+# output) copies both by exactly that flat path
+# ($(ESCARGOT_PREBUILT)/libescargot.a, $(ESCARGOT_PREBUILT)/libgc-lib.a) into
+# NuttX's apps/staging/, since it's a separate `make` invocation over
+# prebuilt archives, not a CMake target_link_libraries() consumer that could
+# resolve a nested path on its own.
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-file(GLOB YARR_SRC ${THIRD}/yarr/*.cpp)
-list(FILTER YARR_SRC EXCLUDE REGEX ".*OSAllocatorPosix.*")
-list(FILTER YARR_SRC EXCLUDE REGEX ".*OSAllocatorWin.*")
+add_subdirectory(${ESCARGOT_ROOT} ${CMAKE_BINARY_DIR}/escargot-engine)
 
-set(YARR_GENERATED_DIR ${ESCARGOT_ROOT}/build/escargot_generated/yarr)
-list(APPEND YARR_SRC
-    ${YARR_GENERATED_DIR}/YarrCanonicalizeUCS2.cpp
-    ${YARR_GENERATED_DIR}/YarrCanonicalizeUnicode.cpp
-)
+# Reuse the exact same preprocessor defines the engine itself was compiled
+# with for any translation unit here that includes EscargotPublic.h (e.g.
+# OS_BAREMETAL, ESCARGOT_EXPORT=) instead of hand-copying ESCARGOT_DEFS again.
+get_target_property(ESCARGOT_ENGINE_DEFS escargot COMPILE_DEFINITIONS)
 
-set(SIMDUTF_SRC ${THIRD}/simdutf/simdutf.cpp)
-file(GLOB DC_SRC ${THIRD}/double_conversion/*.cc)
-file(GLOB LZ4_SRC ${THIRD}/lz4/*.cpp)
-set(LIBBF_SRC ${THIRD}/libbf/libbf.c ${THIRD}/libbf/cutils.c)
-set(XSUM_SRC ${THIRD}/xsum/xsum.cpp)
-
-set(PARSER_GENERATED_DIR ${ESCARGOT_ROOT}/build/escargot_generated/parser)
-set(UNICODE_TABLES_SRC ${PARSER_GENERATED_DIR}/UnicodeIdentifierTables.cpp)
-
-add_library(escargot STATIC
-    ${ESCARGOT_CPPSRC}
-    ${YARR_SRC}
-    ${SIMDUTF_SRC}
-    ${DC_SRC}
-    ${LZ4_SRC}
-    ${LIBBF_SRC}
-    ${XSUM_SRC}
-    ${UNICODE_TABLES_SRC}
-)
-target_compile_definitions(escargot PRIVATE ${ESCARGOT_DEFS})
-target_include_directories(escargot PUBLIC ${ESCARGOT_INCS})
-target_compile_options(escargot PRIVATE -fexceptions)
-
-# ─── BDWGC (bare-metal NOSYS mode) ──────────────────────────────────────────
-set(GCUTIL_SRC
-    ${THIRD}/GCutil/allchblk.c
-    ${THIRD}/GCutil/Allocator.cpp
-    ${THIRD}/GCutil/alloc.c
-    ${THIRD}/GCutil/backgraph.c
-    ${THIRD}/GCutil/blacklst.c
-    ${THIRD}/GCutil/checksums.c
-    ${THIRD}/GCutil/dbg_mlc.c
-    ${THIRD}/GCutil/dyn_load.c
-    ${THIRD}/GCutil/finalize.c
-    ${THIRD}/GCutil/fnlz_mlc.c
-    ${THIRD}/GCutil/gc_badalc.cpp
-    ${THIRD}/GCutil/headers.c
-    ${THIRD}/GCutil/LeakChecker.cpp
-    ${THIRD}/GCutil/mach_dep.c
-    ${THIRD}/GCutil/malloc.c
-    ${THIRD}/GCutil/mallocx.c
-    ${THIRD}/GCutil/mark.c
-    ${THIRD}/GCutil/mark_rts.c
-    ${THIRD}/GCutil/misc.c
-    ${THIRD}/GCutil/new_hblk.c
-    ${THIRD}/GCutil/os_dep.c
-    ${THIRD}/GCutil/ptr_chck.c
-    ${THIRD}/GCutil/reclaim.c
-    ${THIRD}/GCutil/typd_mlc.c
-)
-
-set(GCUTIL_DEFS
-    -DNOSYS
-    -DSMALL_CONFIG
-    -DGC_NOT_DLL
-    -DGC_NO_SIGHANDLER
-    -DNO_GETENV
-    -DNO_CLOCK
-    -DGC_NEW_ABORTS_ON_OOM
-    -DGC_DISABLE_INCREMENTAL
-    -DIGNORE_DYNAMIC_LOADING
-    -DDONT_USE_MMAP
-    -DGC_NO_DLOPEN
-    "-DGC_INITIAL_HEAP_SIZE=(1*1024*1024)"
-    -DGC_ATOMIC_UNCOLLECTABLE
-    -DENABLE_DISCLAIM
-    -D_setjmp=setjmp
-    -D_longjmp=longjmp
-)
-
-add_library(gc STATIC ${GCUTIL_SRC})
-target_compile_definitions(gc PRIVATE ${GCUTIL_DEFS} ${ESCARGOT_DEFS})
-target_include_directories(gc PUBLIC
-    ${THIRD}/GCutil/include
-    ${THIRD}/GCutil/include/private
-)
-target_compile_options(gc PRIVATE -w)
-
-install(TARGETS escargot gc ARCHIVE DESTINATION lib)
+install(TARGETS escargot gc-lib ARCHIVE DESTINATION lib)

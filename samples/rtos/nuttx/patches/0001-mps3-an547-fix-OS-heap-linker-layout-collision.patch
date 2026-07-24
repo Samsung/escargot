@@ -1,4 +1,4 @@
-From a6d172699e7195d7b91b4cb7a831d956f329feb8 Mon Sep 17 00:00:00 2001
+From 2b0e94a848fd3cd3ff31c7e5fdce8b4c3e5887fd Mon Sep 17 00:00:00 2001
 From: Seonghyun Kim <sh8281.kim@samsung.com>
 Date: Fri, 24 Jul 2026 15:18:47 +0900
 Subject: [PATCH] mps3-an547: fix OS-heap/custom-linker-layout collision for
@@ -20,7 +20,7 @@ flash.ld itself adds the ddr region split (vectors stay at 0x0, .text/
 unwind tables/a 16 MB GC-heap NOLOAD region move to ddr@0x60000000) that
 made an Escargot JS-engine app buildable/linkable on this board at all.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Signed-off-by: Seonghyun Kim <sh8281.kim@samsung.com>
 ---
  arch/arm/src/mps/hardware/mps_memorymap.h  | 33 +++++++++++++++++--
  boards/arm/mps/mps3-an547/scripts/flash.ld | 38 ++++++++++++++++++----

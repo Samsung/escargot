@@ -40,24 +40,23 @@ CXXSRCS = escargot_platform.cxx
 # anymore (this app used to carry its own, byte-for-byte-identical
 # OSAllocatorNuttx.cxx).
 
-CXXFLAGS += -I$(ESCARGOT_ROOT)/src
+# This app only calls Escargot's public embedding API and BDWGC's public
+# stats API (GC_get_heap_size() etc, for the print_gc_stats() diagnostics)
+# -- escargot_main.cxx/escargot_platform.cxx only #include "EscargotPublic.h"
+# and <gc.h>, nothing from the engine's own internal src/ or the other
+# third_party/* directories (those are only needed to COMPILE the engine
+# itself, in ../escargot-lib-cmake/CMakeLists.txt, not to link an app
+# against the resulting prebuilt libescargot.a/libgc-lib.a).
 CXXFLAGS += -I$(ESCARGOT_ROOT)/src/api
-CXXFLAGS += -I$(ESCARGOT_ROOT)/build/escargot_generated
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party
 CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/GCutil/include
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/libbf
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/robin_map/include
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/yarr
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/double_conversion
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/rapidjson/include
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/runtime_icu_binder
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/xsum
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/simdutf
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/checked_arithmetic
-CXXFLAGS += -I$(ESCARGOT_ROOT)/third_party/lz4
 CXXFLAGS += -fexceptions
-CXXFLAGS += -DOS_BAREMETAL=1 -DESCARGOT_SMALL_CONFIG -DNDEBUG
-CXXFLAGS += -DESCARGOT -DESCARGOT_32=1
+# OS_BAREMETAL is the only one of these this app's own translation units
+# actually need -- EscargotPublic.h gates its PlatformRef bare-metal hooks
+# (stackBase/stackTop/tickMs/tzName) behind it. ESCARGOT_SMALL_CONFIG/
+# ESCARGOT/ESCARGOT_32/NDEBUG affect the ENGINE's own build
+# (../escargot-lib-cmake/CMakeLists.txt) but don't appear anywhere in
+# EscargotPublic.h or gc.h, the only two headers these sources include.
+CXXFLAGS += -DOS_BAREMETAL=1
 
 # Drop the prebuilt (external CMake, same arch flags) static libs into
 # apps/staging so they get swept up by arch/arm/src/Makefile's
@@ -70,6 +69,8 @@ CXXFLAGS += -DESCARGOT -DESCARGOT_32=1
 context::
 	$(Q) mkdir -p $(APPDIR)/staging
 	$(Q) cp -up $(ESCARGOT_PREBUILT)/libescargot.a $(APPDIR)/staging/
-	$(Q) cp -up $(ESCARGOT_PREBUILT)/libgc.a $(APPDIR)/staging/
+	$(Q) cp -up $(ESCARGOT_PREBUILT)/libgc-lib.a $(APPDIR)/staging/
+	$(Q) cp -up $(ESCARGOT_PREBUILT)/liblibsimdutf.a $(APPDIR)/staging/
+	$(Q) cp -up $(ESCARGOT_PREBUILT)/liblibbf.a $(APPDIR)/staging/
 
 include $(APPDIR)/Application.mk

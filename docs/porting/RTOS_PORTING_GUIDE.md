@@ -39,23 +39,60 @@ This sets exactly the engine-side (`escargot` target) definitions/flags a
 bare-metal/RTOS port needs -- `-DOS_BAREMETAL=1`, the right 32/64-bit
 mode per `ESCARGOT_ARCH`, `-Wl,--gc-sections`, and (see `CMakeLists.txt`)
 `ESCARGOT_LIBICU_SUPPORT`/`ESCARGOT_THREADING` both defaulted `OFF`
-(no ICU, no thread runtime on these targets) -- so you don't have to
-independently rediscover this list and hand-copy it into your own
-CMakeLists.txt, the way both existing ports originally did (see
+(no ICU, no thread runtime on these targets). A new port does not need to
+independently rediscover this list and hand-copy it into its own
+CMakeLists.txt -- both existing reference ports instead
+`add_subdirectory()` this repo's own top-level `CMakeLists.txt` directly
+(with `ESCARGOT_HOST`/`ESCARGOT_ARCH`/`ESCARGOT_OUTPUT`/`ESCARGOT_MODE`
+set as cache variables beforehand) to get a real, correctly cross-compiled
+`escargot` static-library target, instead of hand-globbing `src/*.cpp` and
+hand-copying `ESCARGOT_DEFS` themselves -- see
 `samples/rtos/nuttx/escargot-lib-cmake/CMakeLists.txt` /
-`samples/rtos/freertos/CMakeLists.txt`'s own `ESCARGOT_DEFS`, which
-pre-date this option and duplicate a subset of it by hand).
+`samples/rtos/freertos/CMakeLists.txt`'s own "─── Escargot ───" section
+for the current, proven-working pattern to copy. (An earlier revision of
+both files did hand-copy the glob/defs list instead; that duplication has
+since been eliminated in favor of this reuse.) Building the main
+top-level project this way for `ESCARGOT_HOST=baremetal` deliberately
+skips `ADD_SUBDIRECTORY(third_party/runtime_icu_binder)` (see the guards
+in `build/escargot.cmake`) -- it unconditionally needs `<dlfcn.h>`, which
+doesn't exist on a newlib/nosys target, so it's out of scope for this
+host entirely. BDWGC (`third_party/GCutil`) IS built as part of this same
+`ADD_SUBDIRECTORY()` call -- see below for the cache variables a new port
+needs to set first.
 
-**This does NOT build BDWGC (`third_party/GCutil`) for you.** BDWGC's
-`NOSYS`/bare-metal build needs a much smaller source-file subset and a
-different flag set than the main engine's own `third_party/GCutil/CMakeLists.txt`
-(which assumes pthreads/mmap are available) -- see that vendored file's
-`gcconfig.h`, under `ARM32`/`NOSYS`, for what it actually expects. Every
-RTOS port still needs its own small, separate CMake project for BDWGC
-(and for the RTOS-specific toolchain file, source globs, and final link
-step) -- see either existing port's own `CMakeLists.txt` for a complete,
-proven example to copy from. `-DESCARGOT_HOST=baremetal` only covers the
-engine half of the build; the rest of this guide covers the other half.
+**This DOES build BDWGC (`third_party/GCutil`) for you, but needs
+port-specific cache variables set first.** BDWGC's own
+`third_party/GCutil/CMakeLists.txt` has an opt-in NOSYS/bare-metal mode
+(`GCUTIL_NOSYS_BAREMETAL`, default `OFF`) selecting a curated source-file
+subset and a different define set than its normal hosted build (which
+assumes pthreads/mmap are available) -- see that file's own comments, and
+`gcconfig.h`'s `ARM32`/`NOSYS` branch, for what it actually expects. It
+defaults `OFF` so it's a no-op for every hosted platform;
+`-DESCARGOT_HOST=baremetal` does not flip it on automatically. A new RTOS
+port sets `GCUTIL_NOSYS_BAREMETAL=ON` plus its own
+`GCUTIL_INITIAL_HEAP_SIZE` (varies per port -- the FreeRTOS sample uses
+4 MB, the NuttX sample uses 1 MB) and any further
+`GCUTIL_CFLAGS_FROM_EXTERNAL` it needs (e.g. NuttX's
+`-D_setjmp=setjmp -D_longjmp=longjmp` remap) as cache variables **before**
+the single top-level `add_subdirectory()` call above -- CMake `CACHE`
+variables are process-global, so `build/escargot.cmake`'s own nested
+`ADD_SUBDIRECTORY(third_party/GCutil)` picks them straight up, no separate
+`add_subdirectory()` needed in the port's own CMakeLists.txt -- see either
+existing port's own `CMakeLists.txt` for a complete, proven example to
+copy from. The resulting target is always named `gc-lib` (GCutil's own
+fixed name, matching the hosted build too).
+
+**A subtle `-DOS_BAREMETAL=1` detection-order gotcha**: `src/Escargot.h`'s
+OS-family detection checks `defined(OS_BAREMETAL)` before the generic
+Apple/Linux/Unix/`_POSIX_VERSION` heuristics, specifically because some
+bare-metal libcs with a partial POSIX compatibility layer (NuttX's, for
+one) define `_POSIX_VERSION` themselves even though there's no real POSIX
+environment underneath -- if your target's libc does something similar,
+make sure you're on a version of this repo with that ordering fix (an
+earlier version checked the heuristics first, which silently mis-detected
+`OS_POSIX` and broke compiling `third_party/yarr/OSAllocatorPosix.cpp`
+under such a libc, even though it's dead code on a real bare-metal
+target).
 
 (Verified for this guide: `cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm
 -DESCARGOT_OUTPUT=shell -S <repo> -B <builddir>` configures cleanly from a
@@ -78,8 +115,8 @@ Any RTOS port needs all of these, regardless of which RTOS:
 | `mprotect`-based incremental GC is out of scope | BDWGC only uses `mprotect()` for `MPROTECT_VDB` (incremental GC's dirty-page tracking, which needs a working `mprotect()` **and** a `SIGSEGV`-equivalent fault-delivery mechanism). Every port defines `-DGC_DISABLE_INCREMENTAL`, which turns this whole mechanism off -- correctly, since bare-metal targets generally have neither MMU-based page protection nor signal delivery set up. There is nothing to abstract or hook here; it's an entire disabled feature category, not a missing `PlatformRef` hook -- don't spend time trying to wire up an `mprotect`-based VDB for a bare-metal port. |
 | Full libstdc++ | Do NOT use `nano.specs` -- `libstdc++_nano.a` is missing `.ARM.exidx` entries for exception-runtime functions (`__cxa_throw`, `__gxx_personality_v0`, ...), causing a silent `std::terminate()` the first time a C++/JS exception unwinds. Link plain `--specs=nosys.specs` (or your RTOS's non-nano equivalent) instead. |
 | Linker script `KEEP()` | `.ARM.exidx`/`.ARM.extab` (or your arch's unwind-table sections) must be `KEEP()`-ed; `--gc-sections` will otherwise strip them as "unreferenced" (they're only referenced by the unwinder at runtime, not by any visible call). |
-| `-DGC_ATOMIC_UNCOLLECTABLE` | Required at BDWGC build time (both ports' `GCUTIL_DEFS` already define it -- verify yours does too). |
-| `-DENABLE_DISCLAIM` | Required at BDWGC build time by the engine's typed-GC kinds (`BackingStore`/`ByteCodeBlock` disclaim-based finalization). Both existing ports already define it; a new port must too. |
+| `-DGC_ATOMIC_UNCOLLECTABLE` | Required at BDWGC build time -- part of GCutil's own `GCUTIL_NOSYS_BAREMETAL` define set (§0), not something your project needs to define itself. |
+| `-DENABLE_DISCLAIM` | Required at BDWGC build time by the engine's typed-GC kinds (`BackingStore`/`ByteCodeBlock` disclaim-based finalization) -- also part of GCutil's own `GCUTIL_NOSYS_BAREMETAL` define set (§0). |
 | `Globals::finalize()` must NOT be called | It calls `GC_gcollect_and_unmap()`, which does a `munmap()` -- bare-metal/RTOS targets have no such syscall and this hangs forever. Just don't call it (there is no real "process exit" on these targets anyway). |
 | Board-owned heap-region audit | **RTOS-specific risk, not a bare-metal-specific one.** If the RTOS itself owns board-level heap-region initialization (e.g. NuttX's `arch/arm/src/mps/hardware/mps_memorymap.h` + `mps_allocateheap.c`), audit that the RTOS's own heap donation doesn't overlap wherever your custom linker script relocates Escargot's code/GC-heap. This exact collision was the NuttX port's long-standing crash root cause (see its report §7.1) -- a plain bare-metal target with no OS-owned board support code has no such layer and no such risk, but Zephyr/ThreadX-with-board-support-packages likely do. |
 
@@ -303,14 +340,20 @@ Escargot::Globals::initialize(escargot_platform());
 
 Build-time definitions every port needs. The engine-side ones
 (`-DOS_BAREMETAL=1` and friends) come for free from
-`-DESCARGOT_HOST=baremetal` (§0); the BDWGC ones are still your own
-project's responsibility (see §0's explanation of why):
+`-DESCARGOT_HOST=baremetal` (§0); the BDWGC ones come for free too once you
+set `GCUTIL_NOSYS_BAREMETAL=ON` (§0, as a cache variable before your
+top-level `add_subdirectory(<escargot repo root>)` call) -- `-DNOSYS`,
+`-DGC_ATOMIC_UNCOLLECTABLE`, `-DENABLE_DISCLAIM` and the rest of that
+mode's define set are baked into GCutil's own CMakeLists.txt, not
+something your own project's CMakeLists.txt needs to hand-copy. The
+one thing that IS still your own project's responsibility, if your libc
+needs it, is remapping BDWGC's `_setjmp`/`_longjmp` calls via
+`GCUTIL_CFLAGS_FROM_EXTERNAL` (NuttX's libc needs this; newlib, used by
+the FreeRTOS sample, doesn't):
 
 ```
-# BDWGC (GCUTIL_DEFS, your own project -- see §0)
--DNOSYS
--DGC_ATOMIC_UNCOLLECTABLE         # <- easy to forget
--DENABLE_DISCLAIM                 # <- easy to forget, needed by newer typed-GC kinds
+# GCUTIL_CFLAGS_FROM_EXTERNAL, your own project -- see §0 (only if your
+# libc lacks newlib's _setjmp/_longjmp aliases)
 -D_setjmp=setjmp -D_longjmp=longjmp
 ```
 
@@ -346,26 +389,3 @@ project's responsibility (see §0's explanation of why):
   entire class of fragility it had (see the git history of that file for
   the full story: a real NuttX `tzset()`/`tzname` got silently shadowed
   by the weak fallback due to static-archive symbol-resolution order).
-
-## 5. Known remaining gaps / future work
-
-Not everything platform-specific has been generalized -- these are
-documented here rather than forced through, per both existing ports'
-own "향후 과제" (future work) sections:
-
-- **JS source loading**: both existing ports embed test sources as string
-  literals or load them via QEMU semihosting host file I/O -- neither is
-  representative of a real target's Flash/filesystem-backed source
-  loading. Left as a per-port concern (see both reports' §14/향후 과제).
-- **Board-owned heap-region audits** (§1 above) are currently a manual
-  checklist item, not automated. Worth scripting if a third+ port hits
-  the same class of bug the NuttX port did.
-- **`-DESCARGOT_HOST=baremetal` (§0) only covers the engine half of the
-  build**, not BDWGC -- see §0 for why that's a deliberate scope
-  decision, not an oversight.
-
-This contract and checklist were derived from getting both
-[`samples/rtos/freertos/`](../../samples/rtos/freertos) and
-[`samples/rtos/nuttx/`](../../samples/rtos/nuttx) working end to end
-(bugs hit, exact fixes) -- see those samples and their CI jobs for the
-concrete, buildable result rather than a narrative write-up.

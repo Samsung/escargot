@@ -218,28 +218,55 @@ ELSEIF (${ESCARGOT_HOST} STREQUAL "windows")
 
 ELSEIF (${ESCARGOT_HOST} STREQUAL "baremetal")
     # Bare-metal/RTOS embedders (FreeRTOS, NuttX, ... -- see
-    # docs/porting/RTOS_PORTING_GUIDE.md). This host value only captures
-    # the ENGINE-side (escargot target) compile definitions/flags a
-    # bare-metal port needs; it deliberately does NOT attempt to build
-    # BDWGC (third_party/GCutil) here too -- that needs a much smaller,
-    # NOSYS-specific source subset and flag set (see
-    # third_party/GCutil/include/private/gcconfig.h's own NOSYS/ARM32
-    # branch) that genuinely differs per target/toolchain, so each RTOS
-    # port keeps its own small, separate CMake project for that (see
-    # e.g. the two proven reference ports' own CMakeLists.txt for the
-    # full picture). No PkgConfig requirement (no ICU on these targets --
-    # ESCARGOT_LIBICU_SUPPORT already defaults OFF for this host, see
-    # root CMakeLists.txt), no -lpthread/-lrt (no thread runtime).
+    # docs/porting/RTOS_PORTING_GUIDE.md). This host value captures the
+    # engine's own compile definitions/flags; BDWGC (third_party/GCutil) is
+    # built by the normal build/escargot.cmake ADD_SUBDIRECTORY() alongside
+    # it, in its own GCUTIL_NOSYS_BAREMETAL mode -- the calling RTOS port
+    # just needs to set GCUTIL_NOSYS_BAREMETAL/GCUTIL_INITIAL_HEAP_SIZE/
+    # GCUTIL_CFLAGS_FROM_EXTERNAL as CACHE variables before
+    # add_subdirectory()ing this whole project (see e.g. the two proven
+    # reference ports' own CMakeLists.txt for the full picture). No
+    # PkgConfig requirement (no ICU on these targets -- ESCARGOT_LIBICU_SUPPORT
+    # already defaults OFF for this host, see root CMakeLists.txt), no
+    # -lpthread/-lrt (no thread runtime).
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DOS_BAREMETAL=1)
     SET (ESCARGOT_LDFLAGS -Wl,--gc-sections)
+    IF (ESCARGOT_SMALL_CONFIG)
+        # Bare-metal/RTOS targets prioritize code size over the general
+        # GCC-version gate above (that gate's "-Os has unknown memory
+        # conflicts" concern was about a hosted platform -- not
+        # re-litigated here, just not applied to this host). Force -Os
+        # unconditionally for this host when ESCARGOT_SMALL_CONFIG is on.
+        SET (ESCARGOT_CXXFLAGS_RELEASE ${ESCARGOT_CXXFLAGS_RELEASE} -Os)
+    ENDIF()
+    # newlib's stdlib.h only declares alloca() outside of strict-ISO mode --
+    # the generic "-std=c++11" set above (GNU/Clang branch) defines
+    # __STRICT_ANSI__, which hides it and breaks the parser's ALLOCA() macro
+    # (see src/Escargot.h). Override to the GNU dialect, same as arm-none-eabi-g++'s
+    # own default (-std=gnu++17) that each RTOS port's standalone CMakeLists.txt
+    # relied on implicitly by never setting -std= itself.
+    IF (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU|Clang")
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -std=gnu++11)
+    ENDIF()
+    # 64-bit bare-metal/RTOS targets always use full, uncompressed 64-bit
+    # addressing (ESCARGOT_BUILD_64BIT_LARGE), never the 32-bit-in-64-bit
+    # pointer-compression mode -- that mode assumes addresses fit in 32
+    # bits, which a hosted OS process's loader/allocator typically keeps
+    # true, but a bare-metal/RTOS target's custom linker script can place
+    # code/GC-heap/stack anywhere in the full 64-bit address space with no
+    # such guarantee. Silently violating that assumption would truncate
+    # pointers instead of failing loudly, so this is forced for every
+    # 64-bit arch here, not just riscv64.
     IF ((${ESCARGOT_ARCH} STREQUAL "x64") OR (${ESCARGOT_ARCH} STREQUAL "x86_64"))
         SET (ESCARGOT_BUILD_64BIT ON)
+        SET (ESCARGOT_BUILD_64BIT_LARGE ON)
     ELSEIF ((${ESCARGOT_ARCH} STREQUAL "x86") OR (${ESCARGOT_ARCH} STREQUAL "i686"))
         SET (ESCARGOT_BUILD_32BIT ON)
     ELSEIF (${ESCARGOT_ARCH} STREQUAL "arm")
         SET (ESCARGOT_BUILD_32BIT ON)
     ELSEIF (${ESCARGOT_ARCH} STREQUAL "aarch64")
         SET (ESCARGOT_BUILD_64BIT ON)
+        SET (ESCARGOT_BUILD_64BIT_LARGE ON)
     ELSEIF (${ESCARGOT_ARCH} STREQUAL "riscv64")
         SET (ESCARGOT_BUILD_64BIT ON)
         SET (ESCARGOT_BUILD_64BIT_LARGE ON)
