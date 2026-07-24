@@ -88,7 +88,12 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "static_lib")
 ENDIF()
 
 SET (GCUTIL_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} ${PROFILER_FLAGS})
-SET (GCUTIL_CFLAGS_FROM_EXTERNAL ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
+# Append, don't overwrite: a bare-metal port may have already pre-set this as
+# a CACHE variable before add_subdirectory()ing this whole project (e.g.
+# NuttX's -D_setjmp=setjmp/-D_longjmp=longjmp remap) -- ESCARGOT_CFLAGS_FROM_EXTERNAL
+# (the toolchain/arch flags every other target here also gets) still needs to
+# reach GCutil too, since it's compiled for the exact same target.
+SET (GCUTIL_CFLAGS_FROM_EXTERNAL ${GCUTIL_CFLAGS_FROM_EXTERNAL} ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
 
 IF (ESCARGOT_SMALL_CONFIG)
     SET (GCUTIL_CFLAGS ${GCUTIL_CFLAGS} -DSMALL_CONFIG)
@@ -105,6 +110,14 @@ ENDIF()
 
 SET (GCUTIL_MODE ${ESCARGOT_MODE})
 
+# Bare-metal/RTOS ports set GCUTIL_NOSYS_BAREMETAL/GCUTIL_INITIAL_HEAP_SIZE/
+# GCUTIL_CFLAGS_FROM_EXTERNAL as CACHE variables before add_subdirectory()ing
+# this whole project (see samples/rtos/*/CMakeLists.txt) -- GCutil's own
+# CMakeLists.txt picks its NOSYS source list/defines over the hosted ones
+# when that option is ON, so one add_subdirectory() here covers both hosted
+# and bare-metal builds. gc-lib's PUBLIC include dir propagates automatically
+# via the TARGET_LINK_LIBRARIES() calls below, so no separate INCDIRS entry
+# is needed for it.
 ADD_SUBDIRECTORY (third_party/GCutil)
 SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} gc-lib)
 
@@ -169,10 +182,17 @@ SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} libbf)
 SET (RIB_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS})
 SET (RIB_MODE ${ESCARGOT_MODE})
 SET (RIB_CFLAGS_FROM_EXTERNAL ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
-ADD_SUBDIRECTORY (third_party/runtime_icu_binder)
+# runtime_icu_binder unconditionally includes <dlfcn.h> (RuntimeICUBinder.cpp)
+# to dlopen() the system ICU at runtime -- there is no ICU and no dlopen() on
+# bare-metal/RTOS targets (newlib/nosys has no dlfcn.h at all), so this
+# subdirectory must not even be configured/compiled for ESCARGOT_HOST=baremetal,
+# not just left unlinked.
+IF (NOT ${ESCARGOT_HOST} STREQUAL "baremetal")
+    ADD_SUBDIRECTORY (third_party/runtime_icu_binder)
 
-IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
-    SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
+    IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+        SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} runtime-icu-binder-static)
+    ENDIF()
 ENDIF()
 
 #######################################################

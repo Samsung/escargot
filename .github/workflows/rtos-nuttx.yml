@@ -15,6 +15,8 @@ on:
       - 'third_party/GCutil/**'
       - 'samples/rtos/nuttx/**'
       - 'CMakeLists.txt'
+      - 'build/config.cmake'
+      - 'build/escargot.cmake'
       - 'build/target.cmake'
       - '.github/workflows/rtos-nuttx.yml'
   pull_request:
@@ -24,6 +26,8 @@ on:
       - 'third_party/GCutil/**'
       - 'samples/rtos/nuttx/**'
       - 'CMakeLists.txt'
+      - 'build/config.cmake'
+      - 'build/escargot.cmake'
       - 'build/target.cmake'
       - '.github/workflows/rtos-nuttx.yml'
   workflow_dispatch:
@@ -50,12 +54,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build python3 bison flex \
           kconfig-frontends gcc-arm-none-eabi qemu-system-arm
-
-    - name: Generate Unicode/Yarr tables the sample needs
-      run: |
-        # Side effect of configuring a normal (native-host) build -- see
-        # build/escargot.cmake and rtos-freertos.yml's identical step.
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Hescargot -Bescargot/build -GNinja
 
     # NUTTX_BASE_COMMIT/NUTTX_APPS_COMMIT are pinned, so the cloned+patched
     # NuttX kernel + apps source tree AND its full build output (object
@@ -142,8 +140,14 @@ jobs:
         make context || true
         test -f include/nuttx/config.h
 
-    - name: Build libescargot.a/libgc.a for NuttX
+    - name: Build libescargot.a/libgc-lib.a for NuttX
       run: |
+        # escargot-lib-cmake's own CMakeLists.txt add_subdirectory()s the
+        # main repo's top-level CMakeLists.txt (ESCARGOT_HOST=baremetal) to
+        # build the engine itself, so a single configure+build here is
+        # enough -- Unicode/Yarr table generation (build/escargot.cmake)
+        # runs as part of that same cross-compile configure, no separate
+        # native/host pass needed.
         mkdir escargot-lib-build && cd escargot-lib-build
         cmake ${{ github.workspace }}/escargot/samples/rtos/nuttx/escargot-lib-cmake \
           -DNUTTX_ROOT=${{ github.workspace }}/nuttx

@@ -28,168 +28,65 @@ target_include_directories(freertos PUBLIC
 
 # ─── Escargot ────────────────────────────────────────────────────────────────
 # This sample lives at samples/rtos/freertos inside the main Escargot repo,
-# so the engine root is three directories up.
+# so the engine root is three directories up. Instead of hand-duplicating the
+# engine's own source-file globs/defines here, reuse the main repo's own
+# top-level CMakeLists.txt (build/config.cmake + build/escargot.cmake) as a
+# subdirectory, with ESCARGOT_HOST=baremetal (see build/target.cmake) doing
+# the ENGINE-side (compile defs/flags/-std override) work. That top-level
+# project deliberately does NOT build runtime_icu_binder for
+# ESCARGOT_HOST=baremetal (see the guards in build/escargot.cmake) --
+# runtime_icu_binder unconditionally needs <dlfcn.h>, which doesn't exist on
+# this newlib/nosys target, so that one stays out of scope entirely. BDWGC
+# (third_party/GCutil) IS built as part of this same add_subdirectory() --
+# its own CMakeLists.txt has a NOSYS/bare-metal mode (GCUTIL_NOSYS_BAREMETAL)
+# that build/escargot.cmake add_subdirectory()s unconditionally; this port
+# only needs to set the GCUTIL_* cache variables below before calling
+# add_subdirectory() so GCutil's own CMakeLists.txt picks them up.
 set(ESCARGOT_ROOT  ${CMAKE_SOURCE_DIR}/../../..)
-set(ESCARGOT_SRC   ${ESCARGOT_ROOT}/src)
 set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
-set(ESCARGOT_DEFS
-    -DOS_BAREMETAL=1
-    -DESCARGOT_SMALL_CONFIG
-    -DNDEBUG
+set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
+set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
+set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
+set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
+# Extra bare-metal-only tuning the main build doesn't model as first-class
+# options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized
+# for a hosted OS thread, far too large here) and abort-on-OOM instead of the
+# default throw (no exception-safe recovery story for GC allocation failure
+# on this target).
+set(ESCARGOT_CXXFLAGS_FROM_EXTERNAL
     -DGC_NEW_ABORTS_ON_OOM
-    -DENABLE_COMPRESSIBLE_STRING
-    -DENABLE_RELOADABLE_STRING
-    -DESCARGOT
-    -DESCARGOT_32=1
     -DSTACK_FREESPACE_FROM_LIMIT=4096
     -DSTACK_USAGE_LIMIT=131072
-)
+    CACHE STRING "" FORCE)
 
-set(ESCARGOT_INCS
-    ${ESCARGOT_SRC}
-    ${ESCARGOT_ROOT}/build/escargot_generated
-    ${THIRD}
-    ${THIRD}/GCutil/include
-    ${THIRD}/libbf
-    ${THIRD}/robin_map/include
-    ${THIRD}/yarr
-    ${THIRD}/double_conversion
-    ${THIRD}/rapidjson/include
-    ${THIRD}/runtime_icu_binder
-    ${THIRD}/xsum
-    ${THIRD}/simdutf
-    ${THIRD}/checked_arithmetic
-    ${THIRD}/lz4
-)
+# BDWGC (bare-metal NOSYS mode): GCUTIL_NOSYS_BAREMETAL picks GCutil's own
+# NOSYS source list + define set over its normal hosted (Linux/Darwin/
+# Windows/Android/Tizen) ones; GCUTIL_INITIAL_HEAP_SIZE is this port's own
+# tuning knob (large initial heap: SMALL_CONFIG's default 16 KB causes
+# hundreds of GC collections during built-in initialization on the ~1 MIPS
+# FVP simulator -- 4 MB covers all of initializeBuiltins with at most a
+# handful of collections). Both must be set BEFORE add_subdirectory() below,
+# since that's what actually pulls in third_party/GCutil (build/escargot.cmake
+# add_subdirectory()s it as part of the same call, no separate one needed
+# here). Do NOT set GCUTIL_ENABLE_THREADING -- no thread runtime on this
+# target.
+set(GCUTIL_NOSYS_BAREMETAL ON CACHE BOOL "" FORCE)
+set(GCUTIL_INITIAL_HEAP_SIZE "(4*1024*1024)" CACHE STRING "" FORCE)
 
-# Collect Escargot sources (exclude shell, wasm, debugger, codecache, intl)
-file(GLOB_RECURSE ESCARGOT_CPPSRC ${ESCARGOT_SRC}/*.cpp)
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/shell/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/wasm/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/debugger/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/codecache/.*")
-list(FILTER ESCARGOT_CPPSRC EXCLUDE REGEX ".*/intl/.*")
-# BuiltinWASM.cpp provides a no-op initializeWebAssembly stub when ENABLE_WASM
-# is not defined — required because GlobalObject always declares this method.
-list(APPEND ESCARGOT_CPPSRC ${ESCARGOT_SRC}/wasm/BuiltinWASM.cpp)
+add_subdirectory(${ESCARGOT_ROOT} ${CMAKE_BINARY_DIR}/escargot-engine)
 
-# Yarr (exclude platform allocators — we provide our own stub)
-file(GLOB YARR_SRC ${THIRD}/yarr/*.cpp)
-list(FILTER YARR_SRC EXCLUDE REGEX ".*OSAllocatorPosix.*")
-list(FILTER YARR_SRC EXCLUDE REGEX ".*OSAllocatorWin.*")
-
-# Generated canonicalization tables (built once during normal host build)
-set(YARR_GENERATED_DIR ${ESCARGOT_ROOT}/build/escargot_generated/yarr)
-list(APPEND YARR_SRC
-    ${YARR_GENERATED_DIR}/YarrCanonicalizeUCS2.cpp
-    ${YARR_GENERATED_DIR}/YarrCanonicalizeUnicode.cpp
-)
-
-# simdutf (single-file build)
-set(SIMDUTF_SRC ${THIRD}/simdutf/simdutf.cpp)
-
-# double_conversion
-file(GLOB DC_SRC ${THIRD}/double_conversion/*.cc)
-
-# lz4
-file(GLOB LZ4_SRC ${THIRD}/lz4/*.cpp)
-
-# libbf (C sources — libbf.c uses dbuf_* from cutils.c)
-set(LIBBF_SRC
-    ${THIRD}/libbf/libbf.c
-    ${THIRD}/libbf/cutils.c
-)
-
-# xsum (Math.sumPrecise)
-set(XSUM_SRC ${THIRD}/xsum/xsum.cpp)
-
-# Generated Unicode identifier tables (built once during normal host build)
-set(PARSER_GENERATED_DIR ${ESCARGOT_ROOT}/build/escargot_generated/parser)
-set(UNICODE_TABLES_SRC ${PARSER_GENERATED_DIR}/UnicodeIdentifierTables.cpp)
-
-add_library(escargot-lib STATIC
-    ${ESCARGOT_CPPSRC}
-    ${YARR_SRC}
-    ${SIMDUTF_SRC}
-    ${DC_SRC}
-    ${LZ4_SRC}
-    ${LIBBF_SRC}
-    ${XSUM_SRC}
-    ${UNICODE_TABLES_SRC}
-)
-target_compile_definitions(escargot-lib PRIVATE ${ESCARGOT_DEFS})
-target_include_directories(escargot-lib PUBLIC ${ESCARGOT_INCS})
-# Escargot requires exceptions
-target_compile_options(escargot-lib PRIVATE -fexceptions)
-
-# ─── BDWGC (bare-metal NOSYS mode) ──────────────────────────────────────────
-# GCutil bundles a modified BDWGC; build the subset needed for NOSYS ARM32
-file(GLOB GCUTIL_SRC
-    ${THIRD}/GCutil/allchblk.c
-    ${THIRD}/GCutil/Allocator.cpp
-    ${THIRD}/GCutil/alloc.c
-    ${THIRD}/GCutil/backgraph.c
-    ${THIRD}/GCutil/blacklst.c
-    ${THIRD}/GCutil/checksums.c
-    ${THIRD}/GCutil/dbg_mlc.c
-    ${THIRD}/GCutil/dyn_load.c
-    ${THIRD}/GCutil/finalize.c
-    ${THIRD}/GCutil/fnlz_mlc.c
-    ${THIRD}/GCutil/gc_badalc.cpp
-    ${THIRD}/GCutil/gc_cpp.cpp
-    ${THIRD}/GCutil/headers.c
-    ${THIRD}/GCutil/LeakChecker.cpp
-    ${THIRD}/GCutil/mach_dep.c
-    ${THIRD}/GCutil/malloc.c
-    ${THIRD}/GCutil/mallocx.c
-    ${THIRD}/GCutil/mark.c
-    ${THIRD}/GCutil/mark_rts.c
-    ${THIRD}/GCutil/misc.c
-    ${THIRD}/GCutil/new_hblk.c
-    ${THIRD}/GCutil/obj_map.c
-    ${THIRD}/GCutil/os_dep.c
-    ${THIRD}/GCutil/ptr_chck.c
-    ${THIRD}/GCutil/reclaim.c
-    ${THIRD}/GCutil/typd_mlc.c
-)
-
-set(GCUTIL_DEFS
-    -DNOSYS
-    -DSMALL_CONFIG
-    -DGC_NOT_DLL
-    -DGC_NO_SIGHANDLER
-    -DNO_GETENV
-    -DNO_CLOCK
-    -DGC_NEW_ABORTS_ON_OOM
-    -DGC_DISABLE_INCREMENTAL
-    -DIGNORE_DYNAMIC_LOADING
-    -DDONT_USE_MMAP
-    -DGC_NO_DLOPEN
-    # Large initial heap: SMALL_CONFIG default is 16 KB which causes hundreds of
-    # GC collections during built-in initialization on the ~1 MIPS FVP simulator.
-    # 4 MB covers all of initializeBuiltins with at most a handful of collections.
-    "-DGC_INITIAL_HEAP_SIZE=(4*1024*1024)"
-    # Do NOT define GC_THREADS — would auto-enable GC_PTHREADS
-    -DGC_ATOMIC_UNCOLLECTABLE
-    # Required by newer typed-GC kinds (BackingStore/ByteCodeBlock disclaim-based
-    # finalization) — matches third_party/GCutil/CMakeLists.txt upstream flags.
-    -DENABLE_DISCLAIM
-)
-
-add_library(gc-lib STATIC ${GCUTIL_SRC})
-target_compile_definitions(gc-lib PRIVATE ${GCUTIL_DEFS} ${ESCARGOT_DEFS})
-target_include_directories(gc-lib PUBLIC
-    ${THIRD}/GCutil/include
-    ${THIRD}/GCutil/include/private
-)
-# Allow C89-style in GC sources
-target_compile_options(gc-lib PRIVATE -w)
+# Reuse the exact same preprocessor defines the engine itself was compiled
+# with for any translation unit here that includes EscargotPublic.h (e.g.
+# OS_BAREMETAL, ESCARGOT_EXPORT=) instead of hand-copying ESCARGOT_DEFS again.
+get_target_property(ESCARGOT_ENGINE_DEFS escargot COMPILE_DEFINITIONS)
 
 # ─── Main application ────────────────────────────────────────────────────────
 # OSAllocator implementation comes from third_party/yarr/OSAllocatorBaremetal.cpp
-# (picked up automatically by escargot-lib's YARR_SRC glob above, self-guarded
-# behind OS_BAREMETAL) -- no port-local copy needed here anymore.
+# (picked up automatically by the reused "escargot" engine target's own
+# source list, self-guarded behind OS_BAREMETAL) -- no port-local copy needed
+# here anymore.
 add_executable(escargot-rtos
     startup/startup_SSE300.c
     src/main.cpp
@@ -197,11 +94,10 @@ add_executable(escargot-rtos
 )
 target_include_directories(escargot-rtos PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${ESCARGOT_SRC}/api
-    ${ESCARGOT_INCS}
+    ${THIRD}/GCutil/include
 )
-target_compile_definitions(escargot-rtos PRIVATE ${ESCARGOT_DEFS})
+target_compile_definitions(escargot-rtos PRIVATE ${ESCARGOT_ENGINE_DEFS})
 target_compile_options(escargot-rtos PRIVATE -fexceptions)
-target_link_libraries(escargot-rtos escargot-lib gc-lib freertos -lc -lstdc++)
+target_link_libraries(escargot-rtos escargot gc-lib freertos -lc -lstdc++)
 
 set_target_properties(escargot-rtos PROPERTIES SUFFIX ".elf")

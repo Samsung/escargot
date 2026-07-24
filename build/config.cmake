@@ -219,7 +219,18 @@ SET (ESCARGOT_CXXFLAGS_SHAREDLIB -fPIC)
 SET (ESCARGOT_LDFLAGS_SHAREDLIB -ldl)
 
 # STATIC_LIB FLAGS
-SET (ESCARGOT_CXXFLAGS_STATICLIB -fPIC -DESCARGOT_EXPORT=)
+IF (${ESCARGOT_HOST} STREQUAL "baremetal")
+    # Bare-metal ports link a single flat ELF booted directly at fixed
+    # link-time addresses (e.g. loaded straight via QEMU "-kernel" or
+    # flashed) -- there is no PIE loader to process GOT/PLT relocations, so
+    # -fPIC must NOT apply here despite ESCARGOT_OUTPUT=static_lib. (Confirmed
+    # by direct testing: with -fPIC the FreeRTOS/QEMU sample compiles and
+    # links cleanly but crashes into a FreeRTOS configASSERT very early at
+    # boot; without it, it boots and runs correctly.)
+    SET (ESCARGOT_CXXFLAGS_STATICLIB -DESCARGOT_EXPORT=)
+ELSE()
+    SET (ESCARGOT_CXXFLAGS_STATICLIB -fPIC -DESCARGOT_EXPORT=)
+ENDIF()
 
 # SHELL FLAGS
 SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)

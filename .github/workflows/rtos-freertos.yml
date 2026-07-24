@@ -14,6 +14,8 @@ on:
       - 'third_party/GCutil/**'
       - 'samples/rtos/**'
       - 'CMakeLists.txt'
+      - 'build/config.cmake'
+      - 'build/escargot.cmake'
       - 'build/target.cmake'
       - '.github/workflows/rtos-freertos.yml'
   pull_request:
@@ -23,6 +25,8 @@ on:
       - 'third_party/GCutil/**'
       - 'samples/rtos/**'
       - 'CMakeLists.txt'
+      - 'build/config.cmake'
+      - 'build/escargot.cmake'
       - 'build/target.cmake'
       - '.github/workflows/rtos-freertos.yml'
   workflow_dispatch:
@@ -39,15 +43,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build python3 \
           gcc-arm-none-eabi qemu-system-arm
-    - name: Generate Unicode/Yarr tables the sample needs
-      run: |
-        # These files are produced as a side effect of configuring a normal
-        # (native-host) build -- see build/escargot.cmake. We only need the
-        # configure step, not an actual host build, to populate
-        # build/escargot_generated/{parser,yarr} for the sample to reuse.
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bbuild -GNinja
     - name: Cross-compile FreeRTOS sample for Cortex-M55
       run: |
+        # The sample's own CMakeLists.txt add_subdirectory()s the main repo's
+        # top-level CMakeLists.txt (ESCARGOT_HOST=baremetal) to build the
+        # engine itself, so a single configure+build here is enough --
+        # Unicode/Yarr table generation (build/escargot.cmake) runs as part
+        # of that same cross-compile configure, no separate native/host pass
+        # needed.
         cmake -DCMAKE_TOOLCHAIN_FILE=toolchain-cm55.cmake \
           -Hsamples/rtos/freertos -Bsamples/rtos/freertos/build -GNinja
         ninja -Csamples/rtos/freertos/build
