@@ -521,8 +521,13 @@ void customEscargotErrorLogger(const char* format, ...);
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
-// some devices cannot support getting label address from outside well
-#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID) || defined(OS_WINDOWS)
+// some devices cannot support getting label address from outside well.
+// OS_BAREMETAL is included because that build enables -flto: the default
+// dispatch-table init takes the address of a top-level `asm volatile` label
+// from another statement, which LTO (GIMPLE) cannot resolve and fails to link.
+// The INIT_WITH_NULL path avoids that asm label, so the whole interpreter TU
+// can be LTO-optimized (smaller binary) instead of being excluded from LTO.
+#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID) || defined(OS_WINDOWS) || defined(OS_BAREMETAL)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif

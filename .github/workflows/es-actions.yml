@@ -790,6 +790,22 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=toolchain-cm55.cmake \
           -Hsamples/rtos/freertos -Bsamples/rtos/freertos/build -GNinja
         ninja -Csamples/rtos/freertos/build
+    - name: Report binary size
+      run: |
+        elf=samples/rtos/freertos/build/escargot-rtos.elf
+        {
+          echo "### FreeRTOS (Cortex-M55) binary size"
+          echo ''
+          echo '```'
+          arm-none-eabi-size "$elf"
+          echo '```'
+          # .text already includes .rodata for this bare-metal image, so
+          # flash footprint == text + data, and RAM footprint == data + bss.
+          arm-none-eabi-size "$elf" | awk 'NR==2 {
+            printf "- **Flash (text+data): %d bytes (%.1f KiB)**\n", $1 + $2, ($1 + $2) / 1024.0;
+            printf "- RAM (data+bss): %d bytes (%.1f KiB)\n", $2 + $3, ($2 + $3) / 1024.0;
+          }'
+        } >> "$GITHUB_STEP_SUMMARY"
     - name: Boot-test under QEMU (mps3-an547 / Cortex-M55)
       run: |
         timeout 60 qemu-system-arm \
