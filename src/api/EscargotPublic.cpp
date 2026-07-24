@@ -204,6 +204,28 @@ public:
     }
 #endif
 
+#if defined(OS_BAREMETAL)
+    virtual void* stackBase() override
+    {
+        return m_platform->stackBase();
+    }
+
+    virtual void* stackTop() override
+    {
+        return m_platform->stackTop();
+    }
+
+    virtual uint32_t tickMs() override
+    {
+        return m_platform->tickMs();
+    }
+
+    virtual const char* tzName(int index) override
+    {
+        return m_platform->tzName(index);
+    }
+#endif
+
 private:
     PlatformRef* m_platform;
 };
@@ -5148,14 +5170,14 @@ bool PlatformRef::isCustomLoggingEnabled()
 #endif
 }
 
-bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
+bool SerializerRef::serializeInto(ValueRef* value, std::string& output)
 {
     return Serializer::serializeInto(toImpl(value), output);
 }
 
-ValueRef* SerializerRef::deserializeFrom(ContextRef* context, std::istringstream& input)
+ValueRef* SerializerRef::deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset)
 {
-    std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(input);
+    std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(data, len, offset);
 
     if (!value) {
         return ValueRef::createUndefined();

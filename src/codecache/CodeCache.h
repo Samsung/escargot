@@ -22,6 +22,8 @@
 
 #if defined(ENABLE_CODE_CACHE)
 
+#include <sstream>
+
 #ifndef OS_POSIX
 #error "Code Cache does not support OS other than POSIX"
 #endif

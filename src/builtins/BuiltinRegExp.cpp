@@ -1170,14 +1170,11 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->exec),
                                                ObjectPropertyDescriptor(m_regexpExecMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $21.2.5.13 RegExp.prototype.test
-    m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->test),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->test, builtinRegExpTest, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_regexpPrototype->defineBuiltinFunction(state, strings->test, builtinRegExpTest, 1);
     // $21.2.5.14 RegExp.prototype.toString
-    m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinRegExpToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_regexpPrototype->defineBuiltinFunction(state, strings->toString, builtinRegExpToString, 0);
     // $B.2.5.1 RegExp.prototype.compile
-    m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->compile),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinRegExpCompile, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_regexpPrototype->defineBuiltinFunction(state, strings->compile, builtinRegExpCompile, 2);
 
     // $21.2.5.9 RegExp.prototype[@@search]
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search),
@@ -1203,8 +1200,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpStringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_regexpStringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_regexpStringIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinRegExpStringIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_regexpStringIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinRegExpStringIteratorNext, 0);
 
     m_regexpStringIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                              ObjectPropertyDescriptor(Value(String::fromASCII("RegExp String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

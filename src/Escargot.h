@@ -33,11 +33,9 @@
 #include <functional>
 #include <limits>
 #include <list>
-#include <locale>
 #include <map>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -186,6 +184,17 @@
 #define OS_WINDOWS 1
 #elif _WIN64
 #define OS_WINDOWS 1
+#elif defined(OS_BAREMETAL)
+/* bare-metal / RTOS target — no POSIX. Checked BEFORE the generic
+ * Apple/Linux/Unix/_POSIX_VERSION heuristics below: some bare-metal
+ * targets' libc has a partial POSIX compatibility layer (e.g. NuttX) that
+ * itself defines _POSIX_VERSION (or is detected as __unix__) even though
+ * there is no real POSIX environment underneath. -DOS_BAREMETAL=1 is an
+ * explicit, deliberate flag the embedder passes for exactly this target
+ * class (see docs/porting/RTOS_PORTING_GUIDE.md) and must take priority
+ * over those incidental heuristics, not lose to them by being last in
+ * this #elif chain.
+ */
 #elif __APPLE__
 #define OS_DARWIN 1
 #include "TargetConditionals.h"
@@ -204,8 +213,6 @@
 #define OS_POSIX 1
 #elif defined(_POSIX_VERSION)
 #define OS_POSIX 1
-#elif defined(OS_BAREMETAL)
-/* bare-metal / RTOS target — no POSIX */
 #else
 #error "failed to detect target OS"
 #endif
@@ -514,8 +521,13 @@ void customEscargotErrorLogger(const char* format, ...);
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
-// some devices cannot support getting label address from outside well
-#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID) || defined(OS_WINDOWS)
+// some devices cannot support getting label address from outside well.
+// OS_BAREMETAL is included because that build enables -flto: the default
+// dispatch-table init takes the address of a top-level `asm volatile` label
+// from another statement, which LTO (GIMPLE) cannot resolve and fails to link.
+// The INIT_WITH_NULL path avoids that asm label, so the whole interpreter TU
+// can be LTO-optimized (smaller binary) instead of being excluded from LTO.
+#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID) || defined(OS_WINDOWS) || defined(OS_BAREMETAL)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif

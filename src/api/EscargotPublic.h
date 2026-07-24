@@ -2178,8 +2178,8 @@ public:
 class ESCARGOT_EXPORT SerializerRef {
 public:
     // returns the serialization was successful
-    static bool serializeInto(ValueRef* value, std::ostringstream& output);
-    static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& input);
+    static bool serializeInto(ValueRef* value, std::string& output);
+    static ValueRef* deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset);
 };
 
 class ESCARGOT_EXPORT ScriptParserRef {
@@ -2337,6 +2337,33 @@ public:
     {
         vfprintf(stderr, format, arg);
     }
+
+#if defined(OS_BAREMETAL)
+    // Bare-metal/RTOS embedders only. See
+    // docs/porting/RTOS_PORTING_GUIDE.md for the full contract (which
+    // address is "base" vs "top", why both are needed, and a reference
+    // implementation).
+
+    // The LOW end of the current task/thread's stack.
+    virtual void* stackBase() = 0;
+
+    // The COLD end (HIGH address) of the current task/thread's stack.
+    virtual void* stackTop() = 0;
+
+    // Monotonic millisecond tick (Date.now()/clock_gettime() fallback).
+    virtual uint32_t tickMs() = 0;
+
+    // Timezone abbreviation name -- index 0 is the standard-time name,
+    // index 1 is the DST name (mirrors ::tzname[0]/::tzname[1]). Used by
+    // VMInstance's non-ICU tzname fallback route instead of calling
+    // ::tzset()/::tzname directly.
+    //
+    // Named tzName(), NOT tzname() -- collides otherwise with newlib's
+    // (and some other libcs') `#define tzname _tzname` macro, which
+    // mangles a same-named method inconsistently depending on <time.h>
+    // include order (verified: broke the FreeRTOS reference port build).
+    virtual const char* tzName(int index) = 0;
+#endif
 
     void* threadLocalCustomData();
 };

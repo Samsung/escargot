@@ -30,9 +30,9 @@ public:
     // this function can return nullptr if serialize failed
     static std::unique_ptr<SerializedValue> serialize(const Value& value);
     // returns the serialization was successful
-    static bool serializeInto(const Value& value, std::ostringstream& output);
+    static bool serializeInto(const Value& value, std::string& output);
 
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& input);
+    static std::unique_ptr<SerializedValue> deserializeFrom(const char* data, size_t len, size_t& offset);
 };
 
 } // namespace Escargot

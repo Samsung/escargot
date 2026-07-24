@@ -38,7 +38,9 @@
 #define 0x0602
 #endif
 #elif defined(OS_BAREMETAL)
-extern "C" void* escargot_get_stack_base(void);
+// stack base is obtained from the embedder's Platform (see
+// PlatformRef::stackBase() in src/api/EscargotPublic.h) below, not from a
+// free-standing extern "C" function.
 #else
 #include <pthread.h>
 #endif
@@ -347,10 +349,10 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     void* stackEndAddress = reinterpret_cast<void*>(high);
     size_t stackSize = reinterpret_cast<size_t>(stackEndAddress) - reinterpret_cast<size_t>(stackStartAddress);
 #elif defined(OS_BAREMETAL)
-    // On bare-metal/RTOS the stack base is provided by the platform at init time.
-    // escargot_get_stack_base() returns the lowest valid stack address for the
-    // current thread/task; it must be defined by the application.
-    void* stackStartAddress = escargot_get_stack_base();
+    // On bare-metal/RTOS the stack base is provided by the embedder's
+    // Platform (see PlatformRef::stackBase() in src/api/EscargotPublic.h):
+    // the lowest valid stack address for the current thread/task.
+    void* stackStartAddress = Global::platform()->stackBase();
     void* stackEndAddress = nullptr;
     (void)stackEndAddress;
 #else

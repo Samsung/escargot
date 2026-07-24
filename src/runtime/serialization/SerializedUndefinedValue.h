@@ -38,7 +38,7 @@ public:
     }
 
 protected:
-    static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
+    static std::unique_ptr<SerializedValue> deserializeFrom(SerializerDetail::Reader& reader)
     {
         return std::unique_ptr<SerializedValue>(new SerializedUndefinedValue());
     }

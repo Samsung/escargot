@@ -21,6 +21,8 @@
 #define __EscargotSerializedValue__
 
 #include "runtime/Value.h"
+#include <cstring>
+#include <string>
 
 namespace Escargot {
 
@@ -49,19 +51,56 @@ public:
     virtual Type type() = 0;
     virtual Value toValue(ExecutionState& state) = 0;
 
-    void serializeInto(std::ostringstream& outputStream)
+    void serializeInto(std::string& output)
     {
-        serializeValueType(outputStream);
-        serializeValueData(outputStream);
+        output.push_back(static_cast<char>(type()));
+        serializeValueData(output);
     }
 
 protected:
-    virtual void serializeValueData(std::ostringstream& outputStream) {}
-    void serializeValueType(std::ostringstream& outputStream)
+    virtual void serializeValueData(std::string& output) {}
+};
+
+namespace SerializerDetail {
+template <typename T>
+inline void writePOD(std::string& out, const T& v)
+{
+    out.append(reinterpret_cast<const char*>(&v), sizeof(T));
+}
+inline void writeBytes(std::string& out, const void* p, size_t n)
+{
+    out.append(reinterpret_cast<const char*>(p), n);
+}
+struct Reader {
+    const char* data;
+    size_t len;
+    size_t pos;
+    Reader(const char* d, size_t l, size_t p)
+        : data(d), len(l), pos(p) {}
+    template <typename T>
+    bool readPOD(T& v)
     {
-        outputStream << static_cast<char>(type());
+        if (pos + sizeof(T) > len) { return false; }
+        memcpy(&v, data + pos, sizeof(T));
+        pos += sizeof(T);
+        return true;
+    }
+    bool readBytes(void* dst, size_t n)
+    {
+        if (pos + n > len) { return false; }
+        memcpy(dst, data + pos, n);
+        pos += n;
+        return true;
+    }
+    bool readString(std::string& s, size_t n)
+    {
+        if (pos + n > len) { return false; }
+        s.assign(data + pos, n);
+        pos += n;
+        return true;
     }
 };
+} // namespace SerializerDetail
 
 } // namespace Escargot
 

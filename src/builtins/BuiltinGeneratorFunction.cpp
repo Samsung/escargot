@@ -105,12 +105,9 @@ void GlobalObject::installGenerator(ExecutionState& state)
     // The initial value of Generator.prototype.constructor is the intrinsic object %Generator%.
     m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
-                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generatorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinGeneratorNext, 1);
+    m_generatorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringReturn, builtinGeneratorReturn, 1);
+    m_generatorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringThrow, builtinGeneratorThrow, 1);
     // http://www.ecma-international.org/ecma-262/6.0/#sec-generatorfunction.prototype-@@tostringtag
     m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                   ObjectPropertyDescriptor(state.context()->staticStrings().Generator.string(), ObjectPropertyDescriptor::ConfigurablePresent));

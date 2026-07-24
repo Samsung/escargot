@@ -1202,6 +1202,14 @@ public:
     // special util function for adding property in builtins
     void directDefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
+    // Registers a builtin native method with the canonical attribute set
+    // (writable + configurable, non-enumerable). Kept out-of-line so the
+    // NativeFunctionObject/ObjectPropertyDescriptor construction is emitted
+    // once instead of being inlined at every install site across the builtins
+    // (significant code-size win). The explicit function-pointer type matches
+    // NativeFunctionPointer (declared in CodeBlock.h, not visible here).
+    NEVER_INLINE void defineBuiltinFunction(ExecutionState& state, const AtomicString& name, Value (*fn)(ExecutionState&, Value, size_t, Value*, Optional<Object*>), size_t argc);
+
     size_t ownPropertyCountOnStructure() const
     {
         return m_structure->propertyCount();

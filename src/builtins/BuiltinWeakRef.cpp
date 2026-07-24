@@ -74,8 +74,7 @@ void GlobalObject::installWeakRef(ExecutionState& state)
     m_weakRefPrototype->setGlobalIntrinsicObject(state, true);
     m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().deref),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().deref, builtinWeakRefDeRef, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakRefPrototype->defineBuiltinFunction(state, state.context()->staticStrings().deref, builtinWeakRefDeRef, 0);
 
     // WeakRef.prototype.deref
     m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),

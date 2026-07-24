@@ -522,37 +522,36 @@ std::mutex workerMutex;
 std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
 std::vector<std::string> messagesFromWorkers;
 
-static void serializeInto(ValueRef* src, std::ostringstream& ostream)
+static void serializeInto(ValueRef* src, std::string& output)
 {
     if (src->isSharedArrayBufferObject()) {
-        char type = 100;
-        ostream << type;
-        // use unsafe pointer serialization to pass test
+        output.push_back(static_cast<char>(100));
+        size_t ptr = 0;
         if (src->asSharedArrayBufferObject()->backingStore()) {
-            ostream << reinterpret_cast<size_t>(src->asSharedArrayBufferObject()->backingStore().value());
-        } else {
-            ostream << static_cast<size_t>(0x0);
+            ptr = reinterpret_cast<size_t>(src->asSharedArrayBufferObject()->backingStore().value());
         }
+        output.append(reinterpret_cast<const char*>(&ptr), sizeof(ptr));
     } else {
-        SerializerRef::serializeInto(src, ostream);
+        SerializerRef::serializeInto(src, output);
     }
 }
 
-static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& istream)
+static ValueRef* deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset)
 {
-    if (istream.peek() == 100) {
-        char type;
-        istream >> type;
-        // use unsafe pointer serialization to pass test
-        size_t ptr;
-        istream >> ptr;
+    if (offset < len && static_cast<unsigned char>(data[offset]) == 100) {
+        offset += 1; // consume tag
+        size_t ptr = 0;
+        if (offset + sizeof(ptr) <= len) {
+            memcpy(&ptr, data + offset, sizeof(ptr));
+            offset += sizeof(ptr);
+        }
         if (ptr) {
             return Evaluator::execute(context, [](ExecutionStateRef* state, size_t ptr) -> ValueRef* { return SharedArrayBufferObjectRef::create(state, reinterpret_cast<BackingStoreRef*>(ptr)); }, ptr).result;
         } else {
             return ValueRef::createUndefined();
         }
     } else {
-        return SerializerRef::deserializeFrom(context, istream);
+        return SerializerRef::deserializeFrom(context, data, len, offset);
     }
 }
 
@@ -599,9 +598,9 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
             }
 
             if (message.length()) {
-                std::istringstream istream(message);
-                ValueRef* val1 = deserializeFrom(context.get(), istream);
-                ValueRef* val2 = deserializeFrom(context.get(), istream);
+                size_t offset = 0;
+                ValueRef* val1 = deserializeFrom(context.get(), message.data(), message.size(), offset);
+                ValueRef* val2 = deserializeFrom(context.get(), message.data(), message.size(), offset);
 
                 ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
                 if (callback) {
@@ -652,20 +651,18 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
 
 static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
-    std::ostringstream ostream;
+    std::string message;
     if (argc > 0) {
-        serializeInto(argv[0], ostream);
+        serializeInto(argv[0], message);
     } else {
-        serializeInto(ValueRef::createUndefined(), ostream);
+        serializeInto(ValueRef::createUndefined(), message);
     }
     if (argc > 1) {
-        serializeInto(argv[1], ostream);
+        serializeInto(argv[1], message);
     } else {
-        serializeInto(ValueRef::createUndefined(), ostream);
+        serializeInto(ValueRef::createUndefined(), message);
     }
 
-
-    std::string message(ostream.str());
     {
         std::lock_guard<std::mutex> guard(workerMutex);
         for (size_t i = 0; i < workerThreads.size(); i++) {

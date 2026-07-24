@@ -727,4 +727,268 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
+
+  # These two RTOS/QEMU jobs are heavier (cross-compile + full boot test)
+  # than the rest of this workflow, so -- same as every other job here --
+  # they still only need to actually run when something that can affect
+  # them changes. Since they now live in this single workflow (so they show
+  # up on the same Actions run page as everything else) rather than their
+  # own path-triggered workflow files, that per-job skip is done via this
+  # shared `changes` job + each RTOS job's own `if:`, instead of the
+  # top-level `on: push: paths:` this repo's workflows otherwise use.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      freertos: ${{ steps.filter.outputs.freertos }}
+      nuttx: ${{ steps.filter.outputs.nuttx }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          freertos:
+            - 'src/**'
+            - 'third_party/GCutil/**'
+            - 'samples/rtos/**'
+            - 'CMakeLists.txt'
+            - 'build/config.cmake'
+            - 'build/escargot.cmake'
+            - 'build/target.cmake'
+            - '.github/workflows/es-actions.yml'
+          nuttx:
+            - 'src/**'
+            - 'third_party/GCutil/**'
+            - 'samples/rtos/nuttx/**'
+            - 'CMakeLists.txt'
+            - 'build/config.cmake'
+            - 'build/escargot.cmake'
+            - 'build/target.cmake'
+            - '.github/workflows/es-actions.yml'
+
+  build-boot-test-freertos-qemu:
+    needs: changes
+    if: needs.changes.outputs.freertos == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Install cross-compile toolchain and QEMU
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build python3 \
+          gcc-arm-none-eabi qemu-system-arm
+    - name: Cross-compile FreeRTOS sample for Cortex-M55
+      run: |
+        # The sample's own CMakeLists.txt add_subdirectory()s the main repo's
+        # top-level CMakeLists.txt (ESCARGOT_HOST=baremetal) to build the
+        # engine itself, so a single configure+build here is enough --
+        # Unicode/Yarr table generation (build/escargot.cmake) runs as part
+        # of that same cross-compile configure, no separate native/host pass
+        # needed.
+        cmake -DCMAKE_TOOLCHAIN_FILE=toolchain-cm55.cmake \
+          -Hsamples/rtos/freertos -Bsamples/rtos/freertos/build -GNinja
+        ninja -Csamples/rtos/freertos/build
+    - name: Report binary size
+      run: |
+        elf=samples/rtos/freertos/build/escargot-rtos.elf
+        {
+          echo "### FreeRTOS (Cortex-M55) binary size"
+          echo ''
+          echo '```'
+          arm-none-eabi-size "$elf"
+          echo '```'
+          # .text already includes .rodata for this bare-metal image, so
+          # flash footprint == text + data, and RAM footprint == data + bss.
+          arm-none-eabi-size "$elf" | awk 'NR==2 {
+            printf "- **Flash (text+data): %d bytes (%.1f KiB)**\n", $1 + $2, ($1 + $2) / 1024.0;
+            printf "- RAM (data+bss): %d bytes (%.1f KiB)\n", $2 + $3, ($2 + $3) / 1024.0;
+          }'
+        } >> "$GITHUB_STEP_SUMMARY"
+    - name: Boot-test under QEMU (mps3-an547 / Cortex-M55)
+      run: |
+        timeout 60 qemu-system-arm \
+          -machine mps3-an547 \
+          -cpu cortex-m55 \
+          -semihosting \
+          -semihosting-config enable=on,target=native \
+          -kernel samples/rtos/freertos/build/escargot-rtos.elf \
+          -nographic \
+          -serial null > qemu-output.log 2>&1 || true
+        cat qemu-output.log
+
+        echo "--- Verifying pass markers ---"
+        # 1+2 sanity check
+        grep -Eq '\[ok\][[:space:]]+1\+2[[:space:]]+=>[[:space:]]+3' qemu-output.log
+
+        # 15 exception-suite cases (12 expected [ok], 3 expected top-level
+        # [THROW]) + 26 SunSpider 1.0.2 cases (all [ok]) + the 1+2 sanity
+        # check above == 42 total marker lines.
+        marker_count=$(grep -c '\[ok\]\|\[THROW\]' qemu-output.log)
+        test "$marker_count" -ge $((1 + 15 + 26))
+
+        # No fatal conditions (parse error / abort / terminate / kill hook hit)
+        ! grep -q '\[PARSE_ERR\]\|\[ABORT\]\|\[TERMINATE\]\|\[KILL\]' qemu-output.log
+
+        # JS task ran to completion
+        grep -q '\[js\] done' qemu-output.log
+
+        echo "FreeRTOS/QEMU sample: boot + exception-suite + SunSpider 1.0.2 all passed ($marker_count marker lines)."
+
+  build-boot-test-nuttx-qemu:
+    needs: changes
+    if: needs.changes.outputs.nuttx == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      # Pinned upstream commits this sample is verified against. NuttX itself
+      # needed one small local patch on top of its base commit (see
+      # samples/rtos/nuttx/patches/) -- apache/nuttx-apps' pinned commit needs
+      # no patch, just the escargot app dropped into interpreters/.
+      NUTTX_BASE_COMMIT: 375462322eeb6d2da57e6dff84c747a56bfa2eef
+      NUTTX_APPS_COMMIT: e751331ecb7ea28073bff41600d2e9c9ba90aa1a
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+        path: escargot
+
+    - name: Install cross-compile toolchain, QEMU, and NuttX build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build python3 bison flex \
+          kconfig-frontends gcc-arm-none-eabi qemu-system-arm
+
+    # NUTTX_BASE_COMMIT/NUTTX_APPS_COMMIT are pinned, so the cloned+patched
+    # NuttX kernel + apps source tree AND its full build output (object
+    # files) are byte-for-byte reproducible run to run -- they do NOT
+    # depend on Escargot's own source (the thing this job actually needs
+    # to re-verify on every relevant PR). Cache both directories keyed on
+    # the pinned commits + the patch file's contents, so this only
+    # invalidates when one of *those* changes (a new NuttX/apps pin, or an
+    # edited patch) -- never just because src/** changed. On a cache hit,
+    # the clone + full NuttX kernel build below are skipped entirely;
+    # only the Escargot engine library and the app itself get rebuilt and
+    # relinked against the cached tree.
+    - name: Cache NuttX kernel + apps checkout and build
+      id: cache-nuttx
+      uses: actions/cache@v4
+      with:
+        path: |
+          nuttx
+          apps
+        key: nuttx-${{ env.NUTTX_BASE_COMMIT }}-apps-${{ env.NUTTX_APPS_COMMIT }}-patch-${{ hashFiles('escargot/samples/rtos/nuttx/patches/*.patch') }}
+
+    - name: Checkout NuttX kernel + apps at pinned commits, apply patch
+      if: steps.cache-nuttx.outputs.cache-hit != 'true'
+      run: |
+        mkdir nuttx && cd nuttx
+        git init -q
+        git remote add origin https://github.com/apache/nuttx.git
+        git fetch --depth 1 origin $NUTTX_BASE_COMMIT
+        git checkout -q FETCH_HEAD
+        git apply ../escargot/samples/rtos/nuttx/patches/0001-mps3-an547-fix-OS-heap-linker-layout-collision.patch
+        cd ..
+        mkdir apps && cd apps
+        git init -q
+        git remote add origin https://github.com/apache/nuttx-apps.git
+        git fetch --depth 1 origin $NUTTX_APPS_COMMIT
+        git checkout -q FETCH_HEAD
+
+    - name: Drop the escargot NSH app into apps/interpreters/
+      run: |
+        # Always runs, cache hit or not -- this is Escargot's own sample
+        # source (already checked out fresh above), not part of the
+        # cached NuttX/apps tree, and must overwrite whatever a cache hit
+        # restored here so a change to these files is always picked up.
+        mkdir -p apps/interpreters/escargot
+        cp escargot/samples/rtos/nuttx/interpreters-escargot/Kconfig \
+           escargot/samples/rtos/nuttx/interpreters-escargot/Make.defs \
+           escargot/samples/rtos/nuttx/interpreters-escargot/Makefile \
+           escargot/samples/rtos/nuttx/interpreters-escargot/embedded_tests.h \
+           escargot/samples/rtos/nuttx/interpreters-escargot/escargot_main.cxx \
+           escargot/samples/rtos/nuttx/interpreters-escargot/escargot_platform.cxx \
+           apps/interpreters/escargot/
+
+    - name: Configure NuttX (mps3-an547:nsh + escargot-specific options)
+      if: steps.cache-nuttx.outputs.cache-hit != 'true'
+      run: |
+        cd nuttx
+        ./tools/configure.sh mps3-an547:nsh
+        kconfig-tweak --enable CONFIG_LIBCXXTOOLCHAIN
+        kconfig-tweak --enable CONFIG_LIBSUPCXX_TOOLCHAIN
+        kconfig-tweak --enable CONFIG_CXX_EXCEPTION
+        kconfig-tweak --enable CONFIG_CXX_RTTI
+        kconfig-tweak --enable CONFIG_LIBC_LOCALTIME
+        kconfig-tweak --enable CONFIG_LIBC_LOCALE
+        kconfig-tweak --enable CONFIG_ARCH_SETJMP_H
+        kconfig-tweak --set-val CONFIG_ARCH_INTERRUPTSTACK 8192
+        kconfig-tweak --enable CONFIG_INTERPRETERS_ESCARGOT
+        kconfig-tweak --set-val CONFIG_INTERPRETERS_ESCARGOT_STACKSIZE 4194304
+        # Neither of these two is escargot-specific -- both work around a
+        # genuine, pre-existing incompatibility between this exact pinned
+        # nuttx/nuttx-apps commit pair found while verifying this job (not
+        # anything to do with Escargot): nshlib's nsh_script.c references
+        # an `O_RDOK` that doesn't exist in this nuttx commit's fcntl.h,
+        # and testing/ostest's robust.c references a `pthread_mutex_t`
+        # member this nuttx commit's pthread.h doesn't have. Disabling
+        # NSH scripting and ostest (neither needed for this sample) avoids
+        # both -- compiling the escargot NSH command itself is unaffected.
+        kconfig-tweak --enable CONFIG_NSH_DISABLESCRIPT
+        kconfig-tweak --disable CONFIG_TESTING_OSTEST
+        make olddefconfig
+        # First pass: generates include/nuttx/config.h (needed to compile
+        # the engine below) as a side effect, but the escargot app's own
+        # context:: rule fails here because ESCARGOT_PREBUILT doesn't
+        # exist yet -- expected, see the second `make context` pass below.
+        make context || true
+        test -f include/nuttx/config.h
+
+    - name: Build libescargot.a/libgc-lib.a for NuttX
+      run: |
+        # escargot-lib-cmake's own CMakeLists.txt add_subdirectory()s the
+        # main repo's top-level CMakeLists.txt (ESCARGOT_HOST=baremetal) to
+        # build the engine itself, so a single configure+build here is
+        # enough -- Unicode/Yarr table generation (build/escargot.cmake)
+        # runs as part of that same cross-compile configure, no separate
+        # native/host pass needed.
+        mkdir escargot-lib-build && cd escargot-lib-build
+        cmake ${{ github.workspace }}/escargot/samples/rtos/nuttx/escargot-lib-cmake \
+          -DNUTTX_ROOT=${{ github.workspace }}/nuttx
+        make -j$(nproc)
+
+    - name: Build NuttX kernel + escargot app
+      env:
+        ESCARGOT_ROOT: ${{ github.workspace }}/escargot
+        ESCARGOT_PREBUILT: ${{ github.workspace }}/escargot-lib-build
+      run: |
+        cd nuttx
+        make context
+        make -j$(nproc)
+
+    - name: Boot-test under QEMU (mps3-an547 / Cortex-M55)
+      run: |
+        (sleep 3; echo "escargot"; sleep 90) | timeout 120 qemu-system-arm \
+          -M mps3-an547 -cpu cortex-m55 \
+          -kernel nuttx/nuttx -nographic > nuttx-output.log 2>&1 || true
+        cat nuttx-output.log
+
+        echo "--- Verifying pass markers ---"
+        # NuttX's own printf pads test names to align columns, so the
+        # amount of whitespace around "1+2"/"=>" isn't fixed -- match on
+        # whitespace runs instead of a literal single space (this exact
+        # rigid match was verified to fail against real, otherwise-passing
+        # output: "[ok]  1+2                          => 3").
+        grep -Eq '\[ok\][[:space:]]+1\+2[[:space:]]+=>[[:space:]]+3' nuttx-output.log
+
+        # 15 exception-suite cases (12 expected [ok], 3 expected top-level
+        # [THROW]) + 26 SunSpider 1.0.2 cases (all [ok]) + the 1+2 sanity
+        # check above == 42 total marker lines.
+        marker_count=$(grep -c '\[ok\]\|\[THROW\]' nuttx-output.log)
+        test "$marker_count" -ge $((1 + 15 + 26))
+
+        grep -q '26/26 passed' nuttx-output.log
+        grep -q '\[escargot\] done in' nuttx-output.log
+
+        echo "NuttX/QEMU sample: boot + exception-suite + SunSpider 1.0.2 all passed ($marker_count marker lines)."
       timeout-minutes: 60
