@@ -21,6 +21,7 @@
 #include "runtime/MapObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/Context.h"
+#include "runtime/KeyedCollectionHashIndex.h"
 
 namespace Escargot {
 
@@ -42,6 +43,7 @@ void* MapObject::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(MapObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_storage));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(MapObject, m_hashIndex));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(MapObject));
         typeInited = true;
     }
@@ -53,6 +55,69 @@ void MapObject::clear(ExecutionState& state)
     for (size_t i = 0; i < m_storage.size(); i++) {
         m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
     }
+    m_hashIndex = nullptr;
+}
+
+size_t MapObject::findKeyIndex(ExecutionState& state, const Value& key)
+{
+    if (LIKELY(!m_hashIndex)) {
+        if (UNLIKELY(m_storage.size() >= KeyedCollectionHashIndex::buildThreshold)) {
+            buildOrRebuildHashIndex();
+        } else {
+            for (size_t i = 0; i < m_storage.size(); i++) {
+                Value existingKey = m_storage[i].first;
+                if (existingKey.isEmpty()) {
+                    continue;
+                }
+                if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+                    return i;
+                }
+            }
+            return SIZE_MAX;
+        }
+    }
+    size_t mask = m_hashIndex->capacity - 1;
+    size_t i = keyedCollectionHash(key) & mask;
+    while (true) {
+        uint32_t b = m_hashIndex->buckets[i];
+        if (!b) {
+            return SIZE_MAX;
+        }
+        Value existingKey = m_storage[b - 1].first;
+        if (!existingKey.isEmpty() && existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+            return b - 1;
+        }
+        i = (i + 1) & mask;
+    }
+}
+
+void MapObject::buildOrRebuildHashIndex()
+{
+    size_t live = 0;
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        live += !Value(m_storage[i].first).isEmpty();
+    }
+    KeyedCollectionHashIndex* index = KeyedCollectionHashIndex::create(live);
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        Value key = m_storage[i].first;
+        if (!key.isEmpty()) {
+            index->insert(keyedCollectionHash(key), i);
+        }
+    }
+    m_hashIndex = index;
+}
+
+void MapObject::addToHashIndex(size_t storageIndex)
+{
+    if (!m_hashIndex) {
+        return;
+    }
+    if (UNLIKELY(m_hashIndex->needsRebuild())) {
+        // the rebuilt index already covers storageIndex
+        buildOrRebuildHashIndex();
+        return;
+    }
+    m_hashIndex->insert(keyedCollectionHash(m_storage[storageIndex].first), storageIndex);
 }
 
 size_t MapObject::size(ExecutionState& state)
@@ -70,31 +135,20 @@ size_t MapObject::size(ExecutionState& state)
 
 bool MapObject::deleteOperation(ExecutionState& state, const Value& key)
 {
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
-            return true;
-        }
+    size_t i = findKeyIndex(state, key);
+    if (i == SIZE_MAX) {
+        return false;
     }
-    return false;
+    // the hash index keeps a stale bucket for i; it is skipped by comparison
+    // and swept at the next rebuild
+    m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
+    return true;
 }
 
 Value MapObject::get(ExecutionState& state, const Value& key)
 {
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            return m_storage[i].second;
-        }
-    }
-    return Value();
+    size_t i = findKeyIndex(state, key);
+    return i == SIZE_MAX ? Value() : Value(m_storage[i].second);
 }
 
 static Value canonicalizeKeyedCollectionKey(Value& key)
@@ -109,17 +163,13 @@ static Value canonicalizeKeyedCollectionKey(Value& key)
 Value MapObject::getOrInsert(ExecutionState& state, Value& key, const Value& value)
 {
     key = canonicalizeKeyedCollectionKey(key);
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            return m_storage[i].second;
-        }
+    size_t i = findKeyIndex(state, key);
+    if (i != SIZE_MAX) {
+        return m_storage[i].second;
     }
 
     m_storage.pushBack(std::make_pair(key, value));
+    addToHashIndex(m_storage.size() - 1);
     return value;
 }
 
@@ -130,59 +180,37 @@ Value MapObject::getOrInsertComputed(ExecutionState& state, Value& key, const Va
     }
     key = canonicalizeKeyedCollectionKey(key);
 
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            return m_storage[i].second;
-        }
+    size_t i = findKeyIndex(state, key);
+    if (i != SIZE_MAX) {
+        return m_storage[i].second;
     }
 
     Value argv[1] = { key };
     Value value = Object::call(state, callback, Value(), 1, argv);
 
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            m_storage[i].second = value;
-            return value;
-        }
+    // the callback may have mutated the map
+    i = findKeyIndex(state, key);
+    if (i != SIZE_MAX) {
+        m_storage[i].second = value;
+        return value;
     }
 
     m_storage.pushBack(std::make_pair(key, value));
+    addToHashIndex(m_storage.size() - 1);
     return value;
 }
 
 bool MapObject::has(ExecutionState& state, const Value& key)
 {
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            return true;
-        }
-    }
-    return false;
+    return findKeyIndex(state, key) != SIZE_MAX;
 }
 
 void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
 {
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
-            m_storage[i].second = value;
-            return;
-        }
+    size_t i = findKeyIndex(state, key);
+    if (i != SIZE_MAX) {
+        m_storage[i].second = value;
+        return;
     }
 
     // If key is -0, let key be +0.
@@ -191,6 +219,7 @@ void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
     } else {
         m_storage.pushBack(std::make_pair(key, value));
     }
+    addToHashIndex(m_storage.size() - 1);
 }
 
 IteratorObject* MapObject::values(ExecutionState& state)

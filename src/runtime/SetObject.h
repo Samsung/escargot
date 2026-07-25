@@ -26,6 +26,7 @@
 namespace Escargot {
 
 class SetIteratorObject;
+struct KeyedCollectionHashIndex;
 
 class SetObject : public DerivedObject {
     friend class SetIteratorObject;
@@ -61,7 +62,14 @@ public:
     }
 
 private:
+    // returns index into m_storage or SIZE_MAX; builds the hash index once the
+    // storage outgrows KeyedCollectionHashIndex::buildThreshold
+    size_t findKeyIndex(ExecutionState& state, const Value& key);
+    void addToHashIndex(size_t storageIndex);
+    void buildOrRebuildHashIndex();
+
     SetObjectData m_storage;
+    Optional<KeyedCollectionHashIndex*> m_hashIndex;
 };
 
 class SetIteratorObject : public IteratorObject {
