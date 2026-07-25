@@ -4772,15 +4772,30 @@ NEVER_INLINE void InterpreterSlowPath::createSpreadArrayObject(ExecutionState& s
     ArrayObject* spreadArray = ArrayObject::createSpreadArray(state);
     ASSERT(spreadArray->isFastModeArray());
 
-    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, registerFile[code->m_argumentIndex]);
+    const Value& source = registerFile[code->m_argumentIndex];
+    Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, source);
+    if (LIKELY(fastSource)) {
+        uint32_t len = fastSource.value()->arrayLength(state);
+        spreadArray->setArrayLength(state, len, true, false);
+        if (LIKELY(spreadArray->isFastModeArray())) {
+            for (uint32_t i = 0; i < len; i++) {
+                Value v = fastSource.value()->m_fastModeData[i];
+                // a hole reads as undefined (indexed-prototype protector already checked)
+                spreadArray->defineOwnIndexedPropertyWithoutExpanding(state, i, LIKELY(!v.isEmpty()) ? v : Value());
+            }
+            registerFile[code->m_registerIndex] = spreadArray;
+            return;
+        }
+    }
+
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, source);
     size_t i = 0;
     while (true) {
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
         if (!next.hasValue()) {
             break;
         }
-        Value value = IteratorObject::iteratorValue(state, next.value());
-        spreadArray->setIndexedProperty(state, Value(i++), value, spreadArray);
+        spreadArray->setIndexedProperty(state, Value(i++), next.value(), spreadArray);
     }
     registerFile[code->m_registerIndex] = spreadArray;
 }
@@ -5175,29 +5190,21 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
     } else if (code->m_operation == IteratorOperation::Operation::IteratorBind) {
         auto strings = &state.context()->staticStrings();
 
-        Optional<Object*> nextResult;
         Value value;
         IteratorRecord* iteratorRecord = registerFile[code->m_iteratorBindData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
 
         if (!iteratorRecord->m_done) {
             try {
-                nextResult = IteratorObject::iteratorStep(state, iteratorRecord);
+                auto stepped = IteratorObject::iteratorStepValue(state, iteratorRecord);
+                if (!stepped.hasValue()) {
+                    iteratorRecord->m_done = true;
+                } else {
+                    value = stepped.value();
+                }
             } catch (const Value& e) {
                 Value exceptionValue = e;
                 iteratorRecord->m_done = true;
                 state.throwException(exceptionValue);
-            }
-
-            if (!nextResult.hasValue()) {
-                iteratorRecord->m_done = true;
-            } else {
-                try {
-                    value = IteratorObject::iteratorValue(state, nextResult.value());
-                } catch (const Value& e) {
-                    Value exceptionValue = e;
-                    iteratorRecord->m_done = true;
-                    state.throwException(exceptionValue);
-                }
             }
         }
 
@@ -5215,7 +5222,14 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
     } else if (code->m_operation == IteratorOperation::Operation::IteratorNext) {
         auto record = registerFile[code->m_iteratorNextData.m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
         if (code->m_iteratorNextData.m_valueRegisterIndex == REGISTER_LIMIT) {
-            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 0, nullptr);
+            if (LIKELY(record->m_isFastBuiltinIterator)) {
+                // the builtin next takes no argument; stepping via advance()
+                // skips the call frame while producing the same result object
+                auto res = record->m_iterator->asIteratorObject()->advance(state);
+                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = IteratorObject::createIterResultObject(state, res.first, res.second);
+            } else {
+                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 0, nullptr);
+            }
         } else {
             registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
         }

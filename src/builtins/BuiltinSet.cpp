@@ -64,14 +64,13 @@ static Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_
 
     // Repeat
     while (true) {
-        // Let next be ? IteratorStep(iteratorRecord).
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
-        // If next is false, return set.
+        // Let next be ? IteratorStepValue(iteratorRecord).
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
+        // If next is done, return set.
         if (!next.hasValue()) {
             return set;
         }
-        // Let nextValue be ? IteratorValue(next).
-        Value nextValue = IteratorObject::iteratorValue(state, next.value());
+        Value nextValue = next.value();
 
         // Let status be Call(adder, set, « nextValue »).
         try {
@@ -714,7 +713,7 @@ void GlobalObject::installSet(ExecutionState& state)
     m_setIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_setIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinSetIteratorNext, 0);
+    m_setIteratorPrototypeNext = m_setIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinSetIteratorNext, 0);
 
     m_setIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(Value(String::fromASCII("Set Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

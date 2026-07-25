@@ -1208,7 +1208,8 @@ public:
     // once instead of being inlined at every install site across the builtins
     // (significant code-size win). The explicit function-pointer type matches
     // NativeFunctionPointer (declared in CodeBlock.h, not visible here).
-    NEVER_INLINE void defineBuiltinFunction(ExecutionState& state, const AtomicString& name, Value (*fn)(ExecutionState&, Value, size_t, Value*, Optional<Object*>), size_t argc);
+    // returns the created function object so installers can keep a reference
+    NEVER_INLINE FunctionObject* defineBuiltinFunction(ExecutionState& state, const AtomicString& name, Value (*fn)(ExecutionState&, Value, size_t, Value*, Optional<Object*>), size_t argc);
 
     size_t ownPropertyCountOnStructure() const
     {

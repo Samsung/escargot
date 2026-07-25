@@ -59,12 +59,12 @@ static Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_
     // Let iteratorRecord be ? GetIterator(iterable).
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
         if (!next.hasValue()) {
             return map;
         }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next.value());
+        Value nextItem = next.value();
         if (!nextItem.isObject()) {
             ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError,
                                                              new ASCIIStringFromExternalMemory("Invalid iterator value"));
@@ -295,7 +295,7 @@ void GlobalObject::installMap(ExecutionState& state)
     m_mapIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_mapIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinMapIteratorNext, 0);
+    m_mapIteratorPrototypeNext = m_mapIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinMapIteratorNext, 0);
 
     m_mapIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(Value(String::fromASCII("Map Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

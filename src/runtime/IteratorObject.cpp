@@ -24,6 +24,7 @@
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/AsyncFromSyncIteratorObject.h"
+#include "runtime/ArrayObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/ArrayBuffer.h"
@@ -89,7 +90,76 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
 
     // Let iteratorRecord be Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
     // Return iteratorRecord
-    return new IteratorRecord(iterator.asObject(), nextMethod, false);
+    IteratorRecord* record = new IteratorRecord(iterator.asObject(), nextMethod, false);
+    tryMarkFastBuiltinIterator(state, record);
+    return record;
+}
+
+void IteratorObject::tryMarkFastBuiltinIterator(ExecutionState& state, IteratorRecord* record)
+{
+    if (!record->m_iterator->isIteratorObject()) {
+        return;
+    }
+    Value nextMethod = record->m_nextMethod;
+    if (!nextMethod.isPointerValue()) {
+        return;
+    }
+    PointerValue* nm = nextMethod.asPointerValue();
+    IteratorObject* io = record->m_iterator->asIteratorObject();
+    GlobalObject* g = state.context()->globalObject();
+    bool fast = false;
+    if (io->isArrayIteratorObject()) {
+        fast = (nm == g->arrayIteratorPrototypeNext());
+    } else if (io->isMapIteratorObject()) {
+        fast = (nm == g->mapIteratorPrototypeNext());
+    } else if (io->isSetIteratorObject()) {
+        fast = (nm == g->setIteratorPrototypeNext());
+    } else if (io->isStringIteratorObject()) {
+        fast = (nm == g->stringIteratorPrototypeNext());
+    }
+    record->m_isFastBuiltinIterator = fast;
+}
+
+Optional<ArrayObject*> IteratorObject::tryFastArrayIterationSource(ExecutionState& state, const Value& value)
+{
+    if (!value.isObject() || !value.asObject()->isArrayObject()) {
+        return NullOption;
+    }
+    ArrayObject* arr = value.asObject()->asArrayObject();
+    if (!arr->isFastModeArray()) {
+        return NullOption;
+    }
+    // holes must read as undefined, not from a prototype
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+        return NullOption;
+    }
+    GlobalObject* g = state.context()->globalObject();
+    if (arr->getPrototypeObject(state) != g->arrayPrototype()) {
+        return NullOption;
+    }
+    // the array itself must not shadow @@iterator
+    if (UNLIKELY(arr->getOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator)).hasValue())) {
+        return NullOption;
+    }
+    // Array.prototype[@@iterator] must still be the builtin values function
+    auto iterProp = g->arrayPrototype()->getOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+    if (!iterProp.hasValue() || !iterProp.isDataProperty()) {
+        return NullOption;
+    }
+    Value iterFn = iterProp.value(state, g->arrayPrototype());
+    if (!iterFn.isPointerValue() || iterFn.asPointerValue() != g->arrayPrototypeValues()) {
+        return NullOption;
+    }
+    // %ArrayIteratorPrototype%.next must still be the builtin
+    auto nextProp = g->arrayIteratorPrototype()->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next));
+    if (!nextProp.hasValue() || !nextProp.isDataProperty()) {
+        return NullOption;
+    }
+    Value nextFn = nextProp.value(state, g->arrayIteratorPrototype());
+    if (!nextFn.isPointerValue() || nextFn.asPointerValue() != g->arrayIteratorPrototypeNext()) {
+        return NullOption;
+    }
+    return arr;
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratornext
@@ -131,6 +201,13 @@ Value IteratorObject::iteratorValue(ExecutionState& state, Object* iterResult)
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorstep
 Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
+    if (LIKELY(iteratorRecord->m_isFastBuiltinIterator)) {
+        auto res = iteratorRecord->m_iterator->asIteratorObject()->advance(state);
+        if (res.second) {
+            return nullptr;
+        }
+        return createIterResultObject(state, res.first, false);
+    }
     Object* result = IteratorObject::iteratorNext(state, iteratorRecord);
     bool done = IteratorObject::iteratorComplete(state, result);
 
@@ -140,6 +217,13 @@ Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRe
 // https://tc39.es/ecma262/#sec-iteratorstepvalue
 Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
+    if (LIKELY(iteratorRecord->m_isFastBuiltinIterator)) {
+        auto res = iteratorRecord->m_iterator->asIteratorObject()->advance(state);
+        if (res.second) {
+            return NullOption;
+        }
+        return Optional<Value>(res.first);
+    }
     // Let result be ? IteratorStep(iteratorRecord).
     auto result = iteratorStep(state, iteratorRecord);
     // If result is done, then
@@ -221,13 +305,12 @@ ValueVectorWithInlineStorage IteratorObject::iterableToList(ExecutionState& stat
         iteratorRecord = IteratorObject::getIterator(state, items, true);
     }
     ValueVectorWithInlineStorage values;
-    Optional<Object*> next;
+    Optional<Value> next;
 
     while (true) {
-        next = IteratorObject::iteratorStep(state, iteratorRecord);
+        next = IteratorObject::iteratorStepValue(state, iteratorRecord);
         if (next.hasValue()) {
-            Value nextValue = IteratorObject::iteratorValue(state, next.value());
-            values.pushBack(nextValue);
+            values.pushBack(next.value());
             // Check if the size exceeds the maximum allowed size for TypedArray construction
             // This prevents memory exhaustion when iterating over very large sparse arrays
             if (values.size() >= ArrayBuffer::maxArrayBufferSize) {
@@ -365,6 +448,7 @@ IteratorRecord* IteratorObject::getIteratorDirect(ExecutionState& state, Object*
     Value nextMethod = obj->get(state, ObjectPropertyName(state.context()->staticStrings().next)).value(state, obj);
     // Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
     IteratorRecord* record = new IteratorRecord(obj, nextMethod, false);
+    tryMarkFastBuiltinIterator(state, record);
     // Return iteratorRecord.
     return record;
 }

@@ -31,10 +31,11 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, objName) \
     F(arrayBuffer, FunctionObject, objName)          \
     F(arrayBufferPrototype, Object, objName)
-#define GLOBALOBJECT_BUILTIN_ARRAY(F, objName) \
-    F(array, FunctionObject, objName)          \
-    F(arrayPrototype, Object, objName)         \
-    F(arrayIteratorPrototype, Object, objName) \
+#define GLOBALOBJECT_BUILTIN_ARRAY(F, objName)             \
+    F(array, FunctionObject, objName)                      \
+    F(arrayPrototype, Object, objName)                     \
+    F(arrayIteratorPrototype, Object, objName)             \
+    F(arrayIteratorPrototypeNext, FunctionObject, objName) \
     F(arrayPrototypeValues, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, objName) \
     F(asyncFromSyncIteratorPrototype, Object, objName)
@@ -162,7 +163,8 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_MAP(F, objName) \
     F(map, FunctionObject, objName)          \
     F(mapPrototype, Object, objName)         \
-    F(mapIteratorPrototype, Object, objName)
+    F(mapIteratorPrototype, Object, objName) \
+    F(mapIteratorPrototypeNext, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_MATH(F, objName) \
     F(math, Object, objName)
 #define GLOBALOBJECT_BUILTIN_NUMBER(F, objName) \
@@ -212,7 +214,8 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_SET(F, objName) \
     F(set, FunctionObject, objName)          \
     F(setPrototypeObject, Object, objName)   \
-    F(setIteratorPrototype, Object, objName)
+    F(setIteratorPrototype, Object, objName) \
+    F(setIteratorPrototypeNext, FunctionObject, objName)
 
 #if defined(ENABLE_SHADOWREALM)
 #define GLOBALOBJECT_BUILTIN_SHADOWREALM(F, objName) \
@@ -222,10 +225,11 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_SHADOWREALM(F, objName)
 #endif
 
-#define GLOBALOBJECT_BUILTIN_STRING(F, objName) \
-    F(string, FunctionObject, objName)          \
-    F(stringPrototype, Object, objName)         \
-    F(stringIteratorPrototype, Object, objName) \
+#define GLOBALOBJECT_BUILTIN_STRING(F, objName)             \
+    F(string, FunctionObject, objName)                      \
+    F(stringPrototype, Object, objName)                     \
+    F(stringIteratorPrototype, Object, objName)             \
+    F(stringIteratorPrototypeNext, FunctionObject, objName) \
     F(stringProxyObject, StringObject, objName)
 #define GLOBALOBJECT_BUILTIN_SYMBOL(F, objName) \
     F(symbol, FunctionObject, objName)          \

@@ -1805,7 +1805,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_stringIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinStringIteratorNext, 0);
+    m_stringIteratorPrototypeNext = m_stringIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinStringIteratorNext, 0);
 
     m_stringIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                        ObjectPropertyDescriptor(Value(String::fromASCII("String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

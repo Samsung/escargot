@@ -83,6 +83,15 @@ public:
 
     static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
 
+    ALWAYS_INLINE bool isFastModeArray()
+    {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
+#else
+        return (m_fastModeData != &ArrayObject::DummyArrayElement);
+#endif
+    }
+
     void defineOwnIndexedPropertyWithoutExpanding(ExecutionState& state, const size_t& index, const Value& value)
     {
         ASSERT(index < arrayLength(state));
@@ -113,14 +122,6 @@ protected:
     void convertIntoNonFastMode(ExecutionState& state);
 
 private:
-    ALWAYS_INLINE bool isFastModeArray()
-    {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
-#else
-        return (m_fastModeData != &ArrayObject::DummyArrayElement);
-#endif
-    }
 
     bool isLengthPropertyWritable()
     {
