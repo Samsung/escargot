@@ -1154,8 +1154,25 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
                 // If n + len > 2^53 - 1, throw a TypeError exception.
                 CHECK_ARRAY_LENGTH(n + len > Value::maximumLength());
 
+                bool fastCopied = false;
+                if (LIKELY(arr->isArrayObject() && obj->isArrayObject()
+                           && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
+                           && n + len < (int64_t)std::numeric_limits<uint32_t>::max())) {
+                    auto* src = arr->asArrayObject();
+                    auto* dst = obj->asArrayObject();
+                    // src must sit directly on Array.prototype: exotic prototypes
+                    // (e.g. String wrappers) expose indexed properties without
+                    // raising didSomePrototypeObjectDefineIndexedProperty, and
+                    // holes must not read through such a chain
+                    if (src->isFastModeArray() && dst->isFastModeArray() && dst->isExtensible(state)
+                        && src->getPrototypeObject(state) == state.context()->globalObject()->arrayPrototype()
+                        && (uint64_t)len <= src->length(state) && dst->length(state) == (uint64_t)n) {
+                        fastCopied = dst->copyFastModeElementsFrom(state, src, 0, (uint32_t)n, (uint32_t)len);
+                    }
+                }
+
                 // Repeat, while k < len
-                while (k < len) {
+                while (!fastCopied && k < len) {
                     // Let exists be the result of calling the [[HasProperty]] internal method of E with P.
                     ObjectHasPropertyResult exists = arr->hasIndexedProperty(state, Value(k));
                     if (exists) {
@@ -1199,6 +1216,19 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
     Object* ArrayObject = arraySpeciesCreate(state, thisObject, std::max(((int64_t)finalEnd - (int64_t)k), (int64_t)0));
+    if (LIKELY(thisObject->isArrayObject() && ArrayObject->isArrayObject()
+               && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+        auto* src = thisObject->asArrayObject();
+        auto* dst = ArrayObject->asArrayObject();
+        uint32_t count = (uint32_t)std::max(finalEnd - kStart, (int64_t)0);
+        // see the prototype note in builtinArrayConcat's fast path
+        if (src->isFastModeArray() && dst->isFastModeArray() && dst->isExtensible(state)
+            && src->getPrototypeObject(state) == state.context()->globalObject()->arrayPrototype()
+            && (uint64_t)finalEnd <= src->length(state) && (int64_t)dst->length(state) == (int64_t)count
+            && dst->copyFastModeElementsFrom(state, src, (uint32_t)kStart, 0, count)) {
+            return dst;
+        }
+    }
     while (k < finalEnd) {
         ObjectHasPropertyResult exists = thisObject->hasIndexedProperty(state, Value(k));
         if (exists) {
