@@ -26,6 +26,7 @@
 namespace Escargot {
 
 class MapIteratorObject;
+struct KeyedCollectionHashIndex;
 
 class MapObject : public DerivedObject {
     friend class MapIteratorObject;
@@ -63,7 +64,14 @@ public:
     }
 
 private:
+    // returns index into m_storage or SIZE_MAX; builds the hash index once the
+    // storage outgrows KeyedCollectionHashIndex::buildThreshold
+    size_t findKeyIndex(ExecutionState& state, const Value& key);
+    void addToHashIndex(size_t storageIndex);
+    void buildOrRebuildHashIndex();
+
     MapObjectData m_storage;
+    Optional<KeyedCollectionHashIndex*> m_hashIndex;
 };
 
 class MapIteratorObject : public IteratorObject {

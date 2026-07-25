@@ -24,6 +24,8 @@
 
 namespace Escargot {
 
+struct KeyedCollectionHashIndex;
+
 class WeakMapObject : public DerivedObject {
 public:
     struct WeakMapObjectDataItem : public gc {
@@ -54,7 +56,15 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    // returns index into m_storage or SIZE_MAX; builds the hash index once the
+    // storage outgrows KeyedCollectionHashIndex::buildThreshold
+    size_t findKeyIndex(PointerValue* key);
+    WeakMapObjectDataItem* insertNew(PointerValue* key, const Value& value);
+    void addToHashIndex(size_t storageIndex);
+    void buildOrRebuildHashIndex();
+
     WeakMapObjectData m_storage;
+    Optional<KeyedCollectionHashIndex*> m_hashIndex;
 };
 } // namespace Escargot
 
