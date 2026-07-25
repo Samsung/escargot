@@ -384,6 +384,8 @@ class FunctionObject;
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
+class IntlDateTimeFormatObject;
+
 #if defined(ENABLE_EXTENDED_API)
 // for certain third-party cases, GlobalObject's prototype can be modified
 class GlobalObject : public PrototypeObject {
@@ -427,6 +429,35 @@ public:
     GLOBALOBJECT_BUILTIN_ALL_LIST(DECLARE_BUILTIN_GETTER_FUNC)
 #undef DECLARE_BUILTIN_GETTER_FUNC
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    // cache for argument-less Date.prototype.toLocale{,Date,Time}String():
+    // building an Intl formatter per call dominates those calls otherwise
+    enum DefaultDateTimeFormatKind : uint8_t {
+        DefaultDateTimeFormatAny = 0,
+        DefaultDateTimeFormatDate = 1,
+        DefaultDateTimeFormatTime = 2
+    };
+    Optional<IntlDateTimeFormatObject*> defaultDateTimeFormat(DefaultDateTimeFormatKind kind)
+    {
+        return m_defaultDateTimeFormat[kind];
+    }
+    void setDefaultDateTimeFormat(DefaultDateTimeFormatKind kind, IntlDateTimeFormatObject* format)
+    {
+        m_defaultDateTimeFormat[kind] = format;
+    }
+#endif
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
+    // same, for argument-less Number.prototype.toLocaleString()
+    Optional<Object*> defaultNumberFormat()
+    {
+        return m_defaultNumberFormat;
+    }
+    void setDefaultNumberFormat(Object* format)
+    {
+        m_defaultNumberFormat = format;
+    }
+#endif
+
     void initializeBuiltins(ExecutionState& state);
 
     Value eval(ExecutionState& state, const Value& arg);
@@ -441,6 +472,12 @@ public:
 
 private:
     Context* m_context;
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Optional<IntlDateTimeFormatObject*> m_defaultDateTimeFormat[3];
+#endif
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
+    Optional<Object*> m_defaultNumberFormat;
+#endif
 
 #define DECLARE_BUILTIN_MEMBER_VALUE(builtin, TYPE, objName) \
     TYPE* m_##builtin;

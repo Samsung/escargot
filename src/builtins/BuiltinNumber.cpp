@@ -278,7 +278,17 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-    Object* numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);
+    bool cacheable = locales.isUndefined() && options.isUndefined();
+    Optional<Object*> numberFormat;
+    if (LIKELY(cacheable)) {
+        numberFormat = state.context()->globalObject()->defaultNumberFormat();
+    }
+    if (!numberFormat) {
+        numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);
+        if (cacheable) {
+            state.context()->globalObject()->setDefaultNumberFormat(numberFormat.value());
+        }
+    }
     double x = 0;
     if (thisValue.isNumber()) {
         x = thisValue.asNumber();
@@ -287,7 +297,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
-    auto result = IntlNumberFormat::format(state, numberFormat, x);
+    auto result = IntlNumberFormat::format(state, numberFormat.value(), x);
 
     return new UTF16String(result.data(), result.length());
 #else
