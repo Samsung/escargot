@@ -83,6 +83,14 @@ public:
 
     static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
 
+    // bulk-copies count elements from src[srcStart..] into this[dstStart..],
+    // growing this array when needed; both arrays must be fast-mode. Source
+    // holes are skipped (destination slots stay as they are), matching the
+    // generic per-index HasProperty/Get/DefineOwnProperty loop when prototypes
+    // hold no indexed properties. Returns false when the growth dropped this
+    // array out of fast mode and nothing was copied.
+    bool copyFastModeElementsFrom(ExecutionState& state, ArrayObject* src, uint32_t srcStart, uint32_t dstStart, uint32_t count);
+
     ALWAYS_INLINE bool isFastModeArray()
     {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -122,7 +130,6 @@ protected:
     void convertIntoNonFastMode(ExecutionState& state);
 
 private:
-
     bool isLengthPropertyWritable()
     {
         return hasRareData() ? rareData()->m_isArrayObjectLengthWritable : true;

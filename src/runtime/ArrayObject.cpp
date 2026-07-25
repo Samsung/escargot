@@ -424,6 +424,25 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 #endif
 }
 
+bool ArrayObject::copyFastModeElementsFrom(ExecutionState& state, ArrayObject* src, uint32_t srcStart, uint32_t dstStart, uint32_t count)
+{
+    ASSERT(isFastModeArray() && src->isFastModeArray());
+    ASSERT(srcStart + count <= src->m_arrayLength);
+    if (m_arrayLength < dstStart + count) {
+        setArrayLength(state, dstStart + count, true, false);
+        if (UNLIKELY(!isFastModeArray())) {
+            return false;
+        }
+    }
+    for (uint32_t i = 0; i < count; i++) {
+        Value v = src->m_fastModeData[srcStart + i];
+        if (LIKELY(!v.isEmpty())) {
+            m_fastModeData[dstStart + i] = v;
+        }
+    }
+    return true;
+}
+
 bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
 {
     bool isPrimitiveValue;
