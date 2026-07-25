@@ -220,23 +220,33 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-#define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                  \
-    double x = thisObject->primitiveValue();                                                                             \
-    if (std::isnan(x)) {                                                                                                 \
-        return new ASCIIStringFromExternalMemory("Invalid Date");                                                        \
-    }                                                                                                                    \
-    Value locales, options;                                                                                              \
-    if (argc >= 1) {                                                                                                     \
-        locales = argv[0];                                                                                               \
-    }                                                                                                                    \
-    if (argc >= 2) {                                                                                                     \
-        options = argv[1];                                                                                               \
-    }                                                                                                                    \
-    auto dateTimeOption = IntlDateTimeFormatObject::                                                                     \
-                              toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)) \
-                                  .first;                                                                                \
-    IntlDateTimeFormatObject* dateFormat = new IntlDateTimeFormatObject(state, locales, dateTimeOption);                 \
-    auto result = dateFormat->format(state, x);                                                                          \
+#define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT, CACHE_KIND)                                                          \
+    double x = thisObject->primitiveValue();                                                                                 \
+    if (std::isnan(x)) {                                                                                                     \
+        return new ASCIIStringFromExternalMemory("Invalid Date");                                                            \
+    }                                                                                                                        \
+    Value locales, options;                                                                                                  \
+    if (argc >= 1) {                                                                                                         \
+        locales = argv[0];                                                                                                   \
+    }                                                                                                                        \
+    if (argc >= 2) {                                                                                                         \
+        options = argv[1];                                                                                                   \
+    }                                                                                                                        \
+    bool cacheable = locales.isUndefined() && options.isUndefined();                                                         \
+    Optional<IntlDateTimeFormatObject*> dateFormat;                                                                          \
+    if (LIKELY(cacheable)) {                                                                                                 \
+        dateFormat = state.context()->globalObject()->defaultDateTimeFormat(GlobalObject::CACHE_KIND);                       \
+    }                                                                                                                        \
+    if (!dateFormat) {                                                                                                       \
+        auto dateTimeOption = IntlDateTimeFormatObject::                                                                     \
+                                  toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)) \
+                                      .first;                                                                                \
+        dateFormat = new IntlDateTimeFormatObject(state, locales, dateTimeOption);                                           \
+        if (cacheable) {                                                                                                     \
+            state.context()->globalObject()->setDefaultDateTimeFormat(GlobalObject::CACHE_KIND, dateFormat.value());         \
+        }                                                                                                                    \
+    }                                                                                                                        \
+    auto result = dateFormat->format(state, x);                                                                              \
     return new UTF16String(result.data(), result.length());
 #endif
 
@@ -244,7 +254,7 @@ static Value builtinDateToLocaleString(ExecutionState& state, Value thisValue, s
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    INTL_DATE_TIME_FORMAT_FORMAT("any", "all")
+    INTL_DATE_TIME_FORMAT_FORMAT("any", "all", DefaultDateTimeFormatAny)
 #else
     return thisObject->toLocaleFullString(state);
 #endif
@@ -254,7 +264,7 @@ static Value builtinDateToLocaleDateString(ExecutionState& state, Value thisValu
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    INTL_DATE_TIME_FORMAT_FORMAT("date", "date")
+    INTL_DATE_TIME_FORMAT_FORMAT("date", "date", DefaultDateTimeFormatDate)
 #else
     return thisObject->toLocaleDateString(state);
 #endif
@@ -264,7 +274,7 @@ static Value builtinDateToLocaleTimeString(ExecutionState& state, Value thisValu
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, toString);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    INTL_DATE_TIME_FORMAT_FORMAT("time", "time")
+    INTL_DATE_TIME_FORMAT_FORMAT("time", "time", DefaultDateTimeFormatTime)
 #else
     return thisObject->toLocaleTimeString(state);
 #endif
