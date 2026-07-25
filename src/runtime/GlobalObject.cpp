@@ -46,11 +46,13 @@
 
 namespace Escargot {
 
-void Object::defineBuiltinFunction(ExecutionState& state, const AtomicString& name, NativeFunctionPointer fn, size_t argc)
+FunctionObject* Object::defineBuiltinFunction(ExecutionState& state, const AtomicString& name, NativeFunctionPointer fn, size_t argc)
 {
+    NativeFunctionObject* fnObject = new NativeFunctionObject(state, NativeFunctionInfo(name, fn, argc, NativeFunctionInfo::Strict));
     directDefineOwnProperty(state, ObjectPropertyName(name),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(name, fn, argc, NativeFunctionInfo::Strict)),
+                            ObjectPropertyDescriptor(fnObject,
                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    return fnObject;
 }
 
 GlobalObject::GlobalObject(ExecutionState& state)

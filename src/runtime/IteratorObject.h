@@ -37,6 +37,10 @@ public:
     Object* m_iterator;
     EncodedValue m_nextMethod;
     bool m_done;
+    // true when m_iterator is a builtin iterator of the current realm whose
+    // looked-up next method is still the untouched builtin: stepping it via
+    // IteratorObject::advance() is then observably identical to the protocol
+    bool m_isFastBuiltinIterator{ false };
 
     virtual bool isIteratorRecord() const override
     {
@@ -102,6 +106,10 @@ public:
     virtual std::pair<Value, bool> advance(ExecutionState& state) = 0;
 
     static IteratorRecord* getIterator(ExecutionState& state, const Value& obj, const bool sync = true, const Value& func = Value(Value::EmptyValue));
+    static void tryMarkFastBuiltinIterator(ExecutionState& state, IteratorRecord* record);
+    // non-null when iterating `value` with the iterator protocol is observably
+    // identical to walking its fast-mode elements directly
+    static Optional<ArrayObject*> tryFastArrayIterationSource(ExecutionState& state, const Value& value);
     static Object* iteratorNext(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& value = Value(Value::EmptyValue));
     static bool iteratorComplete(ExecutionState& state, Object* iterResult);
     static Value iteratorValue(ExecutionState& state, Object* iterResult);

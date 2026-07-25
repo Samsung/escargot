@@ -2634,7 +2634,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_arrayIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_arrayIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinArrayIteratorNext, 0);
+    m_arrayIteratorPrototypeNext = m_arrayIteratorPrototype->defineBuiltinFunction(state, state.context()->staticStrings().next, builtinArrayIteratorNext, 0);
     m_arrayIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                       ObjectPropertyDescriptor(Value(String::fromASCII("Array Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
