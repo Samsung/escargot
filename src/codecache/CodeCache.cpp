@@ -903,7 +903,12 @@ bool CodeCache::writeCacheList()
     }
 
     // first write Escargot version
+    // must select the same version string as loadCacheList()
+#ifdef ESCARGOT_BUILD
+    std::string version = ESCARGOT_BUILD;
+#else
     std::string version = ESCARGOT_VERSION;
+#endif
     ASSERT(version.length() > 0);
     size_t versionHash = std::hash<std::string>{}(version);
     if (UNLIKELY(fwrite(&versionHash, sizeof(size_t), 1, listFile) != 1)) {
