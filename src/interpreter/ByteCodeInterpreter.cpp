@@ -176,6 +176,7 @@ public:
     static void arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile);
     static void arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile);
     static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
+    static void createArrayFromIterable(ExecutionState& state, CreateArrayFromIterable* code, Value* registerFile);
     static void defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static Value incrementOperation(ExecutionState& state, const Value& value);
     static Value decrementOperation(ExecutionState& state, const Value& value);
@@ -1545,6 +1546,15 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             }
 
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateArrayFromIterable)
+            :
+        {
+            CreateArrayFromIterable* code = (CreateArrayFromIterable*)programCounter;
+            InterpreterSlowPath::createArrayFromIterable(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(CreateArrayFromIterable);
             NEXT_INSTRUCTION();
         }
 
@@ -4822,6 +4832,29 @@ NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOper
             }
         }
     }
+}
+
+NEVER_INLINE void InterpreterSlowPath::createArrayFromIterable(ExecutionState& state, CreateArrayFromIterable* code, Value* registerFile)
+{
+    const Value& source = registerFile[code->m_argumentIndex];
+    Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, source);
+    if (LIKELY(fastSource)) {
+        registerFile[code->m_registerIndex] = ArrayObject::createDenseCopy(state, fastSource.value());
+        return;
+    }
+
+    // the array being built is not reachable from user code until it is stored,
+    // so the values can be collected first and installed in one bulk store
+    ValueVector buffer;
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, source);
+    while (true) {
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
+        if (!next.hasValue()) {
+            break;
+        }
+        buffer.pushBack(next.value());
+    }
+    registerFile[code->m_registerIndex] = new ArrayObject(state, buffer.data(), buffer.size());
 }
 
 NEVER_INLINE void InterpreterSlowPath::createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile)
