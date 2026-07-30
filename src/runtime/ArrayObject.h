@@ -39,6 +39,7 @@ class ArrayObject : public DerivedObject {
     friend class EnumerateObject;
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
+    friend class ArrayIteratorObject;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     friend void initializeCustomAllocators();
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);

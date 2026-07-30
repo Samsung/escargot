@@ -122,6 +122,7 @@ struct GlobalVariableAccessCacheItem;
     F(MarkEnumerateKey)                               \
     F(IteratorOperation)                              \
     F(IteratorNextValue)                              \
+    F(IteratorBindValue)                              \
     F(GetMethod)                                      \
     F(LoadRegExp)                                     \
     F(OpenLexicalEnvironment)                         \
@@ -2937,6 +2938,30 @@ public:
     void dump()
     {
         printf("iterator next value r%u -> r%u, jump if done %zu", m_iteratorRecordRegisterIndex, m_dstRegisterIndex, dumpJumpPosition(m_jumpPosition));
+    }
+#endif
+};
+
+// binds one element of an array destructuring pattern. replaces the
+// IteratorBind case of IteratorOperation, which reaches the iterator through
+// the generic slow path; a builtin iterator can step without materializing the
+// IteratorResult object and the two generic Gets that read it back.
+class IteratorBindValue : public ByteCode {
+public:
+    explicit IteratorBindValue(const ByteCodeLOC& loc, ByteCodeRegisterIndex iteratorRecordRegisterIndex, ByteCodeRegisterIndex dstRegisterIndex)
+        : ByteCode(Opcode::IteratorBindValueOpcode, loc)
+        , m_iteratorRecordRegisterIndex(iteratorRecordRegisterIndex)
+        , m_dstRegisterIndex(dstRegisterIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_iteratorRecordRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("iterator bind value r%u -> r%u", m_iteratorRecordRegisterIndex, m_dstRegisterIndex);
     }
 #endif
 };
