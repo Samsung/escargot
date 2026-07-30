@@ -765,6 +765,9 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     Type itemKind = m_type;
 
     size_t len;
+    // a fast-mode array answers both the length read and the element read from
+    // its internal storage, so the generic property lookups can be skipped
+    Optional<ArrayObject*> fastArray;
     // If a has a [[TypedArrayName]] internal slot, then
     if (a->isTypedArrayObject()) {
         // If IsDetachedBuffer(a.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
@@ -789,6 +792,9 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
         }
         // Let len be a.[[ArrayLength]].
         len = a->asArrayBufferView()->arrayLength();
+    } else if (LIKELY(a->isArrayObject() && a->asArrayObject()->isFastModeArray())) {
+        fastArray = a->asArrayObject();
+        len = fastArray.value()->arrayLength(state);
     } else {
         // Let len be ? ToLength(? Get(a, "length")).
         len = a->length(state);
@@ -809,7 +815,16 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     if (itemKind == Type::TypeKey) {
         return std::make_pair(Value(index), false);
     } else {
-        Value elementValue = a->getIndexedProperty(state, Value(index)).value(state, a);
+        Value elementValue;
+        if (LIKELY(fastArray)) {
+            elementValue = fastArray.value()->m_fastModeData[index];
+            // a hole must still be resolved through the prototype chain
+            if (UNLIKELY(elementValue.isEmpty())) {
+                elementValue = a->getIndexedProperty(state, Value(index)).value(state, a);
+            }
+        } else {
+            elementValue = a->getIndexedProperty(state, Value(index)).value(state, a);
+        }
         if (itemKind == Type::TypeValue) {
             return std::make_pair(elementValue, false);
         } else {

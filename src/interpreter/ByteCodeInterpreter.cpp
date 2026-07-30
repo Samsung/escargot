@@ -185,6 +185,7 @@ public:
 
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
+    static void iteratorBindValueSlowCase(ExecutionState& state, IteratorBindValue* code, Value* registerFile);
     static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer);
     static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
     static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
@@ -1405,6 +1406,31 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             } else {
                 ADD_PROGRAM_COUNTER(IteratorNextValue);
             }
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(IteratorBindValue)
+            :
+        {
+            IteratorBindValue* code = (IteratorBindValue*)programCounter;
+            IteratorRecord* record = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+            // a pristine builtin iterator steps without materializing the
+            // IteratorResult object. m_done is set before the step and cleared
+            // again only on success, so an abrupt step leaves the record done
+            // exactly as the generic path's catch does - without a try block here
+            if (LIKELY(!record->m_done && record->m_isFastBuiltinIterator)) {
+                record->m_done = true;
+                auto res = record->m_iterator->asIteratorObject()->advance(*state);
+                if (UNLIKELY(res.second)) {
+                    registerFile[code->m_dstRegisterIndex] = Value();
+                } else {
+                    record->m_done = false;
+                    registerFile[code->m_dstRegisterIndex] = res.first;
+                }
+            } else {
+                InterpreterSlowPath::iteratorBindValueSlowCase(*state, code, registerFile);
+            }
+            ADD_PROGRAM_COUNTER(IteratorBindValue);
             NEXT_INSTRUCTION();
         }
 
@@ -5160,6 +5186,29 @@ NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryT
     }
 
     registerFile[code->m_dstIndex] = val;
+}
+
+NEVER_INLINE void InterpreterSlowPath::iteratorBindValueSlowCase(ExecutionState& state, IteratorBindValue* code, Value* registerFile)
+{
+    Value value;
+    IteratorRecord* iteratorRecord = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+
+    if (!iteratorRecord->m_done) {
+        try {
+            auto stepped = IteratorObject::iteratorStepValue(state, iteratorRecord);
+            if (!stepped.hasValue()) {
+                iteratorRecord->m_done = true;
+            } else {
+                value = stepped.value();
+            }
+        } catch (const Value& e) {
+            Value exceptionValue = e;
+            iteratorRecord->m_done = true;
+            state.throwException(exceptionValue);
+        }
+    }
+
+    registerFile[code->m_dstRegisterIndex] = value;
 }
 
 NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer)

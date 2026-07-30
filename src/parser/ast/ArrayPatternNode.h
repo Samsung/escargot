@@ -68,19 +68,13 @@ public:
                 context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                 if (LIKELY(element->astNode()->type() != RestElement)) {
                     element->astNode()->generateResolveAddressByteCode(codeBlock, context);
-                    IteratorOperation::IteratorBindData iteratorBindData;
-                    iteratorBindData.m_registerIndex = iteratorValueIndex;
-                    iteratorBindData.m_iterRegisterIndex = iteratorRecordIndex;
-                    codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this->m_loc.index);
+                    codeBlock->pushCode(IteratorBindValue(ByteCodeLOC(m_loc.index), iteratorRecordIndex, iteratorValueIndex), context, this->m_loc.index);
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorRecordIndex, false);
                 }
             } else {
-                IteratorOperation::IteratorBindData iteratorBindData;
-                iteratorBindData.m_registerIndex = iteratorValueIndex;
-                iteratorBindData.m_iterRegisterIndex = iteratorRecordIndex;
-                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this->m_loc.index);
+                codeBlock->pushCode(IteratorBindValue(ByteCodeLOC(m_loc.index), iteratorRecordIndex, iteratorValueIndex), context, this->m_loc.index);
             }
         }
         context->giveUpRegister(); // for drop iteratorValueIndex

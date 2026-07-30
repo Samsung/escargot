@@ -58,6 +58,19 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
     Value method = func;
     // If method is not present, then
     if (method.isEmpty()) {
+        if (LIKELY(sync)) {
+            // a pristine fast-mode array is iterated by the builtin ArrayIterator.
+            // building that iterator directly is observably identical here and skips
+            // the @@iterator lookup, its call frame and the "next" lookup
+            Optional<ArrayObject*> fastArray = tryFastArrayIterationSource(state, obj);
+            if (LIKELY(fastArray)) {
+                GlobalObject* g = state.context()->globalObject();
+                IteratorRecord* record = new IteratorRecord(new ArrayIteratorObject(state, fastArray.value(), ArrayIteratorObject::TypeValue),
+                                                            Value(g->arrayIteratorPrototypeNext()), false);
+                record->m_isFastBuiltinIterator = true;
+                return record;
+            }
+        }
         // If hint is async, then
         if (!sync) {
             // Set method to ? GetMethod(obj, @@asyncIterator).
