@@ -116,6 +116,26 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const Value* src,
     }
 }
 
+ArrayObject* ArrayObject::createDenseCopy(ExecutionState& state, ArrayObject* src)
+{
+    ASSERT(src->isFastModeArray());
+    const uint32_t len = src->m_arrayLength;
+    ArrayObject* dst = new ArrayObject(state, static_cast<uint64_t>(len), false);
+    // no allocation happens below, so src->m_fastModeData stays valid
+    if (LIKELY(dst->isFastModeArray())) {
+        for (uint32_t i = 0; i < len; i++) {
+            Value v = src->m_fastModeData[i];
+            dst->m_fastModeData[i] = UNLIKELY(v.isEmpty()) ? Value() : v;
+        }
+    } else {
+        for (uint32_t i = 0; i < len; i++) {
+            Value v = src->m_fastModeData[i];
+            dst->defineOwnProperty(state, ObjectPropertyName(state, i), ObjectPropertyDescriptor(UNLIKELY(v.isEmpty()) ? Value() : v, ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+    return dst;
+}
+
 ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
 {
     // SpreadArray is a Fixed Array which has no __proto__ property

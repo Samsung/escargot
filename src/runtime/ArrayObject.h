@@ -92,6 +92,12 @@ public:
     // array out of fast mode and nothing was copied.
     bool copyFastModeElementsFrom(ExecutionState& state, ArrayObject* src, uint32_t srcStart, uint32_t dstStart, uint32_t count);
 
+    // builds a plain dense array holding the same elements as src, with holes
+    // materialized as undefined. src must be a fast-mode array that is iterated
+    // by the pristine builtin ArrayIterator (see tryFastArrayIterationSource),
+    // which is what makes this observably identical to running that iterator.
+    static ArrayObject* createDenseCopy(ExecutionState& state, ArrayObject* src);
+
     ALWAYS_INLINE bool isFastModeArray()
     {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
