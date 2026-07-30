@@ -1,0 +1,7 @@
+{
+  "_comment": "Manually-maintained reference point for the FreeRTOS/QEMU CI job's size/memory report (see .github/workflows/es-actions.yml, build-boot-test-freertos-qemu). CI never writes this file automatically -- it only reads it to show how far the current build has drifted. When a size increase is intentional and accepted, update the numbers below in their own commit/PR so future drift is measured from the new, accepted point.",
+  "recorded_date": "2026-07-30",
+  "flash_bytes": 1102656,
+  "ram_bytes": 622404,
+  "heap_init_kib": 4096
+}
