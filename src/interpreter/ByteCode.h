@@ -69,6 +69,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateObject)                                   \
     F(CreateArray)                                    \
     F(CreateSpreadArrayObject)                        \
+    F(CreateArrayFromIterable)                        \
     F(CreateFunction)                                 \
     F(InitializeClass)                                \
     F(CreateRestElement)                              \
@@ -1135,6 +1136,30 @@ public:
     void dump()
     {
         printf("create spread array object(r%u) -> r%u", m_argumentIndex, m_registerIndex);
+    }
+#endif
+};
+
+// builds the array for `[...x]`, an array literal whose only element is a
+// spread. the generic sequence snapshots the iterated values into a temporary
+// spread array and copies them again into the literal, which doubles both the
+// allocation and the copying for by far the most common shape of spread.
+class CreateArrayFromIterable : public ByteCode {
+public:
+    CreateArrayFromIterable(const ByteCodeLOC& loc, const size_t registerIndex, const size_t argumentIndex)
+        : ByteCode(Opcode::CreateArrayFromIterableOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_argumentIndex(argumentIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_argumentIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("create array from iterable(r%u) -> r%u", m_argumentIndex, m_registerIndex);
     }
 #endif
 };

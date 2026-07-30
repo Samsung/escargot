@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "ArrayPatternNode.h"
+#include "SpreadElementNode.h"
 
 namespace Escargot {
 
@@ -45,6 +46,18 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ArrayExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        // `[...x]` builds its array straight from the iterable; see CreateArrayFromIterable
+        if (m_hasSpreadElement && !m_additionalPropertyExpression && !m_isTaggedTemplateExpression
+            && m_elements.size() == 1 && m_elements.begin()->astNode() && m_elements.begin()->astNode()->type() == ASTNodeType::SpreadElement) {
+            Node* argument = m_elements.begin()->astNode()->asSpreadElement()->argument();
+            ByteCodeRegisterIndex argumentIndex = argument->getRegister(codeBlock, context);
+            argument->generateExpressionByteCode(codeBlock, context, argumentIndex);
+            codeBlock->pushCode(CreateArrayFromIterable(ByteCodeLOC(m_loc.index), dstRegister, argumentIndex), context, this->m_loc.index);
+            context->giveUpRegister();
+            codeBlock->m_shouldClearStack = true;
+            return;
+        }
+
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
         codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
