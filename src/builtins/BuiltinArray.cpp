@@ -219,14 +219,30 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
     Value usingIterator = Object::getMethod(state, items, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
     // If usingIterator is not undefined, then
     if (!usingIterator.isUndefined()) {
-        Object* A;
-        // If IsConstructor(C) is true, then
-        if (C.isConstructor()) {
-            // Let A be ? Construct(C).
-            A = Object::construct(state, C, 0, nullptr).toObject(state);
-        } else {
-            // Let A be ArrayCreate(0).
-            A = new ArrayObject(state);
+        // when C is the builtin Array constructor the target array is created here
+        // and stays unreachable from user code until it is returned, so the elements
+        // can be collected in a local buffer and stored in one go. that keeps the
+        // storage growth amortized instead of re-fitting it on every element
+        bool buffered = (C.isPointerValue() && C.asPointerValue() == state.context()->globalObject()->array());
+        if (LIKELY(buffered && !mapping)) {
+            // copying a pristine fast-mode array element by element is what the
+            // builtin ArrayIterator would do, so it can be done in one bulk copy
+            Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, items);
+            if (LIKELY(fastSource)) {
+                return ArrayObject::createDenseCopy(state, fastSource.value());
+            }
+        }
+        ValueVector buffer;
+        Optional<Object*> A;
+        if (!buffered) {
+            // If IsConstructor(C) is true, then
+            if (C.isConstructor()) {
+                // Let A be ? Construct(C).
+                A = Object::construct(state, C, 0, nullptr).toObject(state);
+            } else {
+                // Let A be ArrayCreate(0).
+                A = new ArrayObject(state);
+            }
         }
         // Let iteratorRecord be ? GetIterator(items, sync, usingIterator).
         IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, items, true, usingIterator);
@@ -242,19 +258,20 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
                 Value throwCompletion = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Got invalid index"));
                 return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
             }
-            // Let Pk be ! ToString(k).
-            ObjectPropertyName pk(state, k);
-            // Let next be ? IteratorStep(iteratorRecord).
-            Optional<Object*> next = IteratorObject::iteratorStep(state, iteratorRecord);
-            // If next is false, then
+            // Let next be ? IteratorStepValue(iteratorRecord).
+            Optional<Value> next = IteratorObject::iteratorStepValue(state, iteratorRecord);
+            // If next is done, then
             if (!next.hasValue()) {
+                if (buffered) {
+                    // Return A.
+                    return new ArrayObject(state, buffer.data(), buffer.size());
+                }
                 // Perform ? Set(A, "length", k, true).
-                A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A);
+                A->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().length), Value(k), A.value());
                 // Return A.
-                return A;
+                return A.value();
             }
-            // Let nextValue be ? IteratorValue(next).
-            Value nextValue = IteratorObject::iteratorValue(state, next.value());
+            Value nextValue = next.value();
             Value mappedValue;
             // If mapping is true, then
             if (mapping) {
@@ -272,13 +289,18 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
                 mappedValue = nextValue;
             }
 
-            try {
-                // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
-                A->defineOwnPropertyThrowsException(state, pk, ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
-            } catch (const Value& v) {
-                // If defineStatus is an abrupt completion, return ? IteratorClose(iteratorRecord, defineStatus).
-                Value exceptionValue = v;
-                return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            if (buffered) {
+                buffer.pushBack(mappedValue);
+            } else {
+                try {
+                    // Let defineStatus be CreateDataPropertyOrThrow(A, Pk, mappedValue).
+                    // Let Pk be ! ToString(k).
+                    A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, k), ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+                } catch (const Value& v) {
+                    // If defineStatus is an abrupt completion, return ? IteratorClose(iteratorRecord, defineStatus).
+                    Value exceptionValue = v;
+                    return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+                }
             }
             // Increase k by 1.
             k++;
