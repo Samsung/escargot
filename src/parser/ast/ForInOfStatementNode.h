@@ -307,17 +307,18 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             continuePosition = codeBlock->currentCodeSize();
 
-            // Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « »).
-            IteratorOperation::IteratorNextData iteratorNextData;
-            iteratorNextData.m_iteratorRecordRegisterIndex = REGISTER_LIMIT;
-            iteratorNextData.m_valueRegisterIndex = REGISTER_LIMIT;
-            iteratorNextData.m_returnRegisterIndex = newContext.getRegister();
-
-            size_t iteratorNextOperationPos = codeBlock->currentCodeSize();
-            codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorNextData), &newContext, this->m_loc.index);
-
-            // If iteratorKind is async, then set nextResult to ? Await(nextResult).
+            size_t iteratorNextOperationPos;
             if (m_isForAwaitOf) {
+                // Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « »).
+                IteratorOperation::IteratorNextData iteratorNextData;
+                iteratorNextData.m_iteratorRecordRegisterIndex = REGISTER_LIMIT;
+                iteratorNextData.m_valueRegisterIndex = REGISTER_LIMIT;
+                iteratorNextData.m_returnRegisterIndex = newContext.getRegister();
+
+                iteratorNextOperationPos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorNextData), &newContext, this->m_loc.index);
+
+                // If iteratorKind is async, then set nextResult to ? Await(nextResult).
                 size_t tailDataLength = newContext.m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
                 ExecutionPause::ExecutionPauseAwaitData data;
                 data.m_awaitIndex = iteratorNextData.m_returnRegisterIndex;
@@ -325,30 +326,37 @@ public:
                 data.m_dstStateIndex = REGISTER_LIMIT;
                 data.m_tailDataLength = tailDataLength;
                 codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), &newContext, this->m_loc.index);
+
+                // If Type(nextResult) is not Object, throw a TypeError exception.
+                IteratorOperation::IteratorTestResultIsObjectData iteratorTestResultIsObjectData;
+                iteratorTestResultIsObjectData.m_valueRegisterIndex = iteratorNextData.m_returnRegisterIndex;
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestResultIsObjectData), &newContext, this->m_loc.index);
+
+                // Let done be ? IteratorComplete(nextResult).
+                size_t doneRegister = newContext.getRegister();
+                IteratorOperation::IteratorTestDoneData iteratorTestDoneData;
+                iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex = iteratorNextData.m_returnRegisterIndex;
+                iteratorTestDoneData.m_dstRegisterIndex = doneRegister;
+                iteratorTestDoneData.m_isIteratorRecord = false;
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), &newContext, this->m_loc.index);
+
+                // If done is true, return NormalCompletion(V).
+                codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneRegister), &newContext, this->m_loc.index);
+                exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+                newContext.giveUpRegister(); // drop doneRegister
+
+                // Let nextValue be ? IteratorValue(nextResult).
+                IteratorOperation::IteratorValueData iteratorValueData;
+                iteratorValueData.m_srcRegisterIndex = iteratorNextData.m_returnRegisterIndex;
+                iteratorValueData.m_dstRegisterIndex = iteratorNextData.m_returnRegisterIndex;
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorValueData), &newContext, this->m_loc.index);
+            } else {
+                // Let nextValue be ? IteratorStepValue(iteratorRecord); if the iterator is
+                // done, return NormalCompletion(V). Sync for-of has no await between the
+                // step and the value read, so the whole sequence fuses into one opcode.
+                iteratorNextOperationPos = exit2Pos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(IteratorNextValue(ByteCodeLOC(m_loc.index), REGISTER_LIMIT, newContext.getRegister(), SIZE_MAX), &newContext, this->m_loc.index);
             }
-            // If Type(nextResult) is not Object, throw a TypeError exception.
-            IteratorOperation::IteratorTestResultIsObjectData iteratorTestResultIsObjectData;
-            iteratorTestResultIsObjectData.m_valueRegisterIndex = iteratorNextData.m_returnRegisterIndex;
-            codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestResultIsObjectData), &newContext, this->m_loc.index);
-
-            // Let done be ? IteratorComplete(nextResult).
-            size_t doneRegister = newContext.getRegister();
-            IteratorOperation::IteratorTestDoneData iteratorTestDoneData;
-            iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex = iteratorNextData.m_returnRegisterIndex;
-            iteratorTestDoneData.m_dstRegisterIndex = doneRegister;
-            iteratorTestDoneData.m_isIteratorRecord = false;
-            codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), &newContext, this->m_loc.index);
-
-            // If done is true, return NormalCompletion(V).
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneRegister), &newContext, this->m_loc.index);
-            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
-            newContext.giveUpRegister(); // drop doneRegister
-
-            // Let nextValue be ? IteratorValue(nextResult).
-            IteratorOperation::IteratorValueData iteratorValueData;
-            iteratorValueData.m_srcRegisterIndex = iteratorNextData.m_returnRegisterIndex;
-            iteratorValueData.m_dstRegisterIndex = iteratorNextData.m_returnRegisterIndex;
-            codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorValueData), &newContext, this->m_loc.index);
 
             forOfEndCheckRegisterHeadEndPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(false)), &newContext, this->m_loc.index);
@@ -382,14 +390,18 @@ public:
 
             codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorRecordIndex = iteratorRecordRegisterIndex;
             codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorObjectIndex = iteratorObjectRegisterIndex;
-            codeBlock->peekCode<IteratorOperation>(iteratorNextOperationPos)->m_iteratorNextData.m_iteratorRecordRegisterIndex = iteratorRecordRegisterIndex;
+            if (m_isForAwaitOf) {
+                codeBlock->peekCode<IteratorOperation>(iteratorNextOperationPos)->m_iteratorNextData.m_iteratorRecordRegisterIndex = iteratorRecordRegisterIndex;
+            } else {
+                codeBlock->peekCode<IteratorNextValue>(iteratorNextOperationPos)->m_iteratorRecordRegisterIndex = iteratorRecordRegisterIndex;
+            }
         }
 
         size_t blockExitPos = codeBlock->currentCodeSize();
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this->m_loc.index);
         size_t exitPos = codeBlock->currentCodeSize();
-        ASSERT(codeBlock->peekCode<CheckLastEnumerateKey>(continuePosition)->m_orgOpcode == CheckLastEnumerateKeyOpcode || codeBlock->peekCode<IteratorOperation>(continuePosition)->m_orgOpcode == IteratorOperationOpcode);
+        ASSERT(codeBlock->peekCode<CheckLastEnumerateKey>(continuePosition)->m_orgOpcode == CheckLastEnumerateKeyOpcode || codeBlock->peekCode<IteratorOperation>(continuePosition)->m_orgOpcode == IteratorOperationOpcode || codeBlock->peekCode<IteratorNextValue>(continuePosition)->m_orgOpcode == IteratorNextValueOpcode);
 
         // we need to add 1 on third parameter because we add try operation manually
         newContext.consumeBreakPositions(codeBlock, exitPos, newContext.tryCatchWithBlockStatementCount());
@@ -541,8 +553,10 @@ public:
         codeBlock->peekCode<JumpIfUndefinedOrNull>(exit1Pos)->m_jumpPosition = exitPos;
         if (m_forIn) {
             codeBlock->peekCode<CheckLastEnumerateKey>(exit2Pos)->m_exitPosition = exitPos;
-        } else {
+        } else if (m_isForAwaitOf) {
             codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
+        } else {
+            codeBlock->peekCode<IteratorNextValue>(exit2Pos)->m_jumpPosition = exitPos;
         }
 
         newContext.propagateInformationTo(*context);

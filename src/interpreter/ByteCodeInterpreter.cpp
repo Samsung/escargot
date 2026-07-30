@@ -1377,6 +1377,37 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(IteratorNextValue)
+            :
+        {
+            IteratorNextValue* code = (IteratorNextValue*)programCounter;
+            ASSERT(code->m_jumpPosition != SIZE_MAX);
+            IteratorRecord* record = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+            bool done;
+            if (LIKELY(record->m_isFastBuiltinIterator)) {
+                // stepping a pristine builtin iterator through advance() is observably
+                // identical to the protocol, and skips the IteratorResult object
+                auto res = record->m_iterator->asIteratorObject()->advance(*state);
+                done = res.second;
+                if (LIKELY(!done)) {
+                    registerFile[code->m_dstRegisterIndex] = res.first;
+                }
+            } else {
+                auto stepped = IteratorObject::iteratorStepValue(*state, record);
+                done = !stepped.hasValue();
+                if (LIKELY(!done)) {
+                    registerFile[code->m_dstRegisterIndex] = stepped.value();
+                }
+            }
+            if (UNLIKELY(done)) {
+                record->m_done = true;
+                programCounter = code->m_jumpPosition;
+            } else {
+                ADD_PROGRAM_COUNTER(IteratorNextValue);
+            }
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(GetMethod)
             :
         {

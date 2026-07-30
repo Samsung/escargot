@@ -121,6 +121,7 @@ struct GlobalVariableAccessCacheItem;
     F(CheckLastEnumerateKey)                          \
     F(MarkEnumerateKey)                               \
     F(IteratorOperation)                              \
+    F(IteratorNextValue)                              \
     F(GetMethod)                                      \
     F(LoadRegExp)                                     \
     F(OpenLexicalEnvironment)                         \
@@ -2911,6 +2912,33 @@ public:
         IteratorValueData m_iteratorValueData;
         IteratorCheckOngoingExceptionOnAsyncIteratorCloseData m_iteratorCheckOngoingExceptionOnAsyncIteratorCloseData;
     };
+};
+
+// fuses IteratorNext + IteratorTestResultIsObject + IteratorComplete + IteratorValue,
+// which sync for-of emits once per iteration. Stepping the iterator and reading the
+// value in a single opcode lets a builtin iterator skip materializing the
+// IteratorResult object and the two generic Gets that read it back.
+class IteratorNextValue : public ByteCode {
+public:
+    explicit IteratorNextValue(const ByteCodeLOC& loc, ByteCodeRegisterIndex iteratorRecordRegisterIndex, ByteCodeRegisterIndex dstRegisterIndex, size_t jumpPosition)
+        : ByteCode(Opcode::IteratorNextValueOpcode, loc)
+        , m_iteratorRecordRegisterIndex(iteratorRecordRegisterIndex)
+        , m_dstRegisterIndex(dstRegisterIndex)
+        , m_jumpPosition(jumpPosition)
+    {
+    }
+
+    ByteCodeRegisterIndex m_iteratorRecordRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
+    // taken when the iterator is done
+    size_t m_jumpPosition;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("iterator next value r%u -> r%u, jump if done %zu", m_iteratorRecordRegisterIndex, m_dstRegisterIndex, dumpJumpPosition(m_jumpPosition));
+    }
+#endif
 };
 
 class GetMethod : public ByteCode {

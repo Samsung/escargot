@@ -752,6 +752,13 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             }
             break;
         }
+        case IteratorNextValueOpcode: {
+            IteratorNextValue* cd = (IteratorNextValue*)currentCode;
+            cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_iteratorRecordRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
         case GetMethodOpcode: {
             GetMethod* cd = (GetMethod*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
