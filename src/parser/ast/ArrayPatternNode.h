@@ -96,6 +96,10 @@ public:
         iteratorCloseData.m_execeptionRegisterIndexIfExists = REGISTER_LIMIT;
         codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), context, this->m_loc.index);
         codeBlock->peekCode<JumpIfTrue>(jumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        // the record was created by the GetIterator above and is only ever read
+        // by the opcodes in between, so nothing can hold it past this point. the
+        // finalizer runs on every exit, including an abrupt one
+        codeBlock->pushCode(ReleaseIteratorRecord(ByteCodeLOC(m_loc.index), iteratorRecordIndex), context, this->m_loc.index);
         TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, context, this, iteratorBindingContext, true);
 
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);

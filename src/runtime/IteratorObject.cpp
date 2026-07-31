@@ -51,6 +51,36 @@ Value IteratorObject::next(ExecutionState& state)
     return r;
 }
 
+IteratorRecord* IteratorRecord::create(ExecutionState& state, Object* iterator, EncodedValue nextMethod, bool done)
+{
+    Optional<IteratorRecord*> pooled = state.context()->vmInstance()->takePooledIteratorRecord();
+    if (LIKELY(pooled.hasValue())) {
+        // run the real constructor over the recycled storage so a field added
+        // later cannot be left holding the previous iteration's value
+        return new (pooled.value()) IteratorRecord(iterator, nextMethod, done);
+    }
+    return new IteratorRecord(iterator, nextMethod, done);
+}
+
+IteratorRecord* IteratorRecord::createForDirectArray(ExecutionState& state, ArrayObject* directArray, EncodedValue nextMethod)
+{
+    Optional<IteratorRecord*> pooled = state.context()->vmInstance()->takePooledIteratorRecord();
+    if (LIKELY(pooled.hasValue())) {
+        return new (pooled.value()) IteratorRecord(directArray, nextMethod);
+    }
+    return new IteratorRecord(directArray, nextMethod);
+}
+
+void IteratorRecord::recycle(ExecutionState& state)
+{
+    // drop the references first so a pooled record never keeps an array or an
+    // iterator object alive while it waits to be handed out again
+    m_iteratorSlot = nullptr;
+    m_directArray = nullptr;
+    m_nextMethod = EncodedValue(Value());
+    state.context()->vmInstance()->returnPooledIteratorRecord(this);
+}
+
 Object* IteratorRecord::iterator(ExecutionState& state)
 {
     if (UNLIKELY(!m_iteratorSlot)) {
@@ -116,7 +146,7 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
             Optional<ArrayObject*> fastArray = tryFastArrayIterationSource(state, obj);
             if (LIKELY(fastArray)) {
                 GlobalObject* g = state.context()->globalObject();
-                return new IteratorRecord(fastArray.value(), Value(g->arrayIteratorPrototypeNext()));
+                return IteratorRecord::createForDirectArray(state, fastArray.value(), Value(g->arrayIteratorPrototypeNext()));
             }
         }
         // If hint is async, then
@@ -151,7 +181,7 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
 
     // Let iteratorRecord be Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
     // Return iteratorRecord
-    IteratorRecord* record = new IteratorRecord(iterator.asObject(), nextMethod, false);
+    IteratorRecord* record = IteratorRecord::create(state, iterator.asObject(), nextMethod, false);
     tryMarkFastBuiltinIterator(state, record);
     return record;
 }
