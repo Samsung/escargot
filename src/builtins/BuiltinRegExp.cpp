@@ -463,6 +463,14 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         if (nCaptures == SIZE_MAX) {
             nCaptures = 0;
         }
+
+        // nCaptures is later used as `nCaptures + 3` (or `+ 4` with named captures) to size an
+        // ALLOCA'd argument array. A custom exec() can return an arbitrary `length`, so reject
+        // any count that would overflow that computation (which would wrap the allocation size
+        // to a small/zero value while the code still writes at those indices).
+        if (nCaptures > SIZE_MAX - 4) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid capture group count in RegExp replace");
+        }
         String* matched = result->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
         size_t matchLength = matched->length();
         size_t position = result->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, result).toInteger(state);
