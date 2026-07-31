@@ -52,7 +52,7 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
         -Wno-deprecated-declarations -Wno-unused-function
     )
 
-    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+    IF (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-maybe-uninitialized)
     ENDIF()
 
@@ -62,7 +62,7 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
     SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
     IF (ESCARGOT_SMALL_CONFIG)
-        IF (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 9)
+        IF (NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
             # BUG?) -Os option has unknown memory conflicts (might be related with gcc version)
             # enable this option only for old gcc version
             SET (ESCARGOT_CXXFLAGS_RELEASE ${ESCARGOT_CXXFLAGS_RELEASE} -Os)
