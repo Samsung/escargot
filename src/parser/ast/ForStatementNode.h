@@ -97,6 +97,21 @@ public:
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
+            // pushLexicalBlock() below allocates an extra register (the using-disposal
+            // accumulator) off the same register stack when this block declares a `using`
+            // binding. Releasing nameRegisters[0..size-1] before that register is later
+            // released by finalizeLexicalBlock() would let it alias one of them (giveUpRegister()
+            // only ever frees the current top of the register stack), corrupting whatever value
+            // ends up there (register aliasing -> type confusion, see issue #1617). So only in
+            // that case do we defer releasing nameRegisters until after finalizeLexicalBlock().
+            bool hasUsingBinding = false;
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                if (bi->identifiers()[i].m_isUsing) {
+                    hasUsingBinding = true;
+                    break;
+                }
+            }
+
             newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
 
@@ -111,7 +126,9 @@ public:
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
-                newContext.giveUpRegister();
+                if (!hasUsingBinding) {
+                    newContext.giveUpRegister();
+                }
             }
         }
 
@@ -210,8 +227,27 @@ public:
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
+            bool hasUsingBinding = false;
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                if (bi->identifiers()[i].m_isUsing) {
+                    hasUsingBinding = true;
+                    break;
+                }
+            }
+
+            // If this block declared a `using` binding, nameRegisters were kept reserved
+            // (see above) and must be released only after finalizeLexicalBlock() runs, since
+            // finalizeLexicalBlock() releases the using-disposal accumulator register, which
+            // sits directly on top of them on the register stack; giveUpRegister() only ever
+            // frees the current top.
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
+
+            if (hasUsingBinding) {
+                for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                    newContext.giveUpRegister();
+                }
+            }
         }
 
         newContext.propagateInformationTo(*context);
