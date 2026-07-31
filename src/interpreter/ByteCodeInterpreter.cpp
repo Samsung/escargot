@@ -4956,8 +4956,13 @@ static void finalizeDisposableAwaitOperation(ExecutionState& state, ByteCodeBloc
 NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
 {
     FinalizeDisposable* code = (FinalizeDisposable*)programCounter;
-    if (!registerFile[code->m_dataRegisterIndex].isUndefined()) {
-        DisposableResourceRecord* data = registerFile[code->m_dataRegisterIndex].asPointerValue()->asDisposableResourceRecord();
+    const Value& dataRegisterValue = registerFile[code->m_dataRegisterIndex];
+    // The data register can, in principle, hold something other than a DisposableResourceRecord
+    // if bytecode generation ever lets an unrelated value alias this register (register reuse
+    // bug, see issue #1617). Guard the cast so such a value is treated as "nothing to dispose"
+    // instead of being blindly reinterpreted as a DisposableResourceRecord.
+    if (!dataRegisterValue.isUndefined() && dataRegisterValue.isPointerValue() && dataRegisterValue.asPointerValue()->isDisposableResourceRecord()) {
+        DisposableResourceRecord* data = dataRegisterValue.asPointerValue()->asDisposableResourceRecord();
         Value result;
         bool resultIsError = false;
         // Let needsAwait be false.
