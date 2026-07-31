@@ -82,6 +82,14 @@ public:
         return m_directArray.hasValue();
     }
 
+    // both take a record out of the VMInstance pool when one is available; see
+    // VMInstance::takePooledIteratorRecord
+    static IteratorRecord* create(ExecutionState& state, Object* iterator, EncodedValue nextMethod, bool done);
+    static IteratorRecord* createForDirectArray(ExecutionState& state, ArrayObject* directArray, EncodedValue nextMethod);
+    // hands this record back to the pool. only call where the record is
+    // provably dead: it is reused as-is by the next create
+    void recycle(ExecutionState& state);
+
     Object* iterator(ExecutionState& state);
     std::pair<Value, bool> advanceDirectArray(ExecutionState& state);
     // steps a record that m_isFastBuiltinIterator vouches for; must not be

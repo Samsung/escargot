@@ -160,6 +160,13 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_globalSymbolRegistry));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_currentSandBox));
 
+        // the pooled records are only reachable from here, so every slot has to
+        // be in the descriptor; a missed slot lets the collector take a record
+        // that is still waiting to be handed out again
+        for (size_t i = 0; i < iteratorRecordPoolCapacity; i++) {
+            GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_iteratorRecordPool) + i);
+        }
+
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForNotConstructorFunctionObject));
@@ -341,6 +348,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_config((size_t)ConfigFlag::Default)
+    , m_iteratorRecordPoolSize(0)
     , m_lastGCMarkStartTickCount(fastTickCount())
     , m_compiledByteCodeSize(0)
     , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)

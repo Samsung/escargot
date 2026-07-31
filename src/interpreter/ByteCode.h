@@ -70,6 +70,7 @@ struct GlobalVariableAccessCacheItem;
     F(CreateArray)                                    \
     F(CreateSpreadArrayObject)                        \
     F(CreateArrayFromIterable)                        \
+    F(ReleaseIteratorRecord)                          \
     F(CreateFunction)                                 \
     F(InitializeClass)                                \
     F(CreateRestElement)                              \
@@ -1160,6 +1161,28 @@ public:
     void dump()
     {
         printf("create array from iterable(r%u) -> r%u", m_argumentIndex, m_registerIndex);
+    }
+#endif
+};
+
+// hands a dead IteratorRecord back to the VMInstance pool. emitted only where
+// the record provably cannot outlive the code that created it, so that the next
+// turn of the same loop reuses it instead of allocating; see
+// VMInstance::takePooledIteratorRecord
+class ReleaseIteratorRecord : public ByteCode {
+public:
+    ReleaseIteratorRecord(const ByteCodeLOC& loc, const size_t registerIndex)
+        : ByteCode(Opcode::ReleaseIteratorRecordOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("release iterator record r%u", m_registerIndex);
     }
 #endif
 };

@@ -820,6 +820,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
+        case ReleaseIteratorRecordOpcode: {
+            ReleaseIteratorRecord* cd = (ReleaseIteratorRecord*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
         case NewOperationWithSpreadElementOpcode: {
             NewOperationWithSpreadElement* cd = (NewOperationWithSpreadElement*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);

@@ -1558,6 +1558,18 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(ReleaseIteratorRecord)
+            :
+        {
+            ReleaseIteratorRecord* code = (ReleaseIteratorRecord*)programCounter;
+            const Value& record = registerFile[code->m_registerIndex];
+            if (LIKELY(record.isPointerValue() && record.asPointerValue()->isIteratorRecord())) {
+                record.asPointerValue()->asIteratorRecord()->recycle(*state);
+            }
+            ADD_PROGRAM_COUNTER(ReleaseIteratorRecord);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(BindingRestElement)
             :
         {

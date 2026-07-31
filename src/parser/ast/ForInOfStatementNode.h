@@ -200,6 +200,7 @@ public:
         TryStatementNode::TryStatementByteCodeContext forOfTryStatementContext;
         ByteCodeRegisterIndex finishCheckRegisterIndex = REGISTER_LIMIT, iteratorRecordRegisterIndex = REGISTER_LIMIT, iteratorObjectRegisterIndex = REGISTER_LIMIT;
         size_t forOfEndCheckRegisterHeadStartPosition = SIZE_MAX;
+        size_t iteratorRecordClearPosition = SIZE_MAX;
         size_t forOfEndCheckRegisterHeadEndPosition = SIZE_MAX;
         size_t forOfEndCheckRegisterBodyEndPosition = SIZE_MAX;
 
@@ -274,6 +275,13 @@ public:
 
             forOfEndCheckRegisterHeadStartPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this->m_loc.index);
+
+            // the right hand side and the GetIterator below run inside the try, so
+            // an exception from either reaches the finalizer with no record ever
+            // stored. clear the slot first so ReleaseIteratorRecord there sees a
+            // non-pointer instead of whatever the register happened to hold
+            iteratorRecordClearPosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value()), &newContext, this->m_loc.index);
 
             size_t headRightLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
             ByteCodeBlock::ByteCodeLexicalBlockContext headRightBlockContext;
@@ -547,8 +555,16 @@ public:
             }
 
             codeBlock->peekCode<JumpIfTrue>(exceptionThrownCheckStartJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+            if (!m_isForAwaitOf) {
+                // every way out of the loop passes through this finalizer, and a
+                // `continue` deliberately does not (see the labelled-continue note
+                // above), so the record is dead exactly here. for-await is left
+                // alone: its record is the async wrapper, which the pauser keeps
+                codeBlock->pushCode(ReleaseIteratorRecord(ByteCodeLOC(m_loc.index), iteratorRecordRegisterIndex), &newContext, this->m_loc.index);
+            }
             TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, &newContext, this, forOfTryStatementContext, true);
 
+            codeBlock->peekCode<LoadLiteral>(iteratorRecordClearPosition)->m_registerIndex = iteratorRecordRegisterIndex;
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadStartPosition)->m_registerIndex = finishCheckRegisterIndex;
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterHeadEndPosition)->m_registerIndex = finishCheckRegisterIndex;
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterBodyEndPosition)->m_registerIndex = finishCheckRegisterIndex;

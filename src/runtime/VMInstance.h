@@ -33,6 +33,7 @@ class JobQueue;
 class Job;
 class Symbol;
 class String;
+class IteratorRecord;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
 #endif
@@ -199,6 +200,27 @@ public:
     bool didSomePrototypeObjectDefineIndexedProperty()
     {
         return m_didSomePrototypeObjectDefineIndexedProperty;
+    }
+
+    // recycles the IteratorRecord that a for-of or an array destructuring
+    // allocates on every iteration. this engine is tuned for a small heap and
+    // collects often, so a per-iteration allocation costs far more than its
+    // size. only sites that can prove the record is dead hand it back; anything
+    // else simply lets the collector take it, so a missed return is a missed
+    // optimization rather than a dangling record
+    Optional<IteratorRecord*> takePooledIteratorRecord()
+    {
+        if (LIKELY(m_iteratorRecordPoolSize > 0)) {
+            return m_iteratorRecordPool[--m_iteratorRecordPoolSize];
+        }
+        return NullOption;
+    }
+
+    void returnPooledIteratorRecord(IteratorRecord* record)
+    {
+        if (LIKELY(m_iteratorRecordPoolSize < iteratorRecordPoolCapacity)) {
+            m_iteratorRecordPool[m_iteratorRecordPoolSize++] = record;
+        }
     }
 
     void addObjectStructureToRootSet(ObjectStructure* structure);
@@ -442,6 +464,12 @@ private:
     bool m_didSomePrototypeObjectDefineIndexedProperty;
 
     size_t m_config;
+
+    // see takePooledIteratorRecord. VMInstance is scanned conservatively, so the
+    // pooled records stay reachable while they sit here
+    static const size_t iteratorRecordPoolCapacity = 8;
+    size_t m_iteratorRecordPoolSize;
+    IteratorRecord* m_iteratorRecordPool[iteratorRecordPoolCapacity];
 
     uint64_t m_lastGCMarkStartTickCount;
 
