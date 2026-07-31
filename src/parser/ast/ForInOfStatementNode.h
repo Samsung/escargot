@@ -389,8 +389,12 @@ public:
             codeBlock->m_requiredOperandRegisterNumber = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredOperandRegisterNumber, (ByteCodeRegisterIndex)(iteratorRecordRegisterIndex + 3) });
 
             codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorRecordIndex = iteratorRecordRegisterIndex;
-            codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorObjectIndex = iteratorObjectRegisterIndex;
+            // only AsyncIteratorClose below reaches for the iterator object; a sync
+            // for-of closes through IteratorOperation, which does not need it, and
+            // asking for it here would materialize an iterator that a record
+            // iterating an array directly never has to build
             if (m_isForAwaitOf) {
+                codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorObjectIndex = iteratorObjectRegisterIndex;
                 codeBlock->peekCode<IteratorOperation>(iteratorNextOperationPos)->m_iteratorNextData.m_iteratorRecordRegisterIndex = iteratorRecordRegisterIndex;
             } else {
                 codeBlock->peekCode<IteratorNextValue>(iteratorNextOperationPos)->m_iteratorRecordRegisterIndex = iteratorRecordRegisterIndex;

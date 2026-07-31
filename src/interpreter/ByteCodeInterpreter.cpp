@@ -1389,7 +1389,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             if (LIKELY(record->m_isFastBuiltinIterator)) {
                 // stepping a pristine builtin iterator through advance() is observably
                 // identical to the protocol, and skips the IteratorResult object
-                auto res = record->m_iterator->asIteratorObject()->advance(*state);
+                auto res = record->fastAdvance(*state);
                 done = res.second;
                 if (LIKELY(!done)) {
                     registerFile[code->m_dstRegisterIndex] = res.first;
@@ -1421,7 +1421,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             // exactly as the generic path's catch does - without a try block here
             if (LIKELY(!record->m_done && record->m_isFastBuiltinIterator)) {
                 record->m_done = true;
-                auto res = record->m_iterator->asIteratorObject()->advance(*state);
+                auto res = record->fastAdvance(*state);
                 if (UNLIKELY(res.second)) {
                     registerFile[code->m_dstRegisterIndex] = Value();
                 } else {
@@ -5251,7 +5251,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
         const Value& obj = registerFile[code->m_getIteratorData.m_srcObjectRegisterIndex];
         registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex] = IteratorObject::getIterator(state, obj, code->m_getIteratorData.m_isSyncIterator);
         if (code->m_getIteratorData.m_dstIteratorObjectIndex != REGISTER_LIMIT) {
-            registerFile[code->m_getIteratorData.m_dstIteratorObjectIndex] = registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex].asPointerValue()->asIteratorRecord()->m_iterator;
+            registerFile[code->m_getIteratorData.m_dstIteratorObjectIndex] = registerFile[code->m_getIteratorData.m_dstIteratorRecordIndex].asPointerValue()->asIteratorRecord()->iterator(state);
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorClose) {
@@ -5261,7 +5261,11 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
         } else {
             bool exceptionWasThrown = state.rareData()->controlFlowRecordVector() && state.rareData()->controlFlowRecordVector()->back() && state.rareData()->controlFlowRecordVector()->back()->reason() == ControlFlowRecord::NeedsThrow;
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
-            Object* iterator = iteratorRecord->m_iterator;
+            if (LIKELY(IteratorObject::directArrayIterationClosesWithoutReturn(state, iteratorRecord))) {
+                ADD_PROGRAM_COUNTER(IteratorOperation);
+                return;
+            }
+            Object* iterator = iteratorRecord->iterator(state);
             Value returnFunction;
             Value innerResult;
             bool innerResultHasException = false;
@@ -5338,13 +5342,13 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
             if (LIKELY(record->m_isFastBuiltinIterator)) {
                 // the builtin next takes no argument; stepping via advance()
                 // skips the call frame while producing the same result object
-                auto res = record->m_iterator->asIteratorObject()->advance(state);
+                auto res = record->fastAdvance(state);
                 registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = IteratorObject::createIterResultObject(state, res.first, res.second);
             } else {
-                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 0, nullptr);
+                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->iterator(state), 0, nullptr);
             }
         } else {
-            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->m_iterator, 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
+            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->iterator(state), 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {

@@ -434,7 +434,7 @@ static void builtinArrayFromAsyncAsyncWorker(ExecutionState& state, ArrayFromAsy
         }
         // Let Pk be ! ToString(𝔽(k)).
         // Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-        data->m_nextResult = Object::call(state, data->m_iteratorRecord->m_nextMethod, data->m_iteratorRecord->m_iterator, 0, nullptr);
+        data->m_nextResult = Object::call(state, data->m_iteratorRecord->m_nextMethod, data->m_iteratorRecord->iterator(state), 0, nullptr);
         // Set nextResult to ? Await(nextResult).
         arrayFromAsyncAsyncAwaitOperation(state, data->m_nextResult, data, 2);
         return;
@@ -675,16 +675,16 @@ static PromiseObject* arrayFromAsyncSyncAwaitOperation(ExecutionState& state, co
 static Value closeAsyncIterator(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
 {
     // Check if this is an async-from-sync iterator
-    if (iteratorRecord->m_iterator->isAsyncFromSyncIteratorObject()) {
+    if (iteratorRecord->iterator(state)->isAsyncFromSyncIteratorObject()) {
         // For async-from-sync iterators, we need to close the underlying sync iterator
-        auto asyncFromSyncIterator = iteratorRecord->m_iterator->asAsyncFromSyncIteratorObject();
+        auto asyncFromSyncIterator = iteratorRecord->iterator(state)->asAsyncFromSyncIteratorObject();
         IteratorRecord* syncIteratorRecord = asyncFromSyncIterator->syncIteratorRecord();
         // Use the sync iterator close logic
         return IteratorObject::iteratorClose(state, syncIteratorRecord, completionValue, hasThrowOnCompletionType);
     } else {
         // Regular async iterator - use the async iterator close logic
         auto strings = &state.context()->staticStrings();
-        Value returnFunction = Object::getMethod(state, iteratorRecord->m_iterator, ObjectPropertyName(strings->stringReturn));
+        Value returnFunction = Object::getMethod(state, iteratorRecord->iterator(state), ObjectPropertyName(strings->stringReturn));
         if (returnFunction.isUndefined()) {
             if (hasThrowOnCompletionType) {
                 state.throwException(completionValue);
@@ -695,7 +695,7 @@ static Value closeAsyncIterator(ExecutionState& state, IteratorRecord* iteratorR
         Value innerResult;
         bool innerResultHasException = false;
         try {
-            innerResult = Object::call(state, returnFunction, iteratorRecord->m_iterator, 0, nullptr);
+            innerResult = Object::call(state, returnFunction, iteratorRecord->iterator(state), 0, nullptr);
         } catch (const Value& e) {
             innerResult = e;
             innerResultHasException = true;

@@ -51,6 +51,56 @@ Value IteratorObject::next(ExecutionState& state)
     return r;
 }
 
+Object* IteratorRecord::iterator(ExecutionState& state)
+{
+    if (UNLIKELY(!m_iteratorSlot)) {
+        ASSERT(m_directArray.hasValue());
+        // hand out the builtin ArrayIterator this record has been standing in
+        // for, positioned exactly where the direct iteration got to
+        ArrayIteratorObject* it = new ArrayIteratorObject(state, m_directArray.value(), ArrayIteratorObject::TypeValue);
+        if (m_directArrayDone) {
+            it->m_array = nullptr;
+        }
+        it->m_iteratorNextIndex = m_directArrayIndex;
+        m_iteratorSlot = it;
+        m_directArray = nullptr;
+    }
+    return m_iteratorSlot.value();
+}
+
+std::pair<Value, bool> IteratorRecord::advanceDirectArray(ExecutionState& state)
+{
+    ASSERT(m_directArray.hasValue());
+    if (UNLIKELY(m_directArrayDone)) {
+        return std::make_pair(Value(), true);
+    }
+    // mirrors ArrayIteratorObject::advance for a value iteration over an array;
+    // the array can leave fast mode or shrink between steps, so both are
+    // re-checked every time
+    ArrayObject* a = m_directArray.value();
+    const bool fast = a->isFastModeArray();
+    // an array length never exceeds 2^32-1, so the index fits in uint32_t
+    uint64_t len = fast ? (uint64_t)a->arrayLength(state) : a->length(state);
+    uint32_t index = m_directArrayIndex;
+    if (index >= len) {
+        m_directArrayDone = true;
+        return std::make_pair(Value(), true);
+    }
+    m_directArrayIndex = index + 1;
+
+    Value elementValue;
+    if (LIKELY(fast)) {
+        elementValue = a->m_fastModeData[index];
+        // a hole must still be resolved through the prototype chain
+        if (UNLIKELY(elementValue.isEmpty())) {
+            elementValue = a->getIndexedProperty(state, Value(index), a).value(state, a);
+        }
+    } else {
+        elementValue = a->getIndexedProperty(state, Value(index), a).value(state, a);
+    }
+    return std::make_pair(elementValue, false);
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-getiterator
 IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& obj, const bool sync, const Value& func)
 {
@@ -60,15 +110,13 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
     if (method.isEmpty()) {
         if (LIKELY(sync)) {
             // a pristine fast-mode array is iterated by the builtin ArrayIterator.
-            // building that iterator directly is observably identical here and skips
-            // the @@iterator lookup, its call frame and the "next" lookup
+            // stepping the array directly is observably identical here and skips the
+            // @@iterator lookup, its call frame, the "next" lookup and the iterator
+            // object itself
             Optional<ArrayObject*> fastArray = tryFastArrayIterationSource(state, obj);
             if (LIKELY(fastArray)) {
                 GlobalObject* g = state.context()->globalObject();
-                IteratorRecord* record = new IteratorRecord(new ArrayIteratorObject(state, fastArray.value(), ArrayIteratorObject::TypeValue),
-                                                            Value(g->arrayIteratorPrototypeNext()), false);
-                record->m_isFastBuiltinIterator = true;
-                return record;
+                return new IteratorRecord(fastArray.value(), Value(g->arrayIteratorPrototypeNext()));
             }
         }
         // If hint is async, then
@@ -110,7 +158,7 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
 
 void IteratorObject::tryMarkFastBuiltinIterator(ExecutionState& state, IteratorRecord* record)
 {
-    if (!record->m_iterator->isIteratorObject()) {
+    if (!record->m_iteratorSlot.value()->isIteratorObject()) {
         return;
     }
     Value nextMethod = record->m_nextMethod;
@@ -118,7 +166,7 @@ void IteratorObject::tryMarkFastBuiltinIterator(ExecutionState& state, IteratorR
         return;
     }
     PointerValue* nm = nextMethod.asPointerValue();
-    IteratorObject* io = record->m_iterator->asIteratorObject();
+    IteratorObject* io = record->m_iteratorSlot.value()->asIteratorObject();
     GlobalObject* g = state.context()->globalObject();
     bool fast = false;
     if (io->isArrayIteratorObject()) {
@@ -183,7 +231,7 @@ Object* IteratorObject::iteratorNext(ExecutionState& state, IteratorRecord* iter
     IteratorRecord* record = iteratorRecord;
     Value result;
     Value nextMethod = record->m_nextMethod;
-    Value iterator = record->m_iterator;
+    Value iterator = record->iterator(state);
     if (value.isEmpty()) {
         result = Object::call(state, nextMethod, iterator, 0, nullptr);
     } else {
@@ -215,7 +263,7 @@ Value IteratorObject::iteratorValue(ExecutionState& state, Object* iterResult)
 Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
     if (LIKELY(iteratorRecord->m_isFastBuiltinIterator)) {
-        auto res = iteratorRecord->m_iterator->asIteratorObject()->advance(state);
+        auto res = iteratorRecord->fastAdvance(state);
         if (res.second) {
             return nullptr;
         }
@@ -231,7 +279,7 @@ Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRe
 Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
     if (LIKELY(iteratorRecord->m_isFastBuiltinIterator)) {
-        auto res = iteratorRecord->m_iterator->asIteratorObject()->advance(state);
+        auto res = iteratorRecord->fastAdvance(state);
         if (res.second) {
             return NullOption;
         }
@@ -259,13 +307,52 @@ Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, Iterato
     return value;
 }
 
+// answers whether closing a builtin ArrayIterator would find a "return" method.
+// the lookup runs on %ArrayIteratorPrototype% rather than on an instance, which
+// is equivalent only while the chain is made of ordinary objects, so anything
+// exotic in it is reported as "has return" and takes the generic path
+bool IteratorObject::arrayIteratorPrototypeChainHasReturn(ExecutionState& state)
+{
+    const ObjectPropertyName stringReturn(state.context()->staticStrings().stringReturn);
+    Optional<Object*> p = state.context()->globalObject()->arrayIteratorPrototype();
+    while (p) {
+        Object* o = p.value();
+        // only ordinary objects answer [[Get]] with a plain own-property walk
+        if (UNLIKELY(o->isProxyObject() || o->isModuleNamespaceObject() || o->hasOwnEnumeration())) {
+            return true;
+        }
+        if (UNLIKELY(o->getOwnProperty(state, stringReturn).hasValue())) {
+            return true;
+        }
+        p = o->rawInternalPrototypeObject();
+    }
+    return false;
+}
+
+bool IteratorObject::directArrayIterationClosesWithoutReturn(ExecutionState& state, IteratorRecord* record)
+{
+    return record->isDirectArrayIteration() && !arrayIteratorPrototypeChainHasReturn(state);
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorclose
 Value IteratorObject::iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
 {
     auto strings = &state.context()->staticStrings();
 
     IteratorRecord* record = iteratorRecord;
-    Value iterator = record->m_iterator;
+    // a record iterating an array directly stands in for a freshly built
+    // ArrayIterator, which has no own properties: GetMethod on it would read
+    // "return" off %ArrayIteratorPrototype%'s chain. when nothing on that chain
+    // defines "return" the close is a no-op, so the iterator object that only
+    // this lookup would have needed does not have to be built at all
+    if (LIKELY(directArrayIterationClosesWithoutReturn(state, record))) {
+        if (hasThrowOnCompletionType) {
+            state.throwException(completionValue);
+        }
+        return completionValue;
+    }
+
+    Value iterator = record->iterator(state);
     Value returnFunction = Object::getMethod(state, iterator, ObjectPropertyName(strings->stringReturn));
     if (returnFunction.isUndefined()) {
         if (hasThrowOnCompletionType) {

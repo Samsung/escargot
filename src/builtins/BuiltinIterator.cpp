@@ -33,11 +33,11 @@ static Value builtinIteratorFrom(ExecutionState& state, Value thisValue, size_t 
     // Let iteratorRecord be ? GetIteratorFlattenable(O, iterate-string-primitives).
     auto iteratorRecord = IteratorObject::getIteratorFlattenable(state, argv[0], IteratorObject::PrimitiveHandling::IterateStringPrimitives);
     // Let hasInstance be ? OrdinaryHasInstance(%Iterator%, iteratorRecord.[[Iterator]]).
-    auto hasInstance = state.context()->globalObject()->iterator()->hasInstance(state, iteratorRecord->m_iterator);
+    auto hasInstance = state.context()->globalObject()->iterator()->hasInstance(state, iteratorRecord->iterator(state));
     // If hasInstance is true, then
     if (hasInstance) {
         // Return iteratorRecord.[[Iterator]].
-        return iteratorRecord->m_iterator;
+        return iteratorRecord->iterator(state);
     }
     // Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, « [[Iterated]] »).
     // Set wrapper.[[Iterated]] to iteratorRecord.
@@ -179,7 +179,7 @@ static Value builtinWrapForValidIteratorPrototypeNext(ExecutionState& state, Val
     // Let iteratorRecord be O.[[Iterated]].
     IteratorRecord* iteratorRecord = O->iterated();
     // Return ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-    return Object::call(state, iteratorRecord->m_nextMethod, iteratorRecord->m_iterator, 0, nullptr);
+    return Object::call(state, iteratorRecord->m_nextMethod, iteratorRecord->iterator(state), 0, nullptr);
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.return
@@ -191,7 +191,7 @@ static Value builtinWrapForValidIteratorPrototypeReturn(ExecutionState& state, V
 
     // Let iterator be O.[[Iterated]].[[Iterator]].
     // Assert: iterator is an Object.
-    auto iterator = O->iterated()->m_iterator;
+    auto iterator = O->iterated()->iterator(state);
 
     // Let returnMethod be ? GetMethod(iterator, "return").
     auto returnMethod = Object::getMethod(state, iterator, state.context()->staticStrings().stringReturn);
