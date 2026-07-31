@@ -622,13 +622,21 @@ ObjectGetResult ArrayObject::getVirtualValue(ExecutionState& state, const Object
 ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
     if (LIKELY(isFastModeArray())) {
-        uint32_t idx = propertyName.tryToUseAsIndexProperty(state);
+        // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
+        // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+        uint32_t idx = Value::InvalidIndexPropertyValue;
+        if (LIKELY(propertyName.isUInt32())) {
+            idx = propertyName.asUInt32();
+        } else if (propertyName.isString()) {
+            idx = propertyName.asString()->tryToUseAsIndex32();
+        }
         if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectHasPropertyResult(ObjectGetResult(v, true, true, true));
             }
         }
+        // For Object or other types, fall through to standard property lookup to avoid side effects
     }
     return hasProperty(state, ObjectPropertyName(state, propertyName));
 }
@@ -636,13 +644,21 @@ ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, c
 ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
     if (LIKELY(isFastModeArray())) {
-        uint32_t idx = property.tryToUseAsIndexProperty(state);
+        // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
+        // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+        uint32_t idx = Value::InvalidIndexPropertyValue;
+        if (LIKELY(property.isUInt32())) {
+            idx = property.asUInt32();
+        } else if (property.isString()) {
+            idx = property.asString()->tryToUseAsIndex32();
+        }
         if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
             }
         }
+        // For Object or other types, fall through to standard property lookup to avoid side effects
     }
     return get(state, ObjectPropertyName(state, property), receiver);
 }

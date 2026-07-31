@@ -581,12 +581,24 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 if (LIKELY(obj->hasArrayObjectTag())) {
                     ArrayObject* arr = reinterpret_cast<ArrayObject*>(obj);
                     if (LIKELY(arr->isFastModeArray())) {
-                        uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                        if (LIKELY(idx < arr->arrayLength(*state))) {
-                            registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
-                            ADD_PROGRAM_COUNTER(GetObject);
-                            NEXT_INSTRUCTION();
+                        // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
+                        // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+                        if (LIKELY(property.isUInt32())) {
+                            uint32_t idx = property.asUInt32();
+                            if (LIKELY(idx < arr->arrayLength(*state))) {
+                                registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                                ADD_PROGRAM_COUNTER(GetObject);
+                                NEXT_INSTRUCTION();
+                            }
+                        } else if (property.isString()) {
+                            uint32_t idx = property.asString()->tryToUseAsIndex32();
+                            if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
+                                registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                                ADD_PROGRAM_COUNTER(GetObject);
+                                NEXT_INSTRUCTION();
+                            }
                         }
+                        // For Object or other types, fall through to slow case to avoid side effects
                     }
                 } else {
                     registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(*state, property, willBeObject);
