@@ -187,7 +187,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
         return promiseCapability.m_promise;
     }
     auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
-    Object* syncIterator = syncIteratorRecord->m_iterator;
+    Object* syncIterator = syncIteratorRecord->iterator(state);
     // Let return be GetMethod(syncIterator, "return").
     Value returnVariable;
     try {
@@ -259,7 +259,7 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
 
     // Let syncIteratorRecord be O.[[SyncIteratorRecord]].
     auto syncIteratorRecord = O.asObject()->asAsyncFromSyncIteratorObject()->syncIteratorRecord();
-    Object* syncIterator = syncIteratorRecord->m_iterator;
+    Object* syncIterator = syncIteratorRecord->iterator(state);
     // Let throw be GetMethod(syncIterator, "throw").
     Value throwVariable;
     try {

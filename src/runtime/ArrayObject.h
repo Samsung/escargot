@@ -40,6 +40,7 @@ class ArrayObject : public DerivedObject {
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend class ArrayIteratorObject;
+    friend class IteratorRecord;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     friend void initializeCustomAllocators();
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
@@ -186,6 +187,8 @@ private:
 };
 
 class ArrayIteratorObject : public IteratorObject {
+    friend class IteratorRecord;
+
 public:
     enum Type {
         TypeKey,
