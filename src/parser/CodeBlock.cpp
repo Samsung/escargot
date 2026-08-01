@@ -114,7 +114,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
 
     if (UNLIKELY(blockScopes.size() > maxBlockInfosLength)) {
         auto err = new esprima::Error(new ASCIIStringFromExternalMemory("block limit exceeded"));
-        throw *err;
+        throw err;
     }
     m_blockInfosLength = blockScopes.size();
     m_blockInfos = (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * m_blockInfosLength);
