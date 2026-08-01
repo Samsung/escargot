@@ -25,6 +25,7 @@
 
 #define u_tolower RuntimeICUBinder::ICU::instance().u_tolower
 #define u_toupper RuntimeICUBinder::ICU::instance().u_toupper
+#define u_hasBinaryProperty RuntimeICUBinder::ICU::instance().u_hasBinaryProperty
 #define u_islower RuntimeICUBinder::ICU::instance().u_islower
 #define u_isupper RuntimeICUBinder::ICU::instance().u_isupper
 #define u_totitle RuntimeICUBinder::ICU::instance().u_totitle

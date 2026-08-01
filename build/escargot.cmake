@@ -222,32 +222,6 @@ ENDIF()
 
 MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/tmp)
 
-# Generate UnicodeIdentifierTables.cpp
-MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/parser)
-EXECUTE_PROCESS(
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/gen_unicode.py --derived_core_properties ${PROJECT_SOURCE_DIR}/tools/unicode_data/DerivedCoreProperties.txt --dst ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodeIdentifierTables.cpp
-    RESULT_VARIABLE GENERATE_RESULT
-    OUTPUT_VARIABLE GENERATE_OUTPUT
-    ERROR_VARIABLE GENERATE_ERROR
-)
-
-IF (NOT GENERATE_RESULT EQUAL 0)
-    MESSAGE(STATUS "Output:\n${GENERATE_OUTPUT}")
-    MESSAGE(FATAL_ERROR "${GENERATE_ERROR}")
-ENDIF()
-
-EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodeIdentifierTables.cpp ${CMAKE_BINARY_DIR}/escargot_generated/parser/UnicodeIdentifierTables.cpp
-                RESULT_VARIABLE COMPARE_RESULT
-                OUTPUT_VARIABLE COMPARE_OUTPUT
-                ERROR_VARIABLE COMPARE_ERROR
-)
-
-IF (NOT ${COMPARE_RESULT} EQUAL 0)
-    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodeIdentifierTables.cpp DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/parser/)
-ENDIF()
-
-SET (ESCARGOT_SRC_LIST ${ESCARGOT_SRC_LIST} ${CMAKE_BINARY_DIR}/escargot_generated/parser/UnicodeIdentifierTables.cpp)
-
 # Generate YarrCanonicalizeUnicode.cpp
 MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/yarr)
 EXECUTE_PROCESS(

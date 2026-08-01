@@ -38,6 +38,7 @@ namespace RuntimeICUBinder {
 #define FOR_EACH_UC_OP(F)                                                                                                                                                         \
     F(u_tolower, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
     F(u_toupper, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
+    F(u_hasBinaryProperty, UBool(CALLCONV*)(UChar32 c, UProperty which), UBool)                                                                                                    \
     F(u_islower, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
     F(u_isupper, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
     F(u_totitle, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
