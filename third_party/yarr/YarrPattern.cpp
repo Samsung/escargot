@@ -173,11 +173,7 @@ public:
         }
 
         // Add multiple matches, if necessary.
-        const CanonicalizationRange* info = canonicalRangeInfoFor(ch, m_canonicalMode);
-        if (info->type == CanonicalizeUnique)
-            addSorted(ch);
-        else
-            putUnicodeIgnoreCase(ch, info);
+        putUnicodeIgnoreCase(ch);
     }
 
     void putCharNonUnion(char32_t ch)
@@ -218,34 +214,18 @@ public:
         }
 
         // Add multiple matches, if necessary.
-        const CanonicalizationRange* info = canonicalRangeInfoFor(ch, m_canonicalMode);
-        if (info->type == CanonicalizeUnique)
-            addChar(ch);
-        else {
-            if (info->type == CanonicalizeSet) {
-                for (auto* set = canonicalCharacterSetInfo(info->value, m_canonicalMode); (ch = *set); ++set)
-                    addChar(ch);
-            } else {
-                char32_t canonicalChar = getCanonicalPair(info, ch);
-                addChar(std::min(ch, canonicalChar));
-                addChar(std::max(ch, canonicalChar));
-            }
-        }
+        auto equivalents = canonicalEquivalents(ch, m_canonicalMode);
+        std::sort(equivalents.chars, equivalents.chars + equivalents.size);
+        for (unsigned i = 0; i < equivalents.size; i++)
+            addChar(equivalents.chars[i]);
 
         performOp();
     }
 
-    void putUnicodeIgnoreCase(char32_t ch, const CanonicalizationRange* info)
+    void putUnicodeIgnoreCase(char32_t ch)
     {
-        ASSERT(ch >= info->begin && ch <= info->end);
-        ASSERT(info->type != CanonicalizeUnique);
-        if (info->type == CanonicalizeSet) {
-            for (auto* set = canonicalCharacterSetInfo(info->value, m_canonicalMode); (ch = *set); ++set)
-                addSorted(ch);
-        } else {
-            addSorted(ch);
-            addSorted(getCanonicalPair(info, ch));
-        }
+        for (char32_t equivalent : canonicalEquivalents(ch, m_canonicalMode))
+            addSorted(equivalent);
     }
 
     void putRange(char32_t lo, char32_t hi)
@@ -271,49 +251,11 @@ public:
         if (!m_isCaseInsensitive)
             return;
 
-        const CanonicalizationRange* info = canonicalRangeInfoFor(lo, m_canonicalMode);
-        while (true) {
-            // Handle the range [lo .. end]
-            char32_t end = std::min<char32_t>(info->end, hi);
-
-            switch (info->type) {
-            case CanonicalizeUnique:
-                // Nothing to do - no canonical equivalents.
-                break;
-            case CanonicalizeSet: {
-                UChar ch;
-                for (auto* set = canonicalCharacterSetInfo(info->value, m_canonicalMode); (ch = *set); ++set)
-                    addSorted(ch);
-                break;
-            }
-            case CanonicalizeRangeLo:
-                addSortedRange(lo + info->value, end + info->value);
-                break;
-            case CanonicalizeRangeHi:
-                addSortedRange(lo - info->value, end - info->value);
-                break;
-            case CanonicalizeAlternatingAligned:
-                // Use addSortedRange since there is likely an abutting range to combine with.
-                if (lo & 1)
-                    addSortedRange(lo - 1, lo - 1);
-                if (!(end & 1))
-                    addSortedRange(end + 1, end + 1);
-                break;
-            case CanonicalizeAlternatingUnaligned:
-                // Use addSortedRange since there is likely an abutting range to combine with.
-                if (!(lo & 1))
-                    addSortedRange(lo - 1, lo - 1);
-                if (end & 1)
-                    addSortedRange(end + 1, end + 1);
-                break;
-            }
-
-            if (hi == end)
-                return;
-
-            ++info;
-            lo = info->begin;
-        }
+        // For case-insensitive ranges, add every code point outside the range that is
+        // case equivalent to one inside it.
+        forEachCaseEquivalentOutsideRange(lo, hi, m_canonicalMode, [&](char32_t ch) {
+            addSorted(ch);
+        });
     }
 
     void atomClassStringDisjunction(Vector<Vector<char32_t>>& disjunctionStrings)
@@ -341,18 +283,8 @@ public:
                 }
 
                 // Add multiple matches, if necessary.
-                const CanonicalizationRange* info = canonicalRangeInfoFor(ch, m_canonicalMode);
-                if (info->type == CanonicalizeUnique)
-                    addCh(ch);
-                else {
-                    if (info->type == CanonicalizeSet) {
-                        for (auto* set = canonicalCharacterSetInfo(info->value, m_canonicalMode); (ch = *set); ++set)
-                            addCh(ch);
-                    } else {
-                        addCh(ch);
-                        addCh(getCanonicalPair(info, ch));
-                    }
-                }
+                for (char32_t equivalent : canonicalEquivalents(ch, m_canonicalMode))
+                    addCh(equivalent);
                 continue;
             }
 
@@ -1155,13 +1087,13 @@ public:
             return;
         }
 
-        const CanonicalizationRange* info = canonicalRangeInfoFor(ch, m_pattern.eitherUnicode() ? CanonicalMode::Unicode : CanonicalMode::UCS2);
-        if (info->type == CanonicalizeUnique) {
+        auto canonicalMode = m_pattern.eitherUnicode() ? CanonicalMode::Unicode : CanonicalMode::UCS2;
+        if (isCanonicallyUnique(ch, canonicalMode)) {
             m_alternative->m_terms.append(PatternTerm(ch, m_flags, parenthesisMatchDirection()));
             return;
         }
 
-        m_currentCharacterClassConstructor->putUnicodeIgnoreCase(ch, info);
+        m_currentCharacterClassConstructor->putUnicodeIgnoreCase(ch);
         auto newCharacterClass = m_currentCharacterClassConstructor->charClass();
         m_alternative->m_terms.append(PatternTerm(newCharacterClass.get(), false, m_flags, parenthesisMatchDirection()));
         m_pattern.m_userCharacterClasses.append(WTFMove(newCharacterClass));

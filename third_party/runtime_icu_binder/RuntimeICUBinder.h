@@ -38,6 +38,7 @@ namespace RuntimeICUBinder {
 #define FOR_EACH_UC_OP(F)                                                                                                                                                         \
     F(u_tolower, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
     F(u_toupper, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
+    F(u_foldCase, UChar32(CALLCONV*)(UChar32 c, uint32_t options), UChar32)                                                                                                        \
     F(u_hasBinaryProperty, UBool(CALLCONV*)(UChar32 c, UProperty which), UBool)                                                                                                    \
     F(u_islower, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
     F(u_isupper, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
@@ -99,6 +100,7 @@ namespace RuntimeICUBinder {
     F(uldn_scriptDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)        \
     F(uldn_keyValueDisplayName, int32_t(CALLCONV*)(const ULocaleDisplayNames* ldn, const char* key, const char* value, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t) \
     F(uset_openPattern, USet*(CALLCONV*)(const UChar* pattern, int32_t patternLength, UErrorCode* ec), USet*) \
+    F(uset_openEmpty, USet*(CALLCONV*)(), USet*) \
     F(uset_getItemCount, int32_t(CALLCONV*)(const USet* set), int32_t) \
     F(uset_getItem, int32_t(CALLCONV*)(const USet* set, int32_t itemIndex, UChar32* start, UChar32* end, UChar* str, int32_t strCapacity, UErrorCode* ec), int32_t)
 
@@ -114,6 +116,9 @@ namespace RuntimeICUBinder {
     F(ubidi_setPara, void(CALLCONV*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                       \
     F(ubidi_getLogicalRun, void(CALLCONV*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)                                                                     \
     F(uldn_close, void(CALLCONV*)(ULocaleDisplayNames * ldn), void) \
+    F(uset_add, void(CALLCONV*)(USet * set, UChar32 c), void) \
+    F(uset_addRange, void(CALLCONV*)(USet * set, UChar32 start, UChar32 end), void) \
+    F(uset_closeOver, void(CALLCONV*)(USet * set, int32_t attributes), void) \
     F(uset_close, void(CALLCONV*)(USet * set), void)
 
 #define FOR_EACH_I18N_OP(F)                                                                                                                                                                                                                \

@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "WTFBridge.h"
@@ -29,88 +29,263 @@
 #include "Yarr.h"
 #include "YarrPattern.h"
 
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
 namespace JSC { namespace Yarr {
-
-struct HashIndex {
-    int16_t value;
-    int16_t next;
-};
-
-struct HashValue {
-    const char* key;
-    int index;
-};
-
-struct HashTable {
-    int numberOfValues;
-    int indexMask;
-    const HashValue* values;
-    const HashIndex* index;
-
-    ALWAYS_INLINE int entry(WTF::String& key) const
-    {
-        int indexEntry = key.hash() & indexMask;
-        int valueIndex = index[indexEntry].value;
-
-        if (valueIndex == -1)
-            return -1;
-
-        while (true) {
-            const char* keyStr = values[valueIndex].key;
-
-            // assume max length is 1024
-            ASSERT(strlen(keyStr) < 1024);
-            Escargot::Latin1StringFromExternalMemory str((const unsigned char*)keyStr, strnlen(keyStr, 1024));
-            if (key.equals(&str)) {
-                return values[valueIndex].index;
-            }
-
-            indexEntry = index[indexEntry].next;
-            if (indexEntry == -1)
-                return -1;
-            valueIndex = index[indexEntry].value;
-            ASSERT(valueIndex != -1);
-        };
-    }
-};
 
 #if defined(ENABLE_ICU)
 #include "UnicodePatternTables.h"
 #endif
 
+// ---------------------------------------------------------------------------
+// Runtime property cache – replaces build-time hash tables and pattern arrays.
+//
+// When unicodeMatchProperty() / unicodeMatchPropertyValue() validate a property
+// name via ICU APIs, they store the result here.  The index returned to the
+// caller is the offset into g_propertyCache.  Later,
+// buildUnicodeCharacterClassFromICU() uses the cached entry to generate a
+// [\p{...}] pattern string at runtime and feed it to uset_openPattern().
+// ---------------------------------------------------------------------------
+
+enum class PropertyKind : uint8_t {
+    Binary,            // [\p{name}]
+    GeneralCategory,   // [\p{name}]
+    Script,            // [\p{Script=name}]
+    ScriptExtension,   // [\p{Script_Extensions=name}]
+    Sequence,          // [\p{name}]  – may contain strings
+    Special,           // [\p{name}]  – validated via uset_openPattern fallback
+};
+
+struct UnicodePropertyCacheEntry {
+    std::string name;
+    PropertyKind kind;
+    bool mayContainStrings;
+};
+
+static std::vector<UnicodePropertyCacheEntry>& propertyCache()
+{
+    static std::vector<UnicodePropertyCacheEntry> cache;
+    return cache;
+}
+
+static std::unordered_map<std::string, unsigned>& propertyNameToIndex()
+{
+    static std::unordered_map<std::string, unsigned> map;
+    return map;
+}
+
+// Convert WTF::String to std::string (property names are always ASCII).
+static std::string wtfStringToStd(const WTF::String& s)
+{
+    if (s.isNull())
+        return "";
+    if (s.is8Bit()) {
+        return std::string(reinterpret_cast<const char*>(s.characters8()), s.length());
+    }
+    std::string result;
+    for (size_t i = 0; i < s.length(); i++) {
+        char16_t c = s[i];
+        if (c < 0x80)
+            result += static_cast<char>(c);
+        else if (c < 0x800) {
+            result += static_cast<char>(0xC0 | (c >> 6));
+            result += static_cast<char>(0x80 | (c & 0x3F));
+        } else {
+            result += static_cast<char>(0xE0 | (c >> 12));
+            result += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
+            result += static_cast<char>(0x80 | (c & 0x3F));
+        }
+    }
+    return result;
+}
+
+// Build a [\p{...}] pattern string from a cache entry.
+static std::string buildPatternString(const UnicodePropertyCacheEntry& entry)
+{
+    switch (entry.kind) {
+    case PropertyKind::Binary:
+    case PropertyKind::GeneralCategory:
+    case PropertyKind::Sequence:
+    case PropertyKind::Special:
+        return "[\\p{" + entry.name + "}]";
+    case PropertyKind::Script:
+        return "[\\p{Script=" + entry.name + "}]";
+    case PropertyKind::ScriptExtension:
+        return "[\\p{Script_Extensions=" + entry.name + "}]";
+    }
+    return "";
+}
+
+// Try uset_openPattern to validate a property pattern.  This works for both
+// simple names (e.g. "Any", "ASCII", "Assigned") and property=value pairs
+// (e.g. "Script=Latin", "General_Category=L") because ICU's uset_openPattern
+// handles group aliases that u_getPropertyValueEnum does not recognise.
+#if defined(ENABLE_ICU)
+static bool validateWithICUPattern(const std::string& patternBody)
+{
+    std::string patternStr = "[\\p{" + patternBody + "}]";
+    UChar patternBuffer[160];
+    int32_t patternLength = 0;
+    while (patternLength < 159 && static_cast<size_t>(patternLength) < patternStr.size()) {
+        patternBuffer[patternLength] = static_cast<UChar>(static_cast<unsigned char>(patternStr[patternLength]));
+        patternLength++;
+    }
+    patternBuffer[patternLength] = 0;
+
+    UErrorCode status = U_ZERO_ERROR;
+    USet* set = uset_openPattern(patternBuffer, patternLength, &status);
+    if (U_SUCCESS(status) && set) {
+        uset_close(set);
+        return true;
+    }
+    return false;
+}
+#endif
+
+// Get or create a cache entry.  Returns the index, or -1 if validation fails.
+static int getOrCreatePropertyIndex(const std::string& cacheKey,
+                                    const std::string& name,
+                                    PropertyKind kind,
+                                    bool mayContainStrings)
+{
+    auto it = propertyNameToIndex().find(cacheKey);
+    if (it != propertyNameToIndex().end())
+        return static_cast<int>(it->second);
+
+    unsigned index = propertyCache().size();
+    propertyCache().push_back({name, kind, mayContainStrings});
+    propertyNameToIndex()[cacheKey] = index;
+    return static_cast<int>(index);
+}
+
 std::optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodePropertyName, WTF::String unicodePropertyValue)
 {
-    int propertyIndex = -1;
 #if defined(ENABLE_ICU)
-    if (unicodePropertyName == "Script" || unicodePropertyName == "sc")
-        propertyIndex = scriptHashTable.entry(unicodePropertyValue);
-    else if (unicodePropertyName == "Script_Extensions" || unicodePropertyName == "scx")
-        propertyIndex = scriptExtensionHashTable.entry(unicodePropertyValue);
-    else if (unicodePropertyName == "General_Category" || unicodePropertyName == "gc")
-        propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
-#endif
-    if (propertyIndex == -1)
+    std::string propName = wtfStringToStd(unicodePropertyName);
+    std::string propValue = wtfStringToStd(unicodePropertyValue);
+
+    PropertyKind kind;
+    std::string cacheKey;
+    std::string patternBody;  // what goes inside [\p{...}]
+
+    if (propName == "Script" || propName == "sc") {
+        kind = PropertyKind::Script;
+        cacheKey = "sc:" + propValue;
+        patternBody = "Script=" + propValue;
+    } else if (propName == "Script_Extensions" || propName == "scx") {
+        kind = PropertyKind::ScriptExtension;
+        cacheKey = "scx:" + propValue;
+        patternBody = "Script_Extensions=" + propValue;
+    } else if (propName == "General_Category" || propName == "gc") {
+        kind = PropertyKind::GeneralCategory;
+        cacheKey = "gc:" + propValue;
+        patternBody = "General_Category=" + propValue;
+    } else {
+        return std::nullopt;
+    }
+
+    // Already cached?
+    auto it = propertyNameToIndex().find(cacheKey);
+    if (it != propertyNameToIndex().end())
+        return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + it->second));
+
+    // Validate with uset_openPattern – handles group aliases (e.g. gc=L) that
+    // u_getPropertyValueEnum does not recognise.
+    if (!validateWithICUPattern(patternBody))
         return std::nullopt;
 
-    return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+    int idx = getOrCreatePropertyIndex(cacheKey, propValue, kind, false);
+    return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+#else
+    (void)unicodePropertyName;
+    (void)unicodePropertyValue;
+#endif
+    return std::nullopt;
 }
 
 std::optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue, CompileMode compileMode)
 {
-    int propertyIndex = -1;
 #if defined(ENABLE_ICU)
-    propertyIndex = binaryPropertyHashTable.entry(unicodePropertyValue);
-    if (propertyIndex == -1)
-        propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
-    if (propertyIndex == -1 && compileMode == CompileMode::UnicodeSets)
-        propertyIndex = sequencePropertyHashTable.entry(unicodePropertyValue);
-#endif
-    if (propertyIndex == -1)
+    std::string name = wtfStringToStd(unicodePropertyValue);
+
+    // Already cached?
+    auto it = propertyNameToIndex().find(name);
+    if (it != propertyNameToIndex().end())
+        return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + it->second));
+
+    // 1. Sequence property (UnicodeSets mode only) — must be checked before
+    //    binary property, because ICU 74+ registers Basic_Emoji etc. as binary
+    //    properties, but ECMAScript treats them as properties of strings
+    //    (mayContainStrings = true).
+    if (compileMode == CompileMode::UnicodeSets && isSequencePropertyName(unicodePropertyValue)) {
+        int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Sequence, true);
+        return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+    }
+    // In non-UnicodeSets mode, sequence property names must be rejected.
+    if (compileMode != CompileMode::UnicodeSets && isSequencePropertyName(unicodePropertyValue))
         return std::nullopt;
 
-    return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+    // 2. Binary property — but reject names that ICU accepts via loose matching
+    //    or that are not part of the ECMAScript spec.
+    //    Properties removed from the Unicode property escapes proposal:
+    static const std::unordered_set<std::string> unsupportedBinaryProperties = {
+        "Full_Composition_Exclusion",
+        "Grapheme_Link",
+        "Hyphen",
+        "Prepended_Concatenation_Mark",
+    };
+    if (unsupportedBinaryProperties.count(name))
+        return std::nullopt;
+    UProperty prop = u_getPropertyEnum(name.c_str());
+    if (prop >= 0 && prop < UCHAR_BINARY_LIMIT) {
+        int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Binary, false);
+        return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+    }
+
+    // 2b. Fallback for binary properties that u_getPropertyEnum doesn't recognise
+    //     (e.g. Extended_Pictographic on older ICU versions).  Use exact name
+    //     matching to prevent loose matching (e.g. "ANY" should not be accepted).
+    if (name.find('=') == std::string::npos) {
+        static const std::unordered_set<std::string> fallbackBinaryPropertyNames = {
+            "Extended_Pictographic",
+        };
+        if (fallbackBinaryPropertyNames.count(name) && validateWithICUPattern(name)) {
+            int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Binary, false);
+            return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+        }
+    }
+
+    // 3. General Category (including group aliases like L, N, P that
+    //    u_getPropertyValueEnum does not recognise)
+    if (validateWithICUPattern("General_Category=" + name)) {
+        int idx = getOrCreatePropertyIndex(name, name, PropertyKind::GeneralCategory, false);
+        return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+    }
+
+    // 4. Fallback: validate with uset_openPattern for special properties
+    //    (e.g. "Any", "ASCII", "Assigned") that ICU APIs don't recognise.
+    //    Skip names containing '=' to avoid accepting "Script=Latin" style input.
+    //    Use exact name matching to prevent loose matching (e.g. "ANY" should
+    //    not be accepted as "Any").
+    if (name.find('=') == std::string::npos) {
+        static const std::unordered_set<std::string> specialPropertyNames = {
+            "Any", "ASCII", "Assigned"
+        };
+        if (specialPropertyNames.count(name)) {
+            int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Special, false);
+            return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
+        }
+    }
+#else
+    (void)unicodePropertyValue;
+    (void)compileMode;
+#endif
+    return std::nullopt;
 }
 
 #if defined(ENABLE_ICU)
@@ -123,15 +298,16 @@ static std::unique_ptr<CharacterClass> buildUnicodeCharacterClassFromICU(unsigne
 {
     auto characterClass = makeUnique<CharacterClass>();
 
-    if (unicodePropertyIndex >= (sizeof(unicodePropertyPatterns) / sizeof(unicodePropertyPatterns[0]))) {
+    if (unicodePropertyIndex >= propertyCache().size())
         return characterClass;
-    }
 
-    const char* pattern = unicodePropertyPatterns[unicodePropertyIndex];
+    const auto& entry = propertyCache()[unicodePropertyIndex];
+    std::string patternStr = buildPatternString(entry);
+
     UChar patternBuffer[160];
     int32_t patternLength = 0;
-    while (pattern[patternLength] && patternLength < 159) {
-        patternBuffer[patternLength] = static_cast<UChar>(static_cast<unsigned char>(pattern[patternLength]));
+    while (patternLength < 159 && static_cast<size_t>(patternLength) < patternStr.size()) {
+        patternBuffer[patternLength] = static_cast<UChar>(static_cast<unsigned char>(patternStr[patternLength]));
         patternLength++;
     }
     patternBuffer[patternLength] = 0;
@@ -139,9 +315,8 @@ static std::unique_ptr<CharacterClass> buildUnicodeCharacterClassFromICU(unsigne
     UErrorCode status = U_ZERO_ERROR;
     USet* set = uset_openPattern(patternBuffer, patternLength, &status);
     if (U_FAILURE(status) || !set) {
-        if (set) {
+        if (set)
             uset_close(set);
-        }
         return characterClass;
     }
 
@@ -154,44 +329,31 @@ static std::unique_ptr<CharacterClass> buildUnicodeCharacterClassFromICU(unsigne
         UChar strBuffer[256];
         UErrorCode itemStatus = U_ZERO_ERROR;
         int32_t strLength = uset_getItem(set, i, &start, &end, strBuffer, 256, &itemStatus);
-        if (U_FAILURE(itemStatus)) {
+        if (U_FAILURE(itemStatus))
             continue;
-        }
 
         if (strLength <= 0) {
-            // Code point range [start, end]. Yarr's CharacterClass splits its
-            // single-character/range storage at the ASCII boundary (0x7F): the
-            // matcher (testCharacterClass) searches m_matches/m_ranges for
-            // ASCII input and m_matchesUnicode/m_rangesUnicode for non-ASCII
-            // (>= 0x80) input, regardless of whether the code point is BMP or
-            // not. m_characterWidths is a separate axis (BMP vs non-BMP, split
-            // at 0xFFFF) that only drives surrogate-pair reading.
             char32_t lo = static_cast<char32_t>(start);
             char32_t hi = static_cast<char32_t>(end);
             if (lo <= 0x7F) {
                 char32_t asciiEnd = hi < 0x7F ? hi : 0x7F;
-                if (lo == asciiEnd) {
+                if (lo == asciiEnd)
                     characterClass->m_matches.append(lo);
-                } else {
+                else
                     characterClass->m_ranges.append(CharacterRange(lo, asciiEnd));
-                }
             }
             if (hi >= 0x80) {
                 char32_t uStart = lo > 0x80 ? lo : 0x80;
-                if (uStart == hi) {
+                if (uStart == hi)
                     characterClass->m_matchesUnicode.append(hi);
-                } else {
+                else
                     characterClass->m_rangesUnicode.append(CharacterRange(uStart, hi));
-                }
             }
-            if (lo <= 0xFFFF) {
+            if (lo <= 0xFFFF)
                 hasBMP = true;
-            }
-            if (hi > 0xFFFF) {
+            if (hi > 0xFFFF)
                 hasNonBMP = true;
-            }
         } else {
-            // Multi-code-point string (v-flag sequence property). Decode UTF-16.
             Vector<char32_t> codePoints;
             for (int32_t j = 0; j < strLength;) {
                 UChar32 c = strBuffer[j++];
@@ -209,13 +371,12 @@ static std::unique_ptr<CharacterClass> buildUnicodeCharacterClassFromICU(unsigne
     }
     uset_close(set);
 
-    if (hasBMP && hasNonBMP) {
+    if (hasBMP && hasNonBMP)
         characterClass->m_characterWidths = CharacterClassWidths::HasBothBMPAndNonBMP;
-    } else if (hasNonBMP) {
+    else if (hasNonBMP)
         characterClass->m_characterWidths = CharacterClassWidths::HasNonBMPChars;
-    } else if (hasBMP) {
+    else if (hasBMP)
         characterClass->m_characterWidths = CharacterClassWidths::HasBMPChars;
-    }
 
     return characterClass;
 }
@@ -227,6 +388,7 @@ std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterC
 #if defined(ENABLE_ICU)
     return buildUnicodeCharacterClassFromICU(unicodePropertyIndex);
 #else
+    (void)unicodePropertyIndex;
     return nullptr;
 #endif
 }
@@ -235,8 +397,11 @@ bool characterClassMayContainStrings(BuiltInCharacterClassID unicodeClassID)
 {
     unsigned unicodePropertyIndex = static_cast<unsigned>(unicodeClassID) - static_cast<unsigned>(BuiltInCharacterClassID::BaseUnicodePropertyID);
 #if defined(ENABLE_ICU)
-    return unicodeCharacterClassMayContainStrings(unicodePropertyIndex);
+    if (unicodePropertyIndex >= propertyCache().size())
+        return false;
+    return propertyCache()[unicodePropertyIndex].mayContainStrings;
 #else
+    (void)unicodePropertyIndex;
     return false;
 #endif
 }
