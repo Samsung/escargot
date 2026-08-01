@@ -295,7 +295,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
         err->lineNumber = cb->m_functionStart.line;
         err->column = cb->m_functionStart.column;
         err->index = cb->m_functionStart.index;
-        throw *err;
+        throw err;
     }
 }
 
