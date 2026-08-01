@@ -38,8 +38,7 @@ namespace RuntimeICUBinder {
 #define FOR_EACH_UC_OP(F)                                                                                                                                                         \
     F(u_tolower, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
     F(u_toupper, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
-    F(u_foldCase, UChar32(CALLCONV*)(UChar32 c, uint32_t options), UChar32)                                                                                                        \
-    F(u_hasBinaryProperty, UBool(CALLCONV*)(UChar32 c, UProperty which), UBool)                                                                                                    \
+    F(u_foldCase, UChar32(CALLCONV*)(UChar32 c, uint32_t options), UChar32)                                                                                                           \
     F(u_islower, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
     F(u_isupper, UBool(CALLCONV*)(UChar32), UBool)                                                                                                                                \
     F(u_totitle, UChar32(CALLCONV*)(UChar32), UChar32)                                                                                                                            \
@@ -102,7 +101,12 @@ namespace RuntimeICUBinder {
     F(uset_openPattern, USet*(CALLCONV*)(const UChar* pattern, int32_t patternLength, UErrorCode* ec), USet*) \
     F(uset_openEmpty, USet*(CALLCONV*)(), USet*) \
     F(uset_getItemCount, int32_t(CALLCONV*)(const USet* set), int32_t) \
-    F(uset_getItem, int32_t(CALLCONV*)(const USet* set, int32_t itemIndex, UChar32* start, UChar32* end, UChar* str, int32_t strCapacity, UErrorCode* ec), int32_t)
+    F(uset_getItem, int32_t(CALLCONV*)(const USet* set, int32_t itemIndex, UChar32* start, UChar32* end, UChar* str, int32_t strCapacity, UErrorCode* ec), int32_t) \
+    F(u_hasBinaryProperty, UBool(CALLCONV*)(UChar32 c, UProperty which), UBool) \
+    F(u_getPropertyEnum, UProperty(CALLCONV*)(const char* alias), UProperty) \
+    F(u_getPropertyValueEnum, int32_t(CALLCONV*)(UProperty property, const char* alias), int32_t) \
+    F(u_getPropertyName, const char*(CALLCONV*)(UProperty propertyEnum, UPropertyNameChoice nameChoice), const char*) \
+    F(u_getPropertyValueName, const char*(CALLCONV*)(UProperty propertyEnum, int32_t valueEnum, UPropertyNameChoice nameChoice), const char*)
 
 #define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                               \
     F(u_getVersion, void(CALLCONV*)(UVersionInfo versionArray), void)                                                                                                                                          \

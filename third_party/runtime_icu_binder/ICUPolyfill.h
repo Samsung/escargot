@@ -26,7 +26,6 @@
 #define u_tolower RuntimeICUBinder::ICU::instance().u_tolower
 #define u_toupper RuntimeICUBinder::ICU::instance().u_toupper
 #define u_foldCase RuntimeICUBinder::ICU::instance().u_foldCase
-#define u_hasBinaryProperty RuntimeICUBinder::ICU::instance().u_hasBinaryProperty
 #define u_islower RuntimeICUBinder::ICU::instance().u_islower
 #define u_isupper RuntimeICUBinder::ICU::instance().u_isupper
 #define u_totitle RuntimeICUBinder::ICU::instance().u_totitle
@@ -71,6 +70,12 @@
 #define uset_addRange RuntimeICUBinder::ICU::instance().uset_addRange
 #define uset_closeOver RuntimeICUBinder::ICU::instance().uset_closeOver
 #define uset_close RuntimeICUBinder::ICU::instance().uset_close
+
+#define u_hasBinaryProperty RuntimeICUBinder::ICU::instance().u_hasBinaryProperty
+#define u_getPropertyEnum RuntimeICUBinder::ICU::instance().u_getPropertyEnum
+#define u_getPropertyValueEnum RuntimeICUBinder::ICU::instance().u_getPropertyValueEnum
+#define u_getPropertyName RuntimeICUBinder::ICU::instance().u_getPropertyName
+#define u_getPropertyValueName RuntimeICUBinder::ICU::instance().u_getPropertyValueName
 
 #define unorm2_getNFCInstance RuntimeICUBinder::ICU::instance().unorm2_getNFCInstance
 #define unorm2_getNFDInstance RuntimeICUBinder::ICU::instance().unorm2_getNFDInstance

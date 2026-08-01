@@ -121,29 +121,46 @@ static std::string buildPatternString(const UnicodePropertyCacheEntry& entry)
     return "";
 }
 
-// Try uset_openPattern to validate a property pattern.  This works for both
-// simple names (e.g. "Any", "ASCII", "Assigned") and property=value pairs
-// (e.g. "Script=Latin", "General_Category=L") because ICU's uset_openPattern
-// handles group aliases that u_getPropertyValueEnum does not recognise.
 #if defined(ENABLE_ICU)
-static bool validateWithICUPattern(const std::string& patternBody)
-{
-    std::string patternStr = "[\\p{" + patternBody + "}]";
-    UChar patternBuffer[160];
-    int32_t patternLength = 0;
-    while (patternLength < 159 && static_cast<size_t>(patternLength) < patternStr.size()) {
-        patternBuffer[patternLength] = static_cast<UChar>(static_cast<unsigned char>(patternStr[patternLength]));
-        patternLength++;
-    }
-    patternBuffer[patternLength] = 0;
+// A property (value) may have more names than the short and the long one; the
+// additional Unicode aliases are exposed through nameChoice values above
+// U_LONG_PROPERTY_NAME (e.g. "digit" for General_Category=Nd, "Qaac" for
+// Script=Coptic).  Unicode never defines more than a handful, so stop well
+// before ICU starts returning NULL forever.
+static const int32_t maxPropertyNameChoice = 8;
 
-    UErrorCode status = U_ZERO_ERROR;
-    USet* set = uset_openPattern(patternBuffer, patternLength, &status);
-    if (U_SUCCESS(status) && set) {
-        uset_close(set);
-        return true;
+// Verify that a property name exactly matches one of the canonical ICU names.
+// This prevents ICU's loose matching from accepting names like "lowercase"
+// when the spec requires "Lowercase".
+static bool exactPropertyNameMatch(UProperty prop, const std::string& name)
+{
+    for (int32_t choice = 0; choice < maxPropertyNameChoice; choice++) {
+        const char* candidate = u_getPropertyName(prop, static_cast<UPropertyNameChoice>(choice));
+        if (candidate && name == candidate)
+            return true;
     }
     return false;
+}
+
+// Verify that a property value name exactly matches one of the canonical ICU names.
+static bool exactPropertyValueNameMatch(UProperty prop, int32_t value, const std::string& name)
+{
+    for (int32_t choice = 0; choice < maxPropertyNameChoice; choice++) {
+        const char* candidate = u_getPropertyValueName(prop, value, static_cast<UPropertyNameChoice>(choice));
+        if (candidate && name == candidate)
+            return true;
+    }
+    return false;
+}
+
+// General_Category values include the group aliases (L, Letter, P, Punctuation, ...)
+// that u_getPropertyValueEnum does not recognise for UCHAR_GENERAL_CATEGORY.
+// UCHAR_GENERAL_CATEGORY_MASK does recognise them, and covers the single
+// categories as well, so use it for both.
+static bool isGeneralCategoryName(const std::string& name)
+{
+    int32_t value = u_getPropertyValueEnum(UCHAR_GENERAL_CATEGORY_MASK, name.c_str());
+    return value >= 0 && exactPropertyValueNameMatch(UCHAR_GENERAL_CATEGORY_MASK, value, name);
 }
 #endif
 
@@ -171,20 +188,16 @@ std::optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String uni
 
     PropertyKind kind;
     std::string cacheKey;
-    std::string patternBody;  // what goes inside [\p{...}]
 
     if (propName == "Script" || propName == "sc") {
         kind = PropertyKind::Script;
         cacheKey = "sc:" + propValue;
-        patternBody = "Script=" + propValue;
     } else if (propName == "Script_Extensions" || propName == "scx") {
         kind = PropertyKind::ScriptExtension;
         cacheKey = "scx:" + propValue;
-        patternBody = "Script_Extensions=" + propValue;
     } else if (propName == "General_Category" || propName == "gc") {
         kind = PropertyKind::GeneralCategory;
         cacheKey = "gc:" + propValue;
-        patternBody = "General_Category=" + propValue;
     } else {
         return std::nullopt;
     }
@@ -194,10 +207,16 @@ std::optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String uni
     if (it != propertyNameToIndex().end())
         return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + it->second));
 
-    // Validate with uset_openPattern – handles group aliases (e.g. gc=L) that
-    // u_getPropertyValueEnum does not recognise.
-    if (!validateWithICUPattern(patternBody))
-        return std::nullopt;
+    // Validate with exact name matching to prevent ICU's loose matching from
+    // accepting spellings the spec rejects (e.g. "uppercaseletter").
+    if (kind == PropertyKind::GeneralCategory) {
+        if (!isGeneralCategoryName(propValue))
+            return std::nullopt;
+    } else {
+        int32_t value = u_getPropertyValueEnum(UCHAR_SCRIPT, propValue.c_str());
+        if (value < 0 || !exactPropertyValueNameMatch(UCHAR_SCRIPT, value, propValue))
+            return std::nullopt;
+    }
 
     int idx = getOrCreatePropertyIndex(cacheKey, propValue, kind, false);
     return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
@@ -230,39 +249,51 @@ std::optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodeP
     if (compileMode != CompileMode::UnicodeSets && isSequencePropertyName(unicodePropertyValue))
         return std::nullopt;
 
-    // 2. Binary property — but reject names that ICU accepts via loose matching
-    //    or that are not part of the ECMAScript spec.
-    //    Properties removed from the Unicode property escapes proposal:
-    static const std::unordered_set<std::string> unsupportedBinaryProperties = {
-        "Full_Composition_Exclusion",
-        "Grapheme_Link",
-        "Hyphen",
-        "Prepended_Concatenation_Mark",
+    // 2. Binary property. ICU knows more binary properties than ECMAScript allows
+    //    (Case_Sensitive, NFC_Inert, ID_Compat_Math_Start, ...) and gains new ones
+    //    with every Unicode release, so the set of *names* has to come from the
+    //    spec rather than from ICU. Everything else — alias resolution and the
+    //    code point data — is still ICU's job.
+    //    To add a property, add its canonical long name from table
+    //    "Binary Unicode property aliases and their canonical property names"
+    //    (sec-runtime-semantics-unicodematchproperty-p) here.
+    static const std::unordered_set<std::string> binaryPropertyNames = {
+        "Alphabetic", "ASCII_Hex_Digit", "Bidi_Control", "Bidi_Mirrored", "Cased",
+        "Case_Ignorable", "Changes_When_Casefolded", "Changes_When_Casemapped",
+        "Changes_When_Lowercased", "Changes_When_NFKC_Casefolded",
+        "Changes_When_Titlecased", "Changes_When_Uppercased", "Dash",
+        "Default_Ignorable_Code_Point", "Deprecated", "Diacritic", "Emoji",
+        "Emoji_Component", "Emoji_Modifier", "Emoji_Modifier_Base",
+        "Emoji_Presentation", "Extended_Pictographic", "Extender", "Grapheme_Base",
+        "Grapheme_Extend", "Hex_Digit", "ID_Continue", "Ideographic",
+        "IDS_Binary_Operator", "ID_Start", "IDS_Trinary_Operator", "Join_Control",
+        "Logical_Order_Exception", "Lowercase", "Math", "Noncharacter_Code_Point",
+        "Pattern_Syntax", "Pattern_White_Space", "Quotation_Mark", "Radical",
+        "Regional_Indicator", "Sentence_Terminal", "Soft_Dotted",
+        "Terminal_Punctuation", "Unified_Ideograph", "Uppercase",
+        "Variation_Selector", "White_Space", "XID_Continue", "XID_Start",
     };
-    if (unsupportedBinaryProperties.count(name))
-        return std::nullopt;
-    UProperty prop = u_getPropertyEnum(name.c_str());
-    if (prop >= 0 && prop < UCHAR_BINARY_LIMIT) {
+    // The canonical long name is always accepted, even if the running ICU is too
+    // old to know the property: it is valid syntax, and the character class simply
+    // ends up empty. Any other spelling has to be an alias ICU recognises.
+    bool isBinaryProperty = binaryPropertyNames.count(name);
+    if (!isBinaryProperty) {
+        UProperty prop = u_getPropertyEnum(name.c_str());
+        // Binary properties occupy [0, UCHAR_INT_START); do not use
+        // UCHAR_BINARY_LIMIT, which is fixed at build time and lags the ICU that
+        // is actually loaded at runtime.
+        if (prop >= 0 && prop < UCHAR_INT_START && exactPropertyNameMatch(prop, name)) {
+            const char* longName = u_getPropertyName(prop, U_LONG_PROPERTY_NAME);
+            isBinaryProperty = longName && binaryPropertyNames.count(longName);
+        }
+    }
+    if (isBinaryProperty) {
         int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Binary, false);
         return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
     }
 
-    // 2b. Fallback for binary properties that u_getPropertyEnum doesn't recognise
-    //     (e.g. Extended_Pictographic on older ICU versions).  Use exact name
-    //     matching to prevent loose matching (e.g. "ANY" should not be accepted).
-    if (name.find('=') == std::string::npos) {
-        static const std::unordered_set<std::string> fallbackBinaryPropertyNames = {
-            "Extended_Pictographic",
-        };
-        if (fallbackBinaryPropertyNames.count(name) && validateWithICUPattern(name)) {
-            int idx = getOrCreatePropertyIndex(name, name, PropertyKind::Binary, false);
-            return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
-        }
-    }
-
-    // 3. General Category (including group aliases like L, N, P that
-    //    u_getPropertyValueEnum does not recognise)
-    if (validateWithICUPattern("General_Category=" + name)) {
+    // 3. General Category (including group aliases like L, N, P)
+    if (isGeneralCategoryName(name)) {
         int idx = getOrCreatePropertyIndex(name, name, PropertyKind::GeneralCategory, false);
         return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + idx));
     }
