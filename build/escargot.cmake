@@ -222,39 +222,6 @@ ENDIF()
 
 MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/tmp)
 
-# Generate YarrCanonicalizeUnicode.cpp
-MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/yarr)
-EXECUTE_PROCESS(
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrCanonicalizeUnicode.py ${PROJECT_SOURCE_DIR}/tools/unicode_data/CaseFolding.txt ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUnicode.cpp
-    RESULT_VARIABLE GENERATE_RESULT
-    OUTPUT_VARIABLE GENERATE_OUTPUT
-    ERROR_VARIABLE GENERATE_ERROR
-)
-
-IF (NOT GENERATE_RESULT EQUAL 0)
-    MESSAGE(STATUS "Output:\n${GENERATE_OUTPUT}")
-    MESSAGE(FATAL_ERROR "${GENERATE_ERROR}")
-ENDIF()
-
-FILE(READ ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUnicode.cpp UNICODE_FILE_CONTENTS)
-STRING(REPLACE "config.h" "WTFBridge.h" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
-STRING(REPLACE "constexpr const" "const" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
-STRING(REPLACE "constexpr size_t UNICODE" "const size_t UNICODE" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
-STRING(REPLACE "constexpr CanonicalizationRange unicodeRangeInfo" "const CanonicalizationRange unicodeRangeInfo" UNICODE_FILE_CONTENTS "${UNICODE_FILE_CONTENTS}")
-FILE(WRITE ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUnicode.cpp "${UNICODE_FILE_CONTENTS}")
-
-EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUnicode.cpp ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp
-                RESULT_VARIABLE COMPARE_RESULT
-                OUTPUT_VARIABLE COMPARE_OUTPUT
-                ERROR_VARIABLE COMPARE_ERROR
-)
-
-IF (NOT ${COMPARE_RESULT} EQUAL 0)
-    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUnicode.cpp DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
-ENDIF()
-
-SET(ESCARGOT_SRC_LIST ${ESCARGOT_SRC_LIST} ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUnicode.cpp)
-
 # yarr/UnicodePatternTables.h
 EXECUTE_PROCESS(
     COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodePatternTables.h
@@ -278,14 +245,9 @@ IF (NOT ${COMPARE_RESULT} EQUAL 0)
     FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodePatternTables.h DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
 ENDIF()
 
-SET (ESCARGOT_INCDIRS
-    ${ESCARGOT_INCDIRS}
-    ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
-)
-
-# YarrCanonicalizeUCS2.cpp
+# yarr/SimpleCaseFoldingTable.h
 EXECUTE_PROCESS(
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrCanonicalizeUCS2.py ${PROJECT_SOURCE_DIR}/tools/unicode_data/UnicodeData.txt ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUCS2.cpp
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h
     RESULT_VARIABLE GENERATE_RESULT
     OUTPUT_VARIABLE GENERATE_OUTPUT
     ERROR_VARIABLE GENERATE_ERROR
@@ -296,17 +258,20 @@ IF (NOT GENERATE_RESULT EQUAL 0)
     MESSAGE(FATAL_ERROR "${GENERATE_ERROR}")
 ENDIF()
 
-EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUCS2.cpp ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUCS2.cpp
+EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h ${CMAKE_BINARY_DIR}/escargot_generated/yarr/SimpleCaseFoldingTable.h
                 RESULT_VARIABLE COMPARE_RESULT
                 OUTPUT_VARIABLE COMPARE_OUTPUT
                 ERROR_VARIABLE COMPARE_ERROR
 )
 
 IF (NOT ${COMPARE_RESULT} EQUAL 0)
-    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/YarrCanonicalizeUCS2.cpp DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
+    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
 ENDIF()
 
-SET(ESCARGOT_SRC_LIST ${ESCARGOT_SRC_LIST} ${CMAKE_BINARY_DIR}/escargot_generated/yarr/YarrCanonicalizeUCS2.cpp)
+SET (ESCARGOT_INCDIRS
+    ${ESCARGOT_INCDIRS}
+    ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
+)
 
 # BUILD
 IF (${ESCARGOT_OUTPUT} STREQUAL "shell")
