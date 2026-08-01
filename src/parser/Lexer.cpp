@@ -19,7 +19,6 @@
 
 #include "Escargot.h"
 #include "parser/Lexer.h"
-#include "parser/UnicodeIdentifierTables.h"
 #include "parser/esprima_cpp/ParserContext.h"
 #include "runtime/Context.h"
 // These two must be the last because they overwrite the ASSERT macro.
@@ -29,8 +28,6 @@
 using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
-
-#define IDENT_RANGE_LONG 200
 
 /* The largest code-point that an UTF16 surrogate pair can represent is 0x10ffff,
  * so any codepoint above this can be a valid value for empty. The UINT32_MAX is
@@ -186,60 +183,32 @@ NEVER_INLINE bool EscargotLexer::isWhiteSpaceSlowCase(char16_t ch)
             || ch == 0x205F || ch == 0x3000 || ch == 0xFEFF);
 }
 
+// ZERO WIDTH NON-JOINER and ZERO WIDTH JOINER are not ID_Continue, but
+// IdentifierPartChar explicitly allows them (ECMA-262 12.7).
+#define ZERO_WIDTH_NON_JOINER 0x200C
+#define ZERO_WIDTH_JOINER 0x200D
+
 static NEVER_INLINE bool isIdentifierPartSlow(char32_t ch)
 {
-    int bottom = 0;
-    int top = (EscargotLexer::basicPlaneLength / sizeof(uint16_t)) - 1;
-
-    while (true) {
-        int middle = (bottom + top) >> 1;
-        char32_t rangeStart = identRangeStart[middle];
-
-        if (ch >= rangeStart) {
-            if (ch < identRangeStart[middle + 1]) {
-                char32_t length = identRangeLength[middle];
-
-                if (UNLIKELY(length >= IDENT_RANGE_LONG)) {
-                    length = identRangeLongLength[length - IDENT_RANGE_LONG];
-                }
-                return ch <= rangeStart + length;
-            }
-
-            bottom = middle + 1;
-        } else {
-            top = middle;
-        }
-
-        if (bottom == top) {
-            return false;
-        }
+    if (ch == ZERO_WIDTH_NON_JOINER || ch == ZERO_WIDTH_JOINER) {
+        return true;
     }
+#if defined(ENABLE_ICU)
+    return u_hasBinaryProperty(ch, UCHAR_ID_CONTINUE);
+#else
+    // noicu: only ASCII identifiers are supported
+    return false;
+#endif
 }
 
-static NEVER_INLINE bool isIdentifierPartSlowSupplementary(char32_t ch)
+static NEVER_INLINE bool isIdentifierStartSlow(char32_t ch)
 {
-    int bottom = 0;
-    int top = (EscargotLexer::supplementaryPlaneLength / sizeof(uint32_t)) - 1;
-
-    while (true) {
-        int middle = (bottom + top) >> 1;
-        char32_t rangeStart = identRangeStartSupplementaryPlane[middle];
-
-        if (ch >= rangeStart) {
-            if (ch < identRangeStartSupplementaryPlane[middle + 1]) {
-                char32_t length = identRangeLengthSupplementaryPlane[middle];
-                return ch <= rangeStart + length;
-            }
-
-            bottom = middle + 1;
-        } else {
-            top = middle;
-        }
-
-        if (bottom == top) {
-            return false;
-        }
-    }
+#if defined(ENABLE_ICU)
+    return u_hasBinaryProperty(ch, UCHAR_ID_START);
+#else
+    // noicu: only ASCII identifiers are supported
+    return false;
+#endif
 }
 
 static ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
@@ -248,7 +217,7 @@ static ALWAYS_INLINE bool isIdentifierPart(char32_t ch)
         return g_asciiRangeCharMap[ch] & LexerIsCharIdent;
     }
 
-    return isIdentifierPartSlow(ch) || isIdentifierPartSlowSupplementary(ch);
+    return isIdentifierPartSlow(ch);
 }
 
 static ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
@@ -257,7 +226,7 @@ static ALWAYS_INLINE bool isIdentifierStart(char32_t ch)
         return g_asciiRangeCharMap[ch] & LexerIsCharIdentStart;
     }
 
-    return isIdentifierPartSlow(ch) || isIdentifierPartSlowSupplementary(ch);
+    return isIdentifierStartSlow(ch);
 }
 
 static ALWAYS_INLINE bool isDecimalDigit(char16_t ch)

@@ -262,11 +262,15 @@ jobs:
     # host ICU's Unicode version. The Windows runner's bundled ICU version does not
     # match test262's generated expectations, so skip that class here (Linux/arm CI
     # pin a matching ICU instead).
+    # identifiers/{part,start}-unicode-<version>: IdentifierStart / IdentifierPart
+    # are decided by ICU's ID_Start / ID_Continue (see Lexer.cpp), so these follow
+    # the host ICU's Unicode version too. Skipped for the same reason; the
+    # version independent identifier tests (zwj-zwnj, other_id_start, ...) still run.
     - name: Run test262
       run: |
         set GC_FREE_SPACE_DIVISOR=1
         pip install chardet
-        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji"
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
     - name: Run octane
       run: |
@@ -556,7 +560,11 @@ jobs:
         # test262's generated expectations here. Pinning a matching ICU inside this
         # nested 32-bit container proved unreliable (the runtime binder still loads
         # the system ICU), so skip that class -- same as the Windows job.
-        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm --skip Temporal --skip property-escapes --skip property-of-strings --skip rgi-emoji" new-es v8 spidermonkey chakracore test262
+        # identifiers/{part,start}-unicode-<version> follow the runner ICU's Unicode
+        # version as well, because IdentifierStart / IdentifierPart are decided by
+        # ICU's ID_Start / ID_Continue (see Lexer.cpp). The version independent
+        # identifier tests (zwj-zwnj, other_id_start, ...) still run.
+        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm --skip Temporal --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers/part-unicode- --skip identifiers/start-unicode-" new-es v8 spidermonkey chakracore test262
     - name: Upload arm32 CI log
       if: always()
       uses: actions/upload-artifact@v4
