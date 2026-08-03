@@ -138,6 +138,7 @@ struct GlobalVariableAccessCacheItem;
     F(ReplaceBlockLexicalEnvironmentOperation)        \
     F(TaggedTemplateOperation)                        \
     F(EnsureArgumentsObject)                          \
+    F(LoadArgumentsLength)                            \
     F(BindingCalleeIntoRegister)                      \
     F(ResolveNameAddress)                             \
     F(StoreByNameWithAddress)                         \
@@ -3237,6 +3238,26 @@ public:
     void dump()
     {
         printf("ensure arguments object");
+    }
+#endif
+};
+
+// Load arguments.length without creating an ArgumentsObject.
+// If ArgumentsObject already exists, reads from it; otherwise returns state.argc() directly.
+class LoadArgumentsLength : public ByteCode {
+public:
+    LoadArgumentsLength(const ByteCodeLOC& loc, const size_t registerIndex)
+        : ByteCode(Opcode::LoadArgumentsLengthOpcode, loc)
+        , m_registerIndex(registerIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("load arguments length r%u", m_registerIndex);
     }
 #endif
 };
