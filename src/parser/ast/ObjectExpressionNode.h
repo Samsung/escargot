@@ -56,6 +56,88 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        // Fast path: object literal with only simple key-value pairs
+        // (identifier keys, no getters/setters, no spread, no __proto__, <= CreateOnlyKeyValueObject::kMaxKeyCount properties)
+        if (m_properties.size() > 0 && m_properties.size() <= CreateOnlyKeyValueObject::kMaxKeyCount) {
+            bool canUseFastPath = true;
+            AtomicString keys[CreateOnlyKeyValueObject::kMaxKeyCount];
+            size_t keyCount = m_properties.size();
+            size_t idx = 0;
+            for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+                if (!property->astNode()->isProperty()) {
+                    canUseFastPath = false;
+                    break;
+                }
+                PropertyNode* p = property->astNode()->asProperty();
+                if (p->kind() != PropertyNode::Kind::Init) {
+                    canUseFastPath = false;
+                    break;
+                }
+                if (!p->key()->isIdentifier() || p->computed()) {
+                    canUseFastPath = false;
+                    break;
+                }
+                // __proto__ key is handled specially (sets prototype), skip fast path
+                if (p->key()->asIdentifier()->name() == codeBlock->codeBlock()->context()->staticStrings().__proto__) {
+                    canUseFastPath = false;
+                    break;
+                }
+                // Check for duplicate keys - if duplicates exist, the last value
+                // should win per JS spec, which requires the slow path to handle properly
+                AtomicString keyName = p->key()->asIdentifier()->name();
+                for (size_t j = 0; j < idx; j++) {
+                    if (keys[j] == keyName) {
+                        canUseFastPath = false;
+                        break;
+                    }
+                }
+                if (!canUseFastPath) {
+                    break;
+                }
+
+                bool hasFunctionOnRightSide = p->value()->type() == ASTNodeType::FunctionExpression || p->value()->type() == ASTNodeType::ArrowFunctionExpression;
+                bool hasClassOnRightSide = p->value()->type() == ASTNodeType::ClassExpression && !p->value()->asClassExpression()->classNode().classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name);
+                if (hasFunctionOnRightSide || hasClassOnRightSide) {
+                    canUseFastPath = false;
+                    break;
+                }
+                keys[idx++] = keyName;
+            }
+
+            if (canUseFastPath) {
+                // Allocate registers for all values
+                ByteCodeRegisterIndex valueIndices[CreateOnlyKeyValueObject::kMaxKeyCount];
+                for (size_t i = 0; i < keyCount; i++) {
+                    valueIndices[i] = context->getRegister();
+                }
+
+                // Generate value expressions into the allocated registers
+                idx = 0;
+                for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+                    PropertyNode* p = property->astNode()->asProperty();
+                    const ClassContextInformation classInfoBefore = context->m_classInfo;
+                    context->m_classInfo.m_prototypeIndex = dstRegister;
+                    context->m_classInfo.m_constructorIndex = SIZE_MAX;
+                    context->m_classInfo.m_superIndex = SIZE_MAX;
+                    p->value()->generateExpressionByteCode(codeBlock, context, valueIndices[idx]);
+                    context->m_classInfo = classInfoBefore;
+                    idx++;
+                }
+
+                // Emit the CreateOnlyKeyValueObject bytecode
+                size_t codePos = codeBlock->currentCodeSize();
+                codeBlock->pushCode(CreateOnlyKeyValueObject(ByteCodeLOC(m_loc.index), dstRegister, keyCount, keys, valueIndices), context, this->m_loc.index);
+
+                // Give up the value registers
+                for (size_t i = 0; i < keyCount; i++) {
+                    context->giveUpRegister();
+                }
+
+                codeBlock->m_shouldClearStack = true;
+                return;
+            }
+        }
+
         size_t objectCreationDataIndex = SIZE_MAX;
         size_t objectCreationDataRegisterSize = 0;
         size_t initCodePosition = codeBlock->currentCodeSize();

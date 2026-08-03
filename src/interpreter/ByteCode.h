@@ -67,6 +67,7 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryInstanceOfOperation)                      \
     F(CreateObjectPrepare)                            \
     F(CreateObject)                                   \
+    F(CreateOnlyKeyValueObject)                       \
     F(CreateArray)                                    \
     F(CreateSpreadArrayObject)                        \
     F(CreateArrayFromIterable)                        \
@@ -1098,6 +1099,33 @@ public:
     void dump()
     {
         printf("createobject -> r%u r%u", m_registerIndex, m_dataRegisterIndex);
+    }
+#endif
+};
+class CreateOnlyKeyValueObject : public ByteCode {
+public:
+    static constexpr size_t kMaxKeyCount = 16;
+
+    CreateOnlyKeyValueObject(const ByteCodeLOC& loc, const size_t registerIndex, const size_t count, AtomicString* keys,
+                             ByteCodeRegisterIndex* valueRegisterIndices)
+        : ByteCode(Opcode::CreateOnlyKeyValueObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_count(count)
+    {
+        memcpy(m_keys, keys, sizeof(AtomicString) * count);
+        memcpy(m_valueRegisterIndices, valueRegisterIndices, sizeof(ByteCodeRegisterIndex) * count);
+    }
+
+    ByteCodeRegisterIndex m_registerIndex : 16;
+    size_t m_count : 16;
+    Optional<ObjectStructure*> m_cachedObjectStructure;
+    AtomicString m_keys[kMaxKeyCount];
+    ByteCodeRegisterIndex m_valueRegisterIndices[kMaxKeyCount];
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("createonlykeyvalueobject -> r%u count: %zu", m_registerIndex, static_cast<size_t>(m_count));
     }
 #endif
 };

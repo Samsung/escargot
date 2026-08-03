@@ -147,6 +147,7 @@ public:
 
     static void createObjectOperation(ExecutionState& state, CreateObject* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void createOnlyKeyValueObjectOperation(ExecutionState& state, CreateOnlyKeyValueObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createArrayOperation(ExecutionState& state, CreateArray* createArray, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
@@ -1217,6 +1218,15 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             CreateObjectPrepare* code = (CreateObjectPrepare*)programCounter;
             InterpreterSlowPath::createObjectPrepareOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(CreateObjectPrepare);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateOnlyKeyValueObject)
+            :
+        {
+            CreateOnlyKeyValueObject* code = (CreateOnlyKeyValueObject*)programCounter;
+            InterpreterSlowPath::createOnlyKeyValueObjectOperation(*state, code, byteCodeBlock, registerFile);
+            ADD_PROGRAM_COUNTER(CreateOnlyKeyValueObject);
             NEXT_INSTRUCTION();
         }
 
@@ -3228,6 +3238,44 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
         registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
 #endif
     }
+}
+
+NEVER_INLINE void InterpreterSlowPath::createOnlyKeyValueObjectOperation(ExecutionState& state, CreateOnlyKeyValueObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    size_t keyCount = code->m_count;
+    Object* obj = new Object(state);
+
+    // Use cached structure if available, otherwise build and cache it
+    if (code->m_cachedObjectStructure.hasValue()) {
+        obj->m_structure = code->m_cachedObjectStructure.value();
+    } else {
+        // Try to find a rooted structure first
+        ObjectStructureItemTightVector properties;
+        for (size_t i = 0; i < keyCount; i++) {
+            properties.pushBack(ObjectStructureItem(
+                ObjectStructurePropertyName(code->m_keys[i]),
+                ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent)));
+        }
+
+        Optional<ObjectStructure*> cache = state.context()->vmInstance()->findRootedObjectStructure(properties.data(), keyCount);
+        if (cache) {
+            obj->m_structure = cache.value();
+        } else {
+            obj->m_structure = ObjectStructure::create(state.context(), std::move(properties), true);
+            state.context()->vmInstance()->addObjectStructureToRootSet(obj->m_structure);
+        }
+        code->m_cachedObjectStructure = obj->m_structure;
+    }
+
+    // Set the values from registers
+    EncodedValueVector values;
+    values.reserve(keyCount);
+    for (size_t i = 0; i < keyCount; i++) {
+        values.pushBack(registerFile[code->m_valueRegisterIndices[i]]);
+    }
+    obj->m_values.reset(values.takeBuffer());
+
+    registerFile[code->m_registerIndex] = obj;
 }
 
 static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix, size_t prefixLength)

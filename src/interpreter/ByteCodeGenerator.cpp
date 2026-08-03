@@ -472,6 +472,14 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             }
             break;
         }
+        case CreateOnlyKeyValueObjectOpcode: {
+            CreateOnlyKeyValueObject* cd = (CreateOnlyKeyValueObject*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            for (size_t i = 0; i < cd->m_count; i++) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueRegisterIndices[i], stackBase, stackBaseWillBe, stackVariableSize);
+            }
+            break;
+        }
         case CreateArrayOpcode: {
             CreateArray* cd = (CreateArray*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
