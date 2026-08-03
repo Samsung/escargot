@@ -86,6 +86,18 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
+        // Fast path: arguments.length — return argc without creating ArgumentsObject
+        if (m_isPreComputedCase && !m_isOptional && !m_startOfOptionalChaining
+            && m_object->isIdentifier()
+            && m_object->asIdentifier()->isPointsArgumentsObject(context)
+            && m_property->isIdentifier()
+            && m_property->asIdentifier()->name() == codeBlock->m_codeBlock->context()->staticStrings().length
+            && !codeBlock->m_codeBlock->hasName(context->m_lexicalBlockIndex, context->m_codeBlock->context()->staticStrings().arguments)
+            && context->m_codeBlock->canUseIndexedVariableStorage()) {
+            codeBlock->pushCode(LoadArgumentsLength(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
+            return;
+        }
+
         if (UNLIKELY(m_startOfOptionalChaining)) {
             context->pushOptionalChainingJumpPositionList();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstIndex, Value()), context, this->m_loc.index);
@@ -140,6 +152,13 @@ public:
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(),
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
                                     context, this->m_loc.index);
+            } else if (m_object->isIdentifier()
+                       && m_object->asIdentifier()->isPointsArgumentsObject(context)
+                       && m_property->asIdentifier()->name() == codeBlock->m_codeBlock->context()->staticStrings().length
+                       && !codeBlock->m_codeBlock->hasName(context->m_lexicalBlockIndex, context->m_codeBlock->context()->staticStrings().arguments)
+                       && context->m_codeBlock->canUseIndexedVariableStorage()) {
+                // Fast path: arguments.length — return argc without creating ArgumentsObject
+                codeBlock->pushCode(LoadArgumentsLength(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this->m_loc.index);
             }

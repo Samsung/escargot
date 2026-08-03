@@ -195,6 +195,8 @@ public:
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
+    static void loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile);
+
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
     static void initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
@@ -220,6 +222,7 @@ private:
     static void updateObjectGetterSetterFunctionName(ExecutionState& state, FunctionObject* fn, Value propertyName, bool isGetter);
     static Value incrementOperationSlowCase(ExecutionState& state, const Value& value);
     static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
+    static FunctionEnvironmentRecord* findNearestFunctionEnvironmentRecord(ExecutionState& state, ExecutionState*& es);
 };
 
 
@@ -1634,6 +1637,15 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             InterpreterSlowPath::ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(EnsureArgumentsObject);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(LoadArgumentsLength)
+            :
+        {
+            LoadArgumentsLength* code = (LoadArgumentsLength*)programCounter;
+            InterpreterSlowPath::loadArgumentsLengthOperation(*state, code, registerFile);
+            ADD_PROGRAM_COUNTER(LoadArgumentsLength);
             NEXT_INSTRUCTION();
         }
 
@@ -5485,26 +5497,46 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE FunctionEnvironmentRecord* InterpreterSlowPath::findNearestFunctionEnvironmentRecord(ExecutionState& state, ExecutionState*& es)
 {
-    FunctionEnvironmentRecord* funcRecord = nullptr;
-    ScriptFunctionObject* funcObject = nullptr;
-
-    // find the most nearest lexical function which is not an arrow function
-    ExecutionState* es = &state;
+    es = &state;
     while (es) {
         EnvironmentRecord* record = es->lexicalEnvironment()->record();
         if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord() && !record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptArrowFunctionObject()) {
-            funcRecord = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            funcObject = funcRecord->functionObject()->asScriptFunctionObject();
-            break;
+            return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
         }
         es = es->parent();
     }
+    return nullptr;
+}
 
-    ASSERT(!!funcRecord && !!funcObject && !funcObject->isScriptArrowFunctionObject());
+NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    ExecutionState* es;
+    FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
+
+    ASSERT(!!funcRecord);
+    ScriptFunctionObject* funcObject = funcRecord->functionObject()->asScriptFunctionObject();
     bool isMapped = funcObject->interpretedCodeBlock()->shouldHaveMappedArguments();
     funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
+}
+
+NEVER_INLINE void InterpreterSlowPath::loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile)
+{
+    ExecutionState* es;
+    FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
+
+    ASSERT(!!funcRecord);
+    // If ArgumentsObject has already been created, read length from it
+    // (the user may have overwritten arguments.length)
+    auto opt = funcRecord->argumentsObject();
+    if (opt) {
+        ArgumentsObject* argsObj = opt.value();
+        registerFile[code->m_registerIndex] = argsObj->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, argsObj);
+    } else {
+        // ArgumentsObject has not been created yet; return argc directly
+        registerFile[code->m_registerIndex] = Value((int)es->argc());
+    }
 }
 
 NEVER_INLINE int InterpreterSlowPath::evaluateImportWithOperation(ExecutionState& state, const Value& options)
