@@ -88,6 +88,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetObjectPreComputedCase)                       \
     F(GetObjectPreComputedCaseSimpleInlineCache)      \
     F(SetObjectPreComputedCase)                       \
+    F(SetObjectPreComputedCaseSimpleInlineCache)      \
     F(GetGlobalVariable)                              \
     F(SetGlobalVariable)                              \
     F(InitializeGlobalVariable)                       \
@@ -1556,6 +1557,12 @@ public:
     }
 #endif
 };
+
+class SetObjectPreComputedCaseSimpleInlineCache : public SetObjectPreComputedCase {
+public:
+};
+
+COMPILE_ASSERT(sizeof(SetObjectPreComputedCaseSimpleInlineCache) == sizeof(SetObjectPreComputedCase), "");
 
 class GetGlobalVariable : public ByteCode {
 public:

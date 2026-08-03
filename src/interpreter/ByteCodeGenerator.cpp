@@ -533,6 +533,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
+        case SetObjectPreComputedCaseSimpleInlineCacheOpcode:
         case SetObjectPreComputedCaseOpcode: {
             SetObjectPreComputedCase* cd = (SetObjectPreComputedCase*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
