@@ -5473,7 +5473,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
     Object* obj = willBeObject.toObject(state);
     if (willBeObject.isPrimitive()) {
         obj->preventExtensions(state);
-    } else {
+    } else if (!property.isString()) {
+        // Only destroy transition table for non-string keys
+        // String keys can safely use transition mode, preserving IC effectiveness
         obj->markThisObjectDontNeedStructureTransitionTable();
     }
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
