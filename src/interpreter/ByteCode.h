@@ -1399,7 +1399,7 @@ struct GetObjectInlineCacheSimpleCaseData : public gc {
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    static constexpr size_t inlineBufferSize = 3;
+    static constexpr size_t inlineBufferSize = 8;
 
     ObjectStructure* m_cachedStructures[inlineBufferSize];
     uint8_t m_cachedIndexes[inlineBufferSize];
