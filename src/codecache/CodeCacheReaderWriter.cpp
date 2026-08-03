@@ -621,6 +621,14 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_templateDataString);
                 break;
             }
+            case CreateOnlyKeyValueObjectOpcode: {
+                CreateOnlyKeyValueObject* bc = static_cast<CreateOnlyKeyValueObject*>(currentCode);
+                for (size_t i = 0; i < bc->m_count; i++) {
+                    size_t stringIndex = m_stringTable->add(bc->m_keys[i]);
+                    relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                }
+                break;
+            }
             case GetObjectPreComputedCaseSimpleInlineCacheOpcode:
             case ExecutionPauseOpcode: {
                 // add tail data length
@@ -1022,6 +1030,10 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
         // mark for LoadRegExp bytecode
         bool bodyStringForLoadRegExp = true;
 
+        // track key index for CreateOnlyKeyValueObject
+        size_t cokvoKeyIndex = 0;
+        size_t cokvoLastCodeOffset = SIZE_MAX;
+
         for (size_t i = 0; i < relocInfoVector.size(); i++) {
             ByteCodeRelocInfo& info = relocInfoVector[i];
             ByteCode* currentCode = reinterpret_cast<ByteCode*>(code + info.codeOffset);
@@ -1227,6 +1239,18 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 ThrowStaticErrorOperation* bc = static_cast<ThrowStaticErrorOperation*>(currentCode);
                 bc->m_errorMessage = ErrorObject::Messages::CodeCache_Loaded_StaticError;
                 LOAD_ATOMICSTRING_RELOC(m_templateDataString);
+                break;
+            }
+            case CreateOnlyKeyValueObjectOpcode: {
+                CreateOnlyKeyValueObject* bc = static_cast<CreateOnlyKeyValueObject*>(currentCode);
+                ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING);
+                if (info.codeOffset != cokvoLastCodeOffset) {
+                    cokvoKeyIndex = 0;
+                    cokvoLastCodeOffset = info.codeOffset;
+                    bc->m_cachedObjectStructure = nullptr;
+                }
+                bc->m_keys[cokvoKeyIndex] = m_stringTable->get(info.dataOffset);
+                cokvoKeyIndex++;
                 break;
             }
             default:
