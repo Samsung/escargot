@@ -685,6 +685,38 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(SetObjectPreComputedCaseSimpleInlineCache)
+            :
+        {
+            SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                SetObjectInlineCache* const inlineCache = code->m_inlineCache;
+                if (LIKELY(!!inlineCache && code->m_inlineCacheProtoTraverseMaxIndex == 0)) {
+                    ObjectStructure* testItem = obj->structure();
+                    const size_t cacheFillCount = inlineCache->m_cache.size();
+                    SetObjectInlineCacheData* const cacheData = inlineCache->m_cache.data();
+                    for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
+                        const auto& item = cacheData[currentCacheIndex];
+                        if (item.m_cachedHiddenClass == testItem) {
+                            if (LIKELY(item.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
+                                obj->m_values[item.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+                                NEXT_INSTRUCTION();
+                            }
+                            // structure transition case: fall through to slow path
+                            break;
+                        }
+                    }
+                }
+            }
+            // miss → slow path
+            InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(SetObjectPreComputedCase)
             :
         {
@@ -3047,6 +3079,11 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     }
 
     inlineCache->m_cache[0] = newItem;
+
+    // promote to fast path opcode if we only have own-property caches (no proto chain)
+    if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
+        code->changeOpcode(Opcode::SetObjectPreComputedCaseSimpleInlineCacheOpcode);
+    }
     return;
 
 GiveUp:

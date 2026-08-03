@@ -597,6 +597,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
                 break;
             }
+            case SetObjectPreComputedCaseSimpleInlineCacheOpcode:
             case SetObjectPreComputedCaseOpcode: {
                 SetObjectPreComputedCase* bc = static_cast<SetObjectPreComputedCase*>(currentCode);
                 ASSERT(!bc->m_inlineCache);
