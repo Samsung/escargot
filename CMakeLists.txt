@@ -9,6 +9,8 @@ SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 MESSAGE(STATUS "CMAKE_SYSTEM_NAME: " ${CMAKE_SYSTEM_NAME})
 MESSAGE(STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})
 
+# Use CMAKE_SYSTEM_PROCESSOR for architecture detection (standard CMake practice)
+# User can override with -DESCARGOT_ARCH if needed for cross-compilation
 IF (NOT DEFINED ESCARGOT_ARCH)
     IF (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "X86" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86"
         OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
@@ -17,22 +19,35 @@ IF (NOT DEFINED ESCARGOT_ARCH)
             OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "EM64T")
         SET(ESCARGOT_ARCH "x64")
     ELSEIF (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm32"
-            OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l")
+            OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7-a")
         SET(ESCARGOT_ARCH "arm")
     ELSEIF (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
         SET(ESCARGOT_ARCH "aarch64")
     ELSEIF (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv64")
         SET(ESCARGOT_ARCH "riscv64")
+    ELSE()
+        # Fallback: use CMAKE_SYSTEM_PROCESSOR as-is (normalized to lowercase)
+        STRING(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ESCARGOT_ARCH)
     ENDIF()
 ENDIF()
 
+# Use CMAKE_SYSTEM_NAME for host OS detection (standard CMake practice)
+# User can override with -DESCARGOT_HOST if needed for cross-compilation
+# Supports: windows, android, darwin, linux, baremetal
 IF (NOT DEFINED ESCARGOT_HOST)
-    IF (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" OR ${CMAKE_SYSTEM_NAME} STREQUAL "WindowsStore")
+    IF (CMAKE_SYSTEM_NAME MATCHES "^Windows")
         SET(ESCARGOT_HOST "windows")
     ELSEIF (${CMAKE_SYSTEM_NAME} STREQUAL "Android")
         SET(ESCARGOT_HOST "android")
     ELSEIF (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
         SET(ESCARGOT_HOST "darwin")
+    # Bare-metal/RTOS detection (see docs/porting/RTOS_PORTING_GUIDE.md)
+    ELSEIF (${CMAKE_SYSTEM_NAME} STREQUAL "Generic" OR ${CMAKE_SYSTEM_NAME} STREQUAL "BareMetal"
+            OR ${CMAKE_SYSTEM_NAME} STREQUAL "FreeRTOS" OR ${CMAKE_SYSTEM_NAME} STREQUAL "NuttX"
+            OR ${CMAKE_SYSTEM_NAME} STREQUAL "Zephyr" OR ${CMAKE_SYSTEM_NAME} STREQUAL "RIOT"
+            OR ${CMAKE_SYSTEM_NAME} STREQUAL "MbedOS" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Mynewt"
+            OR ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" OR ${CMAKE_SYSTEM_NAME} STREQUAL "WASI")
+        SET(ESCARGOT_HOST "baremetal")
     ELSE()
         SET(ESCARGOT_HOST "linux")
     ENDIF()
@@ -52,12 +67,54 @@ IF (${ESCARGOT_HOST} STREQUAL "baremetal")
     ENDIF()
 ENDIF()
 
-IF (NOT DEFINED ESCARGOT_MODE)
-    SET (ESCARGOT_MODE "release")
+# Use CMake standard CMAKE_BUILD_TYPE
+# Values: Debug, Release, MinSizeRel, RelWithDebInfo
+IF (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    SET (CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 ENDIF()
+
+# Auto-enable SMALL_CONFIG for MinSizeRel builds (size-optimized build)
+# Users can override with -DESCARGOT_SMALL_CONFIG=OFF if needed
+IF (CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    SET(ESCARGOT_SMALL_CONFIG ON)
+    MESSAGE(STATUS "MinSizeRel build: ESCARGOT_SMALL_CONFIG enabled automatically for size optimization")
+ENDIF()
+# =============================================================================
+# BUILD CONFIGURATION
+# =============================================================================
+
+# ESCARGOT_SHELL: Build shell executable (default: ON)
+# - ON:  Build library + shell executable (default behavior)
+# - OFF: Build library only (for embedding/library distribution)
+IF (NOT DEFINED ESCARGOT_SHELL)
+    SET(ESCARGOT_SHELL ON CACHE BOOL "Build shell executable")
+ENDIF()
+
+# BUILD_SHARED_LIBS: Standard CMake variable for library type
+# - ON:  Build shared library (.so/.dylib/.dll)
+# - OFF: Build static library (.a/.lib)
+
+# Determine output type for display purposes
+# If ESCARGOT_OUTPUT is explicitly set, use it. Otherwise, auto-detect.
 IF (NOT DEFINED ESCARGOT_OUTPUT)
-    SET (ESCARGOT_OUTPUT "shell")
+    IF (ESCARGOT_SHELL)
+        SET(ESCARGOT_OUTPUT "shell")
+    ELSEIF (BUILD_SHARED_LIBS)
+        SET(ESCARGOT_OUTPUT "shared_lib")
+    ELSE()
+        SET(ESCARGOT_OUTPUT "static_lib")
+    ENDIF()
 ENDIF()
+# Use CMake standard BUILD_TESTING for test builds
+IF (NOT DEFINED ESCARGOT_TEST)
+    IF (BUILD_TESTING)
+        SET(ESCARGOT_TEST ON)
+    ELSE()
+        SET(ESCARGOT_TEST OFF)
+    ENDIF()
+ENDIF()
+
 IF (NOT DEFINED ESCARGOT_THREADING)
     SET (ESCARGOT_THREADING ON)
 ENDIF()
@@ -81,7 +138,7 @@ ENDIF()
 
 MESSAGE(STATUS "Escargot Arch: " ${ESCARGOT_ARCH})
 MESSAGE(STATUS "Escargot Host: " ${ESCARGOT_HOST})
-MESSAGE(STATUS "Escargot Mode: " ${ESCARGOT_MODE})
+MESSAGE(STATUS "Escargot Build Type: " ${CMAKE_BUILD_TYPE})
 MESSAGE(STATUS "Escargot Output: " ${ESCARGOT_OUTPUT})
 MESSAGE(STATUS "--------------------------------------------------------------------------------")
 MESSAGE(STATUS "ESCARGOT_DEFINITIONS: " ${ESCARGOT_DEFINITIONS})

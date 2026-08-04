@@ -8,7 +8,7 @@ on:
 
 env:
   RUNNER: tools/run-tests.py
-  BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+  BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHELL=ON -GNinja
 
 jobs:
   build-macOS:
@@ -224,14 +224,20 @@ jobs:
         }
     - name: Build ${{ matrix.arch }}
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }}  -Bout/ -DESCARGOT_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release
         CMake --build out/ --config Release
     - name: Check
       run: |
-        python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
-        rename out\escargot.exe escargot-win-${{ matrix.arch }}.exe
-        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe
-      shell: cmd
+        # Check both single-config and multi-config paths
+        if (Test-Path "out\Release\escargot.exe") {
+          python tools\run-tests.py --engine=%cd%\out\Release\escargot.exe new-es
+          Rename-Item out\Release\escargot.exe escargot-win-${{ matrix.arch }}.exe
+          Compress-Archive -Path out\Release\escargot-win-${{ matrix.arch }}.exe -DestinationPath escargot-win-${{ matrix.arch}}.zip -Force
+        } else {
+          python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
+          Rename-Item out\escargot.exe escargot-win-${{ matrix.arch }}.exe
+          Compress-Archive -Path out\escargot-win-${{ matrix.arch }}.exe -DestinationPath escargot-win-${{ matrix.arch}}.zip -Force
+        }
     - name: Upload
       uses: actions/upload-artifact@v4
       with:

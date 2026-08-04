@@ -58,11 +58,13 @@ SET (ESCARGOT_DEFINITIONS
     -DESCARGOT
 )
 
-SET (CXXFLAGS_FROM_ENV $ENV{CXXFLAGS})
+# CMake automatically reads CFLAGS, CXXFLAGS, LDFLAGS from environment
+# We use CMAKE_*_FLAGS which already contain environment variables
+SET (CXXFLAGS_FROM_ENV ${CMAKE_CXX_FLAGS})
 SEPARATE_ARGUMENTS(CXXFLAGS_FROM_ENV)
-SET (CFLAGS_FROM_ENV $ENV{CFLAGS})
+SET (CFLAGS_FROM_ENV ${CMAKE_C_FLAGS})
 SEPARATE_ARGUMENTS(CFLAGS_FROM_ENV)
-SET (LDFLAGS_FROM_ENV $ENV{LDFLAGS})
+SET (LDFLAGS_FROM_ENV ${CMAKE_EXE_LINKER_FLAGS})
 SEPARATE_ARGUMENTS(LDFLAGS_FROM_ENV)
 
 # these flags assigned from external should have the highest priority
@@ -71,10 +73,20 @@ SET (CFLAGS_FROM_ENV ${CFLAGS_FROM_ENV} ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
 SET (LDFLAGS_FROM_ENV ${LDFLAGS_FROM_ENV} ${ESCARGOT_LDFLAGS_FROM_EXTERNAL})
 
 # ESCARGOT COMMON LDFLAGS
-SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -fvisibility=hidden)
+# -fvisibility=hidden is GCC/Clang-specific; MSVC/clang-cl handle visibility differently
+# Bare-metal/RTOS targets don't need this flag (no dynamic linking, no symbol hiding needed)
+IF (NOT ${ESCARGOT_HOST} STREQUAL "windows" AND NOT ${ESCARGOT_HOST} STREQUAL "baremetal")
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -fvisibility=hidden)
+ENDIF()
 
 # bdwgc
-IF (${ESCARGOT_MODE} STREQUAL "debug")
+# Support both single-config (Ninja, Makefile) and multi-config (Visual Studio, Ninja Multi-Config)
+STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+IF (CMAKE_CONFIGURATION_TYPES)
+    # Multi-configuration generators (MSVC, Xcode): CMAKE_BUILD_TYPE is empty
+    # Debug/Release is selected at build time via --config
+    SET (ESCARGOT_DEFINITIONS_COMMON ${ESCARGOT_DEFINITIONS_COMMON} $<$<CONFIG:Debug>:-DGC_DEBUG>)
+ELSEIF (CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
     SET (ESCARGOT_DEFINITIONS_COMMON ${ESCARGOT_DEFINITIONS_COMMON} -DGC_DEBUG)
 ENDIF()
 
@@ -170,7 +182,7 @@ ENDIF()
 IF (ESCARGOT_TCO)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO)
     IF (ESCARGOT_TCO_DEBUG)
-        IF (NOT ${ESCARGOT_MODE} STREQUAL "debug")
+        IF (NOT CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
             MESSAGE (FATAL_ERROR "ESCARGOT_TCO_DEBUG is enabled only for debug mode")
         ENDIF()
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO_DEBUG)
@@ -233,7 +245,15 @@ ELSE()
 ENDIF()
 
 # SHELL FLAGS
-SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)
+# Note: ESCARGOT_EXPORT is intentionally left undefined for shared library builds
+# so that EscargotPublic.h's visibility("default") attribute is applied correctly.
+# Defining ESCARGOT_EXPORT= (empty) would break the #if !defined(ESCARGOT_EXPORT) check.
+# For static library builds, ESCARGOT_EXPORT= is fine since symbols are linked directly.
+IF (BUILD_SHARED_LIBS)
+    SET (ESCARGOT_CXXFLAGS_SHELL "")
+ELSE()
+    SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)
+ENDIF()
 
 #######################################################
 # FLAGS FOR PROFILING

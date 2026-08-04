@@ -522,7 +522,7 @@ std::string HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
         lexEnv = lexEnv->outerEnvironment();
     }
 
-    ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %zu\n", m_nodeCount, m_edgeCount, m_strings.size());
+    ESCARGOT_LOG_INFO("nodes: %llu | edges: %llu | strings: %zu\n", (unsigned long long)m_nodeCount, (unsigned long long)m_edgeCount, m_strings.size());
     return prepareHeapSnapshotFile();
 }
 } // namespace Escargot

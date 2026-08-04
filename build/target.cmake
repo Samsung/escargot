@@ -39,7 +39,7 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     SET (ESCARGOT_COMPILER_ID "GCC")
     SET (ESCARGOT_CXXFLAGS
         ${ESCARGOT_CXXFLAGS}
-        -std=c++11 -g3
+        -std=c++11
         -fno-rtti
         -fno-math-errno
         -fdata-sections -ffunction-sections
@@ -59,8 +59,14 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-mismatched-new-delete -Wno-overloaded-virtual -Wno-dangling-pointer)
     endif()
-    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
+    
+    # Debug flags: -g3 for maximum debug info, -O0 for no optimization
+    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -g3 -Wall -Wextra -Werror)
+    
+    # Release flags: -O2 for optimization, no debug symbols by default
+    # Users can add -g or -g3 via CMAKE_CXX_FLAGS_RELEASE if needed
     SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
+    
     IF (ESCARGOT_SMALL_CONFIG)
         IF (NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
             # BUG?) -Os option has unknown memory conflicts (might be related with gcc version)
@@ -68,12 +74,14 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
             SET (ESCARGOT_CXXFLAGS_RELEASE ${ESCARGOT_CXXFLAGS_RELEASE} -Os)
         ENDIF()
     ENDIF()
-    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
+    
+    # Third-party flags: no debug symbols by default (follow CMake standard)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
 ELSEIF (${CMAKE_CXX_COMPILER_ID} MATCHES  "Clang") #include Clang and AppleClang both
     SET (ESCARGOT_COMPILER_ID "CLANG")
     SET (ESCARGOT_CXXFLAGS
         ${ESCARGOT_CXXFLAGS}
-        -std=c++11 -g3
+        -std=c++11
         -fno-rtti
         -fno-math-errno
         -fdata-sections -ffunction-sections
@@ -98,12 +106,18 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} MATCHES  "Clang") #include Clang and AppleClang
         # this feature supported after clang version 21
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-character-conversion)
     endif()
-    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
+    
+    # Debug flags: -g3 for maximum debug info, -O0 for no optimization
+    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -g3 -Wall -Wextra -Werror)
+    
+    # Release flags: -O2 for optimization, no debug symbols by default
     SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
     IF (ESCARGOT_SMALL_CONFIG)
         SET (ESCARGOT_CXXFLAGS_RELEASE ${ESCARGOT_CXXFLAGS_RELEASE} -Os)
     ENDIF()
-    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
+    
+    # Third-party flags: no debug symbols by default (follow CMake standard)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
 ELSE()
     MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()

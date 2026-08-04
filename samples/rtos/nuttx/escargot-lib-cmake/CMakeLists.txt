@@ -80,8 +80,9 @@ set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
 set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
 set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
-set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
-set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_SHELL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
 # Extra bare-metal-only tuning the main build doesn't model as first-class
 # options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized

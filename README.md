@@ -43,26 +43,46 @@ Escargot is an open-source project that allows developers to contribute to its d
 
 ### Build Options
 
-The following build options are supported when generating build rules using cmake.
+Escargot uses **standard CMake variables** for build configuration.
+
+#### Standard CMake Variables
 
 | **Option** | **Description** | **Flag** | **Value** | **Default** |
 |-|-|-|-|-|
-| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows/baremetal | |
-| **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
-| **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
-| **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
-| **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON |
-| **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
-| **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
-| **TCO** | Enable tail call optimization | -DESCARGOT_TCO | ON/OFF | OFF |
-| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON |
-| **TLS_ADDRESS_OFFSET** | Enable thread local storge access optimization(offset) | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | ON/OFF | OFF |
-| **TLS_PTHREAD_KEY** | Enable thread local storge access optimization(pthread_key) | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | ON/OFF | OFF |
-| **TEMPORAL** | Enable Temporal support | -ESCARGOT_TEMPORAL | ON/OFF | OFF |
-| **SHADOWREALM** | Enable ShadowRealm support | -ESCARGOT_SHADOWREALM | ON/OFF | OFF |
-| **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
-| **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
-| **DEBUGGER** | Enable Debug server | -DESCARGOT_DEBUGGER | ON/OFF | OFF |
+| **Build Type** | Choose release/debug mode | `-DCMAKE_BUILD_TYPE` | `Debug`/`Release`/`RelWithDebInfo`/`MinSizeRel` | `Release` |
+| **Library Type** | Build shared or static library | `-DBUILD_SHARED_LIBS` | `ON`/`OFF` | `OFF` |
+| **Build Shell** | Build shell executable | `-DESCARGOT_SHELL` | `ON`/`OFF` | `ON` |
+| **Build Tests** | Build cctest (unit tests) | `-DBUILD_TESTING` | `ON`/`OFF` | `OFF` |
+
+> **Note**: `MinSizeRel` build type automatically enables `ESCARGOT_SMALL_CONFIG` for size optimization.
+> 
+> **Note**: `BUILD_TESTING` builds the cctest executable (requires googletest). For runtime test features (test262, etc.), use `-DESCARGOT_TEST=ON` instead.
+
+#### Platform Detection (Auto-detected)
+
+| **Option** | **Description** | **CMake Standard** | **Notes** |
+|-|-|-|-|
+| **Host OS** | Auto-detected from system | `CMAKE_SYSTEM_NAME` | linux/darwin/android/windows/baremetal |
+| **Architecture** | Auto-detected from CPU | `CMAKE_SYSTEM_PROCESSOR` | x64/x86/arm/aarch64/riscv64 |
+
+> **Note**: Platform is automatically detected. Override only for cross-compilation.
+
+#### Feature Options
+
+| **Option** | **Description** | **Flag** | **Value** | **Default** |
+|-|-|-|-|-|
+| **LIBICU** | Include libicu library | `-DESCARGOT_LIBICU_SUPPORT` | ON/OFF | ON |
+| **WASM** | Enable WebAssembly support | `-DESCARGOT_WASM` | ON/OFF | OFF |
+| **CODE_CACHE** | Enable code cache | `-DESCARGOT_CODE_CACHE` | ON/OFF | OFF |
+| **TCO** | Enable tail call optimization | `-DESCARGOT_TCO` | ON/OFF | OFF |
+| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | `-DESCARGOT_THREADING` | ON/OFF | ON |
+| **TLS_ADDRESS_OFFSET** | Enable thread local storage access optimization (offset) | `-DESCARGOT_TLS_ACCESS_BY_ADDRESS` | ON/OFF | OFF |
+| **TLS_PTHREAD_KEY** | Enable thread local storage access optimization (pthread_key) | `-DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY` | ON/OFF | OFF |
+| **TEMPORAL** | Enable Temporal support | `-DESCARGOT_TEMPORAL` | ON/OFF | OFF |
+| **SHADOWREALM** | Enable ShadowRealm support | `-DESCARGOT_SHADOWREALM` | ON/OFF | OFF |
+| **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | `-DESCARGOT_SMALL_CONFIG` | ON/OFF | OFF |
+| **TEST** | Enable additional features used only for testing (test262, etc.) | `-DESCARGOT_TEST` | ON/OFF | OFF |
+| **DEBUGGER** | Enable debug server | `-DESCARGOT_DEBUGGER` | ON/OFF | OFF |
 
 ### Linux
 
@@ -80,9 +100,35 @@ sudo apt-get install libicu-dev:i386
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DCMAKE_BUILD_TYPE=Release -DESCARGOT_SHELL=ON -GNinja
 ninja
 ```
+
+#### 32-bit Cross-Compilation (x86)
+
+To build 32-bit binary on 64-bit Linux host, you need to set cross-compile flags and specify the target architecture:
+
+```sh
+# Prerequisites
+sudo apt-get install gcc-multilib g++-multilib
+sudo apt-get install libicu-dev:i386
+
+# Set compiler/linker flags for 32-bit
+export CFLAGS="-m32"
+export CXXFLAGS="-m32"
+export LDFLAGS="-m32"
+
+# Build with CMAKE_SYSTEM_PROCESSOR=x86
+cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Release -DESCARGOT_SHELL=ON -GNinja
+ninja
+```
+
+> **Important**: All three elements are required for proper 32-bit build:
+> 1. **Compiler flags** (`CFLAGS`/`CXXFLAGS="-m32"`) - Generate 32-bit instructions
+> 2. **Linker flags** (`LDFLAGS="-m32"`) - Link 32-bit libraries  
+> 3. **CMake target** (`CMAKE_SYSTEM_PROCESSOR=x86`) - Recognize 32-bit architecture
+>
+> Without `CMAKE_SYSTEM_PROCESSOR=x86`, CMake may still generate 64-bit code despite `-m32` flags, causing bit-field width errors.
 
 ### macOS
 
@@ -99,7 +145,7 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DCMAKE_BUILD_TYPE=Release -DESCARGOT_SHELL=ON -GNinja
 ninja
 ```
 
@@ -128,24 +174,30 @@ cd build/android/
 ### Bare-metal / RTOS
 
 Escargot runs on bare-metal and RTOS targets with no OS underneath
-(no pthreads, no `mmap`, no filesystem). `-DESCARGOT_HOST=baremetal`
-configures the engine side of this (`-DOS_BAREMETAL=1` and friends,
-ICU/threading defaulted off):
+(no pthreads, no `mmap`, no filesystem).
+
+Platform is **auto-detected** from CMake standard variables:
+- `CMAKE_SYSTEM_NAME=Generic` (or other RTOS names: FreeRTOS, NuttX, Zephyr, etc.)
+- `CMAKE_SYSTEM_PROCESSOR=arm` (or your target architecture)
 
 ```sh
-cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm ... /path/to/escargot
+# Example: Cross-compile for ARM bare-metal
+cmake -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm \
+      -DCMAKE_C_COMPILER=arm-none-eabi-gcc \
+      -DCMAKE_CXX_COMPILER=arm-none-eabi-g++ \
+      -DESCARGOT_SHELL=OFF -DBUILD_SHARED_LIBS=OFF \
+      /path/to/escargot
 ```
 
-A full port additionally needs its own small CMake project for BDWGC
-(`third_party/GCutil`) and a `PlatformRef` implementation providing the
-RTOS's task stack bounds and tick source. See
-[`docs/porting/RTOS_PORTING_GUIDE.md`](docs/porting/RTOS_PORTING_GUIDE.md)
-for the full checklist and code contract, and
-[`samples/rtos/freertos/`](samples/rtos/freertos) for a complete, working
-in-tree sample (FreeRTOS / Cortex-M55, QEMU `mps3-an547`) — cross-compiled
-and boot-tested under QEMU by the `RTOS-FreeRTOS` CI job
-(`.github/workflows/rtos-freertos.yml`) whenever engine or sample sources
-change.
+**Note**: 
+- `-DESCARGOT_SHELL=OFF` - Build library only (no shell executable)
+- `-DBUILD_SHARED_LIBS=OFF` - Build static library
+- ICU and threading are automatically disabled for bare-metal targets
+
+See [`docs/porting/RTOS_PORTING_GUIDE.md`](docs/porting/RTOS_PORTING_GUIDE.md)
+for the full porting guide and
+[`samples/rtos/freertos/`](samples/rtos/freertos) for a complete working sample
+(FreeRTOS / Cortex-M55, QEMU `mps3-an547`).
 
 A second reference port, NuttX / Cortex-M55 (same QEMU target), is also
 in-tree: [`samples/rtos/nuttx/`](samples/rtos/nuttx) has the escargot NSH
@@ -168,9 +220,9 @@ Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Pr
 ```sh
 git submodule update --init third_party # update submodules
 
-CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -DESCARGOT_MODE=release -Bout -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
-cd out
-msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
+# x64 build (x86 build: change x64 to Win32)
+cmake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x64 -DCMAKE_BUILD_TYPE=Release -DESCARGOT_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
+cmake --build . --config Release
 ```
 
 ## Debugger

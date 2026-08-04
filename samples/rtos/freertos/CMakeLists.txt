@@ -2,12 +2,6 @@ cmake_minimum_required(VERSION 3.18)
 
 project(escargot-rtos C CXX ASM)
 
-set(CMAKE_EXE_LINKER_FLAGS
-    "-T ${CMAKE_SOURCE_DIR}/startup/an552_ns.ld \
-    -flto -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map \
-    --specs=nosys.specs"
-    CACHE STRING "" FORCE)
-
 # ─── FreeRTOS ────────────────────────────────────────────────────────────────
 set(FREERTOS_DIR ${CMAKE_SOURCE_DIR}/FreeRTOS-Kernel)
 set(FREERTOS_PORT_DIR ${FREERTOS_DIR}/portable/GCC/ARM_CM4F)
@@ -47,8 +41,9 @@ set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
 set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
 set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
-set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
-set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_SHELL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
 # Extra bare-metal-only tuning the main build doesn't model as first-class
 # options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized
@@ -99,5 +94,14 @@ target_include_directories(escargot-rtos PRIVATE
 target_compile_definitions(escargot-rtos PRIVATE ${ESCARGOT_ENGINE_DEFS})
 target_compile_options(escargot-rtos PRIVATE -fexceptions)
 target_link_libraries(escargot-rtos escargot gc-lib freertos -lc -lstdc++)
+
+# Linker flags: apply only to escargot-rtos target (not globally)
+target_link_options(escargot-rtos PRIVATE
+    -T ${CMAKE_SOURCE_DIR}/startup/an552_ns.ld
+    -flto
+    -Wl,--gc-sections
+    -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map
+    --specs=nosys.specs
+)
 
 set_target_properties(escargot-rtos PROPERTIES SUFFIX ".elf")

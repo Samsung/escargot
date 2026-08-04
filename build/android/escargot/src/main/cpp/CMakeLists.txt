@@ -12,15 +12,17 @@ if (NOT UNDER_NDK)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -g3")
 endif ()
 
-SET (ESCARGOT_ARCH ${ANDROID_SYSROOT_ABI})
-# STRING(TOLOWER ${CMAKE_BUILD_TYPE} ESCARGOT_MODE)
-SET (ESCARGOT_MODE "release")
+# ESCARGOT_ARCH is auto-detected from CMAKE_SYSTEM_PROCESSOR (standard CMake)
+# Use CMAKE_BUILD_TYPE (standard CMake practice)
+# Android Gradle sets CMAKE_BUILD_TYPE automatically (Debug/Release)
 SET (ESCARGOT_THREADING ON)
 
+# Map Android's ENABLE_SHELL to Escargot's standard ESCARGOT_SHELL
 if (ENABLE_SHELL)
     SET (ESCARGOT_TEST ON)
     SET (ESCARGOT_TEMPORAL ON)
     SET (ESCARGOT_EXPORT_ALL ON)
+    SET (ESCARGOT_SHELL ON)
 endif ()
 ADD_SUBDIRECTORY (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../ escargot)
 
@@ -28,7 +30,13 @@ FILE (GLOB_RECURSE JNI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 ADD_LIBRARY (escargot-jni SHARED ${JNI_SRC})
 
 SET(LOG_LIBRARY "")
+# Multi-config support: NDEBUG for Release/RelWithDebInfo/MinSizeRel
 if (NOT UNDER_NDK)
+    ADD_DEFINITIONS(-DNDEBUG)
+elseif (CMAKE_CONFIGURATION_TYPES)
+    # Android Gradle with multi-config: use generator expression
+    ADD_COMPILE_DEFINITIONS($<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
+elseif (CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     ADD_DEFINITIONS(-DNDEBUG)
 endif ()
 
@@ -46,7 +54,12 @@ TARGET_LINK_LIBRARIES (escargot-jni PRIVATE escargot ${LOG_LIBRARY})
 
 if (ENABLE_SHELL)
     SET(CMAKE_EXE_LINKER_FLAGS -Wl,-export-dynamic) # export symbol of Shell.cpp
-    ADD_COMPILE_OPTIONS(-DNDEBUG -g3 -DESCARGOT_ENABLE_TEST -fPIC)
+    # Multi-config support: NDEBUG for non-Debug builds
+    if (CMAKE_CONFIGURATION_TYPES)
+        ADD_COMPILE_OPTIONS($<$<CONFIG:Debug>:-g3;-DESCARGOT_ENABLE_TEST;-fPIC>$<$<NOT:$<CONFIG:Debug>>:-DNDEBUG;-g3;-DESCARGOT_ENABLE_TEST;-fPIC>)
+    else()
+        ADD_COMPILE_OPTIONS(-DNDEBUG -g3 -DESCARGOT_ENABLE_TEST -fPIC)
+    endif()
     ADD_LINK_OPTIONS(-static-libstdc++)
     ADD_EXECUTABLE(escargot-shell ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src/shell/Shell.cpp)
     TARGET_INCLUDE_DIRECTORIES(escargot-shell PRIVATE ADD_SUBDIRECTORY

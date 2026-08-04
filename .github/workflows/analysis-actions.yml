@@ -61,9 +61,14 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage64 -DESCARGOT_ARCH=x64 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage64  $BUILD_OPTIONS
         ninja -Cout/coverage64
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage32 -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        # 32-bit build with cross-compile flags
+        export CFLAGS="-m32"
+        export CXXFLAGS="-m32"
+        export LDFLAGS=" -m32 -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/"
+        export PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/"
+        cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage32  $BUILD_OPTIONS
         ninja -Cout/coverage32
     - name: Run test262 and collect coverage data
       # test262 is unstable in actions env, but coverage data will be accumulated
