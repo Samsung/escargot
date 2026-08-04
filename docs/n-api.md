@@ -39,7 +39,7 @@ To maintain technical integrity and avoid race conditions or crashes (e.g., exec
 To enable the Node-API layer when building Escargot, pass the `-DESCARGOT_NAPI=ON` option to CMake:
 
 ```sh
-cmake -DESCARGOT_MODE=release -DESCARGOT_NAPI=ON -DESCARGOT_OUTPUT=shared_lib -GNinja
+cmake -DCMAKE_BUILD_TYPE=Release -DESCARGOT_NAPI=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -GNinja
 ninja
 ```
 
@@ -55,9 +55,9 @@ This achieves two key optimization benefits for resource-constrained production 
 
 ### Target Restrictions
 
-Because Node-API is designed for engine-agnostic embedding, and because enabling N-API hides all proprietary C++ public API symbols to maximize size reduction, **the traditional proprietary C++ shell target (`-DESCARGOT_OUTPUT=shell`) is not supported when Node-API is enabled**.
+Because Node-API is designed for engine-agnostic embedding, and because enabling N-API hides all proprietary C++ public API symbols to maximize size reduction, **the traditional proprietary C++ shell target (`-DENABLE_SHELL=ON`) is not supported when Node-API is enabled**.
 
-If you attempt to configure CMake with `-DESCARGOT_OUTPUT=shell` and `-DESCARGOT_NAPI=ON`, CMake will halt configuration with a clear `FATAL_ERROR`, advising you to configure with `-DESCARGOT_OUTPUT=shared_lib` or `-DESCARGOT_OUTPUT=static_lib` instead.
+If you attempt to configure CMake with `-DENABLE_SHELL=ON` and `-DESCARGOT_NAPI=ON`, CMake will halt configuration with a clear `FATAL_ERROR`, advising you to configure with `-DESCARGOT_ENABLE_SHELL=OFF` instead. (When `ESCARGOT_NAPI=ON` and the shell option is left unset, Escargot now defaults it to `OFF` automatically.)
 
 ### The N-API Shell Target (`escargot-napi`)
 
