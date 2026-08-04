@@ -195,9 +195,9 @@ jobs:
         # Ninja with CMAKE_BUILD_TYPE outputs to out/escargot.exe
         # Multi-config outputs to out/Release/escargot.exe
         if (Test-Path "out\Release\escargot.exe") {
-          out\Release\escargot.exe run.js
+          .\out\Release\escargot.exe run.js
         } else {
-          out\escargot.exe run.js
+          .\out\escargot.exe run.js
         }
     # clang-cl with cannot generate c++ exception code well. if clang-cl bug fixed, we can enable test262
     # - name: Run test262
@@ -289,9 +289,9 @@ jobs:
         # Ninja with CMAKE_BUILD_TYPE outputs to out/escargot.exe
         # Multi-config outputs to out/Release/escargot.exe
         if (Test-Path "out\Release\escargot.exe") {
-          out\Release\escargot.exe run.js
+          .\out\Release\escargot.exe run.js
         } else {
-          out\escargot.exe run.js
+          .\out\escargot.exe run.js
         }
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
