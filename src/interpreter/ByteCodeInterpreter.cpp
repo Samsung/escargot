@@ -2638,25 +2638,16 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         propertyName = code->m_complexInlineCache->m_propertyName;
     }
 
-    // cache miss.
-    if (code->m_cacheMissCount > GetObjectInlineCacheData::MaxCacheMissCount) {
+    // no more inline caching
+    ASSERT(code->m_cacheMissCount <= GetObjectInlineCacheData::MaxCacheMissCount);
+    if (code->m_cacheMissCount == GetObjectInlineCacheData::MaxCacheMissCount) {
         registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
 
+    // cache miss
     code->m_cacheMissCount++;
     if (code->m_cacheMissCount <= GetObjectInlineCacheData::MinCacheFillCount) {
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
-        return;
-    }
-
-    if (UNLIKELY(!obj->isInlineCacheable())) {
-        code->m_cacheMissCount = GetObjectInlineCacheData::MaxCacheMissCount + 1;
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
-        return;
-    }
-
-    if (UNLIKELY(code->m_cacheMissCount == GetObjectInlineCacheData::MaxCacheMissCount)) {
         registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
@@ -2665,9 +2656,13 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
     size_t cachedIndex = 0;
     bool isPlainDataProperty = 0;
 
+    ASSERT(!!obj);
     while (true) {
+        if (UNLIKELY(!obj->isInlineCacheable())) {
+            goto GiveUp;
+        }
+
         auto s = obj->structure();
-        s->markReferencedByInlineCache();
         cachedhiddenClassChain.push_back(s);
         auto result = s->findProperty(propertyName);
 
@@ -2683,12 +2678,9 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         obj = obj->Object::getPrototypeObject(state);
 
         if (!obj) {
+            // property not exist
             cachedIndex = GetObjectInlineCacheData::CachedIndexMax;
             break;
-        }
-
-        if (UNLIKELY(!obj->isInlineCacheable())) {
-            goto GiveUp;
         }
     }
 
@@ -2702,11 +2694,16 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         goto GiveUp;
     }
 
+    // Before adding inline caching data,
+    // mark all cached hidden classes
+    for (size_t i = 0; i < cachedhiddenClassChain.size(); i++) {
+        cachedhiddenClassChain[i]->markReferencedByInlineCache();
+    }
+
     if (isPlainDataProperty && cachedhiddenClassChain.size() == 1 && cachedIndex <= std::numeric_limits<uint8_t>::max()
         && code->m_inlineCacheMode <= GetObjectPreComputedCase::Simple) {
         if (code->m_inlineCacheMode != GetObjectPreComputedCase::Simple) {
             code->m_simpleInlineCache = new GetObjectInlineCacheSimpleCaseData(propertyName);
-            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheSimpleCaseData);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Simple;
             block->m_otherLiteralData.push_back(code->m_simpleInlineCache);
             code->changeOpcode(Opcode::GetObjectPreComputedCaseSimpleInlineCacheOpcode);
@@ -2743,7 +2740,6 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
             for (size_t i = 0; i < GetObjectInlineCacheSimpleCaseData::inlineBufferSize && old->m_cachedStructures[i]; i++) {
                 inlineCache->m_cache.pushBack(GetObjectInlineCacheData());
-                block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheData);
 
                 auto& item = inlineCache->m_cache.back();
                 item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
@@ -2752,13 +2748,10 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                 item.m_cachedIndex = old->m_cachedIndexes[i];
                 item.m_isPlainDataProperty = true;
             }
-            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCaseData);
-            block->m_inlineCacheDataSize -= sizeof(GetObjectInlineCacheSimpleCaseData);
         } else if (code->m_inlineCacheMode == GetObjectPreComputedCase::None) {
             code->m_complexInlineCache = new GetObjectInlineCacheComplexCaseData(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
-            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCaseData);
         }
 
         auto inlineCache = code->m_complexInlineCache;
@@ -2768,7 +2761,6 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             }
         } else {
             inlineCache->m_cache.insert(0, GetObjectInlineCacheData());
-            block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheData);
         }
 
         auto& newItem = inlineCache->m_cache[0];
@@ -2776,7 +2768,6 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         code->m_inlineCacheProtoTraverseMaxIndex = std::max(newProtoTraverseIndex, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
 
         newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
-        block->m_inlineCacheDataSize += sizeof(size_t) * cachedhiddenClassChain.size();
         newItem.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * cachedhiddenClassChain.size());
         memcpy(newItem.m_cachedhiddenClassChain, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * cachedhiddenClassChain.size());
         newItem.m_cachedIndex = cachedIndex;
@@ -2801,7 +2792,7 @@ GiveUp:
     code->changeOpcode(Opcode::GetObjectPreComputedCaseOpcode);
     code->m_inlineCacheMode = GetObjectPreComputedCase::None;
     code->m_propertyName = propertyName;
-    code->m_cacheMissCount = GetObjectInlineCacheData::MaxCacheMissCount + 1;
+    code->m_cacheMissCount = GetObjectInlineCacheData::MaxCacheMissCount;
     registerFile[code->m_storeRegisterIndex] = orgObj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
 #endif
     // clang-format on
@@ -2939,7 +2930,6 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     if (code->m_inlineCache == nullptr) {
         // create a new cache data
         code->m_inlineCache = new SetObjectInlineCache();
-        block->m_inlineCacheDataSize += sizeof(SetObjectInlineCache);
         block->m_otherLiteralData.push_back(code->m_inlineCache);
     }
 
@@ -3049,12 +3039,10 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         // caching the newly generated ObjectStructure at the end of m_cachedHiddenClassChainData
         newItem.m_cachedHiddenClassChainData[newItem.m_cachedhiddenClassChainLength] = originalObject->structure();
 
-        block->m_inlineCacheDataSize += sizeof(size_t) * newItem.m_cachedhiddenClassChainLength;
 
         if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
             // convert simple case to complex case
             for (size_t i = 0; i < inlineCache->m_cache.size(); i++) {
-                block->m_inlineCacheDataSize += sizeof(size_t);
 
                 // all previous cached data should be simple case
                 ASSERT(inlineCache->m_cache[i].m_cachedhiddenClassChainLength == 1);
@@ -3075,7 +3063,6 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         }
     } else {
         inlineCache->m_cache.insert(0, SetObjectInlineCacheData());
-        block->m_inlineCacheDataSize += sizeof(SetObjectInlineCacheData);
     }
 
     inlineCache->m_cache[0] = newItem;
