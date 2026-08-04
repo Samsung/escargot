@@ -522,7 +522,11 @@ std::string HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
         lexEnv = lexEnv->outerEnvironment();
     }
 
-    ESCARGOT_LOG_INFO("nodes: %ld | edges: %ld | strings: %zu\n", m_nodeCount, m_edgeCount, m_strings.size());
+    // m_nodeCount/m_edgeCount are uint64_t, which is NOT the same size as
+    // `long` on 32-bit targets (e.g. -m32) -- %ld there mismatches and
+    // -Werror=format= turns it into a hard error. %llu via an explicit
+    // unsigned long long cast is correct on every target uint64_t maps to.
+    ESCARGOT_LOG_INFO("nodes: %llu | edges: %llu | strings: %zu\n", (unsigned long long)m_nodeCount, (unsigned long long)m_edgeCount, m_strings.size());
     return prepareHeapSnapshotFile();
 }
 } // namespace Escargot

@@ -202,62 +202,53 @@ def run_test262(engine, arch, extra_arg):
 
 @runner('test262-strict', default=False)
 def run_test262_strict(engine, arch, extra_arg):
+    # NOTE: this used to be `args = [...],` (trailing comma -- made args a
+    # 1-tuple wrapping the list, so `args.extend()` below would raise
+    # AttributeError), pass a nonexistent `--full-summary` flag (the real
+    # flag is `--full`; see test262.py's BuildOptions), and split on
+    # '=== Summary ===' when test262.py actually prints '=== Test262 Summary
+    # ===' (so `[1]` would IndexError). This runner was never actually
+    # invoked by any CI job, so none of that ever ran. Rewritten to mirror
+    # run_test262() above exactly, just adding --strict_only.
     copy_test262_files()
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
-    out = open('test262-strict_out', 'w')
-
     args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--full-summary',
-         '--strict_only'],
+         '--summary',
+         '--strict_only']
     if len(extra_arg["test262_extra_arg"]):
         args.extend(extra_arg["test262_extra_arg"].split(" "))
-    run(args,
+    stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
-        stdout=out,
-        report=True)
+        stdout=PIPE)
 
-    out.close()
-
-    with open('test262-strict_out', 'r') as out:
-        full = out.read()
-        summary = full.split('=== Summary ===')[1]
-        if summary.find('- All tests succeeded') < 0:
-            print(summary)
-            raise Exception('test262-strict failed')
-
-        print('test262-strict: All tests passed')
+    summary = stdout.decode("utf-8").split('=== Test262 Summary ===')[1]
+    if summary.find('- All tests succeeded') < 0:
+        raise Exception('test262-strict failed')
+    print('test262-strict: All tests passed')
 
 
 @runner('test262-nonstrict', default=False)
 def run_test262_nonstrict(engine, arch, extra_arg):
+    # See run_test262_strict()'s NOTE above -- same set of bugs fixed here.
     copy_test262_files()
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
-    out = open('test262-nonstrict_out', 'w')
-
     args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-        '--full-summary',
-         '--non_strict_only'],
+         '--summary',
+         '--non_strict_only']
     if len(extra_arg["test262_extra_arg"]):
         args.extend(extra_arg["test262_extra_arg"].split(" "))
-    run(args,
+    stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
-        stdout=out,
-        report=True)
+        stdout=PIPE)
 
-    out.close()
-
-    with open('test262-nonstrict_out', 'r') as out:
-        full = out.read()
-        summary = full.split('=== Summary ===')[1]
-        if summary.find('- All tests succeeded') < 0:
-            print(summary)
-            raise Exception('test262-nonstrict failed')
-
-        print('test262-nonstrict: All tests passed')
+    summary = stdout.decode("utf-8").split('=== Test262 Summary ===')[1]
+    if summary.find('- All tests succeeded') < 0:
+        raise Exception('test262-nonstrict failed')
+    print('test262-nonstrict: All tests passed')
 
 def compile_test_data_runner(extra_arg):
     if extra_arg["skip_build_test_data_runner"]:

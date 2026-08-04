@@ -48,23 +48,44 @@ The following build options are supported when generating build rules using cmak
 
 | **Option** | **Description** | **Flag** | **Value** | **Default** |
 |-|-|-|-|-|
-| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows/baremetal | |
 | **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
-| **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
-| **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
-| **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON |
+| **ESCARGOT_BUILD_SHARED_LIBS** | Build shared library | -DESCARGOT_BUILD_SHARED_LIBS | ON/OFF | OFF |
+| **ENABLE_SHELL** | Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL) | -DENABLE_SHELL | ON/OFF | ON, except OFF when ESCARGOT_NAPI is ON |
+| **ESCARGOT_BUILD_CCTEST** | Build the C++ tests | -DESCARGOT_BUILD_CCTEST | ON/OFF | OFF |
+| **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON, except OFF on bare-metal |
 | **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
 | **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
 | **TCO** | Enable tail call optimization | -DESCARGOT_TCO | ON/OFF | OFF |
-| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON |
-| **TLS_ADDRESS_OFFSET** | Enable thread local storge access optimization(offset) | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | ON/OFF | OFF |
-| **TLS_PTHREAD_KEY** | Enable thread local storge access optimization(pthread_key) | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | ON/OFF | OFF |
-| **TEMPORAL** | Enable Temporal support | -ESCARGOT_TEMPORAL | ON/OFF | OFF |
-| **SHADOWREALM** | Enable ShadowRealm support | -ESCARGOT_SHADOWREALM | ON/OFF | OFF |
+| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON, except OFF on bare-metal |
+| **TLS_ADDRESS_OFFSET** | Enable thread local storge access optimization(offset) | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | ON/OFF | ON when THREADING is ON, except on Android/Windows/macOS/bare-metal (assumes ELF/glibc-style TLS) |
+| **TLS_PTHREAD_KEY** | Enable thread local storge access optimization(pthread_key) | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | ON/OFF | ON when THREADING is ON and host is Android |
+| **TEMPORAL** | Enable Temporal support (requires ICU) | -DESCARGOT_TEMPORAL | ON/OFF | ON when LIBICU is ON, otherwise OFF |
+| **SHADOWREALM** | Enable ShadowRealm support | -DESCARGOT_SHADOWREALM | ON/OFF | OFF |
 | **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
+| **EXPORT_ALL** | Export all symbols instead of the default curated public API | -DESCARGOT_EXPORT_ALL | ON/OFF | OFF |
 | **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
 | **DEBUGGER** | Enable Debug server | -DESCARGOT_DEBUGGER | ON/OFF | OFF |
 | **NAPI** | Enable Node-API (N-API) support and C-style hosting APIs | -DESCARGOT_NAPI | ON/OFF | OFF |
+
+<details>
+<summary>Advanced / developer-only options (profiling, sanitizers, internal knobs)</summary>
+
+| **Option** | **Description** | **Flag** | **Value** | **Default** |
+|-|-|-|-|-|
+| **ESCARGOT_ASAN** | Build with AddressSanitizer | -DESCARGOT_ASAN | ON/OFF | OFF |
+| **ESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | -DESCARGOT_COVERAGE | ON/OFF | OFF |
+| **ESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | -DESCARGOT_DEPLOY | ON/OFF | OFF |
+| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there) |
+| **ESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | -DESCARGOT_USE_EXTENDED_API | ON/OFF | ON when NAPI is ON, otherwise OFF |
+| **ESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | -DESCARGOT_USE_CUSTOM_LOGGING | ON/OFF | OFF |
+| **ESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | -DESCARGOT_TCO_DEBUG | ON/OFF | OFF |
+| **ESCARGOT_PROFILE_BDWGC** | Enable bdwgc (Boehm GC) profiling | -DESCARGOT_PROFILE_BDWGC | ON/OFF | OFF |
+| **ESCARGOT_MEM_STATS** | Enable memory usage statistics | -DESCARGOT_MEM_STATS | ON/OFF | OFF |
+| **ESCARGOT_VALGRIND** | Build with Valgrind annotations | -DESCARGOT_VALGRIND | ON/OFF | OFF |
+| **ESCARGOT_GOOGLE_PERF** | Build with gperftools (Google Performance Tools) profiling | -DESCARGOT_GOOGLE_PERF | ON/OFF | OFF |
+| **ESCARGOT_BUILD_64BIT_FORCE_LARGE** | On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression | -DESCARGOT_BUILD_64BIT_FORCE_LARGE | ON/OFF | ON |
+
+</details>
 
 ### Linux
 
@@ -82,7 +103,7 @@ sudo apt-get install libicu-dev:i386
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
@@ -106,7 +127,7 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
@@ -138,12 +159,12 @@ cd build/android/
 ### Bare-metal / RTOS
 
 Escargot runs on bare-metal and RTOS targets with no OS underneath
-(no pthreads, no `mmap`, no filesystem). `-DESCARGOT_HOST=baremetal`
+(no pthreads, no `mmap`, no filesystem). Specifying a bare-metal/RTOS target via `CMAKE_SYSTEM_NAME` (such as `Generic`, `NuttX`, `FreeRTOS`) automatically
 configures the engine side of this (`-DOS_BAREMETAL=1` and friends,
 ICU/threading defaulted off):
 
 ```sh
-cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm ... /path/to/escargot
+cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm ... /path/to/escargot
 ```
 
 A full port additionally needs its own small CMake project for BDWGC
@@ -178,7 +199,7 @@ Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Pr
 ```sh
 git submodule update --init third_party # update submodules
 
-CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -DESCARGOT_MODE=release -Bout -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
+CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -Bout -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
 cd out
 msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
 ```

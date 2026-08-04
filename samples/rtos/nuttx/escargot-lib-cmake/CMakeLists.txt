@@ -63,10 +63,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS_STR}")
 #
 # Instead of hand-duplicating the engine's own source-file globs/defines
 # here, reuse the main repo's own top-level CMakeLists.txt (build/config.cmake
-# + build/escargot.cmake) as a subdirectory, with ESCARGOT_HOST=baremetal
-# (see build/target.cmake) doing the ENGINE-side (compile defs/flags/-std
-# override) work. That top-level project deliberately does NOT build
-# runtime_icu_binder for ESCARGOT_HOST=baremetal (see the guards in
+# + build/escargot.cmake) as a subdirectory. The bare-metal platform is
+# automatically detected via CMAKE_SYSTEM_NAME, doing the ENGINE-side (compile
+# defs/flags/-std override) work. That top-level project deliberately does NOT
+# build runtime_icu_binder for bare-metal targets (see the guards in
 # build/escargot.cmake) -- it unconditionally needs <dlfcn.h>, which doesn't
 # exist on this newlib/nosys target, so it stays out of scope entirely.
 # BDWGC (third_party/GCutil) IS built as part of this same add_subdirectory()
@@ -78,10 +78,26 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS_STR}")
 set(ESCARGOT_ROOT  ${CMAKE_SOURCE_DIR}/../../../..)
 set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
-set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
+
 set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
-set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
-set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+# This port builds its own executable against the engine as a static lib --
+# it never wants the standard src/shell/Shell.cpp target. Under the old
+# ESCARGOT_OUTPUT=static_lib default (pre-refactor) this was implicit;
+# ESCARGOT_ENABLE_SHELL now defaults ON for every target including bare-metal
+# ones, so it must be turned off explicitly here, or the standard shell
+# target fails to compile (ShellPlatform never implements PlatformRef's
+# stackBase()/stackTop()/tickMs()/tzName(), which only a tick-loop/embedding-
+# style platform provides -- see EscargotPublic.h's PlatformRef).
+set(ESCARGOT_ENABLE_SHELL OFF CACHE BOOL "" FORCE)
+# MinSizeRel (not Release): this is a flash/RAM-constrained target, so
+# optimize for size (-Os) rather than speed (-O2/-O3). Also sidesteps a gcc-
+# version-gated quirk in build/target.cmake where ESCARGOT_SMALL_CONFIG only
+# appends -Os on top of Release for GCC <= 9 ("BUG?) -Os option has unknown
+# memory conflicts") -- MinSizeRel gets -Os unconditionally via
+# ESCARGOT_CXXFLAGS_MINSIZEREL in build/escargot.cmake, regardless of
+# compiler version.
+set(CMAKE_BUILD_TYPE MinSizeRel   CACHE STRING "" FORCE)
 set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
 # Extra bare-metal-only tuning the main build doesn't model as first-class
 # options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized

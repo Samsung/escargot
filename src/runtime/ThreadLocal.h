@@ -201,7 +201,18 @@ class ThreadLocal {
                    : "=r"(value)
                    : "r"(offset));
         return value;
-#elif defined(CPU_ARM32) || defined(CPU_ARM64)
+#elif defined(CPU_ARM32) || defined(CPU_ARM64) || defined(CPU_RISCV32) || defined(CPU_RISCV64)
+        // Same plain offset-from-thread-pointer read as ARM: RISC-V Linux uses
+        // the standard ELF "Variant I" TLS ABI (thread pointer in `tp`, TLS
+        // block reached via a fixed offset from it) just like ARM, with no
+        // special addressing-mode instruction needed once tlsBaseAddress()
+        // has resolved the base (see its CPU_RISCV32/CPU_RISCV64 case above).
+        // This case was previously missing here (only tlsBaseAddress() had a
+        // RISC-V branch, not readTlsValue()), so falling through with no
+        // return statement produced undefined behavior whenever
+        // ENABLE_TLS_ACCESS_BY_ADDRESS was compiled in for riscv32/riscv64
+        // (observed as a SIGSEGV in CI once ESCARGOT_TLS_ACCESS_BY_ADDRESS
+        // started defaulting ON for riscv64 too).
         return *(reinterpret_cast<size_t*>(tlsBaseAddress() + offset));
 #endif
     }
