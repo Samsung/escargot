@@ -1,5 +1,8 @@
 # Escargot RTOS Porting Guide
 
+As of August 5, 2026, the `ESCARGOT_HOST` CMake variable has been deprecated. The build system now automatically detects the target platform using the standard `CMAKE_SYSTEM_NAME` variable. For bare-metal and RTOS builds, set `CMAKE_SYSTEM_NAME` to one of the supported values like `Generic`, `NuttX`, `FreeRTOS`, etc.
+
+
 Short, generic checklist + contract for porting Escargot to a new
 bare-metal/RTOS target (Zephyr, ThreadX, Mbed OS, a from-scratch bare-metal
 scheduler, ...). This is deliberately NOT a narrative walkthrough of any
@@ -26,13 +29,13 @@ cases). This document only gives you the distilled checklist and the code
 contract those two
 ports converged on.
 
-## 0. Build the engine itself: `-DESCARGOT_HOST=baremetal`
+## 0. Build the engine itself: `CMAKE_SYSTEM_NAME`
 
 Before writing any port-specific glue, configure the main engine build
-with the dedicated host value:
+by setting `CMAKE_SYSTEM_NAME` to a bare-metal target (such as `Generic` or your specific RTOS like `FreeRTOS` or `NuttX`):
 
 ```sh
-cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm ... /path/to/escargot
+cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm ... /path/to/escargot
 ```
 
 This sets exactly the engine-side (`escargot` target) definitions/flags a
@@ -43,7 +46,7 @@ mode per `ESCARGOT_ARCH`, `-Wl,--gc-sections`, and (see `CMakeLists.txt`)
 independently rediscover this list and hand-copy it into its own
 CMakeLists.txt -- both existing reference ports instead
 `add_subdirectory()` this repo's own top-level `CMakeLists.txt` directly
-(with `ESCARGOT_HOST`/`ESCARGOT_ARCH`/`ESCARGOT_OUTPUT`/`ESCARGOT_MODE`
+(with `CMAKE_SYSTEM_NAME`/`ESCARGOT_ARCH`/`CMAKE_BUILD_TYPE`
 set as cache variables beforehand) to get a real, correctly cross-compiled
 `escargot` static-library target, instead of hand-globbing `src/*.cpp` and
 hand-copying `ESCARGOT_DEFS` themselves -- see
@@ -52,7 +55,7 @@ hand-copying `ESCARGOT_DEFS` themselves -- see
 for the current, proven-working pattern to copy. (An earlier revision of
 both files did hand-copy the glob/defs list instead; that duplication has
 since been eliminated in favor of this reuse.) Building the main
-top-level project this way for `ESCARGOT_HOST=baremetal` deliberately
+top-level project this way for bare-metal targets deliberately
 skips `ADD_SUBDIRECTORY(third_party/runtime_icu_binder)` (see the guards
 in `build/escargot.cmake`) -- it unconditionally needs `<dlfcn.h>`, which
 doesn't exist on a newlib/nosys target, so it's out of scope for this
@@ -68,7 +71,7 @@ subset and a different define set than its normal hosted build (which
 assumes pthreads/mmap are available) -- see that file's own comments, and
 `gcconfig.h`'s `ARM32`/`NOSYS` branch, for what it actually expects. It
 defaults `OFF` so it's a no-op for every hosted platform;
-`-DESCARGOT_HOST=baremetal` does not flip it on automatically. A new RTOS
+it does not flip on automatically. A new RTOS
 port sets `GCUTIL_NOSYS_BAREMETAL=ON` plus its own
 `GCUTIL_INITIAL_HEAP_SIZE` (varies per port -- the FreeRTOS sample uses
 4 MB, the NuttX sample uses 1 MB) and any further
@@ -94,8 +97,8 @@ earlier version checked the heuristics first, which silently mis-detected
 under such a libc, even though it's dead code on a real bare-metal
 target).
 
-(Verified for this guide: `cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm
--DESCARGOT_OUTPUT=shell -S <repo> -B <builddir>` configures cleanly from a
+(Verified for this guide: `cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm
+-DENABLE_SHELL=ON -S <repo> -B <builddir>` configures cleanly from a
 clean out-of-tree build directory and prints `ESCARGOT_DEFINITIONS`
 containing `-DOS_BAREMETAL=1`, with `ESCARGOT_LIBICU_SUPPORT: OFF` and
 `ESCARGOT_THREADING: OFF` -- it isn't expected to produce a working Linux
@@ -340,7 +343,7 @@ Escargot::Globals::initialize(escargot_platform());
 
 Build-time definitions every port needs. The engine-side ones
 (`-DOS_BAREMETAL=1` and friends) come for free from
-`-DESCARGOT_HOST=baremetal` (§0); the BDWGC ones come for free too once you
+the bare-metal detection (§0); the BDWGC ones come for free too once you
 set `GCUTIL_NOSYS_BAREMETAL=ON` (§0, as a cache variable before your
 top-level `add_subdirectory(<escargot repo root>)` call) -- `-DNOSYS`,
 `-DGC_ATOMIC_UNCOLLECTABLE`, `-DENABLE_DISCLAIM` and the rest of that
