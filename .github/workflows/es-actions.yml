@@ -193,11 +193,11 @@ jobs:
         copy test\octane\*.js
         dir
         # Ninja with CMAKE_BUILD_TYPE outputs to out/escargot.exe
-        # Multi-config outputs to out/Release/escargot.exe
-        if (Test-Path "out\Release\escargot.exe") {
-          .\out\Release\escargot.exe run.js
-        } else {
+        # Visual Studio generator outputs to out/Release/escargot.exe
+        if (Test-Path "out\escargot.exe") {
           .\out\escargot.exe run.js
+        } else {
+          .\out\Release\escargot.exe run.js
         }
     # clang-cl with cannot generate c++ exception code well. if clang-cl bug fixed, we can enable test262
     # - name: Run test262
@@ -276,22 +276,23 @@ jobs:
       run: |
         set GC_FREE_SPACE_DIVISOR=1
         pip install chardet
-        # Check both single-config and multi-config paths
-        if (Test-Path "out\Release\escargot.exe") {
-          python tools\run-tests.py --engine=%cd%\out\Release\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
-        } else {
+        # Ninja with CMAKE_BUILD_TYPE outputs to out/escargot.exe
+        # Visual Studio generator outputs to out/Release/escargot.exe
+        if (Test-Path "out\escargot.exe") {
           python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
+        } else {
+          python tools\run-tests.py --engine=%cd%\out\Release\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
         }
     - name: Run octane
       run: |
         copy test\octane\*.js
         dir
         # Ninja with CMAKE_BUILD_TYPE outputs to out/escargot.exe
-        # Multi-config outputs to out/Release/escargot.exe
-        if (Test-Path "out\Release\escargot.exe") {
-          .\out\Release\escargot.exe run.js
-        } else {
+        # Visual Studio generator outputs to out/Release/escargot.exe
+        if (Test-Path "out\escargot.exe") {
           .\out\escargot.exe run.js
+        } else {
+          .\out\Release\escargot.exe run.js
         }
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
