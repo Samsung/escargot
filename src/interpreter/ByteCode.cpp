@@ -106,7 +106,6 @@ ByteCodeBlock::ByteCodeBlock()
     , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
-    , m_inlineCacheDataSize(0)
     , m_codeBlock(nullptr)
 {
     // This constructor is used to allocate a ByteCodeBlock on the stack
@@ -165,7 +164,6 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
-    , m_inlineCacheDataSize(0)
     , m_codeBlock(codeBlock)
 {
 #ifdef ESCARGOT_DEBUGGER

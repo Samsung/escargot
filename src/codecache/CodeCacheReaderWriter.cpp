@@ -341,10 +341,6 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
 
     // ByteCodeBlock::m_code bytecode stream
     storeByteCodeStream(block);
-
-    // Do not store m_inlineCacheDataSize and m_locData
-    // these members are used during the runtime
-    ASSERT(block->m_inlineCacheDataSize == 0);
 }
 
 void CodeCacheWriter::storeStringTable()

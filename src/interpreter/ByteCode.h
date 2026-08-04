@@ -3596,7 +3596,6 @@ public:
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"
     ByteCodeRegisterIndex m_requiredTotalRegisterNumber : REGISTER_INDEX_IN_BIT;
-    size_t m_inlineCacheDataSize;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;
