@@ -662,16 +662,23 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             }
 
             auto cacheData = code->m_simpleInlineCache->m_cachedStructures;
+            auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
             ObjectStructure* const objStructure = obj->structure();
-            // NOTE
-            // if GetObjectInlineCacheSimpleCase::simpleCaseLimit is small,
-            // `skipping cacheData[currentCacheIndex] != nullptr` is faster
-            for (unsigned currentCacheIndex = 0; /* cacheData[currentCacheIndex] &&*/ currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
+            for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
                 if (cacheData[currentCacheIndex] == objStructure) {
-                    ASSERT(objStructure->findProperty(code->m_simpleInlineCache->m_propertyName).first == code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]);
-                    registerFile[code->m_storeRegisterIndex] = obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]];
-                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                    NEXT_INSTRUCTION();
+                    ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
+                    if (LIKELY(protoStructure == nullptr)) {
+                        registerFile[code->m_storeRegisterIndex] = obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]];
+                        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                        NEXT_INSTRUCTION();
+                    } else {
+                        Object* protoObj = obj->getPrototypeObject(*state);
+                        if (LIKELY(protoObj && protoObj->structure() == protoStructure)) {
+                            registerFile[code->m_storeRegisterIndex] = protoObj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]];
+                            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                            NEXT_INSTRUCTION();
+                        }
+                    }
                 }
             }
         }
@@ -2700,7 +2707,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         cachedhiddenClassChain[i]->markReferencedByInlineCache();
     }
 
-    if (isPlainDataProperty && cachedhiddenClassChain.size() == 1 && cachedIndex <= std::numeric_limits<uint8_t>::max()
+    if (isPlainDataProperty && (cachedhiddenClassChain.size() == 1 || cachedhiddenClassChain.size() == 2) && cachedIndex <= std::numeric_limits<uint8_t>::max()
         && code->m_inlineCacheMode <= GetObjectPreComputedCase::Simple) {
         if (code->m_inlineCacheMode != GetObjectPreComputedCase::Simple) {
             code->m_simpleInlineCache = new GetObjectInlineCacheSimpleCaseData(propertyName);
@@ -2720,15 +2727,15 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         if (targetIndex == GetObjectInlineCacheSimpleCaseData::inlineBufferSize) {
             for (size_t i = GetObjectInlineCacheSimpleCaseData::inlineBufferSize - 1; i > 0; i--) {
                 inlineCache->m_cachedStructures[i] = inlineCache->m_cachedStructures[i - 1];
+                inlineCache->m_cachedProtoStructures[i] = inlineCache->m_cachedProtoStructures[i - 1];
                 inlineCache->m_cachedIndexes[i] = inlineCache->m_cachedIndexes[i - 1];
             }
             targetIndex = 0;
         }
         inlineCache->m_cachedStructures[targetIndex] = cachedhiddenClassChain[0];
+        inlineCache->m_cachedProtoStructures[targetIndex] = (cachedhiddenClassChain.size() == 2) ? cachedhiddenClassChain[1] : nullptr;
         inlineCache->m_cachedIndexes[targetIndex] = cachedIndex;
 
-        ASSERT(obj->structure() == cachedhiddenClassChain[0]);
-        ASSERT(obj->structure()->findProperty(code->m_simpleInlineCache->m_propertyName).first == cachedIndex);
         registerFile[code->m_storeRegisterIndex] = obj->m_values[cachedIndex];
     } else {
         if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
@@ -2742,9 +2749,16 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                 inlineCache->m_cache.pushBack(GetObjectInlineCacheData());
 
                 auto& item = inlineCache->m_cache.back();
-                item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
-                item.m_cachedhiddenClassChain[0] = old->m_cachedStructures[i];
-                item.m_cachedhiddenClassChainLength = 1;
+                if (old->m_cachedProtoStructures[i]) {
+                    item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * 2);
+                    item.m_cachedhiddenClassChain[0] = old->m_cachedStructures[i];
+                    item.m_cachedhiddenClassChain[1] = old->m_cachedProtoStructures[i];
+                    item.m_cachedhiddenClassChainLength = 2;
+                } else {
+                    item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
+                    item.m_cachedhiddenClassChain[0] = old->m_cachedStructures[i];
+                    item.m_cachedhiddenClassChainLength = 1;
+                }
                 item.m_cachedIndex = old->m_cachedIndexes[i];
                 item.m_isPlainDataProperty = true;
             }
