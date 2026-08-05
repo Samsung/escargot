@@ -102,7 +102,7 @@ protected:
 #if defined(ENABLE_TCO)
         const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
         if (shouldClearStack) {
-            clearStack<512>();
+            CLEARSTACK_IF_NEEDED();
         }
         if (UNLIKELY(newState.inTCO())) {
             // callee has been called in tail call, so reset the argument buffer
@@ -112,7 +112,7 @@ protected:
 #else
         if (shouldClearStack) {
             const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
-            clearStack<512>();
+            CLEARSTACK_IF_NEEDED();
             return returnValue;
         } else {
             return Interpreter::interpret(&newState, blk, programStart, registerFile);
