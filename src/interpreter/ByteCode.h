@@ -1392,7 +1392,7 @@ struct GetObjectInlineCacheData {
 
     static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
     static constexpr size_t MaxCacheMissCount = 32;
-    static constexpr size_t MinCacheFillCount = 4;
+    static constexpr size_t MinCacheFillCount = 2;
     static constexpr size_t MaxCacheCount = 24;
 
     ObjectStructure** m_cachedhiddenClassChain;
@@ -1502,7 +1502,7 @@ struct SetObjectInlineCacheData {
 
     static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
     static constexpr size_t MaxCacheMissCount = 32;
-    static constexpr size_t MinCacheFillCount = 3;
+    static constexpr size_t MinCacheFillCount = 2;
     static constexpr size_t MaxCacheCount = 24;
 
     union {
