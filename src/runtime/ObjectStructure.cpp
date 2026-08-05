@@ -219,7 +219,8 @@ ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(siz
         m_properties = nullptr;
     }
     newProperties->at(idx).m_descriptor = newDesc;
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+    bool hasEnumerableProperty = m_hasEnumerableProperty ? true : newDesc.isEnumerable();
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
 void* ObjectStructureWithTransition::operator new(size_t size)
@@ -386,7 +387,8 @@ ObjectStructure* ObjectStructureWithTransition::replacePropertyDescriptor(size_t
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
     newProperties->at(idx).m_descriptor = newDesc;
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+    bool hasEnumerableProperty = m_hasEnumerableProperty ? true : newDesc.isEnumerable();
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure()
@@ -513,6 +515,7 @@ ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, c
     }
 
     newProperties->at(idx).m_descriptor = newDesc;
-    return new ObjectStructureWithMap(newProperties, newPropertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
+    bool hasEnumerableProperty = m_hasEnumerableProperty ? true : newDesc.isEnumerable();
+    return new ObjectStructureWithMap(newProperties, newPropertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, hasEnumerableProperty);
 }
 } // namespace Escargot
