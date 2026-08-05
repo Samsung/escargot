@@ -470,6 +470,7 @@ void* GetObjectInlineCacheSimpleCaseData::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheSimpleCaseData)] = { 0 };
         for (size_t i = 0; i < inlineBufferSize; i++) {
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_cachedStructures) + i);
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_cachedProtoStructures) + i);
         }
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_propertyName));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheSimpleCaseData));

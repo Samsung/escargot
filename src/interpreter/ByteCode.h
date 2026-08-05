@@ -1424,6 +1424,7 @@ struct GetObjectInlineCacheSimpleCaseData : public gc {
         : m_propertyName(propertyName)
     {
         memset(m_cachedStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
+        memset(m_cachedProtoStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
     }
 
     void* operator new(size_t size);
@@ -1432,6 +1433,7 @@ struct GetObjectInlineCacheSimpleCaseData : public gc {
     static constexpr size_t inlineBufferSize = 8;
 
     ObjectStructure* m_cachedStructures[inlineBufferSize];
+    ObjectStructure* m_cachedProtoStructures[inlineBufferSize];
     uint8_t m_cachedIndexes[inlineBufferSize];
 
     ObjectStructurePropertyName m_propertyName;
