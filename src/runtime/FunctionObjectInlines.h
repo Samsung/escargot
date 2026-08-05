@@ -222,7 +222,7 @@ public:
                                                     thisArgument, record);
 
         if (UNLIKELY(blk->m_shouldClearStack)) {
-            clearStack<512>();
+            CLEARSTACK_IF_NEEDED();
         }
 #if defined(ENABLE_TCO)
         if (!isConstructCall) {
