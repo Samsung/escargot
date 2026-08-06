@@ -139,10 +139,17 @@ void FunctionTemplate::setLength(size_t length)
 
 Object* FunctionTemplate::instantiate(Context* ctx)
 {
+    return instantiate(ctx, /* addToContextCache */ true);
+}
+
+Object* FunctionTemplate::instantiate(Context* ctx, bool addToContextCache)
+{
     auto& instantiatedFunctionObjects = ctx->instantiatedFunctionObjects();
-    for (size_t i = 0; i < instantiatedFunctionObjects.size(); i++) {
-        if (instantiatedFunctionObjects[i].first == this) {
-            return instantiatedFunctionObjects[i].second;
+    if (addToContextCache) {
+        for (size_t i = 0; i < instantiatedFunctionObjects.size(); i++) {
+            if (instantiatedFunctionObjects[i].first == this) {
+                return instantiatedFunctionObjects[i].second;
+            }
         }
     }
 
@@ -230,7 +237,9 @@ Object* FunctionTemplate::instantiate(Context* ctx)
                &d);
     }
 
-    instantiatedFunctionObjects.pushBack(std::make_pair(this, result));
+    if (addToContextCache) {
+        instantiatedFunctionObjects.pushBack(std::make_pair(this, result));
+    }
     postProcessing(result);
     return result;
 }

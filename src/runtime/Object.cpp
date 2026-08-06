@@ -655,6 +655,15 @@ String* Object::constructorName(ExecutionState& state)
     }
 }
 
+String* Object::classTag(ExecutionState& state)
+{
+    StringBuilder builder;
+    builder.appendString("#<", &state);
+    builder.appendString(constructorName(state), &state);
+    builder.appendChar('>', &state);
+    return builder.finalize(&state);
+}
+
 bool Object::setPrototype(ExecutionState& state, const Value& proto)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-setprototypeof-v
@@ -1570,8 +1579,32 @@ void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName&
 void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
+        Object* tagObject = receiver.isObject() ? receiver.asObject() : this;
+        bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, this, P);
+        String* tag = tagObject->classTag(state);
+        if (isGetterOnlyAccessor) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Assign_ToGetterOnlyProperty, P.toExceptionString(), tag);
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Assign_ToReadOnlyProperty, P.toExceptionString(), tag);
+        }
     }
+}
+
+bool Object::isGetterOnlyAccessorProperty(ExecutionState& state, Object* object, const ObjectPropertyName& P)
+{
+    Object* o = object;
+    while (o) {
+        ObjectGetResult desc = o->getOwnProperty(state, P);
+        if (desc.hasValue()) {
+            return !desc.isDataProperty();
+        }
+        Value proto = o->getPrototype(state);
+        if (!proto.isObject()) {
+            break;
+        }
+        o = proto.asObject();
+    }
+    return false;
 }
 
 void Object::throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P)
@@ -1579,9 +1612,14 @@ void Object::throwCannotDefineError(ExecutionState& state, const ObjectStructure
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_RedefineNotConfigurable);
 }
 
-void Object::throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P)
+void Object::throwCannotWriteError(ExecutionState& state, Object* object, const ObjectStructurePropertyName& P, bool isGetterOnlyAccessor)
 {
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
+    String* tag = object->classTag(state);
+    if (isGetterOnlyAccessor) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Assign_ToGetterOnlyProperty, P.toExceptionString(), tag);
+    } else {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Assign_ToReadOnlyProperty, P.toExceptionString(), tag);
+    }
 }
 
 void Object::throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P)

@@ -137,6 +137,31 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, ErrorCode code, Strin
     state.throwException(Value(ErrorObject::createError(state, code, errorMessage, false)));
 }
 
+void ErrorObject::throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, String* templateDataString1, String* templateDataString2)
+{
+    size_t len = strlen(templateString);
+    std::basic_string<char16_t> buf;
+    buf.resize(len);
+    for (size_t i = 0; i < len; i++) {
+        buf[i] = templateString[i];
+    }
+    UTF16StringDataNonGCStd str(buf.data(), len);
+
+    size_t idx;
+    if ((idx = str.find(u"%s")) != SIZE_MAX) {
+        auto replacer1 = templateDataString1->toUTF16StringData();
+        str.replace(str.begin() + idx, str.begin() + idx + 2, replacer1.data());
+        idx += replacer1.length();
+        if ((idx = str.find(u"%s", idx)) != SIZE_MAX) {
+            auto replacer2 = templateDataString2->toUTF16StringData();
+            str.replace(str.begin() + idx, str.begin() + idx + 2, replacer2.data());
+        }
+    }
+
+    String* errorMessage = new UTF16String(str.data(), str.length());
+    state.throwException(Value(ErrorObject::createError(state, code, errorMessage, false)));
+}
+
 static Value builtinErrorObjectStackInfoGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {

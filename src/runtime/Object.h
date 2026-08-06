@@ -865,6 +865,9 @@ public:
     }
 
     String* constructorName(ExecutionState& state);
+    // Builds V8-style object tag used in error messages, e.g. "#<Object>"/"#<MyObject>",
+    // from constructorName(state).
+    String* classTag(ExecutionState& state);
 
     // internal [[prototype]]
     virtual bool setPrototype(ExecutionState& state, const Value& proto);
@@ -1120,8 +1123,18 @@ public:
     static bool isCompatiblePropertyDescriptor(ExecutionState& state, bool extensible, const ObjectPropertyDescriptor& desc, const ObjectGetResult& current);
 
     static void throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P);
-    static void throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P);
+    // `object` is used only to build the V8-style "of object '#<Ctor>'"/"of #<Ctor>" tag in the
+    // thrown message; `isGetterOnlyAccessor` selects between the "read only property" wording
+    // (non-writable data property) and the "which has only a getter" wording (accessor with a
+    // getter but no setter) - both are strict-mode ASSIGNMENT failures, never
+    // Object.defineProperty/TypedArray-index failures (those keep DefineProperty_NotWritable).
+    static void throwCannotWriteError(ExecutionState& state, Object* object, const ObjectStructurePropertyName& P, bool isGetterOnlyAccessor = false);
     static void throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P);
+    // Walks `object`'s prototype chain looking for the first found descriptor of P, and reports
+    // whether it is an accessor (as opposed to a non-writable data property or "not found"/
+    // extensibility failure) - used to pick the right wording above after a plain Object::set()
+    // failure, where the caller no longer has the resolved descriptor at hand.
+    static bool isGetterOnlyAccessorProperty(ExecutionState& state, Object* object, const ObjectPropertyName& P);
     static ArrayObject* createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer);
     static ArrayObject* createArrayFromList(ExecutionState& state, const ValueVector& elements);
     static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = static_cast<uint8_t>(ElementTypes::ALL));
@@ -1349,7 +1362,9 @@ protected:
     ALWAYS_INLINE void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
         if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue, receiver) && state.inStrictMode())) {
-            throwCannotWriteError(state, m_structure->readProperty(idx).m_propertyName);
+            const ObjectStructureItem& item = m_structure->readProperty(idx);
+            Object* tagObject = receiver.isObject() ? receiver.asObject() : this;
+            throwCannotWriteError(state, tagObject, item.m_propertyName, !item.m_descriptor.isDataProperty());
         }
     }
 

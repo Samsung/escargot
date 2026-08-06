@@ -155,7 +155,7 @@ public:
     void setLastIndex(ExecutionState& state, const Value& v)
     {
         if (UNLIKELY(m_hasNonWritableLastIndexRegExpObject && (option() & (Option::Sticky | Option::Global)))) {
-            Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, String::fromASCII("lastIndex")));
+            Object::throwCannotWriteError(state, this, ObjectStructurePropertyName(state, String::fromASCII("lastIndex")));
         }
         m_lastIndex = v;
     }
