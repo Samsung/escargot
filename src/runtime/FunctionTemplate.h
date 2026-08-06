@@ -44,6 +44,16 @@ public:
     // returns the unique function instance in context.
     virtual Object* instantiate(Context* ctx) override;
 
+    // Same as instantiate(ctx), but when addToContextCache is false the result
+    // is NOT stored in Context::instantiatedFunctionObjects(). The cache exists
+    // to give a fixed set of templates a stable per-context identity; callers
+    // that create throwaway templates dynamically and unboundedly (e.g. N-API's
+    // napi_create_function / napi_define_class, which build a fresh template per
+    // call) must pass false, otherwise every instantiated function is rooted for
+    // the Context's whole lifetime - an unbounded leak that also prevents the
+    // function from ever being collected.
+    Object* instantiate(Context* ctx, bool addToContextCache);
+
     ObjectTemplate* prototypeTemplate() const
     {
         return m_prototypeTemplate;

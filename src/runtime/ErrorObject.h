@@ -58,6 +58,11 @@ public:
         static constexpr const char* DefineProperty_LengthNotWritable = "Cannot modify property '%s': 'length' is not writable";
         static constexpr const char* DefineProperty_NotWritable = "Cannot modify non-writable property '%s'";
         static constexpr const char* DefineProperty_RedefineNotConfigurable = "Cannot redefine non-configurable property '%s'";
+        // strict-mode assignment to a non-writable data property (V8 wording, distinct from
+        // DefineProperty_NotWritable which is reserved for Object.defineProperty/TypedArray index sites)
+        static constexpr const char* Assign_ToReadOnlyProperty = "Cannot assign to read only property '%s' of object '%s'";
+        // strict-mode assignment to an accessor property that has a getter but no setter (V8 wording)
+        static constexpr const char* Assign_ToGetterOnlyProperty = "Cannot set property %s of %s which has only a getter";
         static constexpr const char* DefineProperty_NotExtensible = "Cannot define property '%s': object is not extensible";
         static constexpr const char* DefineProperty_NotConfigurable = "Cannot delete property '%s': property is not configurable";
         static constexpr const char* ObjectToPrimitiveValue = "Cannot convert object to primitive value";
@@ -161,6 +166,10 @@ public:
     {
         throwBuiltinError(state, code, templateDataString, false, String::emptyString(), templateString);
     }
+
+    // like throwBuiltinError above, but for templateStrings containing two '%s' placeholders,
+    // substituted in order by templateDataString1 and templateDataString2 respectively.
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, String* templateDataString1, String* templateDataString2);
 
     static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, bool fillStackInfo = true)
     {

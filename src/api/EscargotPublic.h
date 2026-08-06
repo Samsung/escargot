@@ -2165,6 +2165,15 @@ public:
     void setName(AtomicStringRef* name);
     void setLength(size_t length);
 
+    // Like TemplateRef::instantiate(ctx), but when addToContextCache is false
+    // the resulting function is NOT retained in the context's instantiated-
+    // function cache. Use false for throwaway templates created dynamically and
+    // unboundedly (per-call), so they remain collectible instead of leaking for
+    // the context's lifetime. (The cache only benefits a fixed set of templates
+    // that need a stable per-context identity.)
+    using TemplateRef::instantiate; // keep the inherited instantiate(ctx) visible alongside this overload
+    ObjectRef* instantiate(ContextRef* ctx, bool addToContextCache);
+
     void updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn);
 
     ObjectTemplateRef* prototypeTemplate();

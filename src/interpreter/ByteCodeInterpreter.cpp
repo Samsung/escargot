@@ -3099,7 +3099,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     if (code->m_isLength && originalObject->isArrayObject()) {
         if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
             if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
+                Object::throwCannotWriteError(state, originalObject, code->m_propertyName);
             }
         } else {
             originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
@@ -3214,7 +3214,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
             code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
             if (state.inStrictMode()) {
                 // throw exception
-                originalObject->throwCannotWriteError(state, code->m_propertyName);
+                Object* tagObject = willBeObject.isObject() ? willBeObject.asObject() : originalObject;
+                bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, originalObject, ObjectPropertyName(state, code->m_propertyName));
+                Object::throwCannotWriteError(state, tagObject, code->m_propertyName, isGetterOnlyAccessor);
             }
             return;
         }
@@ -4172,12 +4174,16 @@ NEVER_INLINE void InterpreterSlowPath::complexSetObjectOperation(ExecutionState&
         //    [...]
         //    Let succeeded be ? base.[[Set]](GetReferencedName(V), W, GetThisValue(V)).
         //    If succeeded is false and IsStrictReference(V) is true, throw a TypeError exception.
-        bool result = object.toObject(state)->set(state, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]), registerFile[code->m_loadRegisterIndex], thisValue);
+        Object* superBaseObject = object.toObject(state);
+        ObjectPropertyName superPropertyName(state, registerFile[code->m_propertyNameIndex]);
+        bool result = superBaseObject->set(state, superPropertyName, registerFile[code->m_loadRegisterIndex], thisValue);
         if (UNLIKELY(!result)) {
             // testing is strict mode || IsStrictReference(V)
             // IsStrictReference returns true if code is class method
             if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
+                Object* tagObject = thisValue.isObject() ? thisValue.asObject() : superBaseObject;
+                bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, superBaseObject, superPropertyName);
+                Object::throwCannotWriteError(state, tagObject, superPropertyName.toObjectStructurePropertyName(state), isGetterOnlyAccessor);
             }
         }
     } else {
@@ -5775,7 +5781,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
 
     if (UNLIKELY(!result) && state.inStrictMode()) {
-        Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, property.toString(state)));
+        String* propertyNameString = property.toString(state);
+        bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, obj, ObjectPropertyName(state, propertyNameString));
+        Object::throwCannotWriteError(state, obj, ObjectStructurePropertyName(state, propertyNameString), isGetterOnlyAccessor);
     }
 }
 

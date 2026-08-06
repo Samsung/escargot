@@ -877,8 +877,7 @@ def run_cctest(engine, arch, extra_arg):
 
     outStr = out.decode("utf-8")
     print(outStr)
-    result = outStr.lower()
-    if 'fail' in result:
+    if proc.returncode != 0:
         raise Exception('Not all tests succeeded')
 
 @runner('debugger-server-source', default=True)

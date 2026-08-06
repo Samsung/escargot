@@ -372,8 +372,34 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
     return context;
 }
 
+#if defined(ENABLE_NAPI)
+// Defined in test/cctest/testnapi_suite.cpp: single-test CLI mode (task 2 of
+// the Node-integration milestone's uncaughtException/child_process wave).
+// Returns -1 if argv doesn't request it (`--napi-run <abs_test_js> [role]
+// [arg...]` not found), meaning the caller should fall through to the normal
+// gtest run below; otherwise it has already run exactly that one test.js and
+// this is the process exit code to use. Declared here (rather than via a
+// shared header) purely to keep this file buildable the same way regardless
+// of ENABLE_NAPI - the only thing this translation unit needs from it is this
+// one entrypoint.
+namespace Escargot {
+namespace Napi {
+int RunNapiSingleTestCli(int argc, char** argv);
+} // namespace Napi
+} // namespace Escargot
+#endif
+
 int main(int argc, char* argv[])
 {
+    setvbuf(stderr, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+#if defined(ENABLE_NAPI)
+    int napiCliExitCode = Escargot::Napi::RunNapiSingleTestCli(argc, argv);
+    if (napiCliExitCode >= 0) {
+        return napiCliExitCode;
+    }
+#endif
+
     testing::InitGoogleTest(&argc, argv);
 
     Globals::initialize(new ShellPlatform());
