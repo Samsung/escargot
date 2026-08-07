@@ -137,6 +137,7 @@ public:
 
     static void getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static bool typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj, const ObjectStructurePropertyName& propertyName);
 
     static Object* fastToObject(ExecutionState& state, const Value& obj);
 
@@ -227,6 +228,25 @@ private:
     static FunctionEnvironmentRecord* findNearestFunctionEnvironmentRecord(ExecutionState& state, ExecutionState*& es);
 };
 
+// A TypedArray's `.length` is a native accessor on the shared %TypedArray%.prototype, not an
+// intrinsic own property the way Array's is -- so, unlike Array (where `.length` is always the
+// special exotic own property and can't be shadowed), it can be shadowed by an ordinary
+// `Object.defineProperty` on the instance itself or one prototype hop up. Both GetObjectPreComputedCaseLengthOpcode
+// and its retagging slow-path check call this before trusting the fast `arrayLength()` read;
+// anything found at either spot routes back to the general property lookup instead.
+// A member of InterpreterSlowPath (rather than a free function) solely to reuse its existing
+// friendship with Object -- structure() is protected.
+ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj, const ObjectStructurePropertyName& propertyName)
+{
+    if (UNLIKELY(obj->structure()->findProperty(propertyName).first != SIZE_MAX)) {
+        return false;
+    }
+    Object* proto = obj->Object::getPrototypeObject(state);
+    if (UNLIKELY(!proto || proto->structure()->findProperty(propertyName).first != SIZE_MAX)) {
+        return false;
+    }
+    return true;
+}
 
 Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
@@ -705,6 +725,9 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             // shared %TypedArray%.prototype -- this reads the same `m_arrayLength` field the
             // getter itself reads (see builtinTypedArrayLengthGetter), replicating its detached-
             // buffer check (0 length) since a detached buffer's `m_arrayLength` field is stale.
+            // Unlike Array's `.length` (an intrinsic own property that can't be shadowed),
+            // TypedArray's can be -- typedArrayLengthPropertyIsIntrinsic() checks the instance and
+            // its immediate prototype for an own "length" override before trusting the fast read.
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& receiver = registerFile[code->m_objectRegisterIndex];
             if (LIKELY(receiver.isObject())) {
@@ -717,7 +740,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(*state));
                     ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                     NEXT_INSTRUCTION();
-                } else if (obj->isTypedArrayObject()) {
+                } else if (obj->isTypedArrayObject() && LIKELY(InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(*state, obj, code->m_propertyName))) {
                     TypedArrayObject* ta = obj->asTypedArrayObject();
                     registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
                     ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
@@ -2780,7 +2803,12 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(state));
             code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
             return;
-        } else if (obj->isTypedArrayObject()) {
+        } else if (obj->isTypedArrayObject() && InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(state, obj, code->m_propertyName)) {
+            // keep this in sync with the main-loop GetObjectPreComputedCaseLengthOpcode handler's
+            // check -- both must agree on what counts as "fast", or retagging here would promise
+            // a fast path the dedicated opcode then never actually takes. A false result here
+            // (own or one-hop-prototype "length" override) falls through to the general property
+            // lookup below, unretagged, instead of returning.
             TypedArrayObject* ta = obj->asTypedArrayObject();
             registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
             code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
