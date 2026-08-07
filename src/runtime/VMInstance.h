@@ -238,6 +238,12 @@ public:
     SandBox::SandBoxResult executePendingJob();
 
     bool hasPendingJobFromAnotherThread();
+    // Non-blocking: true if a job from another thread (e.g. an Atomics.wait/waitAsync
+    // timeout or notify) has already completed and is ready to be picked up right now.
+    // Unlike waitEventFromAnotherThread(), this never blocks -- use it to check for
+    // already-ready cross-thread work while a same-thread job is being processed, so a
+    // busy same-thread job queue can't starve an already-completed cross-thread event.
+    bool hasCompletedJobFromAnotherThread();
     bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
     void executePendingJobFromAnotherThread();
 

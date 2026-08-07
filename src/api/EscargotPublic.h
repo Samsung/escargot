@@ -802,6 +802,9 @@ public:
     void enqueueEvaluateJob(ContextRef* relatedContext, EvaluateJobCallback callback, void* data);
 
     bool hasPendingJobFromAnotherThread();
+    // Non-blocking: true if a job from another thread has already completed and is
+    // ready to be picked up right now. See VMInstance::hasCompletedJobFromAnotherThread.
+    bool hasCompletedJobFromAnotherThread();
     bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
     void executePendingJobFromAnotherThread();
 

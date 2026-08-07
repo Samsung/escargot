@@ -611,7 +611,15 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
             }
 
             while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {
-                if (context->vmInstance()->waitEventFromAnotherThread(10)) {
+                // See the analogous loop in evalScript(): only block waiting for another
+                // thread's event when there's no same-thread job ready right now. But if a
+                // same-thread job IS ready, still take a free (non-blocking) look for an
+                // already-completed cross-thread event -- otherwise a continuously-refilled
+                // same-thread queue can starve an already-expired Atomics.wait/waitAsync
+                // timeout forever, since hasPendingJob() never goes false.
+                bool hasSameThreadJob = context->vmInstance()->hasPendingJob();
+                if (hasSameThreadJob ? context->vmInstance()->hasCompletedJobFromAnotherThread()
+                                     : context->vmInstance()->waitEventFromAnotherThread(10)) {
                     context->vmInstance()->executePendingJobFromAnotherThread();
                 }
                 if (context->vmInstance()->hasPendingJob()) {
@@ -962,7 +970,18 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
 
     bool result = true;
     while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {
-        if (context->vmInstance()->waitEventFromAnotherThread(10)) {
+        // Only block waiting for another thread's event when there is no same-thread job
+        // ready to run right now -- otherwise this stalls up to `timeout` ms per drained
+        // microtask even though there's nothing to wait for, making any Promise-heavy
+        // script pay a large constant per-microtask cost once execution reaches this loop.
+        // But if a same-thread job IS ready, still take a free (non-blocking) look for an
+        // already-completed cross-thread event -- otherwise a continuously-refilled
+        // same-thread queue (e.g. a polling `setTimeout(fn, 0)` loop) can starve an
+        // already-expired Atomics.wait/waitAsync timeout forever, since hasPendingJob()
+        // never goes false.
+        bool hasSameThreadJob = context->vmInstance()->hasPendingJob();
+        if (hasSameThreadJob ? context->vmInstance()->hasCompletedJobFromAnotherThread()
+                             : context->vmInstance()->waitEventFromAnotherThread(10)) {
             context->vmInstance()->executePendingJobFromAnotherThread();
         }
         if (context->vmInstance()->hasPendingJob()) {
