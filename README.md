@@ -47,10 +47,13 @@ The following build options are supported when generating build rules using cmak
 
 | **Option** | **Description** | **Flag** | **Value** | **Default** |
 |-|-|-|-|-|
-| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows/baremetal | |
+
 | **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
-| **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
-| **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
+
+| **ESCARGOT_BUILD_SHARED_LIBS** | Build shared library | -DESCARGOT_BUILD_SHARED_LIBS | ON/OFF | OFF |
+| **ENABLE_SHELL** | Build the Escargot shell | -DENABLE_SHELL | ON/OFF | ON |
+| **ESCARGOT_TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
+| **ESCARGOT_BUILD_CCTEST** | Build the C++ tests | -DESCARGOT_BUILD_CCTEST | ON/OFF | OFF |
 | **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON |
 | **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
 | **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
@@ -80,7 +83,7 @@ sudo apt-get install libicu-dev:i386
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
@@ -99,7 +102,7 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
-cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
@@ -128,12 +131,12 @@ cd build/android/
 ### Bare-metal / RTOS
 
 Escargot runs on bare-metal and RTOS targets with no OS underneath
-(no pthreads, no `mmap`, no filesystem). `-DESCARGOT_HOST=baremetal`
+(no pthreads, no `mmap`, no filesystem). Specifying a bare-metal/RTOS target via `CMAKE_SYSTEM_NAME` (such as `Generic`, `NuttX`, `FreeRTOS`) automatically
 configures the engine side of this (`-DOS_BAREMETAL=1` and friends,
 ICU/threading defaulted off):
 
 ```sh
-cmake -DESCARGOT_HOST=baremetal -DESCARGOT_ARCH=arm ... /path/to/escargot
+cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm ... /path/to/escargot
 ```
 
 A full port additionally needs its own small CMake project for BDWGC
@@ -168,7 +171,7 @@ Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Pr
 ```sh
 git submodule update --init third_party # update submodules
 
-CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -DESCARGOT_MODE=release -Bout -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
+CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -Bout -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
 cd out
 msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
 ```

@@ -63,10 +63,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS_STR}")
 #
 # Instead of hand-duplicating the engine's own source-file globs/defines
 # here, reuse the main repo's own top-level CMakeLists.txt (build/config.cmake
-# + build/escargot.cmake) as a subdirectory, with ESCARGOT_HOST=baremetal
-# (see build/target.cmake) doing the ENGINE-side (compile defs/flags/-std
-# override) work. That top-level project deliberately does NOT build
-# runtime_icu_binder for ESCARGOT_HOST=baremetal (see the guards in
+# + build/escargot.cmake) as a subdirectory. The bare-metal platform is
+# automatically detected via CMAKE_SYSTEM_NAME, doing the ENGINE-side (compile
+# defs/flags/-std override) work. That top-level project deliberately does NOT
+# build runtime_icu_binder for bare-metal targets (see the guards in
 # build/escargot.cmake) -- it unconditionally needs <dlfcn.h>, which doesn't
 # exist on this newlib/nosys target, so it stays out of scope entirely.
 # BDWGC (third_party/GCutil) IS built as part of this same add_subdirectory()
@@ -78,10 +78,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS_STR}")
 set(ESCARGOT_ROOT  ${CMAKE_SOURCE_DIR}/../../../..)
 set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
-set(ESCARGOT_HOST   baremetal CACHE STRING "" FORCE)
+
 set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
-set(ESCARGOT_OUTPUT static_lib CACHE STRING "" FORCE)
-set(ESCARGOT_MODE   release   CACHE STRING "" FORCE)
+set(ESCARGOT_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(CMAKE_BUILD_TYPE Release   CACHE STRING "" FORCE)
 set(ESCARGOT_SMALL_CONFIG ON  CACHE BOOL   "" FORCE)
 # Extra bare-metal-only tuning the main build doesn't model as first-class
 # options: this port's ~128KB task stack (default STACK_USAGE_LIMIT is sized

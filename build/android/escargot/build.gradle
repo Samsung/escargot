@@ -22,7 +22,7 @@ android {
         consumerProguardFiles "consumer-rules.pro"
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF",
+                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=OFF",
                         "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option, "-DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY="+project.ext.pthreadKeyOption
             }
         }
@@ -102,7 +102,7 @@ publishing {
     publications {
         release(MavenPublication) {
             afterEvaluate {
-                from components.release
+                from components.findByName('release')
             }
             artifactId "escargot-android"
             groupId "com.samsung.lwe.escargot"
@@ -184,15 +184,14 @@ task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest', 'crea
 
 project.afterEvaluate {
     if (org.gradle.internal.os.OperatingSystem.current().isLinux() || org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-        testDebugUnitTest {
+        tasks.matching { it.name == 'testDebugUnitTest' }.all {
             dependsOn buildGMakeNativeNoNDK
             systemProperty "java.library.path", dirForNativeNoNDK.asFile.absolutePath + ":" + System.getProperty("java.library.path")
         }
-        testReleaseUnitTest {
+        tasks.matching { it.name == 'testReleaseUnitTest' }.all {
             dependsOn buildGMakeNativeNoNDK
             systemProperty "java.library.path", dirForNativeNoNDK.asFile.absolutePath + ":" + System.getProperty("java.library.path")
         }
-
     }
 }
 
@@ -212,36 +211,28 @@ task bundleHostJar(type: Jar) {
 task sourcesJar(type: Jar) {
     from android.sourceSets.main.java.srcDirs
     archiveClassifier.set('sources')
-    archivesBaseName = "escargot"
+    archiveBaseName.set("escargot")
 }
 
 task javadoc(type: Javadoc) {
     source = android.sourceSets.main.java.sourceFiles
-    android.libraryVariants.all { variant ->
-        if (variant.name == 'release') {
-            owner.classpath += variant.javaCompileProvider.get().classpath
-        }
-    }
     options.memberLevel = JavadocMemberLevel.PRIVATE
+}
+
+project.afterEvaluate {
+    def compileTask = tasks.findByName('compileReleaseJavaWithJavac') ?: tasks.findByName('compileDebugJavaWithJavac')
+    if (compileTask != null) {
+        javadoc.classpath += compileTask.classpath
+    }
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
     archiveClassifier.set('javadoc')
-    archivesBaseName = "escargot"
-    from javadoc.destinationDir
-}
-
-artifacts {
-    sourcesJar
-    javadocJar
+    archiveBaseName.set("escargot")
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.0'
-    implementation 'com.google.android.material:material:1.7.0'
     testImplementation 'junit:junit:4.13.2'
-    testImplementation project(path: ':escargot')
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation project(path: ':escargot')
 }
