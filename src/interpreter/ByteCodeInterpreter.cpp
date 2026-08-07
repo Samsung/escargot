@@ -845,40 +845,49 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         DEFINE_OPCODE(SetObjectPreComputedCaseComplexInlineCache)
             :
         {
-            // Checks only the cache's MRU front entry (index 0 -- insertion is always at the
-            // front) directly here, in the main loop. The chain stored in the entry is only ever
-            // used to verify shape -- the write itself always targets the receiver (`obj`) below,
-            // never a prototype -- see setObjectPreComputedCaseOperationSlowCase's comment for
-            // why. A front-entry miss defers to the unchanged slow path, which still does its
-            // full linear scan over every entry.
+            // Checks the cache's front few entries directly here, in the main loop, instead of
+            // just the single MRU front entry (index 0 -- insertion is always at the front).
+            // Telemetry on Preact's VNode-construction workload showed shape churn at this tier
+            // commonly rotates through a handful of distinct shapes per callsite, so a front-only
+            // check rarely lands on the right one -- widening the inline check to a few more
+            // front slots catches most of that traffic without the NEVER_INLINE slow-path call.
+            // The chain stored in each entry is only ever used to verify shape -- the write itself
+            // always targets the receiver (`obj`) below, never a prototype -- see
+            // setObjectPreComputedCaseOperationSlowCase's comment for why. A miss across all
+            // checked slots defers to the unchanged slow path, which still does its full linear
+            // scan over every entry.
+            constexpr size_t inlineCheckCount = 3;
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             if (LIKELY(willBeObject.isObject())) {
                 Object* obj = willBeObject.asObject();
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
-                if (LIKELY(!!inlineCache && inlineCache->m_cache.size() > 0)) {
-                    const SetObjectInlineCacheData& entry = inlineCache->m_cache[0];
-                    const size_t cSiz = entry.m_cachedhiddenClassChainLength;
-                    Object* cur = obj;
-                    bool ok = true;
-                    for (size_t i = 0; i < cSiz; i++) {
-                        if (UNLIKELY(!cur || cur->structure() != entry.m_cachedHiddenClassChainData[i])) {
-                            ok = false;
-                            break;
+                if (LIKELY(!!inlineCache)) {
+                    const size_t checkCount = std::min<size_t>(inlineCache->m_cache.size(), inlineCheckCount);
+                    for (size_t entryIndex = 0; entryIndex < checkCount; entryIndex++) {
+                        const SetObjectInlineCacheData& entry = inlineCache->m_cache[entryIndex];
+                        const size_t cSiz = entry.m_cachedhiddenClassChainLength;
+                        Object* cur = obj;
+                        bool ok = true;
+                        for (size_t i = 0; i < cSiz; i++) {
+                            if (UNLIKELY(!cur || cur->structure() != entry.m_cachedHiddenClassChainData[i])) {
+                                ok = false;
+                                break;
+                            }
+                            if (i + 1 < cSiz) {
+                                cur = cur->Object::getPrototypeObject(*state);
+                            }
                         }
-                        if (i + 1 < cSiz) {
-                            cur = cur->Object::getPrototypeObject(*state);
+                        if (LIKELY(ok)) {
+                            if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
+                                obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                            } else {
+                                obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
+                                obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                            }
+                            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+                            NEXT_INSTRUCTION();
                         }
-                    }
-                    if (LIKELY(ok)) {
-                        if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
-                            obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
-                        } else {
-                            obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
-                            obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
-                        }
-                        ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                        NEXT_INSTRUCTION();
                     }
                 }
             }
