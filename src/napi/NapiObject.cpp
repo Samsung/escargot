@@ -34,7 +34,11 @@ extern "C" {
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_property(napi_env env, napi_value object, napi_value key, napi_value* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
     ExecutionStateRef* state = env->executionState;
 
@@ -59,7 +63,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_property(napi_env env, napi_value obje
 
 ESCARGOT_NAPI_EXPORT napi_status napi_set_property(napi_env env, napi_value object, napi_value key, napi_value value)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
     ValueRef* propertyValue = FromNapi(value);
     ExecutionStateRef* state = env->executionState;
@@ -81,7 +89,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_property(napi_env env, napi_value obje
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
     ExecutionStateRef* state = env->executionState;
 
@@ -102,7 +114,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_property(napi_env env, napi_value obje
 
 ESCARGOT_NAPI_EXPORT napi_status napi_delete_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
     ExecutionStateRef* state = env->executionState;
 
@@ -139,7 +155,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_property(napi_env env, napi_value o
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_own_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
     ExecutionStateRef* state = env->executionState;
 
@@ -160,7 +180,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_own_property(napi_env env, napi_value 
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_named_property(napi_env env, napi_value object, const char* utf8name, napi_value* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
     ExecutionStateRef* state = env->executionState;
 
@@ -181,7 +205,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_named_property(napi_env env, napi_valu
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_named_property(napi_env env, napi_value object, const char* utf8name, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
     ExecutionStateRef* state = env->executionState;
 
@@ -202,7 +230,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_named_property(napi_env env, napi_valu
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_element(napi_env env, napi_value object, uint32_t index, napi_value* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
@@ -222,7 +254,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_element(napi_env env, napi_value objec
 
 ESCARGOT_NAPI_EXPORT napi_status napi_set_element(napi_env env, napi_value object, uint32_t index, napi_value value)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* propertyValue = FromNapi(value);
     ExecutionStateRef* state = env->executionState;
 
@@ -243,7 +279,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_element(napi_env env, napi_value objec
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_element(napi_env env, napi_value object, uint32_t index, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
@@ -263,7 +303,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_element(napi_env env, napi_value objec
 
 ESCARGOT_NAPI_EXPORT napi_status napi_delete_element(napi_env env, napi_value object, uint32_t index, bool* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // see napi_delete_property's identical deleteOwnProperty-not-
@@ -287,7 +331,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_element(napi_env env, napi_value ob
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_property_names(napi_env env, napi_value object, napi_value* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // Object.keys()-like: own, enumerable, string-keyed property names only.
@@ -332,7 +380,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_property_names(napi_env env, napi_valu
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_prototype(napi_env env, napi_value object, napi_value* result)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // getPrototype can invoke a Proxy's getPrototypeOf trap.
@@ -353,7 +405,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_prototype(napi_env env, napi_value obj
 
 ESCARGOT_NAPI_EXPORT napi_status napi_object_freeze(napi_env env, napi_value object)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // ObjectRef::setIntegrityLevel(state, false) matches
@@ -379,7 +435,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_object_freeze(napi_env env, napi_value obj
 
 ESCARGOT_NAPI_EXPORT napi_status napi_object_seal(napi_env env, napi_value object)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
@@ -434,7 +494,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_array_length(napi_env env, napi_value 
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ObjectRef* obj = FromNapi(value)->asObject();
+    ValueRef* val_value = FromNapi(value);
+    if (!val_value->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_value->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // ObjectRef::length() reads the "length" property (ToLength(Get(obj,

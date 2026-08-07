@@ -267,7 +267,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_all_property_names(napi_env env, napi_
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // Walking own properties and following the prototype chain can each
@@ -470,7 +474,11 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_sharedarraybuffer(napi_env env,
 
 ESCARGOT_NAPI_EXPORT napi_status node_api_set_prototype(napi_env env, napi_value object, napi_value prototype)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ValueRef* proto = FromNapi(prototype);
     ExecutionStateRef* state = env->executionState;
 

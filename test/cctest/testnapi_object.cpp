@@ -329,4 +329,56 @@ TEST(Napi, InstanceOf)
     ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
 }
 
+TEST(Napi, TypeChecksOnDowncasts)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
+            env->executionState = state;
+
+            napi_value nonObject = nullptr;
+            napi_create_double(env, 42.0, &nonObject);
+
+            napi_value key = nullptr;
+            napi_create_string_utf8(env, "prop", NAPI_AUTO_LENGTH, &key);
+
+            napi_value value = nullptr;
+            napi_create_double(env, 100.0, &value);
+
+            bool boolResult = false;
+            napi_value valResult = nullptr;
+
+            EXPECT_EQ(napi_set_property(env, nonObject, key, value), napi_object_expected);
+            EXPECT_EQ(napi_get_property(env, nonObject, key, &valResult), napi_object_expected);
+            EXPECT_EQ(napi_has_property(env, nonObject, key, &boolResult), napi_object_expected);
+            EXPECT_EQ(napi_delete_property(env, nonObject, key, &boolResult), napi_object_expected);
+            EXPECT_EQ(napi_has_own_property(env, nonObject, key, &boolResult), napi_object_expected);
+
+            EXPECT_EQ(napi_set_named_property(env, nonObject, "prop", value), napi_object_expected);
+            EXPECT_EQ(napi_get_named_property(env, nonObject, "prop", &valResult), napi_object_expected);
+            EXPECT_EQ(napi_has_named_property(env, nonObject, "prop", &boolResult), napi_object_expected);
+
+            EXPECT_EQ(napi_set_element(env, nonObject, 0, value), napi_object_expected);
+            EXPECT_EQ(napi_get_element(env, nonObject, 0, &valResult), napi_object_expected);
+            EXPECT_EQ(napi_has_element(env, nonObject, 0, &boolResult), napi_object_expected);
+            EXPECT_EQ(napi_delete_element(env, nonObject, 0, &boolResult), napi_object_expected);
+
+            EXPECT_EQ(napi_define_properties(env, nonObject, 0, nullptr), napi_object_expected);
+
+            napi_ref wrapRef = nullptr;
+            EXPECT_EQ(napi_wrap(env, nonObject, nullptr, nullptr, nullptr, &wrapRef), napi_object_expected);
+
+            void* unwrapResult = nullptr;
+            EXPECT_EQ(napi_unwrap(env, nonObject, &unwrapResult), napi_object_expected);
+            EXPECT_EQ(napi_remove_wrap(env, nonObject, &unwrapResult), napi_object_expected);
+
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env());
+
+    ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(napiEnv->context())->toStdUTF8String();
+}
+
 #endif // ENABLE_NAPI
