@@ -3233,7 +3233,12 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         while (proto.isObject()) {
             obj = proto.asObject();
 
-            if (!UNLIKELY(obj->isInlineCacheable() || cachedhiddenClassChain.size() >= SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount)) {
+            // Bail if this prototype isn't safely inline-cacheable, OR if the chain has already
+            // hit the depth cap -- these are two independent reasons to give up, not one combined
+            // condition (a prior version of this line accidentally De Morgan'd them into
+            // `!(A || B)`, which only bails when NEITHER reason applies and otherwise lets the
+            // chain grow past inlineCacheProtoTraverseMaxCount unbounded).
+            if (UNLIKELY(!obj->isInlineCacheable() || cachedhiddenClassChain.size() >= SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount)) {
                 goto GiveUp;
             }
 
