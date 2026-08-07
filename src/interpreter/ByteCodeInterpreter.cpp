@@ -826,7 +826,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         const auto& item = cacheData[currentCacheIndex];
                         if (item.m_cachedHiddenClass == testItem) {
                             if (LIKELY(item.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
-                                obj->m_values[item.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                if (LIKELY(item.m_isPlainDataProperty)) {
+                                    obj->m_values[item.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                } else {
+                                    // accessor / native getter-setter / non-writable own property --
+                                    // dispatches correctly by kind, no findProperty() needed since
+                                    // the index is already cached.
+                                    obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
+                                }
                                 ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                                 NEXT_INSTRUCTION();
                             }
@@ -880,7 +887,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         }
                         if (LIKELY(ok)) {
                             if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
-                                obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                if (LIKELY(entry.m_isPlainDataProperty)) {
+                                    obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                } else {
+                                    // accessor / native getter-setter / non-writable own property --
+                                    // dispatches correctly by kind, no findProperty() needed since
+                                    // the index is already cached.
+                                    obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
+                                }
                             } else {
                                 obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
                                 obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
@@ -3088,7 +3102,11 @@ NEVER_INLINE bool InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
                 ASSERT(cSiz == 1);
                 ASSERT(item.m_cachedIndex < originalObject->m_structure->propertyCount());
                 ASSERT(originalObject->structure()->findProperty(code->m_propertyName).first == item.m_cachedIndex);
-                originalObject->m_values[item.m_cachedIndex] = value;
+                if (LIKELY(item.m_isPlainDataProperty)) {
+                    originalObject->m_values[item.m_cachedIndex] = value;
+                } else {
+                    originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, item.m_cachedIndex, value, willBeObject);
+                }
             } else {
                 ASSERT(originalObject->structure()->inTransitionMode());
                 ASSERT((originalObject->structure()->propertyCount() + 1) == item.m_cachedHiddenClassChainData[cSiz]->propertyCount());
@@ -3152,21 +3170,27 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
     auto findResult = originalObject->structure()->findProperty(code->m_propertyName);
     if (findResult.first != SIZE_MAX) {
-        // Don't update the inline cache if the property is removed by a setter function.
-        /* example code
-            var o = { set foo (a) { var a = delete o.foo } };
-            o.foo = 0;
-            */
-        if (!findResult.second->m_descriptor.isPlainDataProperty() || !findResult.second->m_descriptor.isWritable()) {
-            goto GiveUp;
-        }
+        // Accessor / native-getter-setter / non-writable own properties are cached too (not just
+        // plain-data-and-writable) -- Object::setOwnPropertyThrowsExceptionWhenStrictMode()
+        // already dispatches correctly by kind given just the index, so a cache hit on any of
+        // these needs no findProperty() call, same as the plain-data case.
+        const bool isPlainDataProperty = findResult.second->m_descriptor.isPlainDataProperty() && findResult.second->m_descriptor.isWritable();
 
         // set own property
-#ifndef NDEBUG
         ObjectStructure* beforeStructure = originalObject->structure();
-#endif
 
         originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, findResult.first, value, willBeObject);
+
+        if (UNLIKELY(!isPlainDataProperty && originalObject->structure() != beforeStructure)) {
+            // Don't update the inline cache if the property was removed (or the receiver's shape
+            // otherwise changed) by the setter's own side effects.
+            /* example code
+                var o = { set foo (a) { var a = delete o.foo } };
+                o.foo = 0;
+                */
+            // The write above already took effect correctly -- just skip caching a now-stale index.
+            return;
+        }
 
 #ifndef NDEBUG
         ASSERT(originalObject->structure() == beforeStructure); // ObjectStructure should not be changed
@@ -3174,7 +3198,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         const auto& propertyData = originalObject->structure()->readProperty(findResult.first);
         const auto& desc = propertyData.m_descriptor;
         ASSERT(propertyData.m_propertyName == code->m_propertyName);
-        ASSERT(desc.isPlainDataProperty() && desc.isWritable());
+        ASSERT(isPlainDataProperty == (desc.isPlainDataProperty() && desc.isWritable()));
 #endif
 
         if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
@@ -3182,11 +3206,13 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
             newItem.m_cachedIndex = findResult.first;
             newItem.m_cachedhiddenClassChainLength = 1;
             newItem.m_cachedHiddenClass = originalObject->structure();
+            newItem.m_isPlainDataProperty = isPlainDataProperty;
         } else {
             // complex case: caching the entire ObjectStructure chain if necessary
             // this case stores only the current ObjectStructure in m_cachedHiddenClassChainData
             newItem.m_cachedIndex = findResult.first;
             newItem.m_cachedhiddenClassChainLength = 1;
+            newItem.m_isPlainDataProperty = isPlainDataProperty;
             newItem.m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
             newItem.m_cachedHiddenClassChainData[0] = originalObject->structure();
         }
