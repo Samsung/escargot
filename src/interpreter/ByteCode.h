@@ -87,6 +87,8 @@ struct GlobalVariableAccessCacheItem;
     F(SetObjectOperation)                             \
     F(GetObjectPreComputedCase)                       \
     F(GetObjectPreComputedCaseSimpleInlineCache)      \
+    F(GetObjectPreComputedCaseLength)                 \
+    F(GetObjectPreComputedCaseComplexInlineCache)     \
     F(SetObjectPreComputedCase)                       \
     F(SetObjectPreComputedCaseSimpleInlineCache)      \
     F(GetGlobalVariable)                              \
@@ -1492,6 +1494,28 @@ public:
 };
 
 COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseSimpleInlineCache) == sizeof(GetObjectPreComputedCase), "");
+
+// Dedicated dispatch tag for `.length` reads (Array/String) -- see the
+// `m_isLength` fast path inside `InterpreterSlowPath::getObjectPrecomputedCaseOperation`,
+// which retags a callsite to this opcode the first time it observes an Array or String
+// receiver. Purely a runtime retag (like Simple/Complex below), never emitted by the
+// bytecode generator directly -- same-size requirement applies, see COMPILE_ASSERT.
+class GetObjectPreComputedCaseLength : public GetObjectPreComputedCase {
+public:
+};
+
+COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseLength) == sizeof(GetObjectPreComputedCase), "");
+
+// Dedicated dispatch tag for Complex-tier callsites: lets the main interpreter loop check
+// the Complex cache's MRU front entry (index 0 -- insertion is always at the front) directly,
+// inline, without a function call into the slow path. Falls back to the slow path (which still
+// does its full linear scan across all entries) on a front-entry miss. Runtime-retagged only,
+// same convention as Simple/Length above.
+class GetObjectPreComputedCaseComplexInlineCache : public GetObjectPreComputedCase {
+public:
+};
+
+COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseComplexInlineCache) == sizeof(GetObjectPreComputedCase), "");
 
 struct SetObjectInlineCacheData {
     SetObjectInlineCacheData()

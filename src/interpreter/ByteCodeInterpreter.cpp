@@ -34,6 +34,7 @@
 #include "runtime/EnumerateObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/TypedArrayObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/GeneratorObject.h"
@@ -687,6 +688,100 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
+            InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(GetObjectPreComputedCaseLength)
+            :
+        {
+            // `.length` on an Array, TypedArray, or (boxed or primitive) String is never a real
+            // cached property lookup -- it's an O(1) read off the object/string itself. Check
+            // all three directly here, in the hot loop, with no function call and (for String)
+            // no boxing. Anything else falls through to the general slow path unchanged.
+            //
+            // TypedArray's `.length` is normally a native accessor 2 prototype hops up on the
+            // shared %TypedArray%.prototype -- this reads the same `m_arrayLength` field the
+            // getter itself reads (see builtinTypedArrayLengthGetter), replicating its detached-
+            // buffer check (0 length) since a detached buffer's `m_arrayLength` field is stale.
+            GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
+            const Value& receiver = registerFile[code->m_objectRegisterIndex];
+            if (LIKELY(receiver.isObject())) {
+                Object* obj = receiver.asObject();
+                if (LIKELY(obj->hasArrayObjectTag())) {
+                    // hasArrayObjectTag() (single vtag compare) instead of isArrayObject()
+                    // (which also matches Array.prototype itself, via g_arrayPrototypeObjectTag)
+                    // -- a real ArrayObject instance is the overwhelmingly common receiver here;
+                    // Array.prototype.length directly is rare enough to just fall through below.
+                    registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(*state));
+                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                    NEXT_INSTRUCTION();
+                } else if (obj->isTypedArrayObject()) {
+                    TypedArrayObject* ta = obj->asTypedArrayObject();
+                    registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
+                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                    NEXT_INSTRUCTION();
+                }
+            } else if (LIKELY(receiver.isString())) {
+                registerFile[code->m_storeRegisterIndex] = Value(receiver.asString()->length());
+                ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                NEXT_INSTRUCTION();
+            }
+            InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(GetObjectPreComputedCaseComplexInlineCache)
+            :
+        {
+            // Complex has no size-bounded/hashable structure to fast-path in general, but
+            // insertion is always at the front (index 0 = most-recently-used entry) -- so
+            // checking just that one entry inline covers both the monomorphic case (the only
+            // entry there ever is) and the "same shape as last time" case within a polymorphic
+            // callsite, without a function call. A front-entry miss defers to the unchanged
+            // slow path, which still does its full linear scan over every entry.
+            GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
+            const Value& receiver = registerFile[code->m_objectRegisterIndex];
+            Object* obj;
+            if (LIKELY(receiver.isObject())) {
+                obj = receiver.asObject();
+            } else {
+                obj = InterpreterSlowPath::fastToObject(*state, receiver);
+            }
+
+            GetObjectInlineCacheComplexCaseData* inlineCache = code->m_complexInlineCache;
+            if (LIKELY(inlineCache->m_cache.size() > 0)) {
+                GetObjectInlineCacheData& entry = inlineCache->m_cache[0];
+                const size_t cSiz = entry.m_cachedhiddenClassChainLength;
+                Object* cur = obj;
+                bool ok = true;
+                for (size_t i = 0; i < cSiz; i++) {
+                    if (UNLIKELY(!cur || cur->structure() != entry.m_cachedhiddenClassChain[i])) {
+                        ok = false;
+                        break;
+                    }
+                    if (i + 1 < cSiz) {
+                        cur = cur->Object::getPrototypeObject(*state);
+                    }
+                }
+                if (LIKELY(ok)) {
+                    const auto& cachedIndex = entry.m_cachedIndex;
+                    if (LIKELY(cachedIndex != GetObjectInlineCacheData::CachedIndexMax)) {
+                        if (LIKELY(entry.m_isPlainDataProperty)) {
+                            registerFile[code->m_storeRegisterIndex] = cur->m_values[cachedIndex];
+                        } else {
+                            registerFile[code->m_storeRegisterIndex] = cur->getOwnNonPlainDataPropertyUtilForObject(*state, cachedIndex, receiver);
+                        }
+                    } else {
+                        registerFile[code->m_storeRegisterIndex] = Value();
+                    }
+                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
+                    NEXT_INSTRUCTION();
+                }
+            }
+
             InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
@@ -2625,9 +2720,30 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
     }
 
     Object* obj = orgObj;
-    if (code->m_isLength && obj->isArrayObject()) {
-        registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(state));
-        return;
+    if (code->m_isLength) {
+        // Retag to the dedicated Length opcode so future accesses to this callsite check
+        // Array/String directly in the main loop, without coming back through this slow path
+        // at all -- see GetObjectPreComputedCaseLengthOpcode in ByteCodeInterpreter.cpp's main
+        // dispatch loop. String is handled there without boxing; boxing still happens here via
+        // fastToObject() above, but only on this one (first-ever) call.
+        if (obj->hasArrayObjectTag()) {
+            // hasArrayObjectTag(), not isArrayObject() -- keep this in sync with the main-loop
+            // GetObjectPreComputedCaseLengthOpcode handler's check (see its comment): both must
+            // agree on what counts as "fast", or retagging here would promise a fast path that
+            // the dedicated opcode then never actually takes.
+            registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(state));
+            code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
+            return;
+        } else if (obj->isTypedArrayObject()) {
+            TypedArrayObject* ta = obj->asTypedArrayObject();
+            registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
+            code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
+            return;
+        } else if (receiver.isString()) {
+            registerFile[code->m_storeRegisterIndex] = Value(receiver.asString()->length());
+            code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
+            return;
+        }
     }
 
 #if defined(ESCARGOT_SMALL_CONFIG)
@@ -2739,7 +2855,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         registerFile[code->m_storeRegisterIndex] = obj->m_values[cachedIndex];
     } else {
         if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
-            code->changeOpcode(Opcode::GetObjectPreComputedCaseOpcode);
+            code->changeOpcode(Opcode::GetObjectPreComputedCaseComplexInlineCacheOpcode);
             // convert simple case to complex case
             GetObjectInlineCacheSimpleCaseData* old = code->m_simpleInlineCache;
             auto inlineCache = code->m_complexInlineCache = new GetObjectInlineCacheComplexCaseData(propertyName);
@@ -2766,6 +2882,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             code->m_complexInlineCache = new GetObjectInlineCacheComplexCaseData(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
+            code->changeOpcode(Opcode::GetObjectPreComputedCaseComplexInlineCacheOpcode);
         }
 
         auto inlineCache = code->m_complexInlineCache;
