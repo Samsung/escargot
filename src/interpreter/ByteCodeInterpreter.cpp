@@ -819,6 +819,52 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(SetObjectPreComputedCaseComplexInlineCache)
+            :
+        {
+            // Checks only the cache's MRU front entry (index 0 -- insertion is always at the
+            // front) directly here, in the main loop. The chain stored in the entry is only ever
+            // used to verify shape -- the write itself always targets the receiver (`obj`) below,
+            // never a prototype -- see setObjectPreComputedCaseOperationSlowCase's comment for
+            // why. A front-entry miss defers to the unchanged slow path, which still does its
+            // full linear scan over every entry.
+            SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                SetObjectInlineCache* const inlineCache = code->m_inlineCache;
+                if (LIKELY(!!inlineCache && inlineCache->m_cache.size() > 0)) {
+                    const SetObjectInlineCacheData& entry = inlineCache->m_cache[0];
+                    const size_t cSiz = entry.m_cachedhiddenClassChainLength;
+                    Object* cur = obj;
+                    bool ok = true;
+                    for (size_t i = 0; i < cSiz; i++) {
+                        if (UNLIKELY(!cur || cur->structure() != entry.m_cachedHiddenClassChainData[i])) {
+                            ok = false;
+                            break;
+                        }
+                        if (i + 1 < cSiz) {
+                            cur = cur->Object::getPrototypeObject(*state);
+                        }
+                    }
+                    if (LIKELY(ok)) {
+                        if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
+                            obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                        } else {
+                            obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
+                            obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                        }
+                        ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+                        NEXT_INSTRUCTION();
+                    }
+                }
+            }
+            // miss → slow path
+            InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(SetObjectPreComputedCase)
             :
         {
@@ -3198,9 +3244,14 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
     inlineCache->m_cache[0] = newItem;
 
-    // promote to fast path opcode if we only have own-property caches (no proto chain)
+    // promote to a fast path opcode: Simple if every cached entry is an own-property write
+    // (no proto chain to verify), Complex once any entry needs chain verification -- see
+    // SetObjectPreComputedCaseComplexInlineCache's comment in ByteCode.h for why that covers
+    // property-transition writes as well as deep own-property lookups.
     if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
         code->changeOpcode(Opcode::SetObjectPreComputedCaseSimpleInlineCacheOpcode);
+    } else {
+        code->changeOpcode(Opcode::SetObjectPreComputedCaseComplexInlineCacheOpcode);
     }
     return;
 
