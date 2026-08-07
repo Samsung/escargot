@@ -168,21 +168,21 @@ ESCARGOT_NAPI_EXPORT napi_status napi_run_script(napi_env env, napi_value script
 
     ExecutionStateRef* state = env->executionState;
     ContextRef* context = env->context();
-    StringRef* source = scriptValue->asString();
+    StringRef* source = scriptValue->toStringWithoutException(context);
 
-    // Both parsing (fetchScriptThrowsExceptionIfParseError) and executing the
-    // parsed script can throw a raw C++ exception on a JS-level error (a
-    // SyntaxError for the former, any uncaught exception for the latter) -
-    // same rationale as napi_call_function's Evaluator::execute wrapping
-    // (NapiFunctions.cpp ~line 201): nest both inside a single sandboxed
-    // Evaluator::execute call so neither can cross this function's own stack
-    // frame as a raw C++ exception.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ContextRef* context, StringRef* source) -> ValueRef* {
-            ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
-            return parsedScript->execute(state);
-        },
-        context, source);
+    Evaluator::EvaluatorResult evalResult = (state != nullptr) ? Evaluator::execute(
+                                                                     state, [](ExecutionStateRef* state, ContextRef* context, StringRef* source) -> ValueRef* {
+                                                                         ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
+                                                                         return parsedScript->execute(state);
+                                                                     },
+                                                                     context, source)
+                                                               : Evaluator::execute(context, [](ExecutionStateRef* state, napi_env env, StringRef* source) -> ValueRef* {
+                env->executionState = state;
+                ContextRef* context = env->context();
+                ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
+                ValueRef* res = parsedScript->execute(state);
+                env->executionState = nullptr;
+                return res; }, env, source);
 
     if (!evalResult.isSuccessful()) {
         env->pendingException = evalResult.error.value();

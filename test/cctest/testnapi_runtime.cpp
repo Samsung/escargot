@@ -29,6 +29,7 @@
 #include "api/EscargotPublic.h"
 #include "napi/NapiEnv.h"
 #include "napi/NapiTypes.h"
+#include "napi/node_api_hosting.h"
 
 using namespace Escargot;
 using namespace Escargot::Napi;
@@ -436,6 +437,66 @@ TEST(NapiRuntime, ModuleRegisterRecordsModule)
     napi_module_register(&testModule);
 
     EXPECT_EQ(GetLastRegisteredNapiModule(), &testModule);
+}
+
+// ---------------------------------------------------------------------------
+// Hosting and Event Loop Pumping APIs
+// ---------------------------------------------------------------------------
+
+TEST(NapiRuntime, HostingAndPumpingAPIsWorkCorrectly)
+{
+    napi_platform platform = nullptr;
+    ASSERT_EQ(napi_create_platform(0, nullptr, &platform), napi_ok);
+    ASSERT_NE(platform, nullptr);
+
+    napi_env env = nullptr;
+    ASSERT_EQ(napi_create_environment(platform, &env), napi_ok);
+    ASSERT_NE(env, nullptr);
+
+    // Run N-API code within the required Escargot execution state/boundary
+    Evaluator::execute(
+        env->napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
+            env->executionState = state;
+
+            // Run simple script to verify environment is active and running
+            napi_value script = nullptr;
+            EXPECT_EQ(napi_create_string_utf8(env, "1 + 1", NAPI_AUTO_LENGTH, &script), napi_ok);
+
+            napi_value result = nullptr;
+            EXPECT_EQ(napi_run_script(env, script, &result), napi_ok);
+
+            int32_t val = 0;
+            EXPECT_EQ(napi_get_value_int32(env, result, &val), napi_ok);
+            EXPECT_EQ(val, 2);
+
+            // Test microtask checkpoint
+            napi_value pScript = nullptr;
+            EXPECT_EQ(napi_create_string_utf8(env, "globalThis.x = 0; Promise.resolve().then(() => { globalThis.x = 42; });", NAPI_AUTO_LENGTH, &pScript), napi_ok);
+            EXPECT_EQ(napi_run_script(env, pScript, nullptr), napi_ok);
+
+            // Trigger microtask checkpoint
+            EXPECT_EQ(escargot_napi_perform_microtask_checkpoint(env), napi_ok);
+
+            // Verify x is now 42
+            napi_value xScript = nullptr;
+            EXPECT_EQ(napi_create_string_utf8(env, "globalThis.x", NAPI_AUTO_LENGTH, &xScript), napi_ok);
+            napi_value xResult = nullptr;
+            EXPECT_EQ(napi_run_script(env, xScript, &xResult), napi_ok);
+            int32_t xVal = 0;
+            EXPECT_EQ(napi_get_value_int32(env, xResult, &xVal), napi_ok);
+            EXPECT_EQ(xVal, 42);
+
+            // Test pump message loop
+            bool has_more_work = true;
+            EXPECT_EQ(escargot_napi_pump_message_loop(env, &has_more_work), napi_ok);
+
+            return ValueRef::createUndefined();
+        },
+        env);
+
+    // Tear down environment and platform
+    ASSERT_EQ(napi_destroy_environment(env), napi_ok);
+    ASSERT_EQ(napi_destroy_platform(platform), napi_ok);
 }
 
 #endif // ENABLE_NAPI

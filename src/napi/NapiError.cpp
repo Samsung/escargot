@@ -35,10 +35,20 @@ namespace Napi {
 static napi_status CreateErrorWithCode(napi_env env, napi_value codeValue, napi_value msg, ErrorObjectRef::Code code, napi_value* result)
 {
     ExecutionStateRef* state = env->executionState;
-    StringRef* message = FromNapi(msg)->asString();
+
+    ValueRef* valMsg = FromNapi(msg);
+    if (!valMsg->isString()) {
+        return SetLastError(env, napi_string_expected);
+    }
+    StringRef* message = valMsg->asString();
+
     ErrorObjectRef* error = ErrorObjectRef::create(state, code, message);
     if (codeValue != nullptr) {
-        StringRef* codeString = FromNapi(codeValue)->asString();
+        ValueRef* valCode = FromNapi(codeValue);
+        if (!valCode->isString()) {
+            return SetLastError(env, napi_string_expected);
+        }
+        StringRef* codeString = valCode->asString();
         error->set(state, StringRef::createFromASCII("code"), codeString);
     }
     *result = ToNapi(error);

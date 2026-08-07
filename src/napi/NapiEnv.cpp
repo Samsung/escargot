@@ -44,7 +44,6 @@ void NapiEnv::globalFinalize()
         return;
     }
     Globals::finalize();
-    delete g_platform;
     g_platform = nullptr;
 }
 

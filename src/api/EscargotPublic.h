@@ -21,10 +21,18 @@
 #define __ESCARGOT_PUBLIC__
 
 #if !defined(ESCARGOT_EXPORT)
+#if defined(ENABLE_NAPI)
+#if defined(_MSC_VER)
+#define ESCARGOT_EXPORT
+#else
+#define ESCARGOT_EXPORT __attribute__((visibility("hidden")))
+#endif
+#else
 #if defined(_MSC_VER)
 #define ESCARGOT_EXPORT __declspec(dllexport)
 #else
 #define ESCARGOT_EXPORT __attribute__((visibility("default")))
+#endif
 #endif
 #endif
 
