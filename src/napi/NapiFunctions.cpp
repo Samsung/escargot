@@ -361,7 +361,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_string_utf8(napi_env env, const cha
 
 ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_value object, const char* utf8name, napi_value value)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
     ValueRef* propertyValue = FromNapi(value);
     ExecutionStateRef* state = env->executionState;
@@ -595,7 +599,11 @@ static void ApplyPropertyDescriptor(napi_env env, ObjectRef* target, const napi_
 
 ESCARGOT_NAPI_EXPORT napi_status napi_define_properties(napi_env env, napi_value object, size_t property_count, const napi_property_descriptor* properties)
 {
-    ObjectRef* obj = FromNapi(object)->asObject();
+    ValueRef* val_object = FromNapi(object);
+    if (!val_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_object->asObject();
     ExecutionStateRef* state = env->executionState;
 
     // ApplyPropertyDescriptor's own defineDataProperty/defineAccessorProperty
@@ -687,7 +695,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_class(napi_env env, const char* utf
 
 ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, void* native_object, node_api_basic_finalize finalize_cb, void* finalize_hint, napi_ref* result)
 {
-    ObjectRef* obj = FromNapi(js_object)->asObject();
+    ValueRef* val_js_object = FromNapi(js_object);
+    if (!val_js_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_js_object->asObject();
     obj->setExtraData(native_object);
 
     if (finalize_cb != nullptr) {
@@ -712,13 +724,21 @@ ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, v
 
 ESCARGOT_NAPI_EXPORT napi_status napi_unwrap(napi_env env, napi_value js_object, void** result)
 {
-    *result = FromNapi(js_object)->asObject()->extraData();
+    ValueRef* val_js_object = FromNapi(js_object);
+    if (!val_js_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    *result = val_js_object->asObject()->extraData();
     return napi_ok;
 }
 
 ESCARGOT_NAPI_EXPORT napi_status napi_remove_wrap(napi_env env, napi_value js_object, void** result)
 {
-    ObjectRef* obj = FromNapi(js_object)->asObject();
+    ValueRef* val_js_object = FromNapi(js_object);
+    if (!val_js_object->isObject()) {
+        return SetLastError(env, napi_object_expected);
+    }
+    ObjectRef* obj = val_js_object->asObject();
     if (result != nullptr) {
         *result = obj->extraData();
     }
