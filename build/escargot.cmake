@@ -1,5 +1,9 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12 FATAL_ERROR)
 
+IF (ESCARGOT_NAPI AND ${ESCARGOT_OUTPUT} STREQUAL "shell")
+    MESSAGE(FATAL_ERROR "ESCARGOT_NAPI is enabled. The standard C++ shell target is not supported when Node-API is enabled because all proprietary public APIs are hidden for binary size optimization. Please configure with -DESCARGOT_OUTPUT=shared_lib or -DESCARGOT_OUTPUT=static_lib instead.")
+ENDIF()
+
 SET (ESCARGOT_INCDIRS
     ${ESCARGOT_INCDIRS}
     ${ESCARGOT_ROOT}/src/
@@ -61,6 +65,9 @@ IF (NOT ${ESCARGOT_OUTPUT} MATCHES "shell")
     LIST (REMOVE_ITEM ESCARGOT_SRC ${ESCARGOT_ROOT}/src/shell/Shell.cpp)
 ENDIF()
 
+# Always exclude N-API Shell source from the core engine files to prevent main() conflicts
+LIST (REMOVE_ITEM ESCARGOT_SRC ${ESCARGOT_ROOT}/src/shell/NapiShell.cpp)
+
 IF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
     SET (BUILD_GMOCK OFF)
     SET (INSTALL_GTEST OFF)
@@ -76,6 +83,14 @@ SET (ESCARGOT_SRC_LIST
     ${LZ4_SRC}
     ${XSUM_SRC}
     ${CCTEST_SRC}
+)
+
+SET (ESCARGOT_CORE_SRC_LIST
+    ${ESCARGOT_SRC}
+    ${YARR_SRC}
+    ${DOUBLE_CONVERSION_SRC}
+    ${LZ4_SRC}
+    ${XSUM_SRC}
 )
 
 #######################################################
@@ -459,7 +474,7 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
             ADD_CUSTOM_COMMAND (
                 OUTPUT ${NAPI_TEST_TC_SO}
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -I${ESCARGOT_ROOT}/test/napi-tc/src ${NAPI_TEST_TC_SRCS} -o ${NAPI_TEST_TC_SO}
+                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -DNAPI_EXPERIMENTAL -DNODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT -I${ESCARGOT_ROOT}/test/napi-tc/src ${NAPI_TEST_TC_SRCS} -o ${NAPI_TEST_TC_SO}
                 DEPENDS ${NAPI_TEST_TC_SRCS}
                 COMMENT "Building napi test addon ${NAPI_TEST_TC_NAME}.so"
             )
@@ -483,7 +498,7 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
         ADD_CUSTOM_COMMAND (
             OUTPUT ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-            COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -I${ESCARGOT_ROOT}/test/napi-tc/src -I${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC} -o ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
+            COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -DNAPI_EXPERIMENTAL -DNODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT -I${ESCARGOT_ROOT}/test/napi-tc/src -I${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC} -o ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
             DEPENDS ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC}
             COMMENT "Building napi custom test addon test_symbol_verify.so"
         )
@@ -503,4 +518,15 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
         TARGET_COMPILE_DEFINITIONS (${ESCARGOT_CCTEST_TARGET} PRIVATE NAPI_TC_NODE_API_JS_DIR="${ESCARGOT_ROOT}/test/napi-tc/test/node-api")
         TARGET_COMPILE_DEFINITIONS (${ESCARGOT_CCTEST_TARGET} PRIVATE NAPI_CUSTOM_ADDON_JS_DIR="${ESCARGOT_ROOT}/test/cctest/napi_custom_addons")
     ENDIF()
+ENDIF()
+
+# N-API Shell Target (Built in shared_lib mode to link dynamically against the engine for LGPL compliance)
+IF (ESCARGOT_NAPI AND ${ESCARGOT_OUTPUT} STREQUAL "shared_lib")
+    SET (NAPI_SHELL_TARGET escargot-napi)
+    ADD_EXECUTABLE (${NAPI_SHELL_TARGET} ${ESCARGOT_ROOT}/src/shell/NapiShell.cpp)
+
+    # Link dynamically against the compiled libescargot.so
+    TARGET_LINK_LIBRARIES (${NAPI_SHELL_TARGET} PRIVATE ${ESCARGOT_TARGET} ${LDFLAGS_FROM_ENV})
+    TARGET_INCLUDE_DIRECTORIES (${NAPI_SHELL_TARGET} PRIVATE ${ESCARGOT_ROOT}/test/napi-tc/src ${ESCARGOT_ROOT}/src)
+    TARGET_COMPILE_OPTIONS (${NAPI_SHELL_TARGET} PRIVATE ${ESCARGOT_CXXFLAGS} ${CXXFLAGS_FROM_ENV})
 ENDIF()

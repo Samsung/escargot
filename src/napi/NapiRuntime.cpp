@@ -324,6 +324,78 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_buffer_from_arraybuffer(napi_en
     return napi_ok;
 }
 
+ESCARGOT_NAPI_EXPORT napi_status napi_create_platform(int argc, char** argv, napi_platform* result)
+{
+    if (result == nullptr) {
+        return napi_invalid_arg;
+    }
+    Escargot::Napi::NapiEnv::globalInit();
+
+    static napi_platform__ s_platform;
+    s_platform.active = 1;
+    *result = &s_platform;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_destroy_platform(napi_platform platform)
+{
+    if (platform == nullptr) {
+        return napi_invalid_arg;
+    }
+#ifndef ESCARGOT_ENABLE_TEST
+    Escargot::Napi::NapiEnv::globalFinalize();
+#endif
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_create_environment(napi_platform platform, napi_env* result)
+{
+    if (platform == nullptr || result == nullptr) {
+        return napi_invalid_arg;
+    }
+    Escargot::Napi::NapiEnv* napiEnv = Escargot::Napi::NapiEnv::create();
+    if (napiEnv == nullptr) {
+        return napi_generic_failure;
+    }
+    *result = napiEnv->env();
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status napi_destroy_environment(napi_env env)
+{
+    if (env == nullptr || env->napiEnv == nullptr) {
+        return napi_invalid_arg;
+    }
+    delete env->napiEnv;
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status escargot_napi_perform_microtask_checkpoint(napi_env env)
+{
+    if (env == nullptr || env->napiEnv == nullptr) {
+        return napi_invalid_arg;
+    }
+    auto* instance = env->napiEnv->vmInstance();
+    while (instance->hasPendingJob()) {
+        instance->executePendingJob();
+    }
+    return napi_ok;
+}
+
+ESCARGOT_NAPI_EXPORT napi_status escargot_napi_pump_message_loop(napi_env env, bool* out_has_more_work)
+{
+    if (env == nullptr || env->napiEnv == nullptr) {
+        return napi_invalid_arg;
+    }
+    bool progressed = env->napiEnv->drainPendingJobs();
+    env->napiEnv->drainPostFinalizers();
+
+    if (out_has_more_work != nullptr) {
+        *out_has_more_work = env->napiEnv->uvLoopAlive() || env->napiEnv->vmInstance()->hasPendingJob();
+    }
+    return napi_ok;
+}
+
 } // extern "C"
 
 } // namespace Napi

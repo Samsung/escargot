@@ -11,6 +11,7 @@ Escargot is a lightweight JavaScript engine developed by [Samsung](https://githu
 
 Key features of Escargot include:
 * **ECMAScript Compliance**: Escargot supports a significant portion of the latest ECMAScript version ([ECMAScript 2025](https://262.ecma-international.org/16.0/)), ensuring compatibility with modern JavaScript standards while maintaining a lightweight footprint.
+* **Node-API (N-API) Compliance**: Escargot provides a 100% compliant Node-API (N-API) layer supporting ABI stability versions up to v10. This allows developers to load pre-compiled Node.js C++ addons directly and embed the engine using standard C-style hosting APIs. See [`docs/n-api.md`](docs/n-api.md) for details and a complete embedding example.
 * **Memory Efficiency**: The engine is designed with memory constraints in mind, making it suitable for devices with limited RAM and storage.
 * **Performance Optimization**: Escargot implements various optimization techniques to ensure fast execution of JavaScript code, even on low-power devices.
 * **Extensibility**: The engine can be customized and extended to meet the specific needs of different applications, providing flexibility for developers.
@@ -63,6 +64,7 @@ The following build options are supported when generating build rules using cmak
 | **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
 | **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
 | **DEBUGGER** | Enable Debug server | -DESCARGOT_DEBUGGER | ON/OFF | OFF |
+| **NAPI** | Enable Node-API (N-API) support and C-style hosting APIs | -DESCARGOT_NAPI | ON/OFF | OFF |
 
 ### Linux
 
