@@ -180,9 +180,15 @@ napi_module* GetLastRegisteredNapiModule();
 } // namespace Napi
 } // namespace Escargot
 
+struct napi_platform__ {
+    // Escargot runs on a singleton platform, but we can track its initialization
+    // state and any custom configurations here if needed.
+    int active = 0;
+};
+typedef struct napi_platform__* napi_platform;
+
 // the opaque types node_api.h forward-declares for napi_open_handle_scope/
 // napi_open_escapable_handle_scope et al (NapiFunctions.cpp). `parent` forms
-// an intrusive singly-linked stack via napi_env__::topHandleScope
 // (NapiEnv.h), enforcing LIFO close order the same way V8's real handle
 // scope stack does - napi_close_handle_scope/napi_close_escapable_handle_scope
 // return napi_handle_scope_mismatch if `scope` isn't currently the innermost
