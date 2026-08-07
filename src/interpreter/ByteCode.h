@@ -91,6 +91,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetObjectPreComputedCaseComplexInlineCache)     \
     F(SetObjectPreComputedCase)                       \
     F(SetObjectPreComputedCaseSimpleInlineCache)      \
+    F(SetObjectPreComputedCaseComplexInlineCache)     \
     F(GetGlobalVariable)                              \
     F(SetGlobalVariable)                              \
     F(InitializeGlobalVariable)                       \
@@ -1589,6 +1590,21 @@ public:
 };
 
 COMPILE_ASSERT(sizeof(SetObjectPreComputedCaseSimpleInlineCache) == sizeof(SetObjectPreComputedCase), "");
+
+// Dedicated dispatch tag for Set callsites whose cache requires prototype-chain verification
+// (own-property writes are covered by the Simple opcode above; this covers everything that
+// needs `m_inlineCacheProtoTraverseMaxIndex > 0` -- both a data property found deeper than the
+// receiver itself and, far more commonly, a brand-new own property transition, which walks the
+// receiver's prototype chain just to confirm none of it changed shape, not to find where to
+// write). Lets the main interpreter loop check the cache's MRU front entry (index 0 -- insertion
+// is always at the front) directly, inline, without a function call into the slow path. A
+// front-entry miss defers to the unchanged slow path, which still does its full linear scan.
+// Runtime-retagged only, same convention as Get's Simple/Length/Complex opcodes above.
+class SetObjectPreComputedCaseComplexInlineCache : public SetObjectPreComputedCase {
+public:
+};
+
+COMPILE_ASSERT(sizeof(SetObjectPreComputedCaseComplexInlineCache) == sizeof(SetObjectPreComputedCase), "");
 
 class GetGlobalVariable : public ByteCode {
 public:
