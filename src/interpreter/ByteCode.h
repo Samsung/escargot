@@ -1523,6 +1523,7 @@ struct SetObjectInlineCacheData {
     {
         m_cachedHiddenClass = nullptr;
         m_cachedIndex = m_cachedhiddenClassChainLength = 0;
+        m_isPlainDataProperty = true;
     }
 
     static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
@@ -1534,9 +1535,15 @@ struct SetObjectInlineCacheData {
         ObjectStructure** m_cachedHiddenClassChainData;
         ObjectStructure* m_cachedHiddenClass;
     };
-    // 16bits of storage is enough
+    // false for a found-but-non-plain-data-or-non-writable own property (accessor, native
+    // getter/setter data property, or readonly) -- cachedIndex is still a real index in that
+    // case (this is always the "own property write" case, never a brand-new-property
+    // transition), but the write must go through Object::setOwnPropertyThrowsExceptionWhenStrictMode
+    // (which dispatches correctly by kind) instead of the direct m_values[] write.
+    bool m_isPlainDataProperty : 1;
+    // 15bits of storage is enough
     // inlineCacheProtoTraverseMaxCount is so small
-    uint16_t m_cachedhiddenClassChainLength : 16;
+    uint16_t m_cachedhiddenClassChainLength : 15;
     uint16_t m_cachedIndex : 16;
 };
 
