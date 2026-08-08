@@ -235,53 +235,42 @@ IF (ESCARGOT_WASM)
     SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} walrus)
 ENDIF()
 
-MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/escargot_generated/tmp)
+SET (UNICODE_PROPERTY_TABLES_HEADER ${CMAKE_BINARY_DIR}/escargot_generated/yarr/UnicodePatternTables.h)
+SET (SIMPLE_CASE_FOLDING_HEADER ${CMAKE_BINARY_DIR}/escargot_generated/yarr/SimpleCaseFoldingTable.h)
 
-# yarr/UnicodePatternTables.h
-EXECUTE_PROCESS(
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodePatternTables.h
-    RESULT_VARIABLE GENERATE_RESULT
-    OUTPUT_VARIABLE GENERATE_OUTPUT
-    ERROR_VARIABLE GENERATE_ERROR
+ADD_CUSTOM_COMMAND(
+    OUTPUT ${UNICODE_PROPERTY_TABLES_HEADER}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${UNICODE_PROPERTY_TABLES_HEADER}
+    DEPENDS ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py
+    COMMENT "Generating UnicodePatternTables.h"
 )
 
-IF (NOT GENERATE_RESULT EQUAL 0)
-    MESSAGE(STATUS "Output:\n${GENERATE_OUTPUT}")
-    MESSAGE(FATAL_ERROR "${GENERATE_ERROR}")
-ENDIF()
-
-EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodePatternTables.h ${CMAKE_BINARY_DIR}/escargot_generated/yarr/UnicodePatternTables.h
-                RESULT_VARIABLE COMPARE_RESULT
-                OUTPUT_VARIABLE COMPARE_OUTPUT
-                ERROR_VARIABLE COMPARE_ERROR
+ADD_CUSTOM_COMMAND(
+    OUTPUT ${SIMPLE_CASE_FOLDING_HEADER}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${SIMPLE_CASE_FOLDING_HEADER}
+    DEPENDS ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py
+    COMMENT "Generating SimpleCaseFoldingTable.h"
 )
 
-IF (NOT ${COMPARE_RESULT} EQUAL 0)
-    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/UnicodePatternTables.h DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
-ENDIF()
-
-# yarr/SimpleCaseFoldingTable.h
-EXECUTE_PROCESS(
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h
-    RESULT_VARIABLE GENERATE_RESULT
-    OUTPUT_VARIABLE GENERATE_OUTPUT
-    ERROR_VARIABLE GENERATE_ERROR
+SET (ESCARGOT_GENERATED_HEADERS
+    ${UNICODE_PROPERTY_TABLES_HEADER}
+    ${SIMPLE_CASE_FOLDING_HEADER}
 )
 
-IF (NOT GENERATE_RESULT EQUAL 0)
-    MESSAGE(STATUS "Output:\n${GENERATE_OUTPUT}")
-    MESSAGE(FATAL_ERROR "${GENERATE_ERROR}")
-ENDIF()
+SET_SOURCE_FILES_PROPERTIES(${ESCARGOT_GENERATED_HEADERS} PROPERTIES GENERATED TRUE)
 
-EXECUTE_PROCESS (COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h ${CMAKE_BINARY_DIR}/escargot_generated/yarr/SimpleCaseFoldingTable.h
-                RESULT_VARIABLE COMPARE_RESULT
-                OUTPUT_VARIABLE COMPARE_OUTPUT
-                ERROR_VARIABLE COMPARE_ERROR
+ADD_CUSTOM_TARGET(
+    generate_escargot_headers ALL
+    DEPENDS ${ESCARGOT_GENERATED_HEADERS}
 )
 
-IF (NOT ${COMPARE_RESULT} EQUAL 0)
-    FILE (COPY ${CMAKE_BINARY_DIR}/escargot_generated/tmp/SimpleCaseFoldingTable.h DESTINATION ${CMAKE_BINARY_DIR}/escargot_generated/yarr/)
-ENDIF()
+SET (ESCARGOT_SRC_LIST
+    ${ESCARGOT_SRC_LIST}
+    ${ESCARGOT_GENERATED_HEADERS}
+)
+
 
 SET (ESCARGOT_INCDIRS
     ${ESCARGOT_INCDIRS}
