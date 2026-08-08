@@ -198,7 +198,7 @@ public:
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
-    static void loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile);
+    static void loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile);
 
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
@@ -1876,12 +1876,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(LoadArgumentsLength)
+        DEFINE_OPCODE(LoadArgumentsElement)
             :
         {
-            LoadArgumentsLength* code = (LoadArgumentsLength*)programCounter;
-            InterpreterSlowPath::loadArgumentsLengthOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(LoadArgumentsLength);
+            LoadArgumentsElement* code = (LoadArgumentsElement*)programCounter;
+            InterpreterSlowPath::loadArgumentsElementOperation(*state, byteCodeBlock, code, registerFile);
+            ADD_PROGRAM_COUNTER(LoadArgumentsElement);
             NEXT_INSTRUCTION();
         }
 
@@ -5851,22 +5851,48 @@ NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionS
     funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
-NEVER_INLINE void InterpreterSlowPath::loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile)
 {
     ExecutionState* es;
     FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
-
     ASSERT(!!funcRecord);
-    // If ArgumentsObject has already been created, read length from it
-    // (the user may have overwritten arguments.length)
-    auto opt = funcRecord->argumentsObject();
-    if (opt) {
-        ArgumentsObject* argsObj = opt.value();
-        registerFile[code->m_registerIndex] = argsObj->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, argsObj);
-    } else {
-        // ArgumentsObject has not been created yet; return argc directly
-        registerFile[code->m_registerIndex] = Value((int)es->argc());
+
+    auto argumentsObjectOpt = funcRecord->argumentsObject();
+
+    if (code->isLengthQuery()) {
+        // If ArgumentsObject has already been created, read length from it
+        // (the user may have overwritten arguments.length)
+        if (argumentsObjectOpt) {
+            ArgumentsObject* argsObj = argumentsObjectOpt.value();
+            registerFile[code->m_dstRegisterIndex] = argsObj->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, argsObj);
+        } else {
+            // ArgumentsObject has not been created yet; return argc directly
+            registerFile[code->m_dstRegisterIndex] = Value((int)es->argc());
+        }
+        return;
     }
+
+    const Value& indexValue = registerFile[code->m_indexRegisterIndex];
+
+    // Fast path: before the ArgumentsObject exists, arguments[index] for
+    // parameterCount <= index < argc can never alias a (possibly reassigned) named
+    // parameter via mapped arguments, and is guaranteed to be an own data property
+    // with no prototype-chain lookup needed -- see the comment on LoadArgumentsElement.
+    if (!argumentsObjectOpt && indexValue.isUInt32()) {
+        uint32_t index = indexValue.asUInt32();
+        if (index >= byteCodeBlock->m_codeBlock->parameterCount() && index < es->argc()) {
+            registerFile[code->m_dstRegisterIndex] = es->argv()[index];
+            return;
+        }
+    }
+
+    // Slow path: every other case (already materialized, mapped-argument range,
+    // out of range, non-integer key, deleted/redefined index) falls back to
+    // materializing (if needed) and doing a real indexed get, so it stays fully
+    // spec-correct.
+    ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+    ArgumentsObject* argsObj = funcRecord->argumentsObject().value();
+    registerFile[code->m_dstRegisterIndex] = argsObj->get(state, ObjectPropertyName(state, indexValue)).value(state, argsObj);
 }
 
 NEVER_INLINE int InterpreterSlowPath::evaluateImportWithOperation(ExecutionState& state, const Value& options)

@@ -87,14 +87,45 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         // Fast path: arguments.length — return argc without creating ArgumentsObject
+        //
+        // Excluded when this member expression is the callee of a call (e.g.
+        // `arguments.length()` -- nonsensical but legal syntax until it throws at
+        // runtime): CallExpressionNode expects the object's register to stay alive
+        // (via context->m_isHeadOfMemberExpression / m_inCallingExpressionScope) so it
+        // can use it as the receiver. Our fast paths never load `arguments` into any
+        // register, so skip them here and fall through to the normal path that does.
         if (m_isPreComputedCase && !m_isOptional && !m_startOfOptionalChaining
+            && !context->m_isHeadOfMemberExpression
             && m_object->isIdentifier()
             && m_object->asIdentifier()->isPointsArgumentsObject(context)
             && m_property->isIdentifier()
             && m_property->asIdentifier()->name() == codeBlock->m_codeBlock->context()->staticStrings().length
-            && !codeBlock->m_codeBlock->hasName(context->m_lexicalBlockIndex, context->m_codeBlock->context()->staticStrings().arguments)
+            && codeBlock->m_codeBlock->hasExplicitArgumentsBinding(context->m_lexicalBlockIndex) == false
             && context->m_codeBlock->canUseIndexedVariableStorage()) {
-            codeBlock->pushCode(LoadArgumentsLength(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
+            codeBlock->pushCode(LoadArgumentsElement(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
+            return;
+        }
+
+        // Fast path: arguments[index] where index turns out (at runtime) to be
+        // >= parameterCount -- return it without creating an ArgumentsObject. See the
+        // comment on LoadArgumentsElement for why the parameterCount bound matters
+        // (mapped-arguments aliasing) and why anything outside it still needs the
+        // real object. This only covers reads; `arguments[i] = x` still goes through
+        // the normal (materializing) generateStoreByteCode path.
+        //
+        // Also excluded when this is the callee of a call -- e.g. `arguments[0]()` or
+        // `arguments[Symbol.iterator]()` must receive the arguments object itself as
+        // `this`; see the comment on the .length fast path above for why.
+        if (!m_isPreComputedCase && !m_isOptional && !m_startOfOptionalChaining
+            && !context->m_isHeadOfMemberExpression
+            && m_object->isIdentifier()
+            && m_object->asIdentifier()->isPointsArgumentsObject(context)
+            && codeBlock->m_codeBlock->hasExplicitArgumentsBinding(context->m_lexicalBlockIndex) == false
+            && context->m_codeBlock->canUseIndexedVariableStorage()) {
+            size_t propertyIndex = m_property->getRegister(codeBlock, context);
+            m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
+            codeBlock->pushCode(LoadArgumentsElement(ByteCodeLOC(m_loc.index), propertyIndex, dstIndex), context, this->m_loc.index);
+            context->giveUpRegister();
             return;
         }
 
@@ -155,10 +186,10 @@ public:
             } else if (m_object->isIdentifier()
                        && m_object->asIdentifier()->isPointsArgumentsObject(context)
                        && m_property->asIdentifier()->name() == codeBlock->m_codeBlock->context()->staticStrings().length
-                       && !codeBlock->m_codeBlock->hasName(context->m_lexicalBlockIndex, context->m_codeBlock->context()->staticStrings().arguments)
+                       && codeBlock->m_codeBlock->hasExplicitArgumentsBinding(context->m_lexicalBlockIndex) == false
                        && context->m_codeBlock->canUseIndexedVariableStorage()) {
                 // Fast path: arguments.length — return argc without creating ArgumentsObject
-                codeBlock->pushCode(LoadArgumentsLength(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
+                codeBlock->pushCode(LoadArgumentsElement(ByteCodeLOC(m_loc.index), dstIndex), context, this->m_loc.index);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this->m_loc.index);
             }

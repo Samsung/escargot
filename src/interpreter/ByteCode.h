@@ -143,7 +143,7 @@ struct GlobalVariableAccessCacheItem;
     F(ReplaceBlockLexicalEnvironmentOperation)        \
     F(TaggedTemplateOperation)                        \
     F(EnsureArgumentsObject)                          \
-    F(LoadArgumentsLength)                            \
+    F(LoadArgumentsElement)                           \
     F(BindingCalleeIntoRegister)                      \
     F(ResolveNameAddress)                             \
     F(StoreByNameWithAddress)                         \
@@ -3326,22 +3326,57 @@ public:
 #endif
 };
 
-// Load arguments.length without creating an ArgumentsObject.
-// If ArgumentsObject already exists, reads from it; otherwise returns state.argc() directly.
-class LoadArgumentsLength : public ByteCode {
+// Load arguments.length OR arguments[index] without creating an ArgumentsObject.
+// Merged into one opcode (previously two: LoadArgumentsLength + LoadArgumentsElement) since
+// their dispatch sites were both thin wrappers around a NEVER_INLINE helper with near-identical
+// shape -- one opcode enum entry + one dispatch case is strictly less code than two, with no
+// new call overhead (unlike out-of-lining small inline bodies, which was tried and made things
+// worse -- see the perf branch's session notes on interpret()'s icache sensitivity).
+//
+// m_indexRegisterIndex == REGISTER_LIMIT means "this is a .length query" (reads state.argc()
+// once the object exists, or its length property if already materialized). Otherwise it's an
+// arguments[index] query: only takes the fast path when the ArgumentsObject doesn't exist yet
+// AND index is a non-negative integer with parameterCount <= index < argc -- i.e. strictly
+// outside the range that could alias a (possibly reassigned) named parameter via mapped
+// arguments, and strictly inside the range that's guaranteed to be an own data property with no
+// need to consult the prototype chain. Any other case (already materialized, index <
+// parameterCount, out of range, or a non-integer key) falls back to the normal
+// EnsureArgumentsObject + GetObject path.
+class LoadArgumentsElement : public ByteCode {
 public:
-    LoadArgumentsLength(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::LoadArgumentsLengthOpcode, loc)
-        , m_registerIndex(registerIndex)
+    // .length query
+    LoadArgumentsElement(const ByteCodeLOC& loc, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::LoadArgumentsElementOpcode, loc)
+        , m_indexRegisterIndex(REGISTER_LIMIT)
+        , m_dstRegisterIndex(dstRegisterIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    // arguments[index] query
+    LoadArgumentsElement(const ByteCodeLOC& loc, const size_t indexRegisterIndex, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::LoadArgumentsElementOpcode, loc)
+        , m_indexRegisterIndex(indexRegisterIndex)
+        , m_dstRegisterIndex(dstRegisterIndex)
+    {
+        ASSERT(indexRegisterIndex != REGISTER_LIMIT);
+    }
+
+    bool isLengthQuery() const
+    {
+        return m_indexRegisterIndex == REGISTER_LIMIT;
+    }
+
+    ByteCodeRegisterIndex m_indexRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("load arguments length r%u", m_registerIndex);
+        if (isLengthQuery()) {
+            printf("load arguments length r%u", m_dstRegisterIndex);
+        } else {
+            printf("load arguments element r%u[r%u]", m_dstRegisterIndex, m_indexRegisterIndex);
+        }
     }
 #endif
 };
