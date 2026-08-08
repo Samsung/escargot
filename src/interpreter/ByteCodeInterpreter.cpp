@@ -548,32 +548,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ToNumericIncrement)
-            :
-        {
-            ToNumericIncrement* code = (ToNumericIncrement*)programCounter;
-            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
-            ADD_PROGRAM_COUNTER(ToNumericIncrement);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(Increment)
             :
         {
             Increment* code = (Increment*)programCounter;
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
+            if (code->m_storeIndex == REGISTER_LIMIT) {
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
+            } else {
+                registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
+            }
             ADD_PROGRAM_COUNTER(Increment);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(ToNumericDecrement)
-            :
-        {
-            ToNumericDecrement* code = (ToNumericDecrement*)programCounter;
-            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
-            ADD_PROGRAM_COUNTER(ToNumericDecrement);
             NEXT_INSTRUCTION();
         }
 
@@ -581,7 +566,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             Decrement* code = (Decrement*)programCounter;
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
+            if (code->m_storeIndex == REGISTER_LIMIT) {
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
+            } else {
+                registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
+            }
             ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
         }
@@ -964,15 +954,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(JumpIfTrue)
+        DEFINE_OPCODE(JumpIfBoolean)
             :
         {
-            JumpIfTrue* code = (JumpIfTrue*)programCounter;
+            JumpIfBoolean* code = (JumpIfBoolean*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (registerFile[code->m_registerIndex].toBoolean()) {
+            bool result = registerFile[code->m_registerIndex].toBoolean();
+
+            if (result ^ code->m_shouldNegate) {
                 programCounter = code->m_jumpPosition;
             } else {
-                ADD_PROGRAM_COUNTER(JumpIfTrue);
+                ADD_PROGRAM_COUNTER(JumpIfBoolean);
             }
             NEXT_INSTRUCTION();
         }
@@ -988,19 +980,6 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfUndefinedOrNull);
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(JumpIfFalse)
-            :
-        {
-            JumpIfFalse* code = (JumpIfFalse*)programCounter;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].toBoolean()) {
-                programCounter = code->m_jumpPosition;
-            } else {
-                ADD_PROGRAM_COUNTER(JumpIfFalse);
             }
             NEXT_INSTRUCTION();
         }

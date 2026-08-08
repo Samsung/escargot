@@ -104,8 +104,8 @@ public:
             codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), context, this->m_loc.index);
             // If done is true, then
             // Return ? IteratorValue(innerResult).
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), doneIndex), context, this->m_loc.index);
-            size_t testDoneJumpPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, doneIndex), context, this->m_loc.index);
+            size_t testDoneJumpPos = codeBlock->lastCodePosition<JumpIfBoolean>();
             IteratorOperation::IteratorValueData iteratorValueData;
             iteratorValueData.m_srcRegisterIndex = valueIdx;
             iteratorValueData.m_dstRegisterIndex = dstRegister;
@@ -228,15 +228,15 @@ public:
 
                 // if (throwTest) {
                 size_t tempTestPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), throwTestRegister), context, this->m_loc.index);
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, throwTestRegister), context, this->m_loc.index);
                 // innerResult = await innerResult;
                 pushAwait(codeBlock, context, returnOrInnerResultRegister, returnOrInnerResultRegister, awaitStateRegister, tailDataLength);
                 // }
-                codeBlock->peekCode<JumpIfFalse>(tempTestPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfBoolean>(tempTestPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
                 // if (!throwTest || awaitReturnsThrow) {
                 size_t throwTestIsTrueJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), throwTestRegister), context, this->m_loc.index);
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, throwTestRegister), context, this->m_loc.index);
 
                 // we don't needThrowTestRegister from here
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(ExecutionPauser::ResumeState::Throw)), context, this->m_loc.index);
@@ -247,7 +247,7 @@ public:
                 // throw innerResult;
                 codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), returnOrInnerResultRegister), context, this->m_loc.index);
                 // }
-                codeBlock->peekCode<JumpIfFalse>(throwTestIsTrueJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfBoolean>(throwTestIsTrueJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
                 codeBlock->peekCode<JumpIfEqual>(awaitNotReturnsThrowPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
                 // %IteratorOperation(TestResultIsObject)%
@@ -295,7 +295,7 @@ public:
             }
             // Return Completion(received).
             ReturnStatementNode::generateReturnCode(codeBlock, context, this, ByteCodeLOC(m_loc.index), valueIdx);
-            codeBlock->peekCode<JumpIfTrue>(returnUndefinedCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(returnUndefinedCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
 
             // Let innerReturnResult be ? Call(return, iterator, « received.[[Value]] »).
             codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, valueIdx, valueIdx, 1), context, this->m_loc.index);
@@ -317,7 +317,7 @@ public:
 
             // If done is true, then
             testDoneJumpPos = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), doneIndex), context, this->m_loc.index);
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, doneIndex), context, this->m_loc.index);
 
             // Let value be ? IteratorValue(innerReturnResult).
             iteratorValueData.m_srcRegisterIndex = valueIdx;
@@ -325,7 +325,7 @@ public:
             codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorValueData), context, this->m_loc.index);
             // Return Completion { [[Type]]: return, [[Value]]: value, [[Target]]: empty }.
             ReturnStatementNode::generateReturnCode(codeBlock, context, this, ByteCodeLOC(m_loc.index), valueIdx);
-            codeBlock->peekCode<JumpIfFalse>(testDoneJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(testDoneJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
             // If generatorKind is async, then set received to AsyncGeneratorYield(? IteratorValue(innerReturnResult)).
             if (isAsyncGenerator) {

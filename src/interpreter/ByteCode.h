@@ -98,8 +98,6 @@ struct GlobalVariableAccessCacheItem;
     F(Move)                                           \
     F(Increment)                                      \
     F(Decrement)                                      \
-    F(ToNumericIncrement)                             \
-    F(ToNumericDecrement)                             \
     F(ToNumber)                                       \
     F(ToPropertyKey)                                  \
     F(UnaryMinus)                                     \
@@ -110,9 +108,8 @@ struct GlobalVariableAccessCacheItem;
     F(TemplateOperation)                              \
     F(Jump)                                           \
     F(JumpComplexCase)                                \
-    F(JumpIfTrue)                                     \
+    F(JumpIfBoolean)                                  \
     F(JumpIfUndefinedOrNull)                          \
-    F(JumpIfFalse)                                    \
     F(JumpIfNotFulfilled)                             \
     F(JumpIfEqual)                                    \
     F(Call)                                           \
@@ -1729,28 +1726,19 @@ public:
 
 class Increment : public ByteCode {
 public:
+    // prefix (++i): storeIndex is REGISTER_LIMIT ("absent"), dstIndex gets the incremented value directly.
+    // postfix (i++, was ToNumericIncrement): dstIndex gets the numeric-converted *original* value (the
+    // expression's result), storeIndex gets the incremented value (to be stored back into the variable).
     Increment(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::IncrementOpcode, loc)
         , m_srcIndex(srcIndex)
+        , m_storeIndex(REGISTER_LIMIT)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_srcIndex;
-    ByteCodeRegisterIndex m_dstIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("increment r%u <- r%u", m_dstIndex, m_srcIndex);
-    }
-#endif
-};
-
-class ToNumericIncrement : public ByteCode {
-public:
-    ToNumericIncrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
-        : ByteCode(Opcode::ToNumericIncrementOpcode, loc)
+    Increment(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::IncrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_storeIndex(storeIndex)
         , m_dstIndex(dstIndex)
@@ -1764,35 +1752,28 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric increment(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        if (m_storeIndex == REGISTER_LIMIT) {
+            printf("increment r%u <- r%u", m_dstIndex, m_srcIndex);
+        } else {
+            printf("to numeric increment(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        }
     }
 #endif
 };
 
 class Decrement : public ByteCode {
 public:
+    // see Increment -- same prefix/postfix merge, REGISTER_LIMIT sentinel for "no postfix store".
     Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::DecrementOpcode, loc)
         , m_srcIndex(srcIndex)
+        , m_storeIndex(REGISTER_LIMIT)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_srcIndex;
-    ByteCodeRegisterIndex m_dstIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("decrement r%u <- r%u", m_dstIndex, m_srcIndex);
-    }
-#endif
-};
-
-class ToNumericDecrement : public ByteCode {
-public:
-    ToNumericDecrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
-        : ByteCode(Opcode::ToNumericDecrementOpcode, loc)
+    Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::DecrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_storeIndex(storeIndex)
         , m_dstIndex(dstIndex)
@@ -1806,7 +1787,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric decrement(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        if (m_storeIndex == REGISTER_LIMIT) {
+            printf("decrement r%u <- r%u", m_dstIndex, m_srcIndex);
+        } else {
+            printf("to numeric decrement(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        }
     }
 #endif
 };
@@ -2089,26 +2074,35 @@ public:
 
 COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
-class JumpIfTrue : public Jump {
+class JumpIfBoolean : public Jump {
 public:
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex)
-        : Jump(Opcode::JumpIfTrueOpcode, loc, SIZE_MAX)
+    // shouldNegate == false: jump if r(registerIndex).toBoolean() is true (was JumpIfTrue)
+    // shouldNegate == true: jump if r(registerIndex).toBoolean() is false (was JumpIfFalse)
+    JumpIfBoolean(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex)
+        : Jump(Opcode::JumpIfBooleanOpcode, loc, SIZE_MAX)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
-        : Jump(Opcode::JumpIfTrueOpcode, loc, pos)
+    JumpIfBoolean(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex, size_t pos)
+        : Jump(Opcode::JumpIfBooleanOpcode, loc, pos)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
+    bool m_shouldNegate;
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("jump if r%u is true -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        if (m_shouldNegate) {
+            printf("jump if r%u is false -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        } else {
+            printf("jump if r%u is true -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        }
     }
 #endif
 };
@@ -2140,24 +2134,6 @@ public:
         } else {
             printf("jump if r%u is undefined or null -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
         }
-    }
-#endif
-};
-
-class JumpIfFalse : public Jump {
-public:
-    JumpIfFalse(const ByteCodeLOC& loc, const size_t registerIndex)
-        : Jump(Opcode::JumpIfFalseOpcode, loc, SIZE_MAX)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("jump if r%u is false -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };

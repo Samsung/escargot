@@ -56,8 +56,8 @@ public:
         } else {
             size_t testReg = m_test->getRegister(codeBlock, context);
             m_test->generateExpressionByteCode(codeBlock, context, testReg);
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
-            jPos = codeBlock->lastCodePosition<JumpIfFalse>();
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testReg), context, this->m_loc.index);
+            jPos = codeBlock->lastCodePosition<JumpIfBoolean>();
             context->giveUpRegister();
         }
         context->giveUpRegister();
