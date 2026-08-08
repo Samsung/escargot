@@ -50,8 +50,8 @@ public:
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src0, dstRegister), context, this->m_loc.index);
         }
 
-        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), src0), context, this->m_loc.index);
-        size_t pos = codeBlock->lastCodePosition<JumpIfTrue>();
+        codeBlock->pushCode<JumpIfBoolean>(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, src0), context, this->m_loc.index);
+        size_t pos = codeBlock->lastCodePosition<JumpIfBoolean>();
 
         size_t src1 = m_right->getRegister(codeBlock, context);
         m_right->generateExpressionByteCode(codeBlock, context, src1);
@@ -62,7 +62,7 @@ public:
             codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src1, dstRegister), context, this->m_loc.index);
         }
 
-        codeBlock->peekCode<JumpIfTrue>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfBoolean>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         if (slowMode) {
             context->m_canSkipCopyToRegister = flagBefore;

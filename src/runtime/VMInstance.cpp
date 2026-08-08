@@ -849,6 +849,16 @@ bool VMInstance::hasPendingJobFromAnotherThread()
 #endif
 }
 
+bool VMInstance::hasCompletedJobFromAnotherThread()
+{
+#if defined(ENABLE_THREADING)
+    std::unique_lock<std::mutex> ul(m_asyncWaiterDataMutex);
+    return m_pendingAsyncWaiterCount != 0;
+#else
+    return false;
+#endif
+}
+
 bool VMInstance::waitEventFromAnotherThread(unsigned timeoutInMillisecond)
 {
 #if defined(ENABLE_THREADING)

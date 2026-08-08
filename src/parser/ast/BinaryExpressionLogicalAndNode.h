@@ -51,11 +51,11 @@ public:
             }
         } else {
             m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
-            size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
+            codeBlock->pushCode<JumpIfBoolean>(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, dstRegister), context, this->m_loc.index);
+            size_t pos = codeBlock->lastCodePosition<JumpIfBoolean>();
 
             m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
-            codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
         }
 
         context->m_canSkipCopyToRegister = directBefore;
@@ -79,11 +79,11 @@ public:
             }
         } else {
             m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
-            codeBlock->pushCode<JumpIfFalse>(JumpIfFalse(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
-            size_t pos = codeBlock->lastCodePosition<JumpIfFalse>();
+            codeBlock->pushCode<JumpIfBoolean>(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, dstRegister), context, this->m_loc.index);
+            size_t pos = codeBlock->lastCodePosition<JumpIfBoolean>();
 
             m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
-            codeBlock->peekCode<JumpIfFalse>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
         }
 
         context->m_canSkipCopyToRegister = directBefore;

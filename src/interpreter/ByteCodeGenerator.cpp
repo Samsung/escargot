@@ -585,8 +585,6 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         }
         case ToNumberOpcode:
         case ToPropertyKeyOpcode:
-        case IncrementOpcode:
-        case DecrementOpcode:
         case UnaryMinusOpcode:
         case UnaryNotOpcode:
         case UnaryBitwiseNotOpcode: {
@@ -595,9 +593,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case ToNumericIncrementOpcode:
-        case ToNumericDecrementOpcode: {
-            ToNumericIncrement* cd = (ToNumericIncrement*)currentCode;
+        case IncrementOpcode:
+        case DecrementOpcode: {
+            // m_storeIndex is REGISTER_LIMIT for the prefix form -- ASSIGN_STACKINDEX_IF_NEEDED
+            // already no-ops on REGISTER_LIMIT, so this one case handles both prefix and postfix.
+            Increment* cd = (Increment*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_storeIndex, stackBase, stackBaseWillBe, stackVariableSize);
@@ -691,20 +691,14 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
             break;
         }
-        case JumpIfTrueOpcode: {
-            JumpIfTrue* cd = (JumpIfTrue*)currentCode;
+        case JumpIfBooleanOpcode: {
+            JumpIfBoolean* cd = (JumpIfBoolean*)currentCode;
             cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case JumpIfUndefinedOrNullOpcode: {
             JumpIfUndefinedOrNull* cd = (JumpIfUndefinedOrNull*)currentCode;
-            cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            break;
-        }
-        case JumpIfFalseOpcode: {
-            JumpIfFalse* cd = (JumpIfFalse*)currentCode;
             cd->m_jumpPosition = cd->m_jumpPosition + codeBase;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
@@ -936,9 +930,10 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             code += cd->m_tailDataLength;
             break;
         }
-        case LoadArgumentsLengthOpcode: {
-            LoadArgumentsLength* cd = (LoadArgumentsLength*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+        case LoadArgumentsElementOpcode: {
+            LoadArgumentsElement* cd = (LoadArgumentsElement*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_indexRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         default:

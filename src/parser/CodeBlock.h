@@ -925,6 +925,18 @@ public:
         return findVarName(name) != SIZE_MAX;
     }
 
+    // Like hasName(), but ignores the implicit bookkeeping slot that
+    // captureArguments() unconditionally registers for "arguments" the moment
+    // usesArgumentsObject() is set (that slot has m_isExplicitlyDeclaredOrParameterName
+    // == false; it isn't a real declaration, just where the materialized ArgumentsObject
+    // gets stored). A plain hasName() check for "arguments" is therefore true for every
+    // ordinary use of the arguments object -- exactly the case callers of this function
+    // need to distinguish from genuine shadowing (a parameter/var/let/const literally
+    // named `arguments`) -- so LoadArgumentsElement's bytecode-gen fast-path guards use
+    // this instead. (Defined out-of-line in CodeBlock.cpp: Context is only forward-declared
+    // here.)
+    bool hasExplicitArgumentsBinding(LexicalBlockIndex blockIndex);
+
     bool isParameterName(const AtomicString& name)
     {
         for (size_t i = 0; i < parameterNamesCount(); i++) {

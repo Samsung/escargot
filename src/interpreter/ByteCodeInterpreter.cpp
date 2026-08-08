@@ -198,7 +198,7 @@ public:
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
-    static void loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile);
+    static void loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile);
 
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
@@ -548,32 +548,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ToNumericIncrement)
-            :
-        {
-            ToNumericIncrement* code = (ToNumericIncrement*)programCounter;
-            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
-            ADD_PROGRAM_COUNTER(ToNumericIncrement);
-            NEXT_INSTRUCTION();
-        }
-
         DEFINE_OPCODE(Increment)
             :
         {
             Increment* code = (Increment*)programCounter;
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
+            if (code->m_storeIndex == REGISTER_LIMIT) {
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
+            } else {
+                registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
+            }
             ADD_PROGRAM_COUNTER(Increment);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(ToNumericDecrement)
-            :
-        {
-            ToNumericDecrement* code = (ToNumericDecrement*)programCounter;
-            registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
-            ADD_PROGRAM_COUNTER(ToNumericDecrement);
             NEXT_INSTRUCTION();
         }
 
@@ -581,7 +566,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             Decrement* code = (Decrement*)programCounter;
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
+            if (code->m_storeIndex == REGISTER_LIMIT) {
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
+            } else {
+                registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
+            }
             ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
         }
@@ -826,7 +816,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         const auto& item = cacheData[currentCacheIndex];
                         if (item.m_cachedHiddenClass == testItem) {
                             if (LIKELY(item.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
-                                obj->m_values[item.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                if (LIKELY(item.m_isPlainDataProperty)) {
+                                    obj->m_values[item.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                } else {
+                                    // accessor / native getter-setter / non-writable own property --
+                                    // dispatches correctly by kind, no findProperty() needed since
+                                    // the index is already cached.
+                                    obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
+                                }
                                 ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                                 NEXT_INSTRUCTION();
                             }
@@ -845,40 +842,56 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         DEFINE_OPCODE(SetObjectPreComputedCaseComplexInlineCache)
             :
         {
-            // Checks only the cache's MRU front entry (index 0 -- insertion is always at the
-            // front) directly here, in the main loop. The chain stored in the entry is only ever
-            // used to verify shape -- the write itself always targets the receiver (`obj`) below,
-            // never a prototype -- see setObjectPreComputedCaseOperationSlowCase's comment for
-            // why. A front-entry miss defers to the unchanged slow path, which still does its
-            // full linear scan over every entry.
+            // Checks the cache's front few entries directly here, in the main loop, instead of
+            // just the single MRU front entry (index 0 -- insertion is always at the front).
+            // Telemetry on Preact's VNode-construction workload showed shape churn at this tier
+            // commonly rotates through a handful of distinct shapes per callsite, so a front-only
+            // check rarely lands on the right one -- widening the inline check to a few more
+            // front slots catches most of that traffic without the NEVER_INLINE slow-path call.
+            // The chain stored in each entry is only ever used to verify shape -- the write itself
+            // always targets the receiver (`obj`) below, never a prototype -- see
+            // setObjectPreComputedCaseOperationSlowCase's comment for why. A miss across all
+            // checked slots defers to the unchanged slow path, which still does its full linear
+            // scan over every entry.
+            constexpr size_t inlineCheckCount = 3;
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             if (LIKELY(willBeObject.isObject())) {
                 Object* obj = willBeObject.asObject();
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
-                if (LIKELY(!!inlineCache && inlineCache->m_cache.size() > 0)) {
-                    const SetObjectInlineCacheData& entry = inlineCache->m_cache[0];
-                    const size_t cSiz = entry.m_cachedhiddenClassChainLength;
-                    Object* cur = obj;
-                    bool ok = true;
-                    for (size_t i = 0; i < cSiz; i++) {
-                        if (UNLIKELY(!cur || cur->structure() != entry.m_cachedHiddenClassChainData[i])) {
-                            ok = false;
-                            break;
+                if (LIKELY(!!inlineCache)) {
+                    const size_t checkCount = std::min<size_t>(inlineCache->m_cache.size(), inlineCheckCount);
+                    for (size_t entryIndex = 0; entryIndex < checkCount; entryIndex++) {
+                        const SetObjectInlineCacheData& entry = inlineCache->m_cache[entryIndex];
+                        const size_t cSiz = entry.m_cachedhiddenClassChainLength;
+                        Object* cur = obj;
+                        bool ok = true;
+                        for (size_t i = 0; i < cSiz; i++) {
+                            if (UNLIKELY(!cur || cur->structure() != entry.m_cachedHiddenClassChainData[i])) {
+                                ok = false;
+                                break;
+                            }
+                            if (i + 1 < cSiz) {
+                                cur = cur->Object::getPrototypeObject(*state);
+                            }
                         }
-                        if (i + 1 < cSiz) {
-                            cur = cur->Object::getPrototypeObject(*state);
+                        if (LIKELY(ok)) {
+                            if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
+                                if (LIKELY(entry.m_isPlainDataProperty)) {
+                                    obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                } else {
+                                    // accessor / native getter-setter / non-writable own property --
+                                    // dispatches correctly by kind, no findProperty() needed since
+                                    // the index is already cached.
+                                    obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
+                                }
+                            } else {
+                                obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
+                                obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                            }
+                            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
+                            NEXT_INSTRUCTION();
                         }
-                    }
-                    if (LIKELY(ok)) {
-                        if (LIKELY(entry.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
-                            obj->m_values[entry.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
-                        } else {
-                            obj->m_structure = entry.m_cachedHiddenClassChainData[cSiz];
-                            obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
-                        }
-                        ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                        NEXT_INSTRUCTION();
                     }
                 }
             }
@@ -941,15 +954,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(JumpIfTrue)
+        DEFINE_OPCODE(JumpIfBoolean)
             :
         {
-            JumpIfTrue* code = (JumpIfTrue*)programCounter;
+            JumpIfBoolean* code = (JumpIfBoolean*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (registerFile[code->m_registerIndex].toBoolean()) {
+            bool result = registerFile[code->m_registerIndex].toBoolean();
+
+            if (result ^ code->m_shouldNegate) {
                 programCounter = code->m_jumpPosition;
             } else {
-                ADD_PROGRAM_COUNTER(JumpIfTrue);
+                ADD_PROGRAM_COUNTER(JumpIfBoolean);
             }
             NEXT_INSTRUCTION();
         }
@@ -965,19 +980,6 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfUndefinedOrNull);
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(JumpIfFalse)
-            :
-        {
-            JumpIfFalse* code = (JumpIfFalse*)programCounter;
-            ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].toBoolean()) {
-                programCounter = code->m_jumpPosition;
-            } else {
-                ADD_PROGRAM_COUNTER(JumpIfFalse);
             }
             NEXT_INSTRUCTION();
         }
@@ -1853,12 +1855,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(LoadArgumentsLength)
+        DEFINE_OPCODE(LoadArgumentsElement)
             :
         {
-            LoadArgumentsLength* code = (LoadArgumentsLength*)programCounter;
-            InterpreterSlowPath::loadArgumentsLengthOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(LoadArgumentsLength);
+            LoadArgumentsElement* code = (LoadArgumentsElement*)programCounter;
+            InterpreterSlowPath::loadArgumentsElementOperation(*state, byteCodeBlock, code, registerFile);
+            ADD_PROGRAM_COUNTER(LoadArgumentsElement);
             NEXT_INSTRUCTION();
         }
 
@@ -3079,7 +3081,11 @@ NEVER_INLINE bool InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
                 ASSERT(cSiz == 1);
                 ASSERT(item.m_cachedIndex < originalObject->m_structure->propertyCount());
                 ASSERT(originalObject->structure()->findProperty(code->m_propertyName).first == item.m_cachedIndex);
-                originalObject->m_values[item.m_cachedIndex] = value;
+                if (LIKELY(item.m_isPlainDataProperty)) {
+                    originalObject->m_values[item.m_cachedIndex] = value;
+                } else {
+                    originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, item.m_cachedIndex, value, willBeObject);
+                }
             } else {
                 ASSERT(originalObject->structure()->inTransitionMode());
                 ASSERT((originalObject->structure()->propertyCount() + 1) == item.m_cachedHiddenClassChainData[cSiz]->propertyCount());
@@ -3143,21 +3149,27 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
     auto findResult = originalObject->structure()->findProperty(code->m_propertyName);
     if (findResult.first != SIZE_MAX) {
-        // Don't update the inline cache if the property is removed by a setter function.
-        /* example code
-            var o = { set foo (a) { var a = delete o.foo } };
-            o.foo = 0;
-            */
-        if (!findResult.second->m_descriptor.isPlainDataProperty() || !findResult.second->m_descriptor.isWritable()) {
-            goto GiveUp;
-        }
+        // Accessor / native-getter-setter / non-writable own properties are cached too (not just
+        // plain-data-and-writable) -- Object::setOwnPropertyThrowsExceptionWhenStrictMode()
+        // already dispatches correctly by kind given just the index, so a cache hit on any of
+        // these needs no findProperty() call, same as the plain-data case.
+        const bool isPlainDataProperty = findResult.second->m_descriptor.isPlainDataProperty() && findResult.second->m_descriptor.isWritable();
 
         // set own property
-#ifndef NDEBUG
         ObjectStructure* beforeStructure = originalObject->structure();
-#endif
 
         originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, findResult.first, value, willBeObject);
+
+        if (UNLIKELY(!isPlainDataProperty && originalObject->structure() != beforeStructure)) {
+            // Don't update the inline cache if the property was removed (or the receiver's shape
+            // otherwise changed) by the setter's own side effects.
+            /* example code
+                var o = { set foo (a) { var a = delete o.foo } };
+                o.foo = 0;
+                */
+            // The write above already took effect correctly -- just skip caching a now-stale index.
+            return;
+        }
 
 #ifndef NDEBUG
         ASSERT(originalObject->structure() == beforeStructure); // ObjectStructure should not be changed
@@ -3165,7 +3177,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         const auto& propertyData = originalObject->structure()->readProperty(findResult.first);
         const auto& desc = propertyData.m_descriptor;
         ASSERT(propertyData.m_propertyName == code->m_propertyName);
-        ASSERT(desc.isPlainDataProperty() && desc.isWritable());
+        ASSERT(isPlainDataProperty == (desc.isPlainDataProperty() && desc.isWritable()));
 #endif
 
         if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
@@ -3173,11 +3185,13 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
             newItem.m_cachedIndex = findResult.first;
             newItem.m_cachedhiddenClassChainLength = 1;
             newItem.m_cachedHiddenClass = originalObject->structure();
+            newItem.m_isPlainDataProperty = isPlainDataProperty;
         } else {
             // complex case: caching the entire ObjectStructure chain if necessary
             // this case stores only the current ObjectStructure in m_cachedHiddenClassChainData
             newItem.m_cachedIndex = findResult.first;
             newItem.m_cachedhiddenClassChainLength = 1;
+            newItem.m_isPlainDataProperty = isPlainDataProperty;
             newItem.m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
             newItem.m_cachedHiddenClassChainData[0] = originalObject->structure();
         }
@@ -3198,7 +3212,12 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         while (proto.isObject()) {
             obj = proto.asObject();
 
-            if (!UNLIKELY(obj->isInlineCacheable() || cachedhiddenClassChain.size() >= SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount)) {
+            // Bail if this prototype isn't safely inline-cacheable, OR if the chain has already
+            // hit the depth cap -- these are two independent reasons to give up, not one combined
+            // condition (a prior version of this line accidentally De Morgan'd them into
+            // `!(A || B)`, which only bails when NEITHER reason applies and otherwise lets the
+            // chain grow past inlineCacheProtoTraverseMaxCount unbounded).
+            if (UNLIKELY(!obj->isInlineCacheable() || cachedhiddenClassChain.size() >= SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount)) {
                 goto GiveUp;
             }
 
@@ -5811,22 +5830,48 @@ NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionS
     funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
-NEVER_INLINE void InterpreterSlowPath::loadArgumentsLengthOperation(ExecutionState& state, LoadArgumentsLength* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile)
 {
     ExecutionState* es;
     FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
-
     ASSERT(!!funcRecord);
-    // If ArgumentsObject has already been created, read length from it
-    // (the user may have overwritten arguments.length)
-    auto opt = funcRecord->argumentsObject();
-    if (opt) {
-        ArgumentsObject* argsObj = opt.value();
-        registerFile[code->m_registerIndex] = argsObj->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, argsObj);
-    } else {
-        // ArgumentsObject has not been created yet; return argc directly
-        registerFile[code->m_registerIndex] = Value((int)es->argc());
+
+    auto argumentsObjectOpt = funcRecord->argumentsObject();
+
+    if (code->isLengthQuery()) {
+        // If ArgumentsObject has already been created, read length from it
+        // (the user may have overwritten arguments.length)
+        if (argumentsObjectOpt) {
+            ArgumentsObject* argsObj = argumentsObjectOpt.value();
+            registerFile[code->m_dstRegisterIndex] = argsObj->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, argsObj);
+        } else {
+            // ArgumentsObject has not been created yet; return argc directly
+            registerFile[code->m_dstRegisterIndex] = Value((int)es->argc());
+        }
+        return;
     }
+
+    const Value& indexValue = registerFile[code->m_indexRegisterIndex];
+
+    // Fast path: before the ArgumentsObject exists, arguments[index] for
+    // parameterCount <= index < argc can never alias a (possibly reassigned) named
+    // parameter via mapped arguments, and is guaranteed to be an own data property
+    // with no prototype-chain lookup needed -- see the comment on LoadArgumentsElement.
+    if (!argumentsObjectOpt && indexValue.isUInt32()) {
+        uint32_t index = indexValue.asUInt32();
+        if (index >= byteCodeBlock->m_codeBlock->parameterCount() && index < es->argc()) {
+            registerFile[code->m_dstRegisterIndex] = es->argv()[index];
+            return;
+        }
+    }
+
+    // Slow path: every other case (already materialized, mapped-argument range,
+    // out of range, non-integer key, deleted/redefined index) falls back to
+    // materializing (if needed) and doing a real indexed get, so it stays fully
+    // spec-correct.
+    ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+    ArgumentsObject* argsObj = funcRecord->argumentsObject().value();
+    registerFile[code->m_dstRegisterIndex] = argsObj->get(state, ObjectPropertyName(state, indexValue)).value(state, argsObj);
 }
 
 NEVER_INLINE int InterpreterSlowPath::evaluateImportWithOperation(ExecutionState& state, const Value& options)

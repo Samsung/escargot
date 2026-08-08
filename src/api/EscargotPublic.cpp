@@ -1553,6 +1553,11 @@ bool VMInstanceRef::hasPendingJobFromAnotherThread()
     return toImpl(this)->hasPendingJobFromAnotherThread();
 }
 
+bool VMInstanceRef::hasCompletedJobFromAnotherThread()
+{
+    return toImpl(this)->hasCompletedJobFromAnotherThread();
+}
+
 bool VMInstanceRef::waitEventFromAnotherThread(unsigned timeoutInMillisecond)
 {
     return toImpl(this)->waitEventFromAnotherThread(timeoutInMillisecond);

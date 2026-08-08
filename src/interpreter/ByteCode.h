@@ -98,8 +98,6 @@ struct GlobalVariableAccessCacheItem;
     F(Move)                                           \
     F(Increment)                                      \
     F(Decrement)                                      \
-    F(ToNumericIncrement)                             \
-    F(ToNumericDecrement)                             \
     F(ToNumber)                                       \
     F(ToPropertyKey)                                  \
     F(UnaryMinus)                                     \
@@ -110,9 +108,8 @@ struct GlobalVariableAccessCacheItem;
     F(TemplateOperation)                              \
     F(Jump)                                           \
     F(JumpComplexCase)                                \
-    F(JumpIfTrue)                                     \
+    F(JumpIfBoolean)                                  \
     F(JumpIfUndefinedOrNull)                          \
-    F(JumpIfFalse)                                    \
     F(JumpIfNotFulfilled)                             \
     F(JumpIfEqual)                                    \
     F(Call)                                           \
@@ -143,7 +140,7 @@ struct GlobalVariableAccessCacheItem;
     F(ReplaceBlockLexicalEnvironmentOperation)        \
     F(TaggedTemplateOperation)                        \
     F(EnsureArgumentsObject)                          \
-    F(LoadArgumentsLength)                            \
+    F(LoadArgumentsElement)                           \
     F(BindingCalleeIntoRegister)                      \
     F(ResolveNameAddress)                             \
     F(StoreByNameWithAddress)                         \
@@ -1523,6 +1520,7 @@ struct SetObjectInlineCacheData {
     {
         m_cachedHiddenClass = nullptr;
         m_cachedIndex = m_cachedhiddenClassChainLength = 0;
+        m_isPlainDataProperty = true;
     }
 
     static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
@@ -1534,9 +1532,15 @@ struct SetObjectInlineCacheData {
         ObjectStructure** m_cachedHiddenClassChainData;
         ObjectStructure* m_cachedHiddenClass;
     };
-    // 16bits of storage is enough
+    // false for a found-but-non-plain-data-or-non-writable own property (accessor, native
+    // getter/setter data property, or readonly) -- cachedIndex is still a real index in that
+    // case (this is always the "own property write" case, never a brand-new-property
+    // transition), but the write must go through Object::setOwnPropertyThrowsExceptionWhenStrictMode
+    // (which dispatches correctly by kind) instead of the direct m_values[] write.
+    bool m_isPlainDataProperty : 1;
+    // 15bits of storage is enough
     // inlineCacheProtoTraverseMaxCount is so small
-    uint16_t m_cachedhiddenClassChainLength : 16;
+    uint16_t m_cachedhiddenClassChainLength : 15;
     uint16_t m_cachedIndex : 16;
 };
 
@@ -1722,28 +1726,19 @@ public:
 
 class Increment : public ByteCode {
 public:
+    // prefix (++i): storeIndex is REGISTER_LIMIT ("absent"), dstIndex gets the incremented value directly.
+    // postfix (i++, was ToNumericIncrement): dstIndex gets the numeric-converted *original* value (the
+    // expression's result), storeIndex gets the incremented value (to be stored back into the variable).
     Increment(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::IncrementOpcode, loc)
         , m_srcIndex(srcIndex)
+        , m_storeIndex(REGISTER_LIMIT)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_srcIndex;
-    ByteCodeRegisterIndex m_dstIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("increment r%u <- r%u", m_dstIndex, m_srcIndex);
-    }
-#endif
-};
-
-class ToNumericIncrement : public ByteCode {
-public:
-    ToNumericIncrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
-        : ByteCode(Opcode::ToNumericIncrementOpcode, loc)
+    Increment(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::IncrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_storeIndex(storeIndex)
         , m_dstIndex(dstIndex)
@@ -1757,35 +1752,28 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric increment(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        if (m_storeIndex == REGISTER_LIMIT) {
+            printf("increment r%u <- r%u", m_dstIndex, m_srcIndex);
+        } else {
+            printf("to numeric increment(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        }
     }
 #endif
 };
 
 class Decrement : public ByteCode {
 public:
+    // see Increment -- same prefix/postfix merge, REGISTER_LIMIT sentinel for "no postfix store".
     Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t dstIndex)
         : ByteCode(Opcode::DecrementOpcode, loc)
         , m_srcIndex(srcIndex)
+        , m_storeIndex(REGISTER_LIMIT)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_srcIndex;
-    ByteCodeRegisterIndex m_dstIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("decrement r%u <- r%u", m_dstIndex, m_srcIndex);
-    }
-#endif
-};
-
-class ToNumericDecrement : public ByteCode {
-public:
-    ToNumericDecrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
-        : ByteCode(Opcode::ToNumericDecrementOpcode, loc)
+    Decrement(const ByteCodeLOC& loc, const size_t srcIndex, const size_t storeIndex, const size_t dstIndex)
+        : ByteCode(Opcode::DecrementOpcode, loc)
         , m_srcIndex(srcIndex)
         , m_storeIndex(storeIndex)
         , m_dstIndex(dstIndex)
@@ -1799,7 +1787,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric decrement(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        if (m_storeIndex == REGISTER_LIMIT) {
+            printf("decrement r%u <- r%u", m_dstIndex, m_srcIndex);
+        } else {
+            printf("to numeric decrement(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
+        }
     }
 #endif
 };
@@ -2082,26 +2074,35 @@ public:
 
 COMPILE_ASSERT(sizeof(Jump) == sizeof(JumpComplexCase), "");
 
-class JumpIfTrue : public Jump {
+class JumpIfBoolean : public Jump {
 public:
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex)
-        : Jump(Opcode::JumpIfTrueOpcode, loc, SIZE_MAX)
+    // shouldNegate == false: jump if r(registerIndex).toBoolean() is true (was JumpIfTrue)
+    // shouldNegate == true: jump if r(registerIndex).toBoolean() is false (was JumpIfFalse)
+    JumpIfBoolean(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex)
+        : Jump(Opcode::JumpIfBooleanOpcode, loc, SIZE_MAX)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
-    JumpIfTrue(const ByteCodeLOC& loc, const size_t registerIndex, size_t pos)
-        : Jump(Opcode::JumpIfTrueOpcode, loc, pos)
+    JumpIfBoolean(const ByteCodeLOC& loc, bool shouldNegate, const size_t registerIndex, size_t pos)
+        : Jump(Opcode::JumpIfBooleanOpcode, loc, pos)
+        , m_shouldNegate(shouldNegate)
         , m_registerIndex(registerIndex)
     {
     }
 
+    bool m_shouldNegate;
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("jump if r%u is true -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        if (m_shouldNegate) {
+            printf("jump if r%u is false -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        } else {
+            printf("jump if r%u is true -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        }
     }
 #endif
 };
@@ -2133,24 +2134,6 @@ public:
         } else {
             printf("jump if r%u is undefined or null -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
         }
-    }
-#endif
-};
-
-class JumpIfFalse : public Jump {
-public:
-    JumpIfFalse(const ByteCodeLOC& loc, const size_t registerIndex)
-        : Jump(Opcode::JumpIfFalseOpcode, loc, SIZE_MAX)
-        , m_registerIndex(registerIndex)
-    {
-    }
-
-    ByteCodeRegisterIndex m_registerIndex;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        printf("jump if r%u is false -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -3319,22 +3302,57 @@ public:
 #endif
 };
 
-// Load arguments.length without creating an ArgumentsObject.
-// If ArgumentsObject already exists, reads from it; otherwise returns state.argc() directly.
-class LoadArgumentsLength : public ByteCode {
+// Load arguments.length OR arguments[index] without creating an ArgumentsObject.
+// Merged into one opcode (previously two: LoadArgumentsLength + LoadArgumentsElement) since
+// their dispatch sites were both thin wrappers around a NEVER_INLINE helper with near-identical
+// shape -- one opcode enum entry + one dispatch case is strictly less code than two, with no
+// new call overhead (unlike out-of-lining small inline bodies, which was tried and made things
+// worse -- see the perf branch's session notes on interpret()'s icache sensitivity).
+//
+// m_indexRegisterIndex == REGISTER_LIMIT means "this is a .length query" (reads state.argc()
+// once the object exists, or its length property if already materialized). Otherwise it's an
+// arguments[index] query: only takes the fast path when the ArgumentsObject doesn't exist yet
+// AND index is a non-negative integer with parameterCount <= index < argc -- i.e. strictly
+// outside the range that could alias a (possibly reassigned) named parameter via mapped
+// arguments, and strictly inside the range that's guaranteed to be an own data property with no
+// need to consult the prototype chain. Any other case (already materialized, index <
+// parameterCount, out of range, or a non-integer key) falls back to the normal
+// EnsureArgumentsObject + GetObject path.
+class LoadArgumentsElement : public ByteCode {
 public:
-    LoadArgumentsLength(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::LoadArgumentsLengthOpcode, loc)
-        , m_registerIndex(registerIndex)
+    // .length query
+    LoadArgumentsElement(const ByteCodeLOC& loc, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::LoadArgumentsElementOpcode, loc)
+        , m_indexRegisterIndex(REGISTER_LIMIT)
+        , m_dstRegisterIndex(dstRegisterIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    // arguments[index] query
+    LoadArgumentsElement(const ByteCodeLOC& loc, const size_t indexRegisterIndex, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::LoadArgumentsElementOpcode, loc)
+        , m_indexRegisterIndex(indexRegisterIndex)
+        , m_dstRegisterIndex(dstRegisterIndex)
+    {
+        ASSERT(indexRegisterIndex != REGISTER_LIMIT);
+    }
+
+    bool isLengthQuery() const
+    {
+        return m_indexRegisterIndex == REGISTER_LIMIT;
+    }
+
+    ByteCodeRegisterIndex m_indexRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("load arguments length r%u", m_registerIndex);
+        if (isLengthQuery()) {
+            printf("load arguments length r%u", m_dstRegisterIndex);
+        } else {
+            printf("load arguments element r%u[r%u]", m_dstRegisterIndex, m_indexRegisterIndex);
+        }
     }
 #endif
 };

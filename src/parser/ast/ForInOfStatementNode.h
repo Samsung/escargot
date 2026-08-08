@@ -349,8 +349,8 @@ public:
                 codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), &newContext, this->m_loc.index);
 
                 // If done is true, return NormalCompletion(V).
-                codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneRegister), &newContext, this->m_loc.index);
-                exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, doneRegister), &newContext, this->m_loc.index);
+                exit2Pos = codeBlock->lastCodePosition<JumpIfBoolean>();
                 newContext.giveUpRegister(); // drop doneRegister
 
                 // Let nextValue be ? IteratorValue(nextResult).
@@ -435,7 +435,7 @@ public:
             TryStatementNode::generateTryFinalizerStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatementContext, true);
 
             size_t exceptionThrownCheckStartJumpPos = codeBlock->currentCodeSize();
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), finishCheckRegisterIndex, SIZE_MAX), &newContext, this->m_loc.index);
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, finishCheckRegisterIndex, SIZE_MAX), &newContext, this->m_loc.index);
 
             if (m_isForAwaitOf) {
                 // AsyncIteratorClose ( iteratorRecord, completion )
@@ -505,7 +505,7 @@ public:
 
                 // if (throwTest) {
                 size_t tempTestPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), throwTestRegister), &newContext, this->m_loc.index);
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, throwTestRegister), &newContext, this->m_loc.index);
                 // innerResult = await innerResult;
                 ExecutionPause::ExecutionPauseAwaitData data;
                 data.m_awaitIndex = returnOrInnerResultRegister;
@@ -515,7 +515,7 @@ public:
                 data.m_tailDataLength = tailDataLength;
                 codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), &newContext, this->m_loc.index);
                 // }
-                codeBlock->peekCode<JumpIfFalse>(tempTestPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfBoolean>(tempTestPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
                 // %IteratorOperation(checkOngoingException)%
                 IteratorOperation::IteratorCheckOngoingExceptionOnAsyncIteratorCloseData iteratorCheckOngoingExceptionData;
@@ -523,7 +523,7 @@ public:
 
                 // if (!throwTest || awaitReturnsThrow) {
                 size_t throwTestIsTrueJumpPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), throwTestRegister), &newContext, this->m_loc.index);
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, throwTestRegister), &newContext, this->m_loc.index);
 
                 // we don't needThrowTestRegister from here
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(ExecutionPauser::ResumeState::Throw)), &newContext, this->m_loc.index);
@@ -534,7 +534,7 @@ public:
                 // throw innerResult;
                 codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), returnOrInnerResultRegister), &newContext, this->m_loc.index);
                 // }
-                codeBlock->peekCode<JumpIfFalse>(throwTestIsTrueJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                codeBlock->peekCode<JumpIfBoolean>(throwTestIsTrueJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
                 codeBlock->peekCode<JumpIfEqual>(awaitNotReturnsThrowPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
                 // %IteratorOperation(TestResultIsObject)%
@@ -554,7 +554,7 @@ public:
                 codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), &newContext, this->m_loc.index);
             }
 
-            codeBlock->peekCode<JumpIfTrue>(exceptionThrownCheckStartJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(exceptionThrownCheckStartJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
             if (!m_isForAwaitOf) {
                 // every way out of the loop passes through this finalizer, and a
                 // `continue` deliberately does not (see the labelled-continue note
@@ -574,7 +574,7 @@ public:
         if (m_forIn) {
             codeBlock->peekCode<CheckLastEnumerateKey>(exit2Pos)->m_exitPosition = exitPos;
         } else if (m_isForAwaitOf) {
-            codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
+            codeBlock->peekCode<JumpIfBoolean>(exit2Pos)->m_jumpPosition = exitPos;
         } else {
             codeBlock->peekCode<IteratorNextValue>(exit2Pos)->m_jumpPosition = exitPos;
         }

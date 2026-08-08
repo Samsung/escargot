@@ -69,8 +69,8 @@ public:
 
         context->giveUpRegister(); // for drop undefinedIndex
 
-        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this->m_loc.index);
-        size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
+        codeBlock->pushCode<JumpIfBoolean>(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, cmpIndex), context, this->m_loc.index);
+        size_t pos1 = codeBlock->lastCodePosition<JumpIfBoolean>();
         context->giveUpRegister(); // for drop cmpIndex
 
         // not undefined case, set srcRegister
@@ -109,7 +109,7 @@ public:
         size_t pos2 = codeBlock->lastCodePosition<Jump>();
 
         // undefined case, set default node
-        codeBlock->peekCode<JumpIfTrue>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfBoolean>(pos1)->m_jumpPosition = codeBlock->currentCodeSize();
 
         // restore initialized parameter names so the default branch re-checks parameter
         // references (e.g. the computed keys of the pattern) instead of reusing the state

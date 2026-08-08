@@ -459,7 +459,7 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
             ADD_CUSTOM_COMMAND (
                 OUTPUT ${NAPI_TEST_TC_SO}
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -I${ESCARGOT_ROOT}/test/napi-tc/src ${NAPI_TEST_TC_SRCS} -o ${NAPI_TEST_TC_SO}
+                COMMAND ${NAPI_TEST_TC_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -DNAPI_EXPERIMENTAL -DNODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT -I${ESCARGOT_ROOT}/test/napi-tc/src ${NAPI_TEST_TC_SRCS} -o ${NAPI_TEST_TC_SO}
                 DEPENDS ${NAPI_TEST_TC_SRCS}
                 COMMENT "Building napi test addon ${NAPI_TEST_TC_NAME}.so"
             )
@@ -483,7 +483,7 @@ ELSEIF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
         ADD_CUSTOM_COMMAND (
             OUTPUT ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${NAPI_TEST_ADDON_DIR}
-            COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -I${ESCARGOT_ROOT}/test/napi-tc/src -I${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC} -o ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
+            COMMAND ${CMAKE_C_COMPILER} -shared -fPIC -DNAPI_VERSION=10 -DNAPI_EXPERIMENTAL -DNODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT -I${ESCARGOT_ROOT}/test/napi-tc/src -I${ESCARGOT_ROOT}/test/napi-tc/test/js-native-api ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC} -o ${NAPI_CUSTOM_SYMBOL_VERIFY_SO}
             DEPENDS ${NAPI_CUSTOM_SYMBOL_VERIFY_SRC}
             COMMENT "Building napi custom test addon test_symbol_verify.so"
         )
