@@ -970,4 +970,19 @@ size_t InterpretedCodeBlock::findVarName(const AtomicString& name)
     }
 }
 
+bool InterpretedCodeBlock::hasExplicitArgumentsBinding(LexicalBlockIndex blockIndex)
+{
+    AtomicString name = m_context->staticStrings().arguments;
+    if (std::get<0>(findNameWithinBlock(blockIndex, name))) {
+        return true;
+    }
+
+    if (blockIndex < m_functionBodyBlockIndex) {
+        return isParameterName(name);
+    }
+
+    size_t idx = findVarName(name);
+    return idx != SIZE_MAX && m_identifierInfos[idx].m_isExplicitlyDeclaredOrParameterName;
+}
+
 } // namespace Escargot

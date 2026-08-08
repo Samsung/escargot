@@ -936,9 +936,10 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             code += cd->m_tailDataLength;
             break;
         }
-        case LoadArgumentsLengthOpcode: {
-            LoadArgumentsLength* cd = (LoadArgumentsLength*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+        case LoadArgumentsElementOpcode: {
+            LoadArgumentsElement* cd = (LoadArgumentsElement*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_indexRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         default:
