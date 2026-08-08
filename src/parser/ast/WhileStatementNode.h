@@ -67,8 +67,8 @@ public:
             } else {
                 ByteCodeRegisterIndex testR = m_test->getRegister(codeBlock, &newContext);
                 m_test->generateExpressionByteCode(codeBlock, &newContext, testR);
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this->m_loc.index);
-                testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testR), &newContext, this->m_loc.index);
+                testPos = codeBlock->lastCodePosition<JumpIfBoolean>();
                 newContext.giveUpRegister();
             }
         }

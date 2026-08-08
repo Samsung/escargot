@@ -184,11 +184,11 @@ public:
                     codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), propertyIndex, stringReg, testReg), context, this->m_loc.index);
 
                     size_t jmpPos = codeBlock->currentCodeSize();
-                    codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
+                    codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testReg), context, this->m_loc.index);
 
                     codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Static_Generator), context, this->m_loc.index);
 
-                    codeBlock->peekCode<JumpIfFalse>(jmpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+                    codeBlock->peekCode<JumpIfBoolean>(jmpPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
                     context->giveUpRegister();
                     context->giveUpRegister();

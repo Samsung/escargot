@@ -87,7 +87,7 @@ public:
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this->m_loc.index);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this->m_loc.index);
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, resultIndex), &newContext, this->m_loc.index);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
             nd = nd->nextSibling();
@@ -102,7 +102,7 @@ public:
             size_t resultIndex = newContext.getRegister();
             codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this->m_loc.index);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this->m_loc.index);
+            codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, resultIndex), &newContext, this->m_loc.index);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
             nd = nd->nextSibling();
@@ -122,7 +122,7 @@ public:
         nd = m_casesB->firstChild();
         while (nd) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
-            codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
             nd = nd->nextSibling();
         }
@@ -133,7 +133,7 @@ public:
         nd = m_casesA->firstChild();
         while (nd) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
-            codeBlock->peekCode<JumpIfTrue>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
+            codeBlock->peekCode<JumpIfBoolean>(jumpCodePerCaseNodePosition[caseIdx++])->m_jumpPosition = codeBlock->currentCodeSize();
             caseNode->generateStatementByteCode(codeBlock, &newContext);
             nd = nd->nextSibling();
         }

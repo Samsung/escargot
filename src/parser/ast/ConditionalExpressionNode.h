@@ -39,15 +39,15 @@ public:
     {
         size_t testReg = m_test->getRegister(codeBlock, context);
         m_test->generateExpressionByteCode(codeBlock, context, testReg);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
+        codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testReg), context, this->m_loc.index);
 
         // give testReg
         context->giveUpRegister();
 
-        size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
+        size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfBoolean>();
         m_consequente->generateExpressionByteCode(codeBlock, context, dstRegister);
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this->m_loc.index);
-        JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
+        JumpIfBoolean* jumpForTestIsFalse = codeBlock->peekCode<JumpIfBoolean>(jumpPosForTestIsFalse);
         size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
 
         jumpForTestIsFalse->m_jumpPosition = codeBlock->currentCodeSize();
@@ -62,15 +62,15 @@ public:
     {
         size_t testReg = m_test->getRegister(codeBlock, context);
         m_test->generateExpressionByteCode(codeBlock, context, testReg);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
+        codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testReg), context, this->m_loc.index);
 
         // give testReg
         context->giveUpRegister();
 
-        size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
+        size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfBoolean>();
         m_consequente->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this->m_loc.index);
-        JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
+        JumpIfBoolean* jumpForTestIsFalse = codeBlock->peekCode<JumpIfBoolean>(jumpPosForTestIsFalse);
         size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
 
         jumpForTestIsFalse->m_jumpPosition = codeBlock->currentCodeSize();

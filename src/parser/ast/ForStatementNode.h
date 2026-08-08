@@ -150,8 +150,8 @@ public:
             } else {
                 testIndex = m_test->getRegister(codeBlock, &newContext);
                 m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this->m_loc.index);
-                testPos = codeBlock->lastCodePosition<JumpIfFalse>();
+                codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), true, testIndex), &newContext, this->m_loc.index);
+                testPos = codeBlock->lastCodePosition<JumpIfBoolean>();
                 newContext.giveUpRegister();
             }
             if (shouldCareScriptExecutionResult) {

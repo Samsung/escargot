@@ -88,14 +88,14 @@ public:
         iteratorTestDoneData.m_dstRegisterIndex = doneIndex;
         iteratorTestDoneData.m_isIteratorRecord = true;
         codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), context, this->m_loc.index);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneIndex), context, this->m_loc.index);
-        size_t jumpPos = codeBlock->lastCodePosition<JumpIfTrue>();
+        codeBlock->pushCode(JumpIfBoolean(ByteCodeLOC(m_loc.index), false, doneIndex), context, this->m_loc.index);
+        size_t jumpPos = codeBlock->lastCodePosition<JumpIfBoolean>();
 
         IteratorOperation::IteratorCloseData iteratorCloseData;
         iteratorCloseData.m_iterRegisterIndex = iteratorRecordIndex;
         iteratorCloseData.m_execeptionRegisterIndexIfExists = REGISTER_LIMIT;
         codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), context, this->m_loc.index);
-        codeBlock->peekCode<JumpIfTrue>(jumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        codeBlock->peekCode<JumpIfBoolean>(jumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
         // the record was created by the GetIterator above and is only ever read
         // by the opcodes in between, so nothing can hold it past this point. the
         // finalizer runs on every exit, including an abrupt one
