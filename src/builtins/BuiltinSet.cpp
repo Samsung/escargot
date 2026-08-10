@@ -693,6 +693,9 @@ void GlobalObject::installSet(ExecutionState& state)
     m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().symmetricDifference, builtinSetSymmetricDifference, 1);
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
+    // Well-Known Intrinsic Objects : %SetProto_values%
+    // The initial value of the values data property of %Set.prototype%
+    m_setPrototypeValues = valuesFn;
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), values);
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), values);

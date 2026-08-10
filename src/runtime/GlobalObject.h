@@ -211,10 +211,11 @@ class FunctionObject;
     F(regexpReplaceMethod, FunctionObject, objName)   \
     F(regexpStringIteratorPrototype, Object, objName) \
     F(regexpSplitMethod, FunctionObject, objName)
-#define GLOBALOBJECT_BUILTIN_SET(F, objName) \
-    F(set, FunctionObject, objName)          \
-    F(setPrototypeObject, Object, objName)   \
-    F(setIteratorPrototype, Object, objName) \
+#define GLOBALOBJECT_BUILTIN_SET(F, objName)       \
+    F(set, FunctionObject, objName)                \
+    F(setPrototypeObject, Object, objName)         \
+    F(setPrototypeValues, FunctionObject, objName) \
+    F(setIteratorPrototype, Object, objName)       \
     F(setIteratorPrototypeNext, FunctionObject, objName)
 
 #if defined(ENABLE_SHADOWREALM)

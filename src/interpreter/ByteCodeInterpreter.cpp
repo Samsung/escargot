@@ -34,6 +34,7 @@
 #include "runtime/EnumerateObject.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/SetObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorObject.h"
@@ -5172,6 +5173,11 @@ NEVER_INLINE void InterpreterSlowPath::createArrayFromIterable(ExecutionState& s
     Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, source);
     if (LIKELY(fastSource)) {
         registerFile[code->m_registerIndex] = ArrayObject::createDenseCopy(state, fastSource.value());
+        return;
+    }
+    Optional<SetObject*> fastSet = IteratorObject::tryFastSetIterationSource(state, source);
+    if (LIKELY(fastSet)) {
+        registerFile[code->m_registerIndex] = SetObject::createDenseArrayCopy(state, fastSet.value());
         return;
     }
 

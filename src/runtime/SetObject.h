@@ -61,6 +61,11 @@ public:
         return m_storage;
     }
 
+    // bulk-copies the live (non-tombstone) elements of `src` into a fresh
+    // Array, bypassing the iterator protocol entirely; only valid to call
+    // when IteratorObject::tryFastSetIterationSource(src) vouches for `src`
+    static ArrayObject* createDenseArrayCopy(ExecutionState& state, SetObject* src);
+
 private:
     // returns index into m_storage or SIZE_MAX; builds the hash index once the
     // storage outgrows KeyedCollectionHashIndex::buildThreshold

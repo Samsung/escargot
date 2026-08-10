@@ -25,6 +25,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/AsyncFromSyncIteratorObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/SetObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/ArrayBuffer.h"
@@ -251,6 +252,44 @@ Optional<ArrayObject*> IteratorObject::tryFastArrayIterationSource(ExecutionStat
         return NullOption;
     }
     return arr;
+}
+
+Optional<SetObject*> IteratorObject::tryFastSetIterationSource(ExecutionState& state, const Value& value)
+{
+    if (!value.isObject() || !value.asObject()->isSetObject()) {
+        return NullOption;
+    }
+    SetObject* set = value.asObject()->asSetObject();
+    GlobalObject* g = state.context()->globalObject();
+    // unlike an array, a Set's storage is an opaque internal slot rather than
+    // indexed properties, so there is no "prototype defined an indexed
+    // property" protector to check here
+    if (set->getPrototypeObject(state) != g->setPrototypeObject()) {
+        return NullOption;
+    }
+    // the set itself must not shadow @@iterator
+    if (UNLIKELY(set->getOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator)).hasValue())) {
+        return NullOption;
+    }
+    // Set.prototype[@@iterator] (== .values) must still be the builtin values function
+    auto iterProp = g->setPrototypeObject()->getOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+    if (!iterProp.hasValue() || !iterProp.isDataProperty()) {
+        return NullOption;
+    }
+    Value iterFn = iterProp.value(state, g->setPrototypeObject());
+    if (!iterFn.isPointerValue() || iterFn.asPointerValue() != g->setPrototypeValues()) {
+        return NullOption;
+    }
+    // %SetIteratorPrototype%.next must still be the builtin
+    auto nextProp = g->setIteratorPrototype()->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next));
+    if (!nextProp.hasValue() || !nextProp.isDataProperty()) {
+        return NullOption;
+    }
+    Value nextFn = nextProp.value(state, g->setIteratorPrototype());
+    if (!nextFn.isPointerValue() || nextFn.asPointerValue() != g->setIteratorPrototypeNext()) {
+        return NullOption;
+    }
+    return set;
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratornext

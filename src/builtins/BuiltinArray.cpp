@@ -22,6 +22,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/SetObject.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/AsyncFromSyncIteratorObject.h"
 #include "runtime/ToStringRecursionPreventer.h"
@@ -230,6 +231,13 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, items);
             if (LIKELY(fastSource)) {
                 return ArrayObject::createDenseCopy(state, fastSource.value());
+            }
+            // same idea for a Set: bypass GetIterator (which would otherwise
+            // call Set.prototype.values() and materialize a SetIteratorObject)
+            // and scan its ordered backing storage directly
+            Optional<SetObject*> fastSet = IteratorObject::tryFastSetIterationSource(state, items);
+            if (LIKELY(fastSet)) {
+                return SetObject::createDenseArrayCopy(state, fastSet.value());
             }
         }
         ValueVector buffer;
