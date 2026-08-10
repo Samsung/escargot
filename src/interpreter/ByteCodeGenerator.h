@@ -253,6 +253,29 @@ struct ByteCodeGenerateContext {
         m_registerStack->pop_back();
     }
 
+    // allocates `count` contiguous registers and returns the index of the first one.
+    // getRegister() always hands out the current m_baseRegisterCount and bumps it, so
+    // calling it back-to-back here guarantees the block is contiguous.
+    size_t getRegisters(size_t count)
+    {
+        ASSERT(count > 0);
+        size_t first = getRegister();
+        for (size_t i = 1; i < count; i++) {
+            getRegister();
+        }
+        return first;
+    }
+
+    // gives up `count` registers most recently handed out by getRegisters(count)
+    // (or an equivalent run of getRegister() calls); mirrors giveUpRegister() in reverse order
+    void giveUpRegisters(size_t count)
+    {
+        ASSERT(count > 0);
+        for (size_t i = 0; i < count; i++) {
+            giveUpRegister();
+        }
+    }
+
     void consumeBreakPositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);
     void consumeLabelledBreakPositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount);
     void consumeContinuePositions(ByteCodeBlock* cb, size_t position, int outerLimitCount);

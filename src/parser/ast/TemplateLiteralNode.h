@@ -55,43 +55,78 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ASSERT(m_expressions.size() + 1 == m_quasis->size());
-        Value value;
-        if ((*m_quasis)[0]->value) {
-            UTF16StringData& sd = (*m_quasis)[0]->value.value();
-            if (sd.size()) {
-                String* str = new UTF16String(std::move((*m_quasis)[0]->value.value()));
-                codeBlock->m_stringLiteralData.push_back(str);
-                value = str;
-            } else {
-                value = String::emptyString();
-            }
-        }
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this->m_loc.index);
+        size_t totalElements = m_expressions.size() + m_quasis->size();
 
-        size_t index = 0;
-        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
-            size_t eSrc = expression->astNode()->getRegister(codeBlock, context);
-            expression->astNode()->generateExpressionByteCode(codeBlock, context, eSrc);
-            codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this->m_loc.index);
-            context->giveUpRegister();
+        if (totalElements <= TemplateOperation::kMaxTemplateRegisterCount) {
+            size_t rStart = context->getRegisters(totalElements);
 
-            if ((*m_quasis)[index + 1]->value) {
-                UTF16StringData& sd = (*m_quasis)[index + 1]->value.value();
-                if (sd.size()) {
-                    String* str = new UTF16String(std::move(sd));
-                    codeBlock->m_stringLiteralData.push_back(str);
-                    size_t reg = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this->m_loc.index);
-                    codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this->m_loc.index);
-                    context->giveUpRegister();
+            for (size_t i = 0; i < m_quasis->size(); ++i) {
+                Value value;
+                if ((*m_quasis)[i]->value) {
+                    UTF16StringData& sd = (*m_quasis)[i]->value.value();
+                    if (sd.size()) {
+                        String* str = new UTF16String(std::move((*m_quasis)[i]->value.value()));
+                        codeBlock->m_stringLiteralData.push_back(str);
+                        value = str;
+                    } else {
+                        value = String::emptyString();
+                    }
                 }
-            } else {
-                size_t reg = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value()), context, this->m_loc.index);
-                codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this->m_loc.index);
-                context->giveUpRegister();
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), rStart + (i * 2), value), context, this->m_loc.index);
             }
-            index++;
+
+            size_t idx = 0;
+            for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+                expression->astNode()->generateExpressionByteCode(codeBlock, context, rStart + (idx * 2) + 1);
+                idx++;
+            }
+
+            codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), rStart, totalElements, dstRegister, TemplateOperation::Finalize), context, this->m_loc.index);
+            context->giveUpRegisters(totalElements);
+        } else {
+            size_t rStart = context->getRegisters(TemplateOperation::kMaxTemplateRegisterCount);
+
+            size_t currentChunkCount = 0;
+            size_t processedCount = 0;
+            SentinelNode* exprIter = m_expressions.begin();
+
+            for (size_t i = 0; i < totalElements; ++i) {
+                size_t slotIndex = currentChunkCount;
+                if (currentChunkCount == 0 && processedCount > 0) {
+                    codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), dstRegister, rStart), context, this->m_loc.index);
+                    slotIndex = 1;
+                    currentChunkCount = 1;
+                }
+
+                if (i % 2 == 0) {
+                    size_t quasiIdx = i / 2;
+                    Value value;
+                    if ((*m_quasis)[quasiIdx]->value) {
+                        UTF16StringData& sd = (*m_quasis)[quasiIdx]->value.value();
+                        if (sd.size()) {
+                            String* str = new UTF16String(std::move((*m_quasis)[quasiIdx]->value.value()));
+                            codeBlock->m_stringLiteralData.push_back(str);
+                            value = str;
+                        } else {
+                            value = String::emptyString();
+                        }
+                    }
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), rStart + slotIndex, value), context, this->m_loc.index);
+                } else {
+                    exprIter->astNode()->generateExpressionByteCode(codeBlock, context, rStart + slotIndex);
+                    exprIter = exprIter->next();
+                }
+
+                currentChunkCount++;
+                processedCount++;
+
+                if (currentChunkCount == TemplateOperation::kMaxTemplateRegisterCount || processedCount == totalElements) {
+                    codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), rStart, currentChunkCount, dstRegister, TemplateOperation::Finalize), context, this->m_loc.index);
+                    currentChunkCount = 0;
+                }
+            }
+
+            context->giveUpRegisters(TemplateOperation::kMaxTemplateRegisterCount);
         }
     }
 

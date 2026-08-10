@@ -1941,22 +1941,54 @@ public:
 
 class TemplateOperation : public ByteCode {
 public:
+    enum Stage ENSURE_ENUM_UNSIGNED {
+        LegacyConcat,
+        Finalize
+    };
+
+    static constexpr size_t kMaxTemplateRegisterCount = 8;
+
     TemplateOperation(const ByteCodeLOC& loc, const size_t src0Index, const size_t src1Index, const size_t dstIndex)
         : ByteCode(Opcode::TemplateOperationOpcode, loc)
+        , m_stage(LegacyConcat)
         , m_src0Index(src0Index)
         , m_src1Index(src1Index)
         , m_dstIndex(dstIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_src0Index;
-    ByteCodeRegisterIndex m_src1Index;
-    ByteCodeRegisterIndex m_dstIndex;
+    TemplateOperation(const ByteCodeLOC& loc, const size_t srcStartRegisterIndex, const size_t count, const size_t dstRegisterIndex, Stage stage)
+        : ByteCode(Opcode::TemplateOperationOpcode, loc)
+        , m_stage(stage)
+        , m_srcStartRegisterIndex(srcStartRegisterIndex)
+        , m_count(count)
+        , m_dstRegisterIndex(dstRegisterIndex)
+    {
+        ASSERT(stage == Finalize);
+    }
+
+    Stage m_stage;
+    union {
+        struct {
+            ByteCodeRegisterIndex m_src0Index;
+            ByteCodeRegisterIndex m_src1Index;
+            ByteCodeRegisterIndex m_dstIndex;
+        };
+        struct {
+            ByteCodeRegisterIndex m_srcStartRegisterIndex;
+            size_t m_count;
+            ByteCodeRegisterIndex m_dstRegisterIndex;
+        };
+    };
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("template operation(+) r%u <- r%u + r%u", m_dstIndex, m_src0Index, m_src1Index);
+        if (m_stage == LegacyConcat) {
+            printf("template operation(+) r%u <- r%u + r%u", m_dstIndex, m_src0Index, m_src1Index);
+        } else {
+            printf("template operation(finalize) r%u <- r%u count:%zu", m_dstRegisterIndex, m_srcStartRegisterIndex, m_count);
+        }
     }
 #endif
 };
