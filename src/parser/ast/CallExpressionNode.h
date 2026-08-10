@@ -22,6 +22,7 @@
 
 #include "ExpressionNode.h"
 #include "MemberExpressionNode.h"
+#include "SpreadElementNode.h"
 
 #include "SuperExpressionNode.h"
 
@@ -246,9 +247,26 @@ public:
             }
         }
 
-        auto args = generateArguments(codeBlock, context);
-        ByteCodeRegisterIndex argumentsStartIndex = args.first;
-        bool hasSpreadElement = args.second;
+        // `f(...args)` with nothing else in the argument list has no sibling argument whose
+        // evaluation order needs preserving around the spread, so the call can be handed the
+        // raw iterable directly (see CallComplexCase::SoleSpreadElement) instead of building a
+        // CreateSpreadArrayObject just to immediately re-flatten it in spreadFunctionArguments()
+        bool isSoleSpreadElement = !isSuperCall && m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
+
+        ByteCodeRegisterIndex argumentsStartIndex;
+        bool hasSpreadElement;
+        if (isSoleSpreadElement) {
+            context->m_inCallingExpressionScope = false;
+            Node* innerArgument = m_arguments.begin()->astNode()->asSpreadElement()->argument();
+            argumentsStartIndex = innerArgument->getRegister(codeBlock, context);
+            innerArgument->generateExpressionByteCode(codeBlock, context, argumentsStartIndex);
+            context->giveUpRegister();
+            hasSpreadElement = false;
+        } else {
+            auto args = generateArguments(codeBlock, context);
+            argumentsStartIndex = args.first;
+            hasSpreadElement = args.second;
+        }
 
         if (m_isOptional) {
             codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
@@ -265,11 +283,15 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, args.second, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, hasSpreadElement, false,
                                                 REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
+        } else if (isSoleSpreadElement) {
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::SoleSpreadElement, false, false, false,
+                                                receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this->m_loc.index);
         } else if (hasSpreadElement) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::WithSpreadElement, false, args.second, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::WithSpreadElement, false, hasSpreadElement, false,
                                                 receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
         } else if (isCalleeHasReceiver) {
@@ -387,9 +409,24 @@ public:
             }
         }
 
-        auto args = generateArguments(codeBlock, context);
-        ByteCodeRegisterIndex argumentsStartIndex = args.first;
-        bool hasSpreadElement = args.second;
+        // see the non-TCO generateExpressionByteCode above for the rationale; spread calls
+        // (mixed or sole) never attempt TCO below, so this is a pure opcode substitution
+        bool isSoleSpreadElement = !isSuperCall && m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
+
+        ByteCodeRegisterIndex argumentsStartIndex;
+        bool hasSpreadElement;
+        if (isSoleSpreadElement) {
+            context->m_inCallingExpressionScope = false;
+            Node* innerArgument = m_arguments.begin()->astNode()->asSpreadElement()->argument();
+            argumentsStartIndex = innerArgument->getRegister(codeBlock, context);
+            innerArgument->generateExpressionByteCode(codeBlock, context, argumentsStartIndex);
+            context->giveUpRegister();
+            hasSpreadElement = false;
+        } else {
+            auto args = generateArguments(codeBlock, context);
+            argumentsStartIndex = args.first;
+            hasSpreadElement = args.second;
+        }
 
         if (m_isOptional) {
             codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
@@ -406,11 +443,15 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, args.second, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, hasSpreadElement, false,
                                                 REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
+        } else if (isSoleSpreadElement) {
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::SoleSpreadElement, false, false, false,
+                                                receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this->m_loc.index);
         } else if (hasSpreadElement) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::WithSpreadElement, false, args.second, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::WithSpreadElement, false, hasSpreadElement, false,
                                                 receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
         } else if (isCalleeHasReceiver) {

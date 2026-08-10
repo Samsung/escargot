@@ -165,6 +165,7 @@ public:
     static Value constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv);
     static void callFunctionComplexCase(ExecutionState& state, CallComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+    static void spreadSoleIterableArgument(ExecutionState& state, const Value& source, ValueVector& argVector);
 
     static void createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile);
     static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile);
@@ -4687,6 +4688,22 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         }
         break;
     }
+    case CallComplexCase::SoleSpreadElement: {
+        ASSERT(!code->m_isOptional);
+        const Value& callee = registerFile[code->m_calleeIndex];
+        const Value& receiver = code->m_receiverOrThisIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverOrThisIndex];
+
+        if (UNLIKELY(!callee.isPointerValue())) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        }
+
+        // m_argumentsStartIndex holds the raw iterable directly (see CallExpressionNode's
+        // isSoleSpreadElement codegen) - no CreateSpreadArrayObject was built for it
+        ValueVector spreadArgs;
+        spreadSoleIterableArgument(state, registerFile[code->m_argumentsStartIndex], spreadArgs);
+        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
+        break;
+    }
     case CallComplexCase::Super: {
         ASSERT(!code->m_isOptional);
         // Let newTarget be GetNewTarget().
@@ -4820,6 +4837,51 @@ NEVER_INLINE void InterpreterSlowPath::spreadFunctionArguments(ExecutionState& s
         } else {
             argVector.push_back(arg);
         }
+    }
+}
+
+NEVER_INLINE void InterpreterSlowPath::spreadSoleIterableArgument(ExecutionState& state, const Value& source, ValueVector& argVector)
+{
+    // `f(...args)` with nothing else in the argument list: unlike spreadFunctionArguments
+    // (which re-flattens an already-built spread ArrayObject), there is no
+    // CreateSpreadArrayObject here to unwrap - source is the raw iterable itself, so it can
+    // be scanned directly with the same fast-mode-array/Set bulk-copy checks the array/Set
+    // literal spread paths already use (IteratorObject::tryFastArrayIterationSource /
+    // tryFastSetIterationSource), falling back to the generic iterator protocol otherwise
+    Optional<ArrayObject*> fastArray = IteratorObject::tryFastArrayIterationSource(state, source);
+    if (LIKELY(fastArray)) {
+        ArrayObject* arr = fastArray.value();
+        uint32_t len = arr->arrayLength(state);
+        argVector.reserve(len);
+        for (uint32_t i = 0; i < len; i++) {
+            Value v = arr->m_fastModeData[i];
+            // a hole reads as undefined (indexed-prototype protector already checked)
+            argVector.push_back(LIKELY(!v.isEmpty()) ? v : Value());
+        }
+        return;
+    }
+
+    Optional<SetObject*> fastSet = IteratorObject::tryFastSetIterationSource(state, source);
+    if (LIKELY(fastSet)) {
+        const SetObject::SetObjectData& storage = fastSet.value()->storage();
+        argVector.reserve(storage.size());
+        for (size_t i = 0; i < storage.size(); i++) {
+            Value v = storage[i];
+            // deleted entries are tombstones left in place, not physically removed
+            if (LIKELY(!v.isEmpty())) {
+                argVector.push_back(v);
+            }
+        }
+        return;
+    }
+
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, source);
+    while (true) {
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
+        if (!next.hasValue()) {
+            break;
+        }
+        argVector.push_back(next.value());
     }
 }
 
