@@ -194,4 +194,15 @@ FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 
     return s;
 }
+
+bool StaticStrings::dtoaCacheHas(double d) const
+{
+    size_t size = dtoaCache.size();
+    for (size_t i = 0; i < size; ++i) {
+        if (dtoaCache[i].first == d) {
+            return true;
+        }
+    }
+    return false;
+}
 } // namespace Escargot
