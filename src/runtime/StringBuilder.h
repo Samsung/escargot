@@ -45,7 +45,7 @@ public:
         m_contentLength = 0;
         m_piecesInlineStorageUsage = 0;
         m_pieces.clear();
-        m_rootedStringSet.clear();
+        m_rootedStringSet.reset();
     }
 
     struct StringBuilderPiece {
@@ -92,7 +92,8 @@ protected:
     size_t m_piecesInlineStorageUsage;
     size_t m_contentLength;
     std::vector<StringBuilderPiece> m_pieces;
-    HashSet<void*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<void*>> m_rootedStringSet;
+    using StringSet = HashSet<void*, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<void*>>;
+    Optional<StringSet*> m_rootedStringSet;
 };
 
 template <const size_t InlineStorageSize>
@@ -142,7 +143,10 @@ class StringBuilderImpl : public StringBuilderBase {
                 m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
             } else {
                 m_pieces.push_back(piece);
-                m_rootedStringSet.insert(piece.m_string);
+                if (!m_rootedStringSet) {
+                    m_rootedStringSet = new (GC) StringSet;
+                }
+                m_rootedStringSet->insert(piece.m_string);
             }
         }
     }
