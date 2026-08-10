@@ -2518,6 +2518,11 @@ class CallComplexCase : public ByteCode {
 public:
     enum Kind ENSURE_ENUM_UNSIGNED {
         WithSpreadElement,
+        // the call's entire argument list is a single bare spread (`f(...args)`) - there is
+        // no other argument whose evaluation order needs preserving around it, so
+        // m_argumentsStartIndex holds the raw iterable value directly instead of a
+        // CreateSpreadArrayObject result waiting to be re-flattened
+        SoleSpreadElement,
         MayBuiltinApply,
         MayBuiltinEval,
         InWithScope,
