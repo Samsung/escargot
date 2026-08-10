@@ -171,6 +171,22 @@ size_t SetObject::size(ExecutionState& state)
     return siz;
 }
 
+ArrayObject* SetObject::createDenseArrayCopy(ExecutionState& state, SetObject* src)
+{
+    const SetObjectData& storage = src->m_storage;
+    ValueVector buffer;
+    buffer.reserve(storage.size());
+    for (size_t i = 0; i < storage.size(); i++) {
+        Value v = storage[i];
+        // deleted entries are tombstones left in place (see deleteOperation),
+        // not physically removed, so they must be skipped rather than copied
+        if (LIKELY(!v.isEmpty())) {
+            buffer.pushBack(v);
+        }
+    }
+    return new ArrayObject(state, buffer.data(), buffer.size());
+}
+
 IteratorObject* SetObject::values(ExecutionState& state)
 {
     return new SetIteratorObject(state, this, SetIteratorObject::TypeValue);

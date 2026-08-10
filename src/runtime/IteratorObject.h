@@ -152,6 +152,10 @@ public:
     // non-null when iterating `value` with the iterator protocol is observably
     // identical to walking its fast-mode elements directly
     static Optional<ArrayObject*> tryFastArrayIterationSource(ExecutionState& state, const Value& value);
+    // same idea for a Set: non-null when `value` is a Set whose default
+    // (values) iteration is unobservably different from a direct scan of its
+    // ordered backing storage
+    static Optional<SetObject*> tryFastSetIterationSource(ExecutionState& state, const Value& value);
     static Object* iteratorNext(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& value = Value(Value::EmptyValue));
     static bool iteratorComplete(ExecutionState& state, Object* iterResult);
     static Value iteratorValue(ExecutionState& state, Object* iterResult);
