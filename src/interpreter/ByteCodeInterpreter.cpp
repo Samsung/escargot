@@ -1221,6 +1221,49 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(ExecutionResume)
+            :
+        {
+            Value v = InterpreterSlowPath::executionResumeOperation(state, programCounter, byteCodeBlock);
+            if (!v.isEmpty()) {
+                return v;
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(ExecutionPause)
+            :
+        {
+            ExecutionPause* code = (ExecutionPause*)programCounter;
+            InterpreterSlowPath::executionPauseOperation(*state, registerFile, programCounter, byteCodeBlock->m_code.data());
+            return Value();
+        }
+
+        DEFINE_OPCODE(InitializeDisposable)
+            :
+        {
+            InterpreterSlowPath::initializeDisposable(*state, registerFile, programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(FinalizeDisposable)
+            :
+        {
+            bool r = InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter, byteCodeBlock);
+            if (!r) {
+                return Value();
+            }
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(SetExecutionStateInStrictMode)
+            :
+        {
+            InterpreterSlowPath::setExecutionStateInStrictModeOperation(*state, registerFile, programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+
         DEFINE_OPCODE(End)
             :
         {
@@ -1810,24 +1853,6 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(ExecutionResume)
-            :
-        {
-            Value v = InterpreterSlowPath::executionResumeOperation(state, programCounter, byteCodeBlock);
-            if (!v.isEmpty()) {
-                return v;
-            }
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(ExecutionPause)
-            :
-        {
-            ExecutionPause* code = (ExecutionPause*)programCounter;
-            InterpreterSlowPath::executionPauseOperation(*state, registerFile, programCounter, byteCodeBlock->m_code.data());
-            return Value();
-        }
-
         DEFINE_OPCODE(BlockOperation)
             :
         {
@@ -1889,31 +1914,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_OPCODE(InitializeDisposable)
-            :
-        {
-            InterpreterSlowPath::initializeDisposable(*state, registerFile, programCounter);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(FinalizeDisposable)
-            :
-        {
-            bool r = InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter, byteCodeBlock);
-            if (!r) {
-                return Value();
-            }
-            NEXT_INSTRUCTION();
-        }
-
         // Rarely-used; see InterpreterSlowPath::setExecutionStateInStrictModeOperation.
-        DEFINE_OPCODE(SetExecutionStateInStrictMode)
-            :
-        {
-            InterpreterSlowPath::setExecutionStateInStrictModeOperation(*state, registerFile, programCounter);
-            NEXT_INSTRUCTION();
-        }
-
 #if defined(ENABLE_TCO)
         // Tail recursion
         DEFINE_OPCODE(TailRecursion)
