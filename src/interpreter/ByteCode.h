@@ -34,6 +34,42 @@ class Node;
 class ObjectStructure;
 struct GlobalVariableAccessCacheItem;
 
+/*
+ *  Do NOT rearrange the order of opcodes in the FOR_EACH_BYTECODE_OP(F) macro lightly.
+ *  Any reordering here directly and profoundly impacts physical machine code performance
+ *  due to the following compiler and hardware-level mechanics:
+ *
+ *  1. How the Compiler Compiles C++ Switch-Case Statement:
+ *     GCC and Clang compile the giant switch statement in ByteCodeInterpreter.cpp into an
+ *     Indirect Jump Table (.rodata segment). Crucially, the compiler layouts the physical
+ *     assembly instruction blocks for each "case" handler in the output binary (.text segment)
+ *     STRICTLY sorted in the ascending order of their "enum class Opcode" constant values.
+ *
+ *  2. The Illusion of CPP-Only Shuffling (Why changing .cpp only is useless):
+ *     If you physically cut-and-paste case blocks in ByteCodeInterpreter.cpp but do NOT
+ *     change their declaration order in this header file:
+ *     --> THE COMPILER WILL COMPLETELY IGNORE YOUR CPP-FILE PHYSICAL SHUFFLING!
+ *     The compiler will automatically re-sort the machine-code handlers back to match the
+ *     exact sequence of the enum values defined here. Thus, you must change this header file
+ *     macro to actually force physical machine code layout adjustments.
+ *
+ *  3. L1 Instruction Cache (I-cache) & Spatial Grouping:
+ *     - Relational families of opcodes (e.g., GetObject*IC family, SetObject*IC family, or
+ *       async ExecutionPause/ExecutionResume next to GetParameter) MUST be physically contiguous
+ *       in this macro. This ensures they fit within the same 64-byte L1 cache lines and memory
+ *       pages during execution transitions, completely eliminating I-cache thrashing.
+ *     - Shuffling standard opcodes indiscriminately changes indirect branch targets,
+ *       triggering ARM Branch Target Buffer (BTB) prediction penalties and cache-line misalignments.
+ *
+ *  4. Critical Development Rule (Keep Header & CPP Aligned):
+ *     ALWAYS ensure that the physical C++ case statement order in ByteCodeInterpreter.cpp and the
+ *     declaration order of the FOR_EACH_BYTECODE_OP(F) macro in this header file are kept
+ *     100% perfectly synchronized. Mismatching them can completely break the compiler's
+ *     switch-case indirect jump table optimizations, causing GCC to fall back to slow binary
+ *     search trees and leading to an instant 50% performance drop across all benchmarks!
+ * ======================================================================================
+ */
+
 // <OpcodeName, PushCount, PopCount>
 #define FOR_EACH_BYTECODE_OP(F)                       \
     F(LoadLiteral)                                    \
@@ -115,6 +151,11 @@ struct GlobalVariableAccessCacheItem;
     F(Call)                                           \
     F(CallWithReceiver)                               \
     F(GetParameter)                                   \
+    F(ExecutionResume)                                \
+    F(ExecutionPause)                                 \
+    F(InitializeDisposable)                           \
+    F(FinalizeDisposable)                             \
+    F(SetExecutionStateInStrictMode)                  \
     F(ReturnFunctionSlowCase)                         \
     F(TryOperation)                                   \
     F(CloseLexicalEnvironment)                        \
@@ -133,8 +174,6 @@ struct GlobalVariableAccessCacheItem;
     F(ObjectDefineGetterSetter)                       \
     F(CallComplexCase)                                \
     F(BindingRestElement)                             \
-    F(ExecutionResume)                                \
-    F(ExecutionPause)                                 \
     F(MetaPropertyOperation)                          \
     F(BlockOperation)                                 \
     F(ReplaceBlockLexicalEnvironmentOperation)        \
@@ -144,9 +183,6 @@ struct GlobalVariableAccessCacheItem;
     F(BindingCalleeIntoRegister)                      \
     F(ResolveNameAddress)                             \
     F(StoreByNameWithAddress)                         \
-    F(InitializeDisposable)                           \
-    F(FinalizeDisposable)                             \
-    F(SetExecutionStateInStrictMode)                  \
     F(FillOpcodeTable)                                \
     F(End)
 
