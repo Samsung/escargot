@@ -2463,13 +2463,25 @@ NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state
 
 NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
 {
-    const Value& s1 = registerFile[code->m_src0Index];
-    const Value& s2 = registerFile[code->m_src1Index];
+    if (code->m_stage == TemplateOperation::LegacyConcat) {
+        const Value& s1 = registerFile[code->m_src0Index];
+        const Value& s2 = registerFile[code->m_src1Index];
 
-    StringBuilder builder;
-    builder.appendString(s1.toString(state));
-    builder.appendString(s2.toString(state));
-    registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
+        StringBuilder builder;
+        builder.appendString(s1.toString(state));
+        builder.appendString(s2.toString(state));
+        registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
+    } else {
+        ASSERT(code->m_stage == TemplateOperation::Finalize);
+        StringBuilder builder;
+        size_t start = code->m_srcStartRegisterIndex;
+        size_t count = code->m_count;
+        for (size_t i = 0; i < count; ++i) {
+            const Value& val = registerFile[start + i];
+            builder.appendString(val.toString(state));
+        }
+        registerFile[code->m_dstRegisterIndex] = Value(builder.finalize(&state));
+    }
 }
 
 NEVER_INLINE Value InterpreterSlowPath::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::BitwiseOperationKind kind)

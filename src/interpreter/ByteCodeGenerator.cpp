@@ -618,9 +618,15 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         }
         case TemplateOperationOpcode: {
             TemplateOperation* cd = (TemplateOperation*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src0Index, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src1Index, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            if (cd->m_stage == TemplateOperation::LegacyConcat) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src0Index, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_src1Index, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else {
+                ASSERT(cd->m_stage == TemplateOperation::Finalize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcStartRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
             break;
         }
         case CallOpcode: {
