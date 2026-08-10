@@ -1,4 +1,6 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12 FATAL_ERROR)
+# See CMakeLists.txt's own cmake_minimum_required for why the "...4.0" range
+# is needed (CMake 4.x hard-errors below policy version 3.5 otherwise).
+CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12...4.0 FATAL_ERROR)
 
 IF (ESCARGOT_NAPI AND ESCARGOT_ENABLE_SHELL)
     MESSAGE(FATAL_ERROR "ESCARGOT_NAPI is enabled. The standard C++ shell target is not supported when Node-API is enabled because all proprietary public APIs are hidden for binary size optimization. Please configure with -DESCARGOT_ENABLE_SHELL=OFF instead.")
@@ -117,7 +119,9 @@ SET (ESCARGOT_CORE_SRC_LIST
 #######################################################
 
 
-SET (GCUTIL_BUILD_SHARED_LIBS ${ESCARGOT_BUILD_SHARED_LIBS})
+# Keep shared Escargot builds self-contained by default. Embedders that need
+# GCutil across a shared-library boundary must opt in explicitly.
+SET (GCUTIL_BUILD_SHARED_LIBS ${ESCARGOT_BUILD_GC_SHARED_LIBS})
 SET (GCUTIL_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} ${PROFILER_FLAGS})
 # Append, don't overwrite: a bare-metal port may have already pre-set this as
 # a CACHE variable before add_subdirectory()ing this whole project (e.g.
@@ -304,7 +308,7 @@ SET (ESCARGOT_INCDIRS
 IF(ESCARGOT_BUILD_SHARED_LIBS)
     ADD_LIBRARY (${ESCARGOT_TARGET} SHARED ${ESCARGOT_SRC_LIST})
     TARGET_COMPILE_OPTIONS (${ESCARGOT_TARGET} PRIVATE ${ESCARGOT_CXXFLAGS_SHAREDLIB})
-    IF (${ESCARGOT_HOST} STREQUAL "android")
+    IF (ESCARGOT_HOST STREQUAL "android")
         TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} PRIVATE -shared)
     ENDIF()
 ELSE()
@@ -477,7 +481,7 @@ IF(ESCARGOT_BUILD_CCTEST)
             ENDFOREACH()
 
             LIST (GET NAPI_TEST_TC_SRC_RELS 0 NAPI_TEST_TC_FIRST_SRC_REL)
-            IF (${NAPI_TEST_TC_ENTRY_NPARTS} GREATER 1)
+            IF (NAPI_TEST_TC_ENTRY_NPARTS GREATER 1)
                 LIST (GET NAPI_TEST_TC_ENTRY_PARTS 1 NAPI_TEST_TC_NAME)
             ELSE()
                 GET_FILENAME_COMPONENT (NAPI_TEST_TC_NAME ${NAPI_TEST_TC_FIRST_SRC_REL} NAME_WE)
@@ -485,7 +489,7 @@ IF(ESCARGOT_BUILD_CCTEST)
             GET_FILENAME_COMPONENT (NAPI_TEST_TC_EXT ${NAPI_TEST_TC_FIRST_SRC_REL} EXT)
             SET (NAPI_TEST_TC_SO ${NAPI_TEST_ADDON_DIR}/${NAPI_TEST_TC_NAME}.so)
 
-            IF (${NAPI_TEST_TC_EXT} STREQUAL ".c")
+            IF (NAPI_TEST_TC_EXT STREQUAL ".c")
                 SET (NAPI_TEST_TC_COMPILER ${CMAKE_C_COMPILER})
             ELSE()
                 SET (NAPI_TEST_TC_COMPILER ${CMAKE_CXX_COMPILER})

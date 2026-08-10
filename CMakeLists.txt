@@ -1,4 +1,10 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12 FATAL_ERROR)
+# <max> (the "...4.0" part) keeps this buildable on CMake 4.x: CMake 4.0
+# hard-errors when a project's effective policy version is below 3.5 (only
+# <min> below 2.8.12 was deprecated-but-tolerated before that). CMake older
+# than 3.12 doesn't understand the "..." range syntax at all and just sees
+# extra version-component dots, so it parses this as <min>=2.8.12 and
+# ignores the rest -- see `cmake --help-command cmake_minimum_required`.
+CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12...4.0 FATAL_ERROR)
 
 PROJECT (ESCARGOT)
 
@@ -159,6 +165,7 @@ IF (DEFINED DEBUGGER)
 ENDIF()
 
 option(ESCARGOT_BUILD_SHARED_LIBS "Build shared libraries" ${ESCARGOT_BUILD_SHARED_LIBS})
+option(ESCARGOT_BUILD_GC_SHARED_LIBS "Build GCutil as a shared library" OFF)
 option(ESCARGOT_ENABLE_SHELL "Build the Escargot shell" ${ESCARGOT_ENABLE_SHELL})
 option(ESCARGOT_BUILD_CCTEST "Build the C++ tests" OFF)
 option(ESCARGOT_TEST "Enable additional features used only for testing" OFF)

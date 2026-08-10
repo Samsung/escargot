@@ -50,6 +50,7 @@ The following build options are supported when generating build rules using cmak
 |-|-|-|-|-|
 | **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
 | **ESCARGOT_BUILD_SHARED_LIBS** | Build shared library | -DESCARGOT_BUILD_SHARED_LIBS | ON/OFF | OFF |
+| **ESCARGOT_BUILD_GC_SHARED_LIBS** | Build GCutil as a shared library | -DESCARGOT_BUILD_GC_SHARED_LIBS | ON/OFF | OFF |
 | **ENABLE_SHELL** | Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL) | -DENABLE_SHELL | ON/OFF | ON, except OFF when ESCARGOT_NAPI is ON |
 | **ESCARGOT_BUILD_CCTEST** | Build the C++ tests | -DESCARGOT_BUILD_CCTEST | ON/OFF | OFF |
 | **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON, except OFF on bare-metal |

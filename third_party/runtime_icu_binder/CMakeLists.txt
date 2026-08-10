@@ -1,5 +1,9 @@
 PROJECT(runtime-icu-binder)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
+# The "...4.0" range keeps this buildable on CMake 4.x, which hard-errors
+# when the effective policy version is below 3.5; pre-3.12 CMake doesn't
+# understand the range syntax and just uses 2.8.12 as before (see
+# `cmake --help-command cmake_minimum_required`).
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12...4.0 FATAL_ERROR)
 
 FILE(GLOB RIB_SRC *.cpp)
 
@@ -8,7 +12,7 @@ FILE(GLOB RIB_SRC *.cpp)
 # $<CONFIG:...> generator expressions, so multi-config generators (Visual Studio,
 # Xcode, Ninja Multi-Config) pick the right flags at build time -- CMAKE_BUILD_TYPE
 # isn't set at configure time for those.
-IF (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU|Clang|AppleClang")
+IF (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     # Base flags
     SET (RIB_CFLAGS_INTERNAL -fdata-sections -ffunction-sections -fvisibility=hidden)
 
@@ -19,7 +23,7 @@ IF (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU|Clang|AppleClang")
 
     # Use local variable instead of modifying global CMAKE_CXX_FLAGS
     SET (RIB_CXX_FLAGS -std=c++11 -fno-rtti)
-ELSEIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
+ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Base flags
     SET (RIB_CFLAGS_INTERNAL -fdata-sections -ffunction-sections)
 
@@ -46,15 +50,27 @@ SET (RIB_CONFIG_COMPILE_FLAGS
 ADD_LIBRARY(runtime-icu-binder-static STATIC ${RIB_SRC})
 SET_TARGET_PROPERTIES(runtime-icu-binder-static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# SEPARATE_ARGUMENTS()'s NATIVE_COMMAND mode needs CMake 3.9+ -- pick
+# WINDOWS_COMMAND/UNIX_COMMAND explicitly instead (that's all NATIVE_COMMAND
+# does internally anyway), which has worked since CMake's earliest 2.x
+# releases and keeps this compatible with the 2.8.12 floor declared above.
+MACRO (SEPARATE_ARGUMENTS_NATIVE_COMPAT _var)
+    IF (WIN32)
+        SEPARATE_ARGUMENTS (${_var} WINDOWS_COMMAND)
+    ELSE()
+        SEPARATE_ARGUMENTS (${_var} UNIX_COMMAND)
+    ENDIF()
+ENDMACRO()
+
 # Get CFLAGS from environment and convert to CMake list (like walrus)
 SET (RIB_CFLAGS_FROM_ENV $ENV{CFLAGS})
-SEPARATE_ARGUMENTS(RIB_CFLAGS_FROM_ENV NATIVE_COMMAND)
+SEPARATE_ARGUMENTS_NATIVE_COMPAT(RIB_CFLAGS_FROM_ENV)
 
 # Build compile flags as a proper CMake list
 SET (RIB_ALL_COMPILE_FLAGS ${RIB_CFLAGS_INTERNAL} ${RIB_CXX_FLAGS} ${RIB_CFLAGS_FROM_ENV})
 IF (RIB_CFLAGS_FROM_EXTERNAL)
     IF (NOT RIB_CFLAGS_FROM_EXTERNAL MATCHES ";")
-        SEPARATE_ARGUMENTS(RIB_CFLAGS_FROM_EXTERNAL NATIVE_COMMAND)
+        SEPARATE_ARGUMENTS_NATIVE_COMPAT(RIB_CFLAGS_FROM_EXTERNAL)
     ENDIF()
     LIST(APPEND RIB_ALL_COMPILE_FLAGS ${RIB_CFLAGS_FROM_EXTERNAL})
 ENDIF()
@@ -64,6 +80,6 @@ TARGET_COMPILE_OPTIONS(runtime-icu-binder-static PRIVATE ${RIB_ALL_COMPILE_FLAGS
 
 # Propagate dl library dependency to dependent targets (e.g. escargot target)
 # using Modern CMake INTERFACE linking. This replaces the problematic global link_libraries(-ldl).
-IF (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU|Clang|AppleClang" AND CMAKE_DL_LIBS)
+IF (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang" AND CMAKE_DL_LIBS)
     TARGET_LINK_LIBRARIES(runtime-icu-binder-static INTERFACE ${CMAKE_DL_LIBS})
 ENDIF()
