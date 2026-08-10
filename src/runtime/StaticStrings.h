@@ -1209,6 +1209,11 @@ public:
     mutable Vector<std::pair<double, ::Escargot::String*>, GCUtil::gc_malloc_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
 
     ::Escargot::String* dtoa(double d) const;
+    // cheap (<= dtoaCacheSize comparisons, no allocation) peek at whether d is
+    // already cached - lets a caller choose the cached-String path (dtoa()) when
+    // it'll hit for free, and a from-scratch path when it's known to miss anyway
+    // (see InterpreterSlowPath::appendValueToTemplateBuilder)
+    bool dtoaCacheHas(double d) const;
 
 protected:
     AtomicStringMap* m_atomicStringMap;

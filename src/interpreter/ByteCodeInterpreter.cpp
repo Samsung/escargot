@@ -2462,6 +2462,38 @@ NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state
     registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex0].instanceOf(state, registerFile[code->m_srcIndex1]));
 }
 
+// numbers go straight into the builder as digits instead of through
+// Value::toString(), which would GC-allocate a String just to be read once
+// here and discarded. Small non-negative int32s (0..ESCARGOT_STRINGS_NUMBERS_MAX)
+// are excluded on purpose - StaticStrings already caches those for free, so
+// going through appendInt32() would only add cost for no benefit. NaN/Infinity
+// are excluded too since StringBuilder's dtoa can't format them; toString()
+// already resolves those to shared static strings anyway.
+static void appendValueToTemplateBuilder(StringBuilder& builder, const Value& val, ExecutionState& state)
+{
+    if (LIKELY(val.isNumber())) {
+        if (val.isInt32()) {
+            int32_t i = val.asInt32();
+            if (UNLIKELY(i < 0 || i >= ESCARGOT_STRINGS_NUMBERS_MAX)) {
+                builder.appendInt32(i, &state);
+                return;
+            }
+        } else {
+            double d = val.asNumber();
+            // int32 skips this cache check entirely (appendInt32() already beats
+            // even a cache hit - see the comment above), but a non-integer double
+            // still has to run full dtoa() every time through appendNumber(), so
+            // it's worth a cheap peek first: if d is one of the ~5 most recently
+            // dtoa'd doubles, let it fall through to the cached path below instead
+            if (LIKELY(!std::isnan(d) && !std::isinf(d)) && !state.context()->staticStrings().dtoaCacheHas(d)) {
+                builder.appendNumber(d, &state);
+                return;
+            }
+        }
+    }
+    builder.appendString(val.toString(state));
+}
+
 NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
 {
     if (code->m_stage == TemplateOperation::LegacyConcat) {
@@ -2479,7 +2511,7 @@ NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, 
         size_t count = code->m_count;
         for (size_t i = 0; i < count; ++i) {
             const Value& val = registerFile[start + i];
-            builder.appendString(val.toString(state));
+            appendValueToTemplateBuilder(builder, val, state);
         }
         registerFile[code->m_dstRegisterIndex] = Value(builder.finalize(&state));
     }
