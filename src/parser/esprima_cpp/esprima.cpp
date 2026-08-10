@@ -3407,12 +3407,18 @@ public:
                 if (this->match(LeftBrace)) {
                     this->parseFunctionSourceElements(newBuilder);
                 } else {
+                    // names declared while parsing the arrow body belong to
+                    // the arrow's scope; they must not reach an outer
+                    // collector (e.g. `export const a = () => ...` collecting
+                    // exported names)
                     auto oldNameCallback = this->nameDeclaredCallback;
+                    this->nameDeclaredCallback = nullptr;
 #if defined(ESCARGOT_SMALL_CONFIG)
                     this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 #else
                     this->isolateCoverGrammar(newBuilder, &Parser::parseAssignmentExpression<SyntaxChecker, false>);
 #endif
+                    this->nameDeclaredCallback = oldNameCallback;
 
                     this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -5224,6 +5230,11 @@ public:
 
         bool oldAllowLexicalDeclaration = this->context->allowLexicalDeclaration;
         auto oldNameCallback = this->nameDeclaredCallback;
+        // names declared inside a nested function body belong to that
+        // function; without this, `export const a = t => { const o = ...; }`
+        // reported the arrow-local `o` as an exported name ("duplicate
+        // export name" once a second arrow declared `o` too)
+        this->nameDeclaredCallback = nullptr;
         this->context->allowLexicalDeclaration = true;
 
         bool oldInCatchClause = this->context->inCatchClause;
