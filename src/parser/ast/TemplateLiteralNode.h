@@ -51,6 +51,25 @@ public:
         return m_expressions;
     }
 
+    String* toTemplateString(ByteCodeBlock* codeBlock, UTF16StringData& sd)
+    {
+        String* value;
+        if (sd.size()) {
+            if (isAllLatin1(sd.data(), sd.length())) {
+                String* str = String::fromLatin1(sd.data(), sd.length());
+                value = str;
+                codeBlock->m_stringLiteralData.push_back(str);
+            } else {
+                String* str = new UTF16String(std::move(sd));
+                value = str;
+                codeBlock->m_stringLiteralData.push_back(str);
+            }
+        } else {
+            value = String::emptyString();
+        }
+        return value;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::TemplateLiteral; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
@@ -64,13 +83,7 @@ public:
                 Value value;
                 if ((*m_quasis)[i]->value) {
                     UTF16StringData& sd = (*m_quasis)[i]->value.value();
-                    if (sd.size()) {
-                        String* str = new UTF16String(std::move((*m_quasis)[i]->value.value()));
-                        codeBlock->m_stringLiteralData.push_back(str);
-                        value = str;
-                    } else {
-                        value = String::emptyString();
-                    }
+                    value = toTemplateString(codeBlock, sd);
                 }
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), rStart + (i * 2), value), context, this->m_loc.index);
             }
@@ -103,13 +116,7 @@ public:
                     Value value;
                     if ((*m_quasis)[quasiIdx]->value) {
                         UTF16StringData& sd = (*m_quasis)[quasiIdx]->value.value();
-                        if (sd.size()) {
-                            String* str = new UTF16String(std::move((*m_quasis)[quasiIdx]->value.value()));
-                            codeBlock->m_stringLiteralData.push_back(str);
-                            value = str;
-                        } else {
-                            value = String::emptyString();
-                        }
+                        value = toTemplateString(codeBlock, sd);
                     }
                     codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), rStart + slotIndex, value), context, this->m_loc.index);
                 } else {
