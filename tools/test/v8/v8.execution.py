@@ -33,7 +33,7 @@ import shutil
 import sys
 import time
 
-from pool import Pool
+from .pool import Pool
 from . import commands
 from . import perfdata
 from . import statusfile
@@ -174,7 +174,7 @@ class TestJob(Job):
       # suite object isn't pickled.
       self.test.SetSuiteObject(process_context.suites)
       instr = _GetInstructions(self.test, process_context.context)
-    except Exception, e:
+    except Exception as e:
       return SetupProblem(e, self.test)
 
     start_time = time.time()
@@ -223,7 +223,7 @@ class Runner(object):
   def _RunPerfSafe(self, fun):
     try:
       fun()
-    except Exception, e:
+    except Exception as e:
       print("PerfData exception: %s" % e)
       self.perf_failures = True
 
@@ -340,7 +340,7 @@ class Runner(object):
         test_map[test.id] = test
         try:
           yield [TestJob(test)]
-        except Exception, e:
+        except Exception as e:
           # If this failed, save the exception and re-raise it later (after
           # all other tests have had a chance to run).
           queued_exception[0] = e
@@ -371,7 +371,7 @@ class Runner(object):
       if self.perf_failures:
         # Nuke perf data in case of failures. This might not work on windows as
         # some files might still be open.
-        print "Deleting perf test data due to db corruption."
+        print("Deleting perf test data due to db corruption.")
         shutil.rmtree(self.datapath)
     if queued_exception[0]:
       raise queued_exception[0]
@@ -386,7 +386,7 @@ class Runner(object):
 
   def _VerbosePrint(self, text):
     if self.context.verbose:
-      print text
+      print(text)
       sys.stdout.flush()
 
 
