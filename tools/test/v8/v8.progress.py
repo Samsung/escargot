@@ -65,10 +65,10 @@ class ProgressIndicator(object):
       negative_marker = '[negative] '
     else:
       negative_marker = ''
-    print "=== %(label)s %(negative)s===" % {
+    print("=== %(label)s %(negative)s===" % {
       'label': test.GetLabel(),
       'negative': negative_marker
-    }
+    })
 
   def _EscapeCommand(self, test):
     command = execution.GetCommand(test, self.runner.context)
@@ -111,39 +111,39 @@ class SimpleProgressIndicator(ProgressIndicator):
   """Abstract base class for {Verbose,Dots}ProgressIndicator"""
 
   def Starting(self):
-    print 'Running %i tests' % self.runner.total
+    print('Running %i tests' % self.runner.total)
 
   def Done(self):
-    print
+    print()
     # NOTE(Escargot): redirect log to file to check regression
     old_stdout = sys.stdout
     sys.stdout = open('v8.verbose.txt', 'w')
     for failed in self.runner.failed:
       self.PrintFailureHeader(failed)
       if failed.output.stderr:
-        print "--- stderr ---"
-        print failed.output.stderr.strip()
+        print("--- stderr ---")
+        print(failed.output.stderr.strip())
       if failed.output.stdout:
-        print "--- stdout ---"
-        print failed.output.stdout.strip()
-      print "Command: %s" % self._EscapeCommand(failed)
+        print("--- stdout ---")
+        print(failed.output.stdout.strip())
+      print("Command: %s" % self._EscapeCommand(failed))
       if failed.output.HasCrashed():
-        print "exit code: %d" % failed.output.exit_code
-        print "--- CRASHED ---"
+        print("exit code: %d" % failed.output.exit_code)
+        print("--- CRASHED ---")
       if failed.output.HasTimedOut():
-        print "--- TIMEOUT ---"
+        print("--- TIMEOUT ---")
     sys.stdout = old_stdout
     if len(self.runner.failed) == 0:
-      print "==="
-      print "=== All tests succeeded"
-      print "==="
+      print("===")
+      print("=== All tests succeeded")
+      print("===")
     else:
-      print
-      print "==="
-      print "=== %i tests failed" % len(self.runner.failed)
+      print()
+      print("===")
+      print("=== %i tests failed" % len(self.runner.failed))
       if self.runner.crashed > 0:
-        print "=== %i tests CRASHED" % self.runner.crashed
-      print "==="
+        print("=== %i tests CRASHED" % self.runner.crashed)
+      print("===")
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
@@ -156,7 +156,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    print 'Done running %s: %s' % (test.GetLabel(), outcome)
+    print('Done running %s: %s' % (test.GetLabel(), outcome))
     sys.stdout.flush()
 
   def Heartbeat(self):
@@ -197,7 +197,7 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def Done(self):
     self.PrintProgress('Done')
-    print ""  # Line break.
+    print("")  # Line break.
 
   def HasRun(self, test, has_unexpected_output):
     self.PrintProgress(test.GetLabel())
@@ -206,17 +206,17 @@ class CompactProgressIndicator(ProgressIndicator):
       self.PrintFailureHeader(test)
       stdout = test.output.stdout.strip()
       if len(stdout):
-        print self.templates['stdout'] % stdout
+        print(self.templates['stdout'] % stdout)
       stderr = test.output.stderr.strip()
       if len(stderr):
-        print self.templates['stderr'] % stderr
+        print(self.templates['stderr'] % stderr)
       # NOTE(Escargot): disable log to check regression
-      # print "Command: %s" % self._EscapeCommand(test)
+      # print("Command: %s" % self._EscapeCommand(test))
       if test.output.HasCrashed():
-        print "exit code: %d" % test.output.exit_code
-        print "--- CRASHED ---"
+        print("exit code: %d" % test.output.exit_code)
+        print("--- CRASHED ---")
       if test.output.HasTimedOut():
-        print "--- TIMEOUT ---"
+        print("--- TIMEOUT ---")
 
   def Truncate(self, string, length):
     if length and (len(string) > (length - 3)):
@@ -240,7 +240,7 @@ class CompactProgressIndicator(ProgressIndicator):
     }
     status = self.Truncate(status, 78)
     self.last_status_length = len(status)
-    print status,
+    print(status, end='')
     sys.stdout.flush()
 
 
@@ -258,7 +258,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
     super(ColorProgressIndicator, self).__init__(templates)
 
   def ClearLine(self, last_line_length):
-    print "\033[1K\r",
+    print("\033[1K\r", end='')
 
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
@@ -273,7 +273,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     super(MonochromeProgressIndicator, self).__init__(templates)
 
   def ClearLine(self, last_line_length):
-    print ("\r" + (" " * last_line_length) + "\r"),
+    print("\r" + (" " * last_line_length) + "\r", end='')
 
 
 class JUnitTestProgressIndicator(ProgressIndicator):
@@ -336,7 +336,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
     # Sort tests by duration.
     timed_tests = [t for t in self.tests if t.duration is not None]
-    timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
+    timed_tests.sort(key=lambda t: t.duration, reverse=True)
     slowest_tests = [
       {
         "name": test.GetLabel(),

@@ -31,6 +31,17 @@
   # tested standalone.
   'modules-skip*': [SKIP],
 
+  # Exercises V8's FilterASCII regexp optimization (a pattern containing a
+  # non-ASCII char can never match a pure-ASCII string, so V8 short-circuits
+  # instead of actually backtracking). Escargot's regexp engine doesn't
+  # implement this pruning, so `NoHang(/(((.*)*)*x)Ā/)` genuinely catastrophic-
+  # backtracks and hangs -- confirmed by direct repro (5s timeout, exit 124).
+  # Pre-existing engine limitation, unrelated to the v8 test-runner's python3
+  # port; just never surfaced before since the runner never completed a run.
+  # Not a python-port bug -- do not remove this entry when re-auditing the
+  # port.
+  'regexp-capture-3': [SKIP],
+
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 

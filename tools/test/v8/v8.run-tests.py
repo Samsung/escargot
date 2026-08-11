@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 
 
 from collections import OrderedDict
+from functools import reduce
 import itertools
 import json
 import multiprocessing
@@ -48,7 +49,6 @@ from testrunner.local import testsuite
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
-from testrunner.network import network_execution
 from testrunner.objects import context
 
 
@@ -318,7 +318,7 @@ def BuildOptions():
   result.add_option("-p", "--progress",
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
-                    choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
+                    choices=list(progress.PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--quickcheck", default=False, action="store_true",
                     help=("Quick check mode (skip slow tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
@@ -504,14 +504,14 @@ def ProcessOptions(options):
   options.mode = options.mode.split(",")
   for mode in options.mode:
     if not BuildbotToV8Mode(mode) in MODES:
-      print "Unknown mode %s" % mode
+      print("Unknown mode %s" % mode)
       return False
   if options.arch in ["auto", "native"]:
     options.arch = ARCH_GUESS
   options.arch = options.arch.split(",")
   for arch in options.arch:
     if not arch in SUPPORTED_ARCHS:
-      print "Unknown architecture %s" % arch
+      print("Unknown architecture %s" % arch)
       return False
 
   # Store the final configuration in arch_and_mode list. Don't overwrite
@@ -583,7 +583,7 @@ def ProcessOptions(options):
     )
 
     if not set(VARIANTS).issubset(ALL_VARIANTS):
-      print "All variants must be in %s" % str(ALL_VARIANTS)
+      print("All variants must be in %s" % str(ALL_VARIANTS))
       return False
   if options.predictable:
     VARIANTS = ["default"]
@@ -596,7 +596,7 @@ def ProcessOptions(options):
 
   if not options.shell_dir:
     if options.shell:
-      print "Warning: --shell is deprecated, use --shell-dir instead."
+      print("Warning: --shell is deprecated, use --shell-dir instead.")
       options.shell_dir = os.path.dirname(options.shell)
   if options.valgrind:
     run_valgrind = os.path.join("tools", "run-valgrind.py")
@@ -605,7 +605,7 @@ def ProcessOptions(options):
                               options.command_prefix)
   def CheckTestMode(name, option):
     if not option in ["run", "skip", "dontcare"]:
-      print "Unknown %s mode %s" % (name, option)
+      print("Unknown %s mode %s" % (name, option))
       return False
     return True
   if not CheckTestMode("slow test", options.slow_tests):
@@ -649,8 +649,8 @@ def ShardTests(tests, options):
   if shard_count < 2:
     return tests
   if shard_run < 1 or shard_run > shard_count:
-    print "shard-run not a valid number, should be in [1:shard-count]"
-    print "defaulting back to running all tests"
+    print("shard-run not a valid number, should be in [1:shard-count]")
+    print("defaulting back to running all tests")
     return tests
   count = 0
   shard = []
@@ -675,7 +675,7 @@ def Main():
   if options.swarming:
     # Swarming doesn't print how isolated commands are called. Lets make this
     # less cryptic by printing it ourselves.
-    print ' '.join(sys.argv)
+    print(' '.join(sys.argv))
 
   exit_code = 0
 
@@ -892,6 +892,10 @@ def Execute(arch, mode, args, options, suites):
     run_networked = False
   peers = []
   if run_networked:
+    # Imported lazily: this subtree (and testrunner/server/*) is only needed
+    # for network-distributed test runs, which Escargot's CI never requests
+    # (always passes --no-network).
+    from testrunner.network import network_execution
     peers = network_execution.GetPeers()
     if not peers:
       print("No connection to distribution server; running tests locally.")
@@ -904,6 +908,7 @@ def Execute(arch, mode, args, options, suites):
       run_networked = False
 
   if run_networked:
+    from testrunner.network import network_execution
     runner = network_execution.NetworkedRunner(suites, progress_indicator,
                                                ctx, peers, BASE_DIR)
   else:
@@ -926,13 +931,13 @@ def Execute(arch, mode, args, options, suites):
   if options.sancov_dir:
     # If tests ran with sanitizer coverage, merge coverage files in the end.
     try:
-      print "Merging sancov files."
+      print("Merging sancov files.")
       subprocess.check_call([
         sys.executable,
         join(BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
         "--coverage-dir=%s" % options.sancov_dir])
     except:
-      print >> sys.stderr, "Error: Merging sancov files failed."
+      print("Error: Merging sancov files failed.", file=sys.stderr)
       exit_code = 1
 
   return exit_code

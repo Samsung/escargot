@@ -26,14 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import imp
+import importlib.util
 import os
 
 from . import commands
 from . import statusfile
 from . import utils
 from ..objects import testcase
-from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
+from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
 
 
 FAST_VARIANTS = set(["default", "turbofan"])
@@ -68,17 +68,22 @@ class TestSuite(object):
   @staticmethod
   def LoadTestSuite(root, global_init=True):
     name = root.split(os.path.sep)[-1]
-    f = None
     try:
-      (f, pathname, description) = imp.find_module("testcfg", [root])
-      module = imp.load_module("testcfg", f, pathname, description)
+      testcfg_path = os.path.join(root, "testcfg.py")
+      if not os.path.exists(testcfg_path):
+        raise ImportError("No testcfg module found in %s" % root)
+      spec = importlib.util.spec_from_file_location("testcfg", testcfg_path)
+      module = importlib.util.module_from_spec(spec)
+      spec.loader.exec_module(module)
       return module.GetSuite(name, root)
-    except ImportError:
-      # Use default if no testcfg is present.
+    except (ImportError, SyntaxError):
+      # Use default if no testcfg is present, or if the vendored testcfg.py
+      # for this (irrelevant to Escargot's CI) suite still has Python-2-only
+      # syntax we don't own/override (e.g. test262, cctest, benchmarks). This
+      # is called for every suite under test/, not just the ones actually
+      # requested on the command line, so a broken unrelated testcfg.py must
+      # not take down the whole run.
       return GoogleTestSuite(name, root)
-    finally:
-      if f:
-        f.close()
 
   def __init__(self, name, root):
     # Note: This might be called concurrently from different processes.
@@ -327,17 +332,17 @@ class GoogleTestSuite(TestSuite):
       shell += ".exe"
 
     output = None
-    for i in xrange(3): # Try 3 times in case of errors.
+    for i in range(3): # Try 3 times in case of errors.
       output = commands.Execute(context.command_prefix +
                                 [shell, "--gtest_list_tests"] +
                                 context.extra_flags)
       if output.exit_code == 0:
         break
-      print "Test executable failed to list the tests (try %d).\n\nStdout:" % i
-      print output.stdout
-      print "\nStderr:"
-      print output.stderr
-      print "\nExit code: %d" % output.exit_code
+      print("Test executable failed to list the tests (try %d).\n\nStdout:" % i)
+      print(output.stdout)
+      print("\nStderr:")
+      print(output.stderr)
+      print("\nExit code: %d" % output.exit_code)
     else:
       raise Exception("Test executable failed to list the tests.")
 

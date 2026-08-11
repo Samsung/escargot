@@ -306,6 +306,11 @@ def run_spidermonkey(engine, arch, extra_arg):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
+    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'jstests.py'), join(SPIDERMONKEY_DIR, 'jstests.py'))
+    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'lib', 'jittests.py'), join(SPIDERMONKEY_DIR, 'lib', 'jittests.py'))
+    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'lib', 'manifest.py'), join(SPIDERMONKEY_DIR, 'lib', 'manifest.py'))
+    copy(join(SPIDERMONKEY_OVERRIDE_DIR, 'lib', 'tasks_unix.py'), join(SPIDERMONKEY_DIR, 'lib', 'tasks_unix.py'))
+
     run([join(SPIDERMONKEY_DIR, 'jstests.py'),
          '--no-progress', '-s',
          '--timeout', '500',
@@ -608,6 +613,11 @@ def run_v8(engine, arch, extra_arg):
     copy(join(V8_OVERRIDE_DIR, 'v8.testsuite.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'testsuite.py'))
     copy(join(V8_OVERRIDE_DIR, 'v8.execution.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'execution.py'))
     copy(join(V8_OVERRIDE_DIR, 'v8.progress.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'progress.py'))
+    copy(join(V8_OVERRIDE_DIR, 'v8.commands.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'commands.py'))
+    copy(join(V8_OVERRIDE_DIR, 'v8.pool.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'pool.py'))
+    copy(join(V8_OVERRIDE_DIR, 'v8.statusfile.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'statusfile.py'))
+    copy(join(V8_OVERRIDE_DIR, 'v8.utils.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'utils.py'))
+    copy(join(V8_OVERRIDE_DIR, 'v8.verbose.py'), join(V8_DIR, 'tools', 'testrunner', 'local', 'verbose.py'))
 
     arch = {'x86': 'x32', 'x86_64': 'x64'}[arch]
 
