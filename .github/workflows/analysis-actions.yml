@@ -11,7 +11,7 @@ jobs:
     if: github.repository == 'Samsung/escargot'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - name: Build ICU(64)
@@ -54,7 +54,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 600
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Build x64
@@ -79,7 +79,7 @@ jobs:
       run: |
         gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*shell/' --exclude '.*api/' -r . --xml coverage.xml
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
