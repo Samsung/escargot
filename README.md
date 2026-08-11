@@ -86,6 +86,11 @@ cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
 
+> CMake 4.0+ removed support for `cmake_minimum_required(VERSION < 3.5)` and will
+> hard-error on some vendored third-party dependencies (e.g. `third_party/wasm/wabt`)
+> that still declare an older minimum. If your `cmake --version` is 4.0 or newer, add
+> `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the `cmake` command above.
+
 ### macOS
 
 General build prerequisites:
@@ -104,6 +109,9 @@ git submodule update --init third_party # update submodules
 cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
+
+> Same CMake 4.0+ note as the Linux section above applies here too --
+> add `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` if needed.
 
 ### Android
 
@@ -199,6 +207,13 @@ then start Escargot with the `--start-debug-server` option.
 ## Testing ✅
 
 Escargot supports various benchmark sets, which can be run using the [tools/run-tests.py](https://github.com/Samsung/escargot/blob/master/tools/run-tests.py) script.
+
+Prerequisites:
+```sh
+# Python 3 only -- the v8/spidermonkey/test262 runners are pure python3, no python2 needed.
+sudo apt-get install python3
+sudo apt-get install python3-chardet  # or: pip install chardet -- required by the test262 runner
+```
 
 | Benchmark | flag |
 | --- | --- |
