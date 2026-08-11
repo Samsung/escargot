@@ -409,6 +409,12 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
+// Upper bound for the capture count taken from an exec() result in
+// RegExp.prototype[Symbol.replace]. A pattern cannot produce anywhere near this many capture
+// groups, so anything above it only comes from a hand-made exec() result and would just make the
+// replacer argument array unreasonably large.
+static constexpr size_t MAX_CAPTURE_COUNT_IN_REPLACE = 65535;
+
 static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ASSERT(argc == 0 || argv != nullptr);
@@ -466,9 +472,11 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
 
         // nCaptures is later used as `nCaptures + 3` (or `+ 4` with named captures) to size an
         // ALLOCA'd argument array. A custom exec() can return an arbitrary `length`, so reject
-        // any count that would overflow that computation (which would wrap the allocation size
-        // to a small/zero value while the code still writes at those indices).
-        if (nCaptures > SIZE_MAX - 4) {
+        // any count that cannot describe a real match. Bounding by the overflow of the sizing
+        // arithmetic alone is not enough: that only wraps on 32-bit, while on 64-bit the same
+        // input stays in range and turns into a multi-gigabyte allocation (ALLOCA falls back to
+        // GC_MALLOC above 512 bytes) that exhausts memory before any write happens.
+        if (nCaptures > MAX_CAPTURE_COUNT_IN_REPLACE) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid capture group count in RegExp replace");
         }
         String* matched = result->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
