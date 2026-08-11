@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [macos-15, macos-latest]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -91,13 +91,13 @@ jobs:
         fi
     - name: Upload mac64
       if: ${{ matrix.os == 'macos-15' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifact-mac64
         path: ./escargot-mac64.zip
     - name: Upload mac64arm
       if: ${{ matrix.os == 'macos-latest' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifact-mac64arm
         path: ./escargot-mac64arm.zip
@@ -105,7 +105,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -165,7 +165,7 @@ jobs:
         zip -j escargot-linux-x86.zip deploy-x86/*
         zip -j escargot-linux-x64.zip deploy-x64/*
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifact-linux
         path: escargot-linux-*.zip
@@ -180,7 +180,7 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - uses: szenius/set-timezone@v2.0
@@ -192,7 +192,7 @@ jobs:
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 26100
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Download and Install Visual C++ Redistributable
@@ -233,7 +233,7 @@ jobs:
         zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe
       shell: cmd
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifact-win-${{ matrix.arch }}
         path: escargot-win-${{ matrix.arch }}.zip
@@ -242,11 +242,11 @@ jobs:
     needs: [build-macOS]
     runs-on: macos-15
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
         pattern: build-artifact-mac64
@@ -262,11 +262,11 @@ jobs:
     needs: [build-macOS]
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
         pattern: build-artifact-mac64arm
@@ -282,11 +282,11 @@ jobs:
     needs: [build-linux]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
         pattern: build-artifact-linux
@@ -310,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
         pattern: build-artifact-*

@@ -14,7 +14,7 @@ jobs:
   check-tidy:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -29,7 +29,7 @@ jobs:
   build-on-macos:
     runs-on: macos-15
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - name: Install Packages
@@ -56,7 +56,7 @@ jobs:
   build-on-macos-arm64:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - name: Install Packages
@@ -81,13 +81,26 @@ jobs:
         ./out/release/escargot run.js
 
   build-test-on-android:
+    # Real arm64 ABI is not achievable on any GitHub-hosted runner right now:
+    # hosted arm64 Linux exposes no /dev/kvm at all, and Apple Silicon hosted
+    # macOS fails "HVF error: HV_UNSUPPORTED" even after ad-hoc codesigning
+    # the qemu binary with the com.apple.security.hypervisor entitlement
+    # (confirmed by actually running it -- codesign applied cleanly, HVF
+    # init still failed) -- an infra-level nested-virt restriction on that
+    # runner class, not an entitlement/signing problem. See
+    # https://github.com/ReactiveCircus/android-emulator-runner/issues/350
+    # and https://github.com/actions/runner-images/issues/9472 (both
+    # unresolved upstream, no known fix). Back to x86/x86_64 on
+    # ubuntu-latest, a known-working KVM-accelerated fast stand-in for real
+    # (arm) devices -- don't retry the macOS route without a fix landing in
+    # one of those two upstream issues first.
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [x86, x86_64]
         api: [28]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Enable KVM
@@ -115,7 +128,7 @@ jobs:
   build-test-tizen:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - name: prepare deb sources for GBS
@@ -143,7 +156,7 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - uses: szenius/set-timezone@v2.0
@@ -155,7 +168,7 @@ jobs:
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 26100
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Download and Install Visual C++ Redistributable
@@ -214,7 +227,7 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - uses: szenius/set-timezone@v2.0
@@ -226,7 +239,7 @@ jobs:
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 26100
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Download and Install Visual C++ Redistributable
@@ -288,7 +301,7 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - uses: lukka/get-cmake@latest
@@ -326,7 +339,7 @@ jobs:
       matrix:
         tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -346,7 +359,7 @@ jobs:
         sudo update-alternatives --install /usr/bin/python python /usr/local/python2.7/bin/python2.7 1
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu32
         key: icu-linux-m32-release-78.1
@@ -387,7 +400,7 @@ jobs:
           - tc: 'octane v8 web-tooling-benchmark'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -396,7 +409,7 @@ jobs:
         sudo apt-get install -y ninja-build g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu64
         key: icu-linux-x64-release-78.1
@@ -445,7 +458,7 @@ jobs:
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -454,7 +467,7 @@ jobs:
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu32
         key: icu-linux-m32-release-78.1
@@ -468,7 +481,7 @@ jobs:
         make install
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu64
         key: icu-linux-x64-release-78.1
@@ -496,12 +509,29 @@ jobs:
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
+  # Tried splitting this across hosted ubuntu-24.04 runners (parallel
+  # instead of 6 combos serialized on one self-hosted box) -- but hosted
+  # runners are only 2-4 vCPU vs this self-hosted box's much higher core
+  # count, and test262 parallelizes across all cores
+  # (multiprocessing.Pool(cpu_count()) in tools/test/test262/test262.py), so
+  # each combo ran ~3x slower there (measured: x86-release test262 5min
+  # self-hosted vs 14.5min hosted, x64-release 4.5min vs 15min). The
+  # debug+backtrace-hooking combo alone then approached or exceeded the
+  # original 6-combo serial total, negating the parallelization win. Back
+  # to the single self-hosted job.
+  # Only the two debug combos stay here now (see build-test-on-x86-release-extra
+  # / build-test-on-x64-release-extra for why): debug+backtrace-hooking is the
+  # one combo that's disproportionately slow on weak hosted CPUs (measured
+  # ~3x), so it stays on this fast dedicated box; release-gcc/release-clang
+  # moved to hosted where they can run concurrently instead of serialized
+  # behind this. New critical path for this whole split ~= max(this job,
+  # slowest hosted release job) instead of all 6 summed.
   build-test-on-self-hosted-linux:
     if: github.repository == 'Samsung/escargot'
     runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Build
@@ -509,69 +539,218 @@ jobs:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release_clang -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
         LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release_clang -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
-        cmake --build build/out_linux_release/
-        cmake --build build/out_linux_release_clang/
-        cmake --build build/out_linux64_release/
-        cmake --build build/out_linux64_release_clang/
     - name: Test
       run: |
-        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release_clang/escargot" test262
         LD_LIBRARY_PATH=/usr/icu78-32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu78-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release_clang/escargot" test262
         LD_LIBRARY_PATH=/usr/icu78-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
-  build-test-on-self-hosted-arm-linux:
-    if: github.repository == 'Samsung/escargot'
-    runs-on: [self-hosted, linux, arm, test]
+  # Split off from build-test-on-self-hosted-linux: these release combos are
+  # only ~3x slower on hosted vCPUs (measured), and running 4 of them
+  # concurrently on hosted beats running them serially on the one
+  # self-hosted box, even at 3x per-job cost. See that job's comment for the
+  # debug combo that stayed behind. Mirrors build-test-on-x86-release's
+  # ICU-78.1 cache pattern (same cache key, shared).
+  build-test-on-x86-release-extra:
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        compiler: [ {cxx: g++, cc: gcc}, {cxx: clang++, cc: clang} ]
-    timeout-minutes: 60
+        cc: [gcc, clang]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
-    - name: Build
-      shell: bash
+    - name: Install Packages
       run: |
-        # This job runs inside a nested 32-bit container whose live log stream
-        # does not reach GitHub -- mirror every step's output into one file and
-        # upload it as an artifact at the end (see last step).
-        exec > >(tee -a "${{ github.workspace }}/arm32-ci.log") 2>&1
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=${{ matrix.compiler.tls }} -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
-        cmake --build ./out/
-    - name: Test
-      shell: bash
-      run: |
-        exec > >(tee -a "${{ github.workspace }}/arm32-ci.log") 2>&1
-        # \p{} regex classes are built from the runtime ICU (see
-        # YarrUnicodeProperties.cpp), so test262 property-escapes / property-of-strings
-        # / rgi-emoji follow the runner's ICU Unicode version, which does not match
-        # test262's generated expectations here. Pinning a matching ICU inside this
-        # nested 32-bit container proved unreliable (the runtime binder still loads
-        # the system ICU), so skip that class -- same as the Windows job.
-        # identifiers/{part,start}-unicode-<version> follow the runner ICU's Unicode
-        # version as well, because IdentifierStart / IdentifierPart are decided by
-        # ICU's ID_Start / ID_Continue (see Lexer.cpp). The version independent
-        # identifier tests (zwj-zwnj, other_id_start, ...) still run.
-        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm --skip Temporal --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers/part-unicode- --skip identifiers/start-unicode-" new-es v8 spidermonkey chakracore test262
-    - name: Upload arm32 CI log
-      if: always()
-      uses: actions/upload-artifact@v4
+        sudo apt-get update
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib clang
+    - name: Cache ICU release-78.1 (m32)
+      id: cache-icu-m32
+      uses: actions/cache@v5
       with:
-        name: arm32-ci-log-${{ matrix.compiler.cc }}
-        path: arm32-ci.log
-        if-no-files-found: warn
+        path: icu32
+        key: icu-linux-m32-release-78.1
+    - name: Build ICU
+      if: steps.cache-icu-m32.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-build/
+        cd $GITHUB_WORKSPACE/icu-build/icu4c/source
+        LDFLAGS="-m32 -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/" CFLAGS="-m32" CXXFLAGS="-m32" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu32/"
+        make -j8
+        make install
+    - name: Build x86 (${{ matrix.cc }})
+      env:
+        BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/lib/pkgconfig
+        CXX=${{ matrix.cc == 'clang' && 'clang++' || 'g++' }}
+        cmake -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        ninja -Cout
+    - name: Run test262
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: |
+        # See build-test-on-x64-release's locale step -- same reason.
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/escargot" test262
+
+  build-test-on-x64-release-extra:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: true
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build g++ clang pkg-config
+    - name: Cache ICU release-78.1 (x64)
+      id: cache-icu-x64
+      uses: actions/cache@v5
+      with:
+        path: icu64
+        key: icu-linux-x64-release-78.1
+    - name: Build ICU(64)
+      if: steps.cache-icu-x64.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
+        cd $GITHUB_WORKSPACE/icu64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
+        make -j8
+        make install
+    - name: Build x64 (${{ matrix.cc }})
+      env:
+        BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/lib/pkgconfig
+        CXX=${{ matrix.cc == 'clang' && 'clang++' || 'g++' }}
+        cmake -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout -DESCARGOT_ARCH=x64 $BUILD_OPTIONS
+        ninja -Cout
+    - name: Run test262
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: |
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/escargot" test262
+
+  # Was its own dedicated self-hosted runner registration ("arm" label), but
+  # that runner was always just a docker container on the SAME physical box
+  # as build-test-on-self-hosted-arm64-linux -- same CPU/resource, just a
+  # second runner process competing for it. Folded in as a docker step on
+  # the arm64 runner instead: one fewer runner to keep registered/updated,
+  # and this box's aarch64 CPUs run armv7 natively (no QEMU), so
+  # --platform linux/arm/v7 here is real hardware execution, not emulation.
+  # Toolchain is installed fresh via apt each run instead of matching
+  # whatever image the old dedicated runner happened to have -- versions may
+  # drift from before; re-pin here if that ever matters.
+  build-test-on-self-hosted-arm32-docker:
+    if: github.repository == 'Samsung/escargot'
+    runs-on: [self-hosted, linux, arm64, test]
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: true
+    - name: Build + Test (arm32 via docker, native on this arm64 host)
+      run: |
+        docker run --rm --platform linux/arm/v7 \
+          -v "${{ github.workspace }}:/work" -w /work \
+          arm32v7/ubuntu:24.04 \
+          bash -c '
+            set -e
+            # Container runs as root (needed for apt-get), and writes into
+            # the bind-mounted host workspace in more places than just
+            # ./out -- e.g. importing SpiderMonkey'"'"'s lib/ modules leaves
+            # root-owned __pycache__ under the checked-out submodule too.
+            # Any of that left root-owned poisons every later job on this
+            # same self-hosted runner (its non-root checkout step cannot
+            # clean up root-owned files from a prior run and fails
+            # outright). chown the whole workspace back to the host dir'"'"'s
+            # real owner on exit, success or failure.
+            OWNER=$(stat -c "%u:%g" /work)
+            trap "chown -R $OWNER /work 2>/dev/null || true" EXIT
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build pkg-config libicu-dev python3 python3-chardet locales gcc g++ clang
+            # v8'"'"'s and spidermonkey'"'"'s test runners both force LANG/LC_ALL=en_US.UTF-8
+            # for their child escargot processes (see tools/test/v8/v8.run-tests.py and
+            # SpiderMonkey/lib/tests.py'"'"'s get_environment_overlay) -- generate it, or
+            # those two suites fail across the board while the locale-independent ones
+            # (new-es, chakracore, test262 with intl402 skipped) pass fine.
+            locale-gen en_US.UTF-8
+            if [ "${{ matrix.compiler }}" = "clang" ]; then CC=clang; CXX=clang++; else CC=gcc; CXX=g++; fi
+            cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout \
+              -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
+              -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 \
+              -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON \
+              -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON \
+              -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_OUTPUT=shell -GNinja
+            cmake --build ./out/
+            # \p{} regex classes are built from the runtime ICU (see
+            # YarrUnicodeProperties.cpp), so test262 property-escapes / property-of-strings
+            # / rgi-emoji follow the runner ICU'"'"'s Unicode version, which does not match
+            # test262'"'"'s generated expectations here. Pinning a matching ICU inside this
+            # container proved unreliable (the runtime binder still loads the system
+            # ICU), so skip that class -- same as the Windows job.
+            # identifiers/{part,start}-unicode-<version> follow the runner ICU'"'"'s Unicode
+            # version as well, because IdentifierStart / IdentifierPart are decided by
+            # ICU'"'"'s ID_Start / ID_Continue (see Lexer.cpp). The version independent
+            # identifier tests (zwj-zwnj, other_id_start, ...) still run.
+            # v8'"'"'s perfdata cache (test/vendortest/v8/out/testrunner_data) is a
+            # Berkeley DB file when it was last written by a python2/bsddb-era
+            # run -- /work is this same self-hosted runner'"'"'s persistent
+            # checkout (bind-mounted, not container-local), so that stale file
+            # survives across runs and python3'"'"'s dbm can'"'"'t open it ("db type
+            # could not be determined"). It'"'"'s a disposable cache, so just drop
+            # it; v8'"'"'s own test runner regenerates it as needed.
+            rm -rf test/vendortest/v8/out/testrunner_data
+            GC_FREE_SPACE_DIVISOR=1 python3 tools/run-tests.py --engine="$(pwd)/out/escargot" --test262-extra-arg="--skip intl402 --skip sm --skip Temporal --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers/part-unicode- --skip identifiers/start-unicode-" new-es v8 spidermonkey chakracore test262 || {
+              # DIAGNOSTIC: run-tests.py'"'"'s own run_v8() captures the v8 test
+              # runner'"'"'s stdout into a variable and only checks it for a marker
+              # string, printing nothing on failure -- re-run the same already
+              # copied-over v8 test runner directly (no capture) so its real
+              # output actually reaches this log.
+              echo "=== manual v8 mjsunit re-run (uncaptured) ==="
+              ( cd test/vendortest/v8 && GC_FREE_SPACE_DIVISOR=1 python3 tools/run-tests.py \
+                  --timeout=120 --quickcheck --no-presubmit --no-variants \
+                  --arch-and-mode=x64.release --shell /work/out/escargot --escargot \
+                  --report -p verbose --no-sorting --no-network mjsunit ) 2>&1 | tail -n 200
+              echo "=== spidermonkey x86_64.log.txt (tail) ==="
+              tail -n 200 tools/test/spidermonkey/x86_64.log.txt 2>/dev/null || true
+              echo "=== spidermonkey x86_64.gen.txt (failures) ==="
+              cat tools/test/spidermonkey/x86_64.gen.txt 2>/dev/null || true
+              exit 1
+            }
+          '
+    - name: Fix workspace ownership (always runs, even if the job above is cancelled)
+      # The chown-on-EXIT trap inside the container above only fires on a
+      # graceful container exit. A cancelled job hard-kills the container
+      # before its trap runs, leaving root-owned files that break the next
+      # job's checkout on this runner (confirmed by hitting this for real).
+      # Run this as its own step so it executes independently of how the
+      # build step above ended.
+      if: always()
+      run: |
+        docker run --rm --platform linux/arm/v7 \
+          -v "${{ github.workspace }}:/work" -w /work \
+          arm32v7/ubuntu:24.04 \
+          chown -R "$(id -u):$(id -g)" /work 2>/dev/null || true
 
   build-test-on-self-hosted-arm64-linux:
     if: github.repository == 'Samsung/escargot'
@@ -581,7 +760,7 @@ jobs:
         compiler: [ {cxx: g++-11, cc: gcc-11}, {cxx: clang++, cc: clang} ]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Build
@@ -591,12 +770,19 @@ jobs:
     - name: Test
       run: |
         export LD_LIBRARY_PATH=/usr/icu78-64/lib/
+        # v8's perfdata cache (test/vendortest/v8/out/testrunner_data) is a
+        # Berkeley DB file when it was last written by a python2/bsddb-era
+        # run -- this is a persistent self-hosted checkout, so that stale
+        # file survives across runs and python3's dbm can't open it
+        # ("db type could not be determined"). It's a disposable cache, so
+        # just drop it; v8's own test runner regenerates it as needed.
+        rm -rf test/vendortest/v8/out/testrunner_data
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
 
   build-test-on-riscv64-release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install cross-compile toolchain
@@ -634,7 +820,7 @@ jobs:
   build-test-debugger:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -655,7 +841,7 @@ jobs:
   build-test-api:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -686,7 +872,7 @@ jobs:
   build-test-napi:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Sparse checkout napi test corpus
@@ -720,7 +906,7 @@ jobs:
   build-test-codecache:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install Packages
@@ -786,7 +972,7 @@ jobs:
   build-test-wasmjs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: recursive
     - name: Install Packages
@@ -795,7 +981,7 @@ jobs:
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu32
         key: icu-linux-m32-release-78.1
@@ -809,7 +995,7 @@ jobs:
         make install
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: icu64
         key: icu-linux-x64-release-78.1
@@ -858,7 +1044,7 @@ jobs:
       freertos: ${{ steps.filter.outputs.freertos }}
       nuttx: ${{ steps.filter.outputs.nuttx }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dorny/paths-filter@v3
       id: filter
       with:
@@ -890,7 +1076,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
     - name: Install cross-compile toolchain and QEMU
@@ -998,7 +1184,7 @@ jobs:
         } | tee rtos-metrics-comment.md >> "$GITHUB_STEP_SUMMARY"
     - name: Post/update PR comment with size & memory report
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const fs = require('fs');
@@ -1051,7 +1237,7 @@ jobs:
       NUTTX_BASE_COMMIT: 375462322eeb6d2da57e6dff84c747a56bfa2eef
       NUTTX_APPS_COMMIT: e751331ecb7ea28073bff41600d2e9c9ba90aa1a
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
         path: escargot
@@ -1075,7 +1261,7 @@ jobs:
     # relinked against the cached tree.
     - name: Cache NuttX kernel + apps checkout and build
       id: cache-nuttx
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           nuttx
