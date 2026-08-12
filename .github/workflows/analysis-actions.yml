@@ -11,9 +11,13 @@ jobs:
     if: github.repository == 'Samsung/escargot'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        with: |
+          submodules: recursive
+        attempt_limit: 3
+        attempt_delay: 10000
     - name: Build ICU(64)
       run: |
         git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu64-build/
@@ -54,9 +58,13 @@ jobs:
     runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 600
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        with: |
+          submodules: true
+        attempt_limit: 3
+        attempt_delay: 10000
     - name: Build x64
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja

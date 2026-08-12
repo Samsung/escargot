@@ -21,9 +21,13 @@ jobs:
   update-baseline:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        with: |
+          submodules: true
+        attempt_limit: 3
+        attempt_delay: 10000
     - name: Install cross-compile toolchain and QEMU
       run: |
         sudo apt-get update

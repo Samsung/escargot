@@ -14,9 +14,14 @@ jobs:
   check-tidy:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    # No submodules needed here -- this job only runs clang-format/clang-tidy
+    # over src/, it never builds the engine or runs a test suite. (Previously
+    # fetched all 9 -- test262 alone is a multi-hundred-MB clone -- for nothing.)
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
     - name: Install Packages
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
@@ -29,9 +34,20 @@ jobs:
   build-on-macos:
     runs-on: macos-15
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Only the submodules this job's build (GCutil, Walrus for -DESCARGOT_WASM=ON)
+    # and test runs (new-es -> vendortest, octane) actually touch.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus test/vendortest test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         brew update
@@ -56,9 +72,19 @@ jobs:
   build-on-macos-arm64:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Same submodule set as build-on-macos above (same build + test commands).
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus test/vendortest test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         brew update
@@ -113,9 +139,21 @@ jobs:
             device_abi: arm64-v8a
             api: 28
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # This job builds via the Android CMakeLists (GCutil only) and runs no
+    # submodule-backed test suite (its instrumented test lives in-tree under
+    # build/android/).
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Enable KVM
       run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -141,9 +179,20 @@ jobs:
   build-test-tizen:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # gbs builds via packaging/escargot.spec, which only needs GCutil -- no
+    # test suite runs in this job.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: prepare deb sources for GBS
       run: echo "deb [trusted=yes] http://download.tizen.org/tools/latest-release/Ubuntu_24.04/ /" | sudo tee /etc/apt/sources.list.d/tizen.list
     - name: install GBS
@@ -169,9 +218,21 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil only; "Run octane" needs test/octane. test262 is
+    # commented out below, so test/test262 isn't fetched here.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - uses: szenius/set-timezone@v2.0
       with:
         timezoneWindows: "Pacific Standard Time"
@@ -255,9 +316,21 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build-only job (uploads an artifact for test262/octane-on-windows below
+    # to consume) -- needs GCutil + Walrus (-DESCARGOT_WASM=ON), no test suite.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - uses: lukka/get-cmake@latest
       with:
         cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
@@ -311,9 +384,20 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Only downloads+runs the prebuilt binary against test262 here.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - uses: szenius/set-timezone@v2.0
       with:
         timezoneWindows: "Pacific Standard Time"
@@ -371,9 +455,20 @@ jobs:
       matrix:
         arch: [x86, x64]
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Only downloads+runs the prebuilt binary against octane here.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Download and Install Visual C++ Redistributable
       shell: powershell
       run: |
@@ -417,9 +512,20 @@ jobs:
   build-on-x86-release:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build-only job (uploads an artifact for build-test-on-x86-release below
+    # to consume) -- needs GCutil only, no test suite runs here.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -461,9 +567,21 @@ jobs:
       matrix:
         tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs', 'test262']
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Downloads a prebuilt x86 binary (build-on-x86-release) and only runs
+    # the ${{ matrix.tc }} suites against it -- new-es/v8/chakracore/spidermonkey/
+    # jetstream-*/jsc-stress resolve under vendortest, test262 under test262.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- test/vendortest test/octane test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -527,9 +645,20 @@ jobs:
           - {tag: threading-tco, opt: '-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON'}
           - {tag: small-config,  opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'}
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build-only job (uploads an artifact for build-test-on-x64-release below
+    # to consume) -- needs GCutil only, no test suite runs here.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -577,9 +706,21 @@ jobs:
           # exclude octane, v8, web-tooling-benchmark due to low performance incurred by SMALL_CONFIG
           - {tag: small-config,  tc: 'chakracore spidermonkey new-es'}
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Downloads a prebuilt x64 binary (build-on-x64-release) and only runs
+    # the ${{ matrix.tc }} suites against it -- octane/v8/web-tooling-benchmark,
+    # chakracore/spidermonkey/new-es (vendortest), test262.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- test/octane test/vendortest test/web-tooling-benchmark test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -632,9 +773,20 @@ jobs:
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; "Run debug-mode test" runs modifiedVendorTest/
+    # regression-tests/new-es/intl/sunspider-js, all under vendortest.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/vendortest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -705,9 +857,23 @@ jobs:
     runs-on: [self-hosted, linux, x64, test]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; Test runs test262 (test/test262) + kangax
+    # (test/kangax). This is a persistent self-hosted runner, so this is an
+    # incremental fetch either way, not a fresh clone -- narrowing it just
+    # avoids leaving vendortest/octane/googletest/walrus/web-tooling-benchmark/
+    # FreeRTOS-Kernel on disk unused.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/test262 test/kangax && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
@@ -753,9 +919,19 @@ jobs:
   build-test-on-x86-release-extra:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; "Run test262" needs test/test262.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -799,9 +975,19 @@ jobs:
   build-test-on-x64-release-extra:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; "Run test262" needs test/test262.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -856,9 +1042,21 @@ jobs:
         compiler: [gcc, clang]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; the run-tests.py suites here (new-es/v8/spidermonkey/
+    # chakracore -> vendortest, test262 -> test262) are the only ones used.
+    # Persistent self-hosted runner, so this is an incremental fetch either way.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/vendortest test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Build + Test (arm32 via docker, native on this arm64 host)
       run: |
         docker run --rm --platform linux/arm/v7 \
@@ -950,9 +1148,21 @@ jobs:
         compiler: [ {cxx: g++-11, cc: gcc-11}, {cxx: clang++, cc: clang} ]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; Test runs test262/chakracore/spidermonkey/v8/new-es
+    # -- test262 -> test/test262, the rest -> test/vendortest. Persistent
+    # self-hosted runner, so this is an incremental fetch either way.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/vendortest test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Build
       run: |
         LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
@@ -972,9 +1182,20 @@ jobs:
   build-test-on-riscv64-release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil; the riscv64 container run only exercises new-es/
+    # intl/sunspider-js, all under vendortest.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/vendortest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install cross-compile toolchain
       run: |
         sudo apt-get update
@@ -1010,9 +1231,20 @@ jobs:
   build-test-debugger:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build needs GCutil only; debugger-server-source/debugger-client-source
+    # read from tools/debugger, not a submodule.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -1031,9 +1263,20 @@ jobs:
   build-test-api:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # -DESCARGOT_BUILD_CCTEST=ON pulls in googletest; cctest's own source is
+    # in-tree (test/cctest/*.cpp), no other submodule is touched.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil third_party/googletest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         # for i386 ICU (x86 cctest needs 32-bit ICU at runtime via dlopen)
@@ -1058,13 +1301,25 @@ jobs:
   # Separate from build-test-api: N-API support is an early PoC
   # gated behind ESCARGOT_NAPI, and test/napi-tc is a sparse checkout of the
   # nodejs/node monorepo (submodule.test/napi-tc.update=none in .gitmodules
-  # keeps every OTHER job's plain `submodules: true` from fetching it in full).
+  # keeps every OTHER job's `git submodule update --init` from fetching it in full).
   build-test-napi:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # -DESCARGOT_BUILD_CCTEST=ON pulls in googletest; test/napi-tc itself is
+    # handled entirely by the sparse-checkout step below (update=none in
+    # .gitmodules), not by this generic submodule init.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil third_party/googletest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Sparse checkout napi test corpus
       run: |
         NAPI_TC_SHA=$(git ls-tree HEAD test/napi-tc | awk '{print $3}')
@@ -1096,9 +1351,20 @@ jobs:
   build-test-codecache:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # sunspider-js/new-es/octane-loading -> vendortest+octane;
+    # web-tooling-benchmark -> its own submodule.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil test/vendortest test/octane test/web-tooling-benchmark && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         # for i386 ICU
@@ -1162,9 +1428,20 @@ jobs:
   build-test-wasmjs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: recursive
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # -DESCARGOT_WASM=ON pulls in Walrus + GCutil; wasm-js resolves under
+    # test/vendortest/wasm-js (see tools/run-tests.py's WASM_TEST_ROOT).
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus test/vendortest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -1234,7 +1511,11 @@ jobs:
       freertos: ${{ steps.filter.outputs.freertos }}
       nuttx: ${{ steps.filter.outputs.nuttx }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
     - uses: dorny/paths-filter@v3
       id: filter
       with:
@@ -1266,9 +1547,22 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # The sample's CMakeLists add_subdirectory()s FreeRTOS-Kernel plus the
+    # top-level CMakeLists (GCutil) -- see build-boot-test-freertos-qemu's
+    # cross-compile step below. The boot test itself also reads its 26
+    # SunSpider 1.0.2 cases out of test/vendortest via semihosting.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil samples/rtos/freertos/FreeRTOS-Kernel test/vendortest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install cross-compile toolchain and QEMU
       run: |
         sudo apt-get update
@@ -1427,10 +1721,24 @@ jobs:
       NUTTX_BASE_COMMIT: 375462322eeb6d2da57e6dff84c747a56bfa2eef
       NUTTX_APPS_COMMIT: e751331ecb7ea28073bff41600d2e9c9ba90aa1a
     steps:
-    - uses: actions/checkout@v5
+    - uses: Wandalen/wretry.action@v3
       with:
-        submodules: true
-        path: escargot
+        action: actions/checkout@v5
+        with: |
+          path: escargot
+        attempt_limit: 3
+        attempt_delay: 10000
+
+    # escargot-lib-cmake's add_subdirectory(${ESCARGOT_ROOT} ...) builds
+    # GCutil (BDWGC) as part of the same configure -- see that CMakeLists'
+    # own comment. No other submodule is touched by this sample.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git -C escargot submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
 
     - name: Install cross-compile toolchain, QEMU, and NuttX build deps
       run: |
