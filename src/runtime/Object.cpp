@@ -2067,7 +2067,9 @@ Value Object::getPrivateMember(ExecutionState& state, Object* contextObject, Ato
                 return piece->m_privateMemberValues[r.value()];
             }
         }
-    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+    } else if (shouldReferOuterClass && contextObject->isScriptClassConstructorFunctionObject() && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+        // the isScriptClassConstructorFunctionObject() check treats a non-class
+        // outer context as a miss instead of crashing on the cast
         return getPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName);
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, propertyName.string());
@@ -2080,7 +2082,7 @@ bool Object::hasPrivateMember(ExecutionState& state, Object* contextObject, Atom
     auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
     if (piece) {
         return piece->m_privateMemberStructure->findProperty(propertyName);
-    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+    } else if (shouldReferOuterClass && contextObject->isScriptClassConstructorFunctionObject() && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
         return hasPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName);
     }
     return false;
@@ -2110,7 +2112,7 @@ void Object::setPrivateMember(ExecutionState& state, Object* contextObject, Atom
                 return;
             }
         }
-    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+    } else if (shouldReferOuterClass && contextObject->isScriptClassConstructorFunctionObject() && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
         return setPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName, value);
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotWritePrivateMember, propertyName.string());
