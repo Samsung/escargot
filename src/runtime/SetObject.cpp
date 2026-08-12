@@ -71,7 +71,7 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key)
             buildOrRebuildHashIndex();
         } else {
             for (size_t i = 0; i < m_storage.size(); i++) {
-                Value existingKey = m_storage[i];
+                const EncodedValue& existingKey = m_storage[i];
                 if (existingKey.isEmpty()) {
                     continue;
                 }
@@ -89,7 +89,7 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key)
         if (!b) {
             return SIZE_MAX;
         }
-        Value existingKey = m_storage[b - 1];
+        const EncodedValue& existingKey = m_storage[b - 1];
         if (!existingKey.isEmpty() && existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
             return b - 1;
         }
@@ -101,11 +101,11 @@ void SetObject::buildOrRebuildHashIndex()
 {
     size_t live = 0;
     for (size_t i = 0; i < m_storage.size(); i++) {
-        live += !Value(m_storage[i]).isEmpty();
+        live += !m_storage[i].isEmpty();
     }
     KeyedCollectionHashIndex* index = KeyedCollectionHashIndex::create(live);
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Value key = m_storage[i];
+        const EncodedValue& key = m_storage[i];
         if (!key.isEmpty()) {
             index->insert(keyedCollectionHash(key), i);
         }

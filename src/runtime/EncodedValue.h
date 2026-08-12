@@ -253,6 +253,19 @@ public:
         return m_data.payload == ValueEmpty;
     }
 
+    // fast path for Set/Map storage scans: compares against a Value without
+    // materializing `this` into a full Value first when this slot is
+    // SMI-tagged and the search key is also int32 -- skips the toValue()
+    // conversion (SmiToInt + Value construction) on the common small-integer
+    // key case. Falls back to the general algorithm otherwise.
+    ALWAYS_INLINE bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& state, const Value& other) const
+    {
+        if (LIKELY(HAS_SMI_TAG(m_data.payload) && other.isInt32())) {
+            return EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload) == other.asInt32();
+        }
+        return toValue().equalsToByTheSameValueZeroAlgorithm(state, other);
+    }
+
     template <const bool shouldTreatEmptyAsUndefined = false>
     ALWAYS_INLINE Value toValue() const
     {
