@@ -81,9 +81,9 @@ public:
             // only 4 bytes).
             Digits,
         };
-        Type m_type : 8;
-        uint8_t m_start : 8;
-        uint16_t m_length : 16;
+        Type m_type;
+        size_t m_start;
+        size_t m_length;
         union {
             String* m_string;
             const char* m_raw;
@@ -94,7 +94,6 @@ public:
     };
 
 protected:
-    static StringView* initLongPiece(String*, size_t s, size_t e);
     void checkStringLengthLimit(Optional<ExecutionState*> state, size_t extraLength = 0)
     {
         if (state && UNLIKELY((m_contentLength + extraLength) > STRING_MAXIMUM_LENGTH)) {
@@ -159,20 +158,17 @@ class StringBuilderImpl : public StringBuilderBase {
             appendPiece(str->charAt(s), state);
         } else if (pieceLen > 0) {
             checkStringLengthLimit(state, pieceLen);
-
-            // NOT routed through nextPieceSlot()/a direct-write pattern like
-            // the other overloads below: m_type here is only known after a
-            // multi-branch has8BitContent/length check that can also call
-            // into bufferAccessData(). Measured via callgrind (see the commit
-            // this came out of) - holding the destination slot's address live
-            // across that whole branchy stretch costs more in spills/reloads
-            // than a single combined 16-byte store saves, unlike the simpler
-            // overloads below where m_type is known immediately. A plain
-            // local + one struct-copy at the end is cheaper for this one.
-            StringBuilderPiece piece;
+            StringBuilderPiece& piece = nextPieceSlot();
             piece.m_string = str;
+            if (m_piecesInlineStorageUsage >= InlineStorageSize) {
+                if (!m_rootedStringSet) {
+                    m_rootedStringSet = new (GC) StringSet;
+                }
+                m_rootedStringSet->insert(str);
+            }
             piece.m_start = s;
             piece.m_length = pieceLen;
+            m_contentLength += pieceLen;
             const auto& data = str->bufferAccessData();
             if (!data.has8BitContent) {
                 bool has8 = true;
@@ -192,25 +188,6 @@ class StringBuilderImpl : public StringBuilderBase {
 
             } else {
                 piece.m_type = StringBuilderPiece::Type::Latin1StringPiece;
-            }
-
-            if (UNLIKELY(s > std::numeric_limits<uint8_t>::max() || pieceLen > std::numeric_limits<uint16_t>::max())) {
-                piece.m_type = StringBuilderPiece::Type::String;
-                piece.m_start = piece.m_length = 0;
-                if (s != 0 || e != str->length()) {
-                    piece.m_string = reinterpret_cast<String*>(initLongPiece(str, s, e));
-                }
-            }
-
-            m_contentLength += pieceLen;
-            if (m_piecesInlineStorageUsage < InlineStorageSize) {
-                m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
-            } else {
-                m_pieces.push_back(piece);
-                if (!m_rootedStringSet) {
-                    m_rootedStringSet = new (GC) StringSet;
-                }
-                m_rootedStringSet->insert(piece.m_string);
             }
         }
     }
