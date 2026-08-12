@@ -25,11 +25,6 @@
 
 namespace Escargot {
 
-StringView* StringBuilderBase::initLongPiece(String* str, size_t s, size_t e)
-{
-    return new StringView(str, s, e);
-}
-
 void StringBuilderBase::throwStringLengthInvalidError(ExecutionState& state)
 {
     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
