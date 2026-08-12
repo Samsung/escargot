@@ -146,6 +146,8 @@
 #ifndef PREFETCH_READ
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define PREFETCH_READ(x) __builtin_prefetch((x), 0, 0)
+#elif defined(COMPILER_MSVC)
+#define PREFETCH_READ(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
 #else
 #define PREFETCH_READ(x)
 #endif
