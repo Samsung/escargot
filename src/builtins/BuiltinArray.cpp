@@ -2104,6 +2104,35 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
     // If len + argCount > 2^53 - 1, throw a TypeError exception.
     CHECK_ARRAY_LENGTH((uint64_t)n + argc > Value::maximumLength());
 
+    // fast path: for a genuine fast-mode array, skip the per-element virtual
+    // setIndexedProperty dispatch (index boxing into a Value + re-deriving
+    // the same index back out via isUInt32/tryToUseAsIndexProperty on every
+    // element) and grow+write the whole batch at once. push() never reads
+    // through the prototype chain (unlike concat/slice), so there is no
+    // exotic-prototype guard needed here.
+    if (LIKELY(argc > 0 && O->isArrayObject())) {
+        ArrayObject* arr = O->asArrayObject();
+        if (LIKELY(arr->isFastModeArray() && arr->isExtensible(state)
+                   && (uint64_t)n + argc <= std::numeric_limits<uint32_t>::max())) {
+            if (LIKELY(arr->pushIntoFastModeElements(state, argv, argc))) {
+                // pushIntoFastModeElements's own setArrayLength call already
+                // made length = n + argc a real, observable change -- the
+                // same side effect the spec's per-index [[DefineOwnProperty]]
+                // (step 5) would have produced. Its explicit final
+                // Set(O, "length", len, true) (step 6) would just be
+                // reconfirming a value that's already correct (and we've
+                // already ruled out non-writable length, the one case where
+                // that call could differ), so skip the extra property-set
+                // dispatch entirely.
+                return Value(n + argc);
+            }
+            // fell out of fast mode while growing (huge sparse gap /
+            // non-writable length) -- length is already bumped to n + argc,
+            // but nothing was written; finish the batch through the slow
+            // path below, which now writes plain named properties
+        }
+    }
+
     // Let items be an internal List whose elements are, in left to right order, the arguments that were passed to this function invocation.
     // Repeat, while items is not empty
     // Remove the first element from items and let E be the value of the element.

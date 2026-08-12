@@ -201,12 +201,33 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
             return false;
         }
 
-        if (desc.isWritablePresent() && !desc.isWritable()) {
-            ensureRareData()->m_isArrayObjectLengthWritable = false;
+        if (desc.isValuePresent() && m_arrayLength != newLen) {
+            if (newLen > m_arrayLength) {
+                // growing: per ArraySetLength step 6, this is a plain atomic
+                // OrdinaryDefineOwnProperty over the whole descriptor -- grow
+                // the length first (while [[Writable]] is still true, since
+                // the non-writable case was already rejected above), and only
+                // afterward flip [[Writable]] to false. Doing it in the other
+                // order would make setArrayLength's own non-writable growth
+                // guard reject this same call for the flag it is itself in
+                // the middle of setting.
+                if (!setArrayLength(state, newLen)) {
+                    return false;
+                }
+            } else {
+                // shrinking: per ArraySetLength steps 9/12.b.ii, [[Writable]]
+                // must already read false by the time a non-configurable
+                // element blocks full truncation, even though the overall
+                // call still fails -- apply it before attempting the shrink.
+                if (desc.isWritablePresent() && !desc.isWritable()) {
+                    ensureRareData()->m_isArrayObjectLengthWritable = false;
+                }
+                return setArrayLength(state, newLen);
+            }
         }
 
-        if (desc.isValuePresent() && m_arrayLength != newLen) {
-            return setArrayLength(state, newLen);
+        if (desc.isWritablePresent() && !desc.isWritable()) {
+            ensureRareData()->m_isArrayObjectLengthWritable = false;
         }
 
         return true;
@@ -463,6 +484,22 @@ bool ArrayObject::copyFastModeElementsFrom(ExecutionState& state, ArrayObject* s
     return true;
 }
 
+bool ArrayObject::pushIntoFastModeElements(ExecutionState& state, Value* values, size_t count)
+{
+    ASSERT(isFastModeArray());
+    uint32_t oldLength = m_arrayLength;
+    // useFitStorage=false: this is append growth, so let setArrayLength keep
+    // tracking spare capacity (see its append-growth fast path) instead of
+    // reallocating to the exact new size every push() call
+    if (UNLIKELY(!setArrayLength(state, oldLength + (uint32_t)count)) || UNLIKELY(!isFastModeArray())) {
+        return false;
+    }
+    for (size_t i = 0; i < count; i++) {
+        m_fastModeData[oldLength + i] = values[i];
+    }
+    return true;
+}
+
 bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
 {
     bool isPrimitiveValue;
@@ -490,6 +527,20 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
 bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage, bool considerHole)
 {
     bool isFastMode = isFastModeArray();
+
+    // growing while the length property is already non-writable must fail
+    // outright, before touching length or the backing store -- this is what
+    // an index write at/past the current length (push, arr[arr.length]=v,
+    // defineProperty) hits per the Array exotic [[DefineOwnProperty]]
+    // algorithm. Checked here, before any mutation, unlike the post-hoc
+    // isLengthPropertyWritable() check below (which covers the shrink /
+    // no-growth-needed case, e.g. `Object.defineProperty(arr, "length",
+    // {value: smaller, writable: false})`, where the resize itself is this
+    // call's own doing and must still go through).
+    if (UNLIKELY(isFastMode && newLength > arrayLength(state) && !isLengthPropertyWritable())) {
+        return false;
+    }
+
     if (UNLIKELY(isFastMode && (newLength > ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE) && considerHole)) {
         uint32_t orgLength = arrayLength(state);
         constexpr uint32_t maxSize = std::numeric_limits<uint32_t>::max() / 2;
@@ -503,7 +554,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
         auto oldLength = arrayLength(state);
         if (LIKELY(oldLength != newLength)) {
             m_arrayLength = newLength;
-            if (useFitStorage || oldLength == 0 || newLength <= 128) {
+            if (useFitStorage || oldLength == 0 || newLength <= ESCARGOT_ARRAY_FASTMODE_EXACT_ALLOC_MAX_LENGTH) {
                 bool hasRD = hasRareData();
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
                 m_fastModeData.resizeWithUninitializedValues(oldLength, newLength);
@@ -536,17 +587,23 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     rareData()->m_arrayObjectFastModeBufferCapacity = 0;
                 }
             } else {
-                ASSERT(newLength > 128);
+                ASSERT(newLength > ESCARGOT_ARRAY_FASTMODE_EXACT_ALLOC_MAX_LENGTH);
 
                 const size_t minExpandCountForUsingLog2Function = 3;
                 bool hasRD = hasRareData();
                 size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : oldLength;
+                // push()/arr[arr.length]=v/defineProperty-at-end all funnel through here as
+                // a +1 length bump. That pattern means more growth is likely coming, so skip
+                // the conservative %130-for-a-few-times ramp (meant for one-off length jumps,
+                // e.g. `arr.length = N`) and go straight to power-of-two doubling, same as a
+                // typical std::vector push_back.
+                bool isAppendGrowth = (newLength == oldLength + 1);
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
                 auto rd = ensureRareData();
                 if (newLength > oldCapacity) {
                     size_t newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
+                    if (isAppendGrowth || rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
                         ComputeReservedCapacityFunctionWithLog2<> f;
                         newCapacity = f(newLength);
                     } else {
@@ -575,7 +632,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                 auto rd = ensureRareData();
                 if (newLength > oldCapacity) {
                     size_t newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
+                    if (isAppendGrowth || rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
                         ComputeReservedCapacityFunctionWithLog2<> f;
                         newCapacity = f(newLength);
                     } else {

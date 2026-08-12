@@ -28,6 +28,11 @@ namespace Escargot {
 
 #define ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE 65536 * 16
 #define ESCARGOT_ARRAY_NON_FASTMODE_START_MIN_GAP 1024
+// below this length, setArrayLength allocates the backing store at the exact
+// requested size instead of tracking spare capacity in ObjectRareData -- a
+// handful of elements is cheap to reallocate outright and most arrays never
+// grow past it, so it isn't worth paying for capacity bookkeeping
+#define ESCARGOT_ARRAY_FASTMODE_EXACT_ALLOC_MAX_LENGTH 16
 
 class ArrayIteratorObject;
 
@@ -92,6 +97,16 @@ public:
     // hold no indexed properties. Returns false when the growth dropped this
     // array out of fast mode and nothing was copied.
     bool copyFastModeElementsFrom(ExecutionState& state, ArrayObject* src, uint32_t srcStart, uint32_t dstStart, uint32_t count);
+
+    // appends `count` values starting at the current length, growing capacity
+    // once for the whole batch instead of once per element (see push()'s
+    // caller) -- lets Array.prototype.push skip the per-element virtual
+    // setIndexedProperty dispatch (index boxing + isFastModeArray/isUInt32
+    // re-derivation) entirely for the common fast-mode case. Array must
+    // already be fast-mode. Returns false when growth dropped this array out
+    // of fast mode (huge sparse gap, non-writable length); nothing was
+    // written in that case and the caller must fall back to the generic path.
+    bool pushIntoFastModeElements(ExecutionState& state, Value* values, size_t count);
 
     // builds a plain dense array holding the same elements as src, with holes
     // materialized as undefined. src must be a fast-mode array that is iterated
