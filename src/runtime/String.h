@@ -134,7 +134,7 @@ struct StringBufferAccessData {
         , extraData(extraDataToKeep)
     {
 #if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
-        if (extraData) {
+        if (UNLIKELY(!!extraData)) {
             // increase refCount in CompressibleString or ReloadableString
             (*reinterpret_cast<size_t*>(extraData))++;
         }
@@ -148,7 +148,7 @@ struct StringBufferAccessData {
         , extraData(src.extraData)
     {
 #if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
-        if (extraData) {
+        if (UNLIKELY(!!extraData)) {
             // increase refCount in CompressibleString or ReloadableString
             (*reinterpret_cast<size_t*>(extraData))++;
         }
@@ -1082,6 +1082,34 @@ public:
     {
         return (char16_t*)&m_bufferData.bufferPointerAs16BitArray;
     }
+};
+
+template <const int bufferSize>
+class UTF16StringWithLargeInlineBuffer : public String {
+public:
+    UTF16StringWithLargeInlineBuffer(const char16_t* str, size_t len)
+        : String()
+    {
+        ASSERT(len <= bufferSize);
+        m_bufferData.buffer = m_buffer;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = false;
+        memcpy(m_buffer, str, len * 2);
+    }
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+
+    virtual const char16_t* characters16() const override
+    {
+        return m_buffer;
+    }
+
+private:
+    char16_t m_buffer[bufferSize];
 };
 
 class ParserString {
