@@ -526,7 +526,10 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
     return false;
 }
 
-bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const
+// out-of-line slow case: Value::equalsToByTheSameValueZeroAlgorithm (inline,
+// see ValueInlines.h) already filters out the two-SMI fast path before
+// reaching here
+bool Value::equalsToByTheSameValueZeroAlgorithmSlowCase(ExecutionState& ec, const Value& val) const
 {
     if (LIKELY(!val.isPointerValue())) {
         if (isNumber() && val.isNumber()) {

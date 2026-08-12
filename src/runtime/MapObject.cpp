@@ -65,7 +65,7 @@ size_t MapObject::findKeyIndex(ExecutionState& state, const Value& key)
             buildOrRebuildHashIndex();
         } else {
             for (size_t i = 0; i < m_storage.size(); i++) {
-                Value existingKey = m_storage[i].first;
+                const EncodedValue& existingKey = m_storage[i].first;
                 if (existingKey.isEmpty()) {
                     continue;
                 }
@@ -83,7 +83,7 @@ size_t MapObject::findKeyIndex(ExecutionState& state, const Value& key)
         if (!b) {
             return SIZE_MAX;
         }
-        Value existingKey = m_storage[b - 1].first;
+        const EncodedValue& existingKey = m_storage[b - 1].first;
         if (!existingKey.isEmpty() && existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
             return b - 1;
         }
@@ -95,11 +95,11 @@ void MapObject::buildOrRebuildHashIndex()
 {
     size_t live = 0;
     for (size_t i = 0; i < m_storage.size(); i++) {
-        live += !Value(m_storage[i].first).isEmpty();
+        live += !m_storage[i].first.isEmpty();
     }
     KeyedCollectionHashIndex* index = KeyedCollectionHashIndex::create(live);
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Value key = m_storage[i].first;
+        const EncodedValue& key = m_storage[i].first;
         if (!key.isEmpty()) {
             index->insert(keyedCollectionHash(key), i);
         }
@@ -124,8 +124,7 @@ size_t MapObject::size(ExecutionState& state)
 {
     size_t siz = 0;
     for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i].first;
-        if (existingKey.isEmpty()) {
+        if (m_storage[i].first.isEmpty()) {
             continue;
         }
         siz++;

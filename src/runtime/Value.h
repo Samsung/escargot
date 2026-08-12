@@ -279,7 +279,8 @@ public:
     inline bool equalsTo(ExecutionState& ec, const Value& val) const;
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
-    bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
+    inline bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
+    bool equalsToByTheSameValueZeroAlgorithmSlowCase(ExecutionState& ec, const Value& val) const;
     bool instanceOf(ExecutionState& ec, const Value& other) const;
 
 

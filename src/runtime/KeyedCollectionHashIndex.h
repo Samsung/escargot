@@ -73,13 +73,19 @@ struct KeyedCollectionHashIndex {
     }
 };
 
-inline size_t keyedCollectionPointerHash(void* p)
+// finalizer mix shared by every hash below (avalanches a 64-bit key so
+// nearby inputs land in unrelated buckets)
+inline uint64_t keyedCollectionHashMix(uint64_t u)
 {
-    uint64_t u = (uint64_t)(uintptr_t)p;
     u ^= u >> 33;
     u *= 0xff51afd7ed558ccdULL;
     u ^= u >> 33;
-    return (size_t)u;
+    return u;
+}
+
+inline size_t keyedCollectionPointerHash(void* p)
+{
+    return (size_t)keyedCollectionHashMix((uint64_t)(uintptr_t)p);
 }
 
 // hash consistent with Value::equalsToByTheSameValueZeroAlgorithm:
@@ -87,6 +93,21 @@ inline size_t keyedCollectionPointerHash(void* p)
 // BigInts collapsed to one bucket chain (rare as keys), others by identity
 inline size_t keyedCollectionHash(const Value& v)
 {
+    // fast path: an int32 is always finite and non-NaN, so this skips the
+    // isNumber() tag dispatch and the isnan() check below while still
+    // mixing the exact same double bit pattern the general path would
+    // produce for the same numeric value -- keeps int32 5 and double 5.0
+    // (SameValueZero-equal) landing in the same bucket.
+    if (LIKELY(v.isInt32())) {
+        int32_t i32 = v.asInt32();
+        if (i32 == 0) {
+            return 0;
+        }
+        double d = (double)i32;
+        uint64_t b;
+        memcpy(&b, &d, sizeof(b));
+        return (size_t)keyedCollectionHashMix(b);
+    }
     if (v.isNumber()) {
         double d = v.asNumber();
         if (d == 0) {
@@ -97,10 +118,7 @@ inline size_t keyedCollectionHash(const Value& v)
         }
         uint64_t b;
         memcpy(&b, &d, sizeof(b));
-        b ^= b >> 33;
-        b *= 0xff51afd7ed558ccdULL;
-        b ^= b >> 33;
-        return (size_t)b;
+        return (size_t)keyedCollectionHashMix(b);
     }
     if (v.isPointerValue()) {
         PointerValue* p = v.asPointerValue();

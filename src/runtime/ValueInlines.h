@@ -844,6 +844,19 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
     }
 }
 
+inline bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& state, const Value& val) const
+{
+    // fast path: two SMIs never need the double round-trip in the slow case
+    // below (also sidesteps the isPointerValue/isNumber checks entirely,
+    // since an int32-tagged Value can never be a pointer). Inlined at every
+    // call site so the common Set/Map small-integer-key case pays for a
+    // single compare instead of a function call.
+    if (LIKELY(isInt32() && val.isInt32())) {
+        return asInt32() == val.asInt32();
+    }
+    return equalsToByTheSameValueZeroAlgorithmSlowCase(state, val);
+}
+
 inline bool Value::toBoolean() const // $7.1.2 ToBoolean
 {
     if (isBoolean())
