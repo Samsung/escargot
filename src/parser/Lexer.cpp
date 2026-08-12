@@ -506,7 +506,13 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
         }
     }
 
-    return new StringView(scannerInstance->sourceAsNormalView, start, end);
+    if (UNLIKELY(LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length)) {
+        return new StringView(scannerInstance->sourceAsNormalView, start, end);
+    } else {
+        constructStringLiteral(scannerInstance);
+        this->hasAllocatedString = true;
+        return this->valueStringLiteralData.m_stringIfNewlyAllocated;
+    }
 }
 
 ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
@@ -662,7 +668,10 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
                 }
                 scannerInstance->lineStart = scannerInstance->index;
             }
-        } else if (UNLIKELY(isLineTerminator(ch))) {
+        } else if (UNLIKELY(ch < 128 && (g_asciiRangeCharMap[ch] & LexerIsCharLineTerminator))) {
+            // while parsing string literal, we should not end parsing string token with 0x2028 or 0x2029
+            // (mirrors the same ASCII-only check in scanStringLiteral -- isLineTerminator() also treats
+            // U+2028/U+2029 as terminators, which are legal unescaped inside a string literal)
             break;
         } else {
             stringUTF16 += ch;

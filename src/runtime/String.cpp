@@ -757,7 +757,11 @@ LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_DEFINE)
 
 String* String::fromASCII(const char* src, size_t len)
 {
-    if (len <= String::StringBufferData::bufferPointerAsArraySize) {
+    if (len <= String::StringBufferData::bufferPointerAsArraySize
+#if !defined(ESCARGOT_SMALL_CONFIG)
+        && false
+#endif
+    ) {
         return new ASCIIStringWithInlineBuffer(src, len);
     } else {
         switch (len) {
@@ -773,7 +777,11 @@ String* String::fromASCII(const char* src, size_t len)
 
 String* String::fromLatin1(const LChar* src, size_t len)
 {
-    if (len <= String::StringBufferData::bufferPointerAsArraySize) {
+    if (len <= String::StringBufferData::bufferPointerAsArraySize
+#if !defined(ESCARGOT_SMALL_CONFIG)
+        && false
+#endif
+    ) {
         return new Latin1StringWithInlineBuffer(src, len);
     } else {
         switch (len) {
@@ -836,12 +844,20 @@ String* String::fromCharCode(char32_t code)
         return new ASCIIStringWithInlineBuffer(&c, 1);
     } else if (code < 0x10000) {
         char16_t buf = code;
+#if defined(ESCARGOT_SMALL_CONFIG)
         return new UTF16StringWithInlineBuffer(&buf, 1);
+#else
+        return new UTF16StringWithLargeInlineBuffer<1>(&buf, 1);
+#endif
     } else {
         char16_t buf[2];
         buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
         buf[1] = (char16_t)(0xDC00 + ((code - 0x10000) & 1023));
+#if defined(ESCARGOT_SMALL_CONFIG)
         return new UTF16StringWithInlineBuffer(buf, 2);
+#else
+        return new UTF16StringWithLargeInlineBuffer<2>(buf, 2);
+#endif
     }
 }
 
