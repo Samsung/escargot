@@ -89,6 +89,49 @@ Script* ScriptParser::InitializeScriptResult::scriptThrowsExceptionIfParseError(
     return script.value();
 }
 
+static bool isPrivateClassContext(InterpretedCodeBlock* codeBlock)
+{
+    return codeBlock->isClassMethod() || codeBlock->isClassStaticMethod()
+        || codeBlock->isClassConstructor()
+        || codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression()
+        || codeBlock->isFunctionBodyOnlyVirtualArrowFunctionExpression();
+}
+
+static bool hasShadowedPrivateNameInClassChain(InterpretedCodeBlock* codeBlock)
+{
+    for (InterpretedCodeBlock* current = codeBlock; current; current = current->parent()) {
+        if (!isPrivateClassContext(current)) {
+            continue;
+        }
+
+        auto privateNames = current->classPrivateNames();
+        if (!privateNames) {
+            continue;
+        }
+
+        for (InterpretedCodeBlock* outer = current->parent(); outer; outer = outer->parent()) {
+            if (!isPrivateClassContext(outer)) {
+                continue;
+            }
+
+            auto outerPrivateNames = outer->classPrivateNames();
+            if (!outerPrivateNames) {
+                continue;
+            }
+
+            for (size_t i = 0; i < privateNames->size(); i++) {
+                for (size_t j = 0; j < outerPrivateNames->size(); j++) {
+                    if (privateNames->data()[i] == outerPrivateNames->data()[j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
 {
     InterpretedCodeBlock* codeBlock;
@@ -126,16 +169,41 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
             }
         }
 
-        if (scopeCtx->m_hasThisExpression && scopeCtx->m_isArrowFunctionExpression) {
+        // private name access (e.g. `#f in o`) needs the upper env's homeObject
+        // at call time just like `this` does, so it forces the same walk.
+        if ((scopeCtx->m_hasThisExpression || scopeCtx->m_hasClassPrivateNameExpression)
+            && scopeCtx->m_isArrowFunctionExpression) {
             // every arrow function should save this value of upper env.
             // except arrow function is localed on class constructor(class constructor needs test of this binding is valid)
             InterpretedCodeBlock* c = codeBlock;
             while (c) {
                 if (c->isKindOfFunction()) {
                     if (c->isArrowFunctionExpression()) {
+                        if (c != codeBlock && c->isOneExpressionOnlyVirtualArrowFunctionExpression()
+                            && scopeCtx->m_hasClassPrivateNameExpression) {
+                            // A field initializer is a virtual arrow. Its
+                            // environment carries the class home object needed
+                            // by a nested arrow after initialization completes.
+                            // The initializer itself runs before its frame dies,
+                            // so it can stay on the stack.
+                            // Runtime lookup cannot stop at an intermediate
+                            // same-named declaration. Preserve the existing
+                            // allocation for that nested-class edge case.
+                            if (!hasShadowedPrivateNameInClassChain(c)) {
+                                c->m_canAllocateEnvironmentOnStack = false;
+                                break;
+                            }
+                            if (!scopeCtx->m_hasThisExpression) {
+                                // Private access alone entered this walk, so
+                                // leave the previous allocation unchanged.
+                                break;
+                            }
+                        }
                         // pass
                     } else if (c->isClassConstructor()) {
-                        c->m_canAllocateEnvironmentOnStack = false;
+                        if (scopeCtx->m_hasThisExpression || !hasShadowedPrivateNameInClassChain(c)) {
+                            c->m_canAllocateEnvironmentOnStack = false;
+                        }
                         break;
                     } else if ((c->isClassMethod() || c->isClassStaticMethod()) && scopeCtx->m_hasClassPrivateNameExpression) {
                         /*
@@ -152,7 +220,12 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                           }
                         }
                         */
-                        c->m_canAllocateEnvironmentOnStack = false;
+                        // an arrow entered here only by a private name gets the
+                        // same shadow suppression as field initializers; a
+                        // `this` arrow keeps the historical allocation.
+                        if (scopeCtx->m_hasThisExpression || !hasShadowedPrivateNameInClassChain(c)) {
+                            c->m_canAllocateEnvironmentOnStack = false;
+                        }
                         break;
                     } else {
                         break;

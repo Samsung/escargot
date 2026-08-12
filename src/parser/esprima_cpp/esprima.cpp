@@ -2905,6 +2905,9 @@ public:
                 *idToken = this->lookahead;
                 ASTNode property = this->parseClassPrivateIdentifierName(builder);
                 if (!this->isParsingSingleFunction) {
+                    // a brand check (`#x in o`) resolves the private member
+                    // context the same way `o.#x` does
+                    this->currentScopeContext->m_hasClassPrivateNameExpression = true;
                     if (!this->currentClassInfo) {
                         this->throwError(Messages::PrivateFieldMustBeDeclared, property->asIdentifier()->name().string());
                     }
