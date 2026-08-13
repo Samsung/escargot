@@ -117,6 +117,13 @@ IF (ESCARGOT_IS_BAREMETAL)
     IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT)
         SET (ESCARGOT_LIBICU_SUPPORT OFF)
     ENDIF()
+    # CompressibleString trades flash (the LZ4 codec + bookkeeping) for RAM
+    # (compressing idle long-lived strings). On flash-constrained bare-metal
+    # single-script targets the code cost is the scarcer resource, so default
+    # it off; it can still be forced on with -DESCARGOT_COMPRESSIBLE_STRING=ON.
+    IF (NOT DEFINED ESCARGOT_COMPRESSIBLE_STRING)
+        SET (ESCARGOT_COMPRESSIBLE_STRING OFF)
+    ENDIF()
 ENDIF()
 
 
