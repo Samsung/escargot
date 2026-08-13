@@ -195,6 +195,18 @@ void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)
     }
 }
 
+Optional<AtomicString> AtomicString::has(AtomicStringMap* map, const LChar* src, size_t len)
+{
+    Latin1StringOnStack stringForSearch(src, len);
+
+    auto iter = map->find(&stringForSearch);
+    if (map->end() != iter) {
+        return AtomicString(iter.operator*());
+    } else {
+        return Optional<AtomicString>();
+    }
+}
+
 class UTF16StringOnStack : public String {
 public:
     UTF16StringOnStack(const char16_t* str, size_t len)
