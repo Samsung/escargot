@@ -253,7 +253,11 @@ ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(Exec
 Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
     state->m_programCounter = &programCounter;
+#ifdef ESCARGOT_DEBUGGER
+    try {
+#else /* ESCARGOT_DEBUGGER */
     {
+#endif /* ESCARGOT_DEBUGGER */
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
         if (UNLIKELY((((ByteCode*)programCounter)->m_opcodeInAddress) == NULL)) {
@@ -2119,6 +2123,16 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         }
 
         DEFINE_DEFAULT
+
+#ifdef ESCARGOT_DEBUGGER
+    } catch (const Value& err) {
+        if (state->context()->debuggerEnabled() && !state->context()->isStoppingOnExceptionInProgress()) {
+            state->context()->setStoppingOnExceptionInProgress(true);
+            const auto offset = static_cast<uint32_t>(programCounter - reinterpret_cast<size_t>(byteCodeBlock->m_code.data()));
+            state->context()->debugger()->stopAtException(byteCodeBlock, offset, state, &err);
+        }
+        throw;
+#endif /* ESCARGOT_DEBUGGER */
     }
 
     ASSERT_NOT_REACHED();
@@ -3907,6 +3921,9 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                         state.m_onCatch = in;
                     });
 #endif
+#ifdef ESCARGOT_DEBUGGER
+                    newState->context()->setStoppingOnExceptionInProgress(false);
+#endif /* ESCARGOT_DEBUGGER */
                     Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
                     if (newState->inExecutionStopState()) {
                         return Value();

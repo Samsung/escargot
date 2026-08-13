@@ -253,6 +253,15 @@ bool DebuggerEscargot::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t o
     return m_restartDebugging;
 }
 
+bool DebuggerEscargot::stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue)
+{
+    if (!(m_pauseOnCaughtExceptions || m_pauseOnUnCaughtExceptions)) {
+        return false;
+    }
+
+    return stopAtBreakpoint(byteCodeBlock, offset, state);
+}
+
 void DebuggerEscargot::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
 {
     // All messages which involves this pointer should be ignored until the confirmation arrives.
