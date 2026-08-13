@@ -127,8 +127,12 @@ SET (GCUTIL_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} ${PROFILER_FLAGS})
 SET (GCUTIL_CFLAGS_FROM_EXTERNAL ${GCUTIL_CFLAGS_FROM_EXTERNAL} ${ESCARGOT_CFLAGS_FROM_EXTERNAL})
 
 # If 64-bit pointer compression is enabled, we must pass it to GCutil
-# so bdwgc constrains mmap memory allocations under 4GB.
-IF (NOT ESCARGOT_BUILD_64BIT_LARGE AND ESCARGOT_BUILD_64BIT)
+# so bdwgc constrains mmap memory allocations under 4GB. This condition must
+# stay the negation of build/target.cmake's large-mode selection
+# (LARGE OR (64BIT AND FORCE_LARGE)): checking only ESCARGOT_BUILD_64BIT_LARGE
+# here left FORCE_LARGE builds (where LARGE stays OFF, e.g. linux/aarch64)
+# with a full-64-bit core but a pointer-compressed bdwgc.
+IF (NOT ESCARGOT_BUILD_64BIT_LARGE AND ESCARGOT_BUILD_64BIT AND NOT ESCARGOT_BUILD_64BIT_FORCE_LARGE)
     LIST (APPEND GCUTIL_CFLAGS_FROM_EXTERNAL "-DGC_USE_32BIT_IN_64BIT" "-DESCARGOT_USE_32BIT_IN_64BIT")
 ENDIF()
 
