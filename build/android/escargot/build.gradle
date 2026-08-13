@@ -18,6 +18,7 @@ ext {
     // (see release.yml) never set this, so they still get the full
     // multi-ABI native build unchanged.
     testAbiOption = System.getProperty("ESCARGOT_TEST_ABI", "")
+    escargotTestOption = System.getProperty("ESCARGOT_TEST", "OFF")
 }
 
 android {
@@ -38,8 +39,9 @@ android {
                 // (ON for android, since ESCARGOT_THREADING defaults ON too)
                 // apply, so this AAR build actually exercises that default
                 // instead of just re-stating it from a second source of truth.
-                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=OFF",
-                        "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option
+                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DCMAKE_SYSTEM_NAME=Android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=OFF",
+                        "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
+                        "-DESCARGOT_TEST="+project.ext.escargotTestOption
             }
         }
 
@@ -70,7 +72,7 @@ android {
             initWith(buildTypes.debug)
             externalNativeBuild {
                 cmake {
-                    arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=ON"
+                    arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DCMAKE_SYSTEM_NAME=Android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=ON"
                 }
             }
         }
@@ -83,7 +85,7 @@ android {
             }
             externalNativeBuild {
                 cmake {
-                    arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=ON"
+                    arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DCMAKE_SYSTEM_NAME=Android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=ON"
                 }
             }
         }
@@ -148,7 +150,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
     dependsOn createNativeNoNDK
     workingDir dirForNativeNoNDK
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=linux", "-DESCARGOT_ARCH=x64", "-DESCARGOT_BUILD_SHARED_LIBS=OFF",
+        commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Linux", "-DESCARGOT_BUILD_SHARED_LIBS=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
                 "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
@@ -169,7 +171,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
         }
         var pkgConfigPath = icu4cPath + "/lib/pkgconfig"
         environment("PKG_CONFIG_PATH", pkgConfigPath)
-        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=darwin", "-DESCARGOT_ARCH=x64", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DUNDER_NDK=OFF",
+        commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Darwin", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DUNDER_NDK=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
                 "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
                 "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
