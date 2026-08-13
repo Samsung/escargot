@@ -463,8 +463,16 @@ void customEscargotErrorLogger(const char* format, ...);
 #define ESCARGOT_LOG_ERROR(...) ::Escargot::customEscargotErrorLogger(__VA_ARGS__);
 #else
 // use default logging
-#define ESCARGOT_LOG_INFO(...) fprintf(stdout, __VA_ARGS__);
-#define ESCARGOT_LOG_ERROR(...) fprintf(stderr, __VA_ARGS__);
+#define ESCARGOT_LOG_INFO(...)        \
+    do {                              \
+        fprintf(stdout, __VA_ARGS__); \
+        fprintf(stdout, "\n");        \
+    } while (0)
+#define ESCARGOT_LOG_ERROR(...)       \
+    do {                              \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n");        \
+    } while (0)
 
 #if defined(ESCARGOT_ANDROID)
 #include <android/log.h>
