@@ -100,6 +100,8 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 
         debugger->exceptionCaught(message, exceptionTrace);
     }
+
+    m_context->setStoppingOnExceptionInProgress(false);
 #endif /* ESCARGOT_DEBUGGER */
 }
 

@@ -193,6 +193,7 @@ public:
     virtual void init(const char* options, Context* context) = 0;
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) = 0;
     virtual bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
+    virtual bool stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue) = 0;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) = 0;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
     virtual void consoleOut(String* output) = 0;
@@ -223,10 +224,22 @@ public:
         m_restartDebugging = b;
     }
 
+    bool getPauseOnCaughtExceptions() const
+    {
+        return m_pauseOnCaughtExceptions;
+    }
+
+    bool getPauseOnUnCaughtExceptions() const
+    {
+        return m_pauseOnUnCaughtExceptions;
+    }
+
 protected:
     Debugger()
         : m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_stopState(nullptr)
+        , m_pauseOnCaughtExceptions(false)
+        , m_pauseOnUnCaughtExceptions(false)
         , m_context(nullptr)
         , m_activeSavedStackTraceExecutionState(nullptr)
         , m_activeSavedStackTrace(nullptr)
@@ -248,6 +261,8 @@ protected:
     std::vector<BreakpointLocationsInfo*> m_breakpointLocationsVector;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     bool m_restartDebugging;
+    bool m_pauseOnCaughtExceptions;
+    bool m_pauseOnUnCaughtExceptions;
 
 private:
     Context* m_context;

@@ -87,6 +87,7 @@ Context::Context(VMInstance* instance)
     , m_securityPolicyCheckCallbackPublic(nullptr)
 #ifdef ESCARGOT_DEBUGGER
     , m_debugger(nullptr)
+    , m_stoppingOnExceptionInProgress(false)
 #endif /* ESCARGOT_DEBUGGER */
 {
     ExecutionState stateForInit(this);
@@ -232,6 +233,16 @@ void Context::pumpDebuggerEvents()
         return Value();
     },
            m_debugger);
+}
+
+bool Context::isStoppingOnExceptionInProgress() const
+{
+    return m_stoppingOnExceptionInProgress;
+}
+
+void Context::setStoppingOnExceptionInProgress(const bool isInProgress)
+{
+    m_stoppingOnExceptionInProgress = isInProgress;
 }
 
 #endif /* ESCARGOT_DEBUGGER */

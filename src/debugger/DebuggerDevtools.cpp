@@ -60,6 +60,134 @@ rapidjson::Value stringToRapidjsonValue(const std::string& value, rapidjson::Mem
     return rapidjsonStringValue;
 }
 
+std::string objectToStringTypeName(const Value object)
+{
+    std::string objectType;
+    if (object.isSymbol()) {
+        objectType = "symbol";
+    } else if (object.isFunction()) {
+        objectType = "function";
+    } else if (object.isUndefined()) {
+        objectType = "undefined";
+    } else if (object.isString()) {
+        objectType = "string";
+    } else if (object.isNumber()) {
+        objectType = "number";
+    } else if (object.isBoolean()) {
+        objectType = "boolean";
+    } else if (object.isBigInt()) {
+        objectType = "bigint";
+    } else if (object.isObject()) {
+        objectType = "object";
+    } else {
+        ASSERT_NOT_REACHED();
+    }
+    return objectType;
+}
+
+static void addObjectProperties(ExecutionState* state, PropertyNameValueMap* values, Object* object)
+{
+    Object::OwnPropertyKeyVector keys = object->ownPropertyKeys(*state);
+    for (const auto key : keys) {
+        ObjectPropertyName propertyName(*state, key);
+        AtomicString name(*state, key.toStringWithoutException(*state));
+
+        try {
+            ObjectGetResult result = object->getOwnProperty(*state, propertyName);
+            Value value = result.value(*state, value);
+
+            if (values->find(name) == values->end()) {
+                values->insert(std::make_pair(name, value));
+            }
+        } catch (const Value& val) {
+            if (values->find(name) == values->end()) {
+                values->insert(std::make_pair(name, Value()));
+            }
+        }
+    }
+}
+
+static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const IdentifierRecordVector& identifiers, EnvironmentRecord* record)
+{
+    for (const auto identifier : identifiers) {
+        try {
+            const EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, identifier.m_name);
+            ASSERT(result.m_hasBindingValue);
+            if (values->find(identifier.m_name) == values->end()) {
+                values->insert(std::make_pair(identifier.m_name, result.m_value));
+            }
+        } catch (const Value& val) {
+            if (values->find(identifier.m_name) == values->end()) {
+                values->insert(std::make_pair(identifier.m_name, Value()));
+            }
+        }
+    }
+}
+
+static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
+{
+    for (const auto binding : bindings) {
+        try {
+            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, binding.m_localName);
+            ASSERT(result.m_hasBindingValue);
+            if (values->find(binding.m_localName) == values->end()) {
+                values->insert(std::make_pair(binding.m_localName, result.m_value));
+            }
+        } catch (const Value& val) {
+            if (values->find(binding.m_localName) == values->end()) {
+                values->insert(std::make_pair(binding.m_localName, Value()));
+            }
+        }
+    }
+}
+
+static bool isErrorObject(const Value& val)
+{
+    return val.isPointerValue() && val.asPointerValue()->isErrorObject();
+}
+
+rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, const Value value, rapidjson::MemoryPoolAllocator<>& allocator, const std::string& name = "")
+{
+    auto result = rapidjson::Value(rapidjson::kObjectType);
+
+    std::string propertyValueString;
+    if (value.isSymbol()) {
+        propertyValueString = string_format("Symbol (%s)", name.c_str());
+    } else if (value.isObject()) {
+        propertyValueString = "Object";
+    } else {
+        propertyValueString = value.toStringWithoutException(*state)->toUTF8StringData().data();
+    }
+
+    result.AddMember("type", stringToRapidjsonValue(objectToStringTypeName(value), allocator), allocator);
+    if (value.isObject()) {
+        result.AddMember("className", stringToRapidjsonValue(value.asObject()->constructorName(*state)->toUTF8StringData().data(), allocator), allocator);
+    }
+    result.AddMember("value", stringToRapidjsonValue(propertyValueString, allocator), allocator);
+
+    std::string description;
+    if (isErrorObject(value)) {
+        const auto errorObject = value.asPointerValue()->asErrorObject();
+
+        const ObjectPropertyName propertyName(*state, Value(String::fromASCII("message")));
+        const Value message = errorObject->getOwnProperty(*state, propertyName).value(*state, value);
+
+        const std::string className = errorObject->constructorName(*state)->toUTF8StringData().data();
+        description = string_format("%s: %s", className.c_str(), message.toStringWithoutException(*state)->toUTF8StringData().data());
+    } else {
+        description = propertyValueString;
+    }
+    result.AddMember("description", stringToRapidjsonValue(description, allocator), allocator); // string representation of the object
+
+    if (value.isObject()) {
+        auto* values = new (GC) PropertyNameValueMap();
+        addObjectProperties(state, values, value.asObject());
+        result.AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(values)), allocator), allocator);
+    }
+
+    return result;
+}
+
 bool DebuggerDevtools::sendMessage(const std::string& msg, const size_t length)
 {
     if (UNLIKELY(!m_networkEnabled || !m_debuggerEnabled || !m_runtimeEnabled)) {
@@ -206,64 +334,12 @@ void DebuggerDevtools::parseCompleted(String* source, String* srcName, const siz
     sendJSONDocument(reply);
 }
 
-static void addObjectProperties(ExecutionState* state, PropertyNameValueMap* values, Object* object)
+void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state, StopReason stopReason, const Value* exceptionValue)
 {
-    Object::OwnPropertyKeyVector keys = object->ownPropertyKeys(*state);
-    for (const auto key : keys) {
-        ObjectPropertyName propertyName(*state, key);
-        AtomicString name(*state, key.toStringWithoutException(*state));
-
-        try {
-            ObjectGetResult result = object->getOwnProperty(*state, propertyName);
-            Value value = result.value(*state, value);
-
-            if (values->find(name) == values->end()) {
-                values->insert(std::make_pair(name, value));
-            }
-        } catch (const Value& val) {
-            if (values->find(name) == values->end()) {
-                values->insert(std::make_pair(name, Value()));
-            }
-        }
+    if (m_processingPauseEvent) {
+        return;
     }
-}
-
-static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const IdentifierRecordVector& identifiers, EnvironmentRecord* record)
-{
-    for (const auto identifier : identifiers) {
-        try {
-            const EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, identifier.m_name);
-            ASSERT(result.m_hasBindingValue);
-            if (values->find(identifier.m_name) == values->end()) {
-                values->insert(std::make_pair(identifier.m_name, result.m_value));
-            }
-        } catch (const Value& val) {
-            if (values->find(identifier.m_name) == values->end()) {
-                values->insert(std::make_pair(identifier.m_name, Value()));
-            }
-        }
-    }
-}
-
-static void addRecordProperties(ExecutionState* state, PropertyNameValueMap* values, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
-{
-    for (const auto binding : bindings) {
-        try {
-            EnvironmentRecord::GetBindingValueResult result = record->getBindingValue(*state, binding.m_localName);
-            ASSERT(result.m_hasBindingValue);
-            if (values->find(binding.m_localName) == values->end()) {
-                values->insert(std::make_pair(binding.m_localName, result.m_value));
-            }
-        } catch (const Value& val) {
-            if (values->find(binding.m_localName) == values->end()) {
-                values->insert(std::make_pair(binding.m_localName, Value()));
-            }
-        }
-    }
-}
-
-void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state, const bool breakpoint)
-{
+    m_processingPauseEvent = true;
     const auto* stopByteCode = reinterpret_cast<ByteCode*>(byteCodeBlock->m_code.data() + offset);
     const std::string stopFilename = byteCodeBlock->codeBlock()->script()->srcName()->toUTF8StringData().data();
     const uint64_t stopLine = stopByteCode->m_loc.line - 1; // chrome starts line indexes at 0
@@ -279,11 +355,45 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     reply.AddMember("params", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
     reply["params"].AddMember("callFrames", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
     reply["params"].AddMember("hitBreakpoints", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
-    reply["params"]["hitBreakpoints"].PushBack(stringToRapidjsonValue(string_format("%s:%lu:%lu", stopFilename.c_str(), stopLine, stopColumn), reply.GetAllocator()), reply.GetAllocator());
-    reply["params"].AddMember("reason", stringToRapidjsonValue(breakpoint ? "Breakpoint" : "Break on start", reply.GetAllocator()), reply.GetAllocator());
 
     StackTraceDataOnStackVector stackTraceDataVector;
     SandBox::createStackTrace(stackTraceDataVector, *state, true);
+
+
+    std::string reason;
+    switch (stopReason) {
+    case BREAK_ON_START:
+        reason = "Break on start";
+        break;
+    case BREAKPOINT:
+        reason = "Breakpoint";
+        break;
+    case EXCEPTION:
+        reason = "exception";
+        break;
+    }
+
+    if (stopReason == BREAK_ON_START || stopReason == BREAKPOINT) {
+        reply["params"]["hitBreakpoints"].PushBack(stringToRapidjsonValue(string_format("%s:%lu:%lu", stopFilename.c_str(), stopLine, stopColumn), reply.GetAllocator()), reply.GetAllocator());
+    }
+    reply["params"].AddMember("reason", stringToRapidjsonValue(reason, reply.GetAllocator()), reply.GetAllocator());
+
+    if (stopReason == EXCEPTION) {
+        ASSERT(exceptionValue != nullptr);
+        bool isError = isErrorObject(*exceptionValue);
+        Value exception;
+        if (isError) {
+            exception = exceptionValue->asPointerValue()->asErrorObject();
+        } else {
+            exception = *exceptionValue;
+        }
+        reply["params"].AddMember("data", jsValueToJsonValueObj(state, exception, reply.GetAllocator()), reply.GetAllocator());
+        reply["params"]["data"].AddMember("uncaught", false, reply.GetAllocator()); // we can't tell is a given error will be caught or not
+        if (isError) {
+            reply["params"]["data"].AddMember("subtype", "error", reply.GetAllocator());
+        }
+    }
+
     ByteCodeLOCDataMap locMap;
     bool first = true;
 
@@ -389,6 +499,7 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     }
 
     sendJSONDocument(reply);
+    m_processingPauseEvent = false;
 }
 
 bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state)
@@ -402,7 +513,7 @@ bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, const uint
         return false;
     }
 
-    sendPausedEvent(byteCodeBlock, offset, state, !m_startBreakpoint);
+    sendPausedEvent(byteCodeBlock, offset, state, (m_startBreakpoint ? BREAK_ON_START : BREAKPOINT));
 
     if (m_startBreakpoint) {
         m_startBreakpoint = false;
@@ -420,6 +531,34 @@ bool DebuggerDevtools::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, const uint
 
     m_activeObjects.clear();
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
+
+    return false;
+}
+
+bool DebuggerDevtools::stopAtException(ByteCodeBlock* byteCodeBlock, const uint32_t offset, ExecutionState* state, const Value* exceptionValue)
+{
+    if (!(m_pauseOnCaughtExceptions || m_pauseOnUnCaughtExceptions)) {
+        return false;
+    }
+
+    if (m_processingPauseEvent) {
+        return false;
+    }
+
+    if (!enabled()) {
+        return false;
+    }
+
+    ASSERT(m_activeObjects.empty());
+    m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
+
+    m_activeObjects.clear();
+    m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
+
+    sendPausedEvent(byteCodeBlock, offset, state, EXCEPTION, exceptionValue);
+
+    while (processEvents(state, byteCodeBlock))
+        ;
 
     return false;
 }
@@ -553,31 +692,6 @@ uint32_t DebuggerDevtools::registerValuesMap(PropertyNameValueMap* newPropertyMa
     return m_nextObjectId++;
 }
 
-std::string objectToStringTypeName(const Value object)
-{
-    std::string objectType;
-    if (object.isSymbol()) {
-        objectType = "symbol";
-    } else if (object.isFunction()) {
-        objectType = "function";
-    } else if (object.isUndefined()) {
-        objectType = "undefined";
-    } else if (object.isString()) {
-        objectType = "string";
-    } else if (object.isNumber()) {
-        objectType = "number";
-    } else if (object.isBoolean()) {
-        objectType = "boolean";
-    } else if (object.isBigInt()) {
-        objectType = "bigint";
-    } else if (object.isObject()) {
-        objectType = "object";
-    } else {
-        ASSERT_NOT_REACHED();
-    }
-    return objectType;
-}
-
 bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
     if (m_verboseLogging) {
@@ -630,27 +744,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
         propertyObject.AddMember("enumerable", true, reply.GetAllocator());
         propertyObject.AddMember("symbol", propertyValue.isSymbol(), reply.GetAllocator());
 
-        propertyObject.AddMember("value", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
-
-        rapidjson::Value propertyValueString;
-        if (propertyValue.isSymbol()) {
-            propertyValueString = stringToRapidjsonValue(string_format("Symbol (%s)", propertyName.c_str()), reply.GetAllocator());
-        } else {
-            propertyValueString = stringToRapidjsonValue(propertyValue.toStringWithoutException(*state)->toUTF8StringData().data(), reply.GetAllocator());
-        }
-
-        propertyObject["value"].AddMember("type", stringToRapidjsonValue(objectToStringTypeName(propertyValue), reply.GetAllocator()), reply.GetAllocator());
-        if (propertyValue.isObject()) {
-            propertyObject["value"].AddMember("className", stringToRapidjsonValue(propertyValue.asObject()->constructorName(*state)->toUTF8StringData().data(), reply.GetAllocator()), reply.GetAllocator());
-        }
-        propertyObject["value"].AddMember("value", propertyValueString, reply.GetAllocator());
-        propertyObject["value"].AddMember("description", propertyValueString, reply.GetAllocator()); // string representation of the object
-
-        if (propertyValue.isObject()) {
-            auto* values = new (GC) PropertyNameValueMap();
-            addObjectProperties(state, values, propertyValue.asObject());
-            propertyObject["value"].AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(values)), reply.GetAllocator()), reply.GetAllocator());
-        }
+        propertyObject.AddMember("value", jsValueToJsonValueObj(state, propertyValue, reply.GetAllocator(), propertyName), reply.GetAllocator());
 
         reply["result"]["result"].PushBack(propertyObject, reply.GetAllocator());
     }
@@ -727,8 +821,28 @@ bool DebuggerDevtools::enableProfiler(rapidjson::Document& jsonMessage)
 
 bool DebuggerDevtools::setPauseOnExceptions(rapidjson::Document& jsonMessage)
 {
-    // TODO: handdle other parameters: state: none (unset), uncaught, caught, all
-    this->m_pauseOnExceptions = true;
+    const std::string newState = jsonMessage["params"]["state"].GetString();
+
+    if (newState == "all") {
+        m_pauseOnCaughtExceptions = true;
+        m_pauseOnUnCaughtExceptions = true;
+    } else if (newState == "caught") {
+        m_pauseOnCaughtExceptions = true;
+        m_pauseOnUnCaughtExceptions = false;
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!\n");
+        }
+    } else if (newState == "uncaught") {
+        m_pauseOnCaughtExceptions = false;
+        m_pauseOnUnCaughtExceptions = true;
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!\n");
+        }
+    } else if (newState == "none") {
+        m_pauseOnCaughtExceptions = false;
+        m_pauseOnUnCaughtExceptions = false;
+    }
+
     return replyOK(jsonMessage);
 }
 

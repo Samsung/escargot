@@ -336,6 +336,9 @@ public:
     void setAsAlwaysStopState();
     bool inDebuggingCodeMode() const;
     String* getClientSource(String** sourceName);
+
+    bool isStoppingOnExceptionInProgress() const;
+    void setStoppingOnExceptionInProgress(bool isInProgress);
 #endif /* ESCARGOT_DEBUGGER */
 
 private:
@@ -392,6 +395,7 @@ private:
 #ifdef ESCARGOT_DEBUGGER
     // debugger support
     Debugger* m_debugger;
+    bool m_stoppingOnExceptionInProgress;
 #endif /* ESCARGOT_DEBUGGER */
 };
 

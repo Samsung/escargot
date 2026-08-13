@@ -192,6 +192,7 @@ public:
     void init(const char* options, Context* context) override;
     void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    bool stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue) override;
     void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     void consoleOut(String* output) override;

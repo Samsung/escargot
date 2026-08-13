@@ -42,6 +42,12 @@ struct ScriptInfo {
     String* source;
 };
 
+typedef enum StopReason {
+    BREAK_ON_START,
+    BREAKPOINT,
+    EXCEPTION,
+} StopReason;
+
 typedef HashMap<AtomicString, Value, std::hash<AtomicString>, std::equal_to<AtomicString>, GCUtil::gc_malloc_allocator<std::pair<AtomicString const, Value>>> PropertyNameValueMap;
 typedef Vector<PropertyNameValueMap*, GCUtil::gc_malloc_allocator<PropertyNameValueMap*>> PropertyNameValueMapVector;
 
@@ -60,14 +66,13 @@ public:
 
     void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    bool stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue) override;
     void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     void consoleOut(String* output) override;
     String* getClientSource(String** sourceName) override;
     bool getWaitBeforeExitClient() override;
 
-
-    void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, bool breakpoint = false);
 
 protected:
     bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
@@ -94,8 +99,11 @@ private:
     bool sendPossibleBreakpoints(rapidjson::Document& jsonMessage);
     bool takeHeapSnapshot(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool replyMethodNotFound(rapidjson::Document& jsonMessage);
+    void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, StopReason stopReason = BREAKPOINT, const Value* exceptionValue = nullptr);
+
 
     uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap);
+    rapidjson::Value jsValueToJsonValueObj(ExecutionState* state, Value value, rapidjson::MemoryPoolAllocator<>& allocator, const std::string& name);
 
     static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)
     {
@@ -112,9 +120,9 @@ private:
     bool m_debuggerEnabled = false;
     bool m_runtimeEnabled = false;
     bool m_profilerEnabled = false;
-    bool m_pauseOnExceptions = false;
     bool m_breakpointsActive = false;
     bool m_startBreakpoint = true;
+    bool m_processingPauseEvent = false;
 
     std::unordered_map<uint8_t, ScriptInfo> m_scriptsById;
     std::unordered_map<std::string, uint8_t> m_scriptIdByUrl;

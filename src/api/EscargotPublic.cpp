@@ -2035,6 +2035,7 @@ public:
     virtual void init(const char* options, Context* context) override {}
     virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     virtual bool stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    virtual bool stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue) override;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     virtual void consoleOut(String* output) override;
@@ -2141,6 +2142,17 @@ bool DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, 
     }
     }
     return false;
+}
+
+bool DebuggerC::stopAtException(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, const Value* exceptionValue)
+{
+    UNUSED_PARAMETER(exceptionValue);
+
+    if (!(m_pauseOnCaughtExceptions || m_pauseOnUnCaughtExceptions)) {
+        return false;
+    }
+
+    return DebuggerC::stopAtBreakpoint(byteCodeBlock, offset, state);
 }
 
 void DebuggerC::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
