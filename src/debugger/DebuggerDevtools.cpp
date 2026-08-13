@@ -198,7 +198,7 @@ bool DebuggerDevtools::sendMessage(const std::string& msg, const size_t length)
     const bool result = send(0, msg.c_str(), length == static_cast<size_t>(-1) ? msg.length() : length);
     if (result) {
         if (m_verboseLogging) {
-            ESCARGOT_LOG_INFO("Escargot -> Devtools: %s\n", msg.c_str());
+            ESCARGOT_LOG_INFO("Escargot -> Devtools: %s", msg.c_str());
         }
     } else {
         ESCARGOT_LOG_ERROR("Error sending message!");
@@ -233,7 +233,7 @@ void DebuggerDevtools::init(const char* options, Context* context)
 bool DebuggerDevtools::skipSourceCode(String* srcName) const
 {
     if (m_verboseLogging) {
-        ESCARGOT_LOG_INFO("Implement this: DebuggerDevtools::skipSourceCode\n");
+        ESCARGOT_LOG_INFO("Implement this: DebuggerDevtools::skipSourceCode");
     }
     return false;
 }
@@ -696,16 +696,16 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
 {
     if (m_verboseLogging) {
         if (jsonMessage["params"]["ownProperties"].GetBool()) {
-            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'ownProperties' is not supported!\n");
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'ownProperties' is not supported!");
         }
         if (jsonMessage["params"]["accessorPropertiesOnly"].GetBool()) {
-            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'accessorPropertiesOnly' is not supported!\n");
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'accessorPropertiesOnly' is not supported!");
         }
         if (!jsonMessage["params"]["nonIndexedPropertiesOnly"].GetBool()) {
-            ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!\n");
+            ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!");
         }
         if (jsonMessage["params"]["generatePreview"].GetBool()) {
-            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'generatePreview' is not supported!\n");
+            ESCARGOT_LOG_ERROR("Warning: getProperties: parameter 'generatePreview' is not supported!");
         }
     }
 
@@ -830,13 +830,13 @@ bool DebuggerDevtools::setPauseOnExceptions(rapidjson::Document& jsonMessage)
         m_pauseOnCaughtExceptions = true;
         m_pauseOnUnCaughtExceptions = false;
         if (m_verboseLogging) {
-            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!\n");
+            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!");
         }
     } else if (newState == "uncaught") {
         m_pauseOnCaughtExceptions = false;
         m_pauseOnUnCaughtExceptions = true;
         if (m_verboseLogging) {
-            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!\n");
+            ESCARGOT_LOG_INFO("NOTE: We don't distinguish between caught and uncaught exceptions, both settings apply to all exceptions!");
         }
     } else if (newState == "none") {
         m_pauseOnCaughtExceptions = false;
@@ -968,7 +968,7 @@ bool DebuggerDevtools::removeBreakpoint(rapidjson::Document& jsonMessage)
 bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage)
 {
     if (jsonMessage["params"]["restrictToFunction"].GetBool() && m_verboseLogging) {
-        ESCARGOT_LOG_ERROR("Warning: restrictToFunction is not supported\n");
+        ESCARGOT_LOG_ERROR("Warning: restrictToFunction is not supported");
     }
 
     std::string scriptIdString = jsonMessage["params"]["start"]["scriptId"].GetString();
@@ -980,7 +980,7 @@ bool DebuggerDevtools::sendPossibleBreakpoints(rapidjson::Document& jsonMessage)
     }
 
     if (scriptId != std::stoi(jsonMessage["params"]["end"]["scriptId"].GetString()) && m_verboseLogging) {
-        ESCARGOT_LOG_ERROR("Error: Script ranges across multiple scripts not supported!\n");
+        ESCARGOT_LOG_ERROR("Error: Script ranges across multiple scripts not supported!");
         return replyMethodNotFound(jsonMessage);
     }
 
@@ -1021,7 +1021,7 @@ bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, Execut
     std::string fileName = snapshot.takeHeapSnapshot(state);
 
     if (fileName.empty()) {
-        ESCARGOT_LOG_ERROR("Error: Error happened during heap snapshot creation. Aborting now.\n");
+        ESCARGOT_LOG_ERROR("Error: Error happened during heap snapshot creation. Aborting now.");
         abort();
     }
     // DevTools just sends done and total messages, then adds "finished" before sending the snapshot
@@ -1039,7 +1039,7 @@ bool DebuggerDevtools::takeHeapSnapshot(rapidjson::Document& jsonMessage, Execut
 
     std::ifstream file(fileName, std::ios::in);
     if (!file.is_open()) {
-        ESCARGOT_LOG_ERROR("ERROR: Could not open snapshot file. Aborting now.\n");
+        ESCARGOT_LOG_ERROR("ERROR: Could not open snapshot file. Aborting now.");
         abort();
     }
 
@@ -1101,7 +1101,7 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
     } catch (const Value& val) {
         result = val;
         if (m_verboseLogging) {
-            ESCARGOT_LOG_ERROR("Eval failed: %s\n", result.toStringWithoutException(*state)->toUTF8StringData().data());
+            ESCARGOT_LOG_ERROR("Eval failed: %s", result.toStringWithoutException(*state)->toUTF8StringData().data());
         }
     }
     m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
@@ -1245,7 +1245,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         }
 
         if (m_verboseLogging) {
-            ESCARGOT_LOG_INFO("Devtools -> Escargot: %.*s\n", static_cast<int>(length), reinterpret_cast<const char*>(buffer));
+            ESCARGOT_LOG_INFO("Devtools -> Escargot: %.*s", static_cast<int>(length), reinterpret_cast<const char*>(buffer));
         }
 
         rapidjson::Document document;
@@ -1253,12 +1253,12 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
 
         rapidjson::Document jsonMessage;
         if (UNLIKELY(jsonMessage.Parse(reinterpret_cast<const char*>(buffer)).HasParseError())) {
-            ESCARGOT_LOG_ERROR("Json Message parsing error: %s at offset: %d\n", GetParseError_En(jsonMessage.GetParseError()), static_cast<int32_t>(jsonMessage.GetErrorOffset()));
+            ESCARGOT_LOG_ERROR("Json Message parsing error: %s at offset: %d", GetParseError_En(jsonMessage.GetParseError()), static_cast<int32_t>(jsonMessage.GetErrorOffset()));
             return false;
         }
         const char* methodName = jsonMessage["method"].GetString();
         if (UNLIKELY(methodName == nullptr) && m_verboseLogging) {
-            ESCARGOT_LOG_ERROR("Debugger method not provided: %s\n", reinterpret_cast<const char*>(buffer));
+            ESCARGOT_LOG_ERROR("Debugger method not provided: %s", reinterpret_cast<const char*>(buffer));
             return false;
         }
 #define FOR_EACH_MESSAGE_TYPE(messageTypesList, ...)                                                                                                                       \
@@ -1273,7 +1273,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         FOR_EACH_MESSAGE_TYPE(messageTypesArg2, jsonMessage, state);
         FOR_EACH_MESSAGE_TYPE(messageTypesArg3, jsonMessage, state, byteCodeBlock);
 
-        ESCARGOT_LOG_ERROR("Debugger function not supported: %s\n", reinterpret_cast<const char*>(buffer));
+        ESCARGOT_LOG_ERROR("Debugger function not supported: %s", reinterpret_cast<const char*>(buffer));
         this->replyMethodNotFound(jsonMessage); // maybe reply with not supported instead? if there is such a reply in the spec
     }
 
