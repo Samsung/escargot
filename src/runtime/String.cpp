@@ -44,10 +44,12 @@
  */
 
 #include "Escargot.h"
-#include "String.h"
-#include "CompressibleString.h"
-#include "Value.h"
-#include "ThreadLocal.h"
+#include "runtime/String.h"
+#include "runtime/CompressibleString.h"
+#include "runtime/Value.h"
+#include "runtime/ThreadLocal.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 
 #include "parser/Lexer.h"
 
@@ -178,6 +180,17 @@ bool isAllLatin1(const char16_t* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {
         if (buf[i] >= 256) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isAllASCIIAlphanumeric(const LChar* buf, const size_t len)
+{
+    for (unsigned i = 0; i < len; i++) {
+        auto ch = buf[i];
+        if (ch >= 128 || !isASCIIAlphanumeric(static_cast<char>(buf[i]))) {
             return false;
         }
     }
@@ -755,35 +768,38 @@ ASCIIStringDataNonGCStd dtoa(double number)
 
 LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_DEFINE)
 
-String* String::fromASCII(const char* src, size_t len)
+String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState*> state)
 {
-    if (len <= String::StringBufferData::bufferPointerAsArraySize
+    if (len == 0) {
+        return String::emptyString();
+    } else if (len <= String::StringBufferData::bufferPointerAsArraySize
 #if !defined(ESCARGOT_SMALL_CONFIG)
-        && false
-#endif
-    ) {
-        return new ASCIIStringWithInlineBuffer(src, len);
-    } else {
-        switch (len) {
-#define LATIN1_LARGE_INLINE_BUFFER_SWITCH_ASCII(N) \
-    case N:                                        \
-        return new Latin1StringWithLargeInlineBuffer<N>(reinterpret_cast<const LChar*>(src), len);
-            LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_SWITCH_ASCII)
-        default:
-            return new ASCIIString(src, len);
-        }
-    }
-}
-
-String* String::fromLatin1(const LChar* src, size_t len)
-{
-    if (len <= String::StringBufferData::bufferPointerAsArraySize
-#if !defined(ESCARGOT_SMALL_CONFIG)
-        && false
+               && false
 #endif
     ) {
         return new Latin1StringWithInlineBuffer(src, len);
     } else {
+        if (len <= String::StringBufferData::bufferPointerAsArraySize) {
+            if (state && isAllASCIIAlphanumeric(src, len)) {
+                // test atomic string
+                auto a = AtomicString::has(state->context()->atomicStringMap(), src, len);
+                if (a) {
+                    return a.value().string();
+                }
+
+                auto* vm = state.value()->context()->vmInstance();
+
+                auto hitObj = vm->lookupShortStringCache(src, len);
+                if (hitObj) {
+                    return hitObj.value();
+                }
+
+                String* resultString = String::fromLatin1(src, len);
+                vm->insertShortStringCache(src, len, resultString);
+
+                return resultString;
+            }
+        }
         switch (len) {
 #define LATIN1_LARGE_INLINE_BUFFER_SWITCH(N) \
     case N:                                  \
@@ -795,15 +811,17 @@ String* String::fromLatin1(const LChar* src, size_t len)
     }
 }
 
-String* String::fromLatin1(const char16_t* src, size_t len)
+String* String::fromLatin1(const char16_t* src, size_t len, Optional<ExecutionState*> state)
 {
-    if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+    if (len == 0) {
+        return String::emptyString();
+    } else if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
         LChar* dest = static_cast<LChar*>(alloca(len));
         for (size_t i = 0; i < len; i++) {
             ASSERT(src[i] < 256);
             dest[i] = src[i];
         }
-        return String::fromLatin1(dest, len);
+        return String::fromLatin1(dest, len, state);
     } else {
         return new Latin1String(src, len);
     }

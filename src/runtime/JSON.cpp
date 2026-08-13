@@ -130,7 +130,7 @@ static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValu
             const char16_t* chars = (const char16_t*)value.GetString();
             unsigned len = value.GetStringLength();
             if (isAllLatin1(chars, len)) {
-                return String::fromLatin1(chars, len);
+                return String::fromLatin1(chars, len, &state);
             } else {
                 return new UTF16String(chars, len);
             }
@@ -746,7 +746,7 @@ static void builtinJSONStringifyQuote(ExecutionState& state, String* value, Larg
     }
     buffer.push_back(u'"');
     if (allLatin1) {
-        product.appendString(String::fromLatin1(buffer.data(), buffer.length()));
+        product.appendString(String::fromLatin1(buffer.data(), buffer.length(), &state));
     } else {
         product.appendString(new UTF16String(buffer.data(), buffer.length()));
     }

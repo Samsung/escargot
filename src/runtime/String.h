@@ -77,6 +77,7 @@ ALWAYS_INLINE int parseDigit(char16_t c, int radix)
 bool isAllASCII(const char* buf, const size_t len);
 bool isAllASCII(const char16_t* buf, const size_t len);
 bool isAllLatin1(const char16_t* buf, const size_t len);
+bool isAllASCIIAlphanumeric(const LChar* buf, const size_t len);
 bool isIndexString(String* str);
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen, size_t remainingLength = SIZE_MAX);
 UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len);
@@ -257,6 +258,7 @@ struct StringBufferAccessData {
 class String : public PointerValue {
     friend class AtomicString;
     friend class ThreadLocal;
+    friend class VMInstance;
 
 protected:
     String()
@@ -377,18 +379,21 @@ public:
     }
 
     template <const size_t srcLen>
-    static String* fromASCII(const char (&src)[srcLen])
+    static String* fromASCII(const char (&src)[srcLen], Optional<ExecutionState*> state = NullOption)
     {
         ASSERT(srcLen - 1 == strlen(src));
-        return fromASCII(src, srcLen - 1);
+        return fromASCII(src, srcLen - 1, state);
     }
 
-    static String* fromASCII(const char* s, size_t len);
+    static String* fromASCII(const char* s, size_t len, Optional<ExecutionState*> state = NullOption)
+    {
+        return String::fromLatin1(reinterpret_cast<const LChar*>(s), len, state);
+    }
 
     // if you want to change this value, you  should change LATIN1_LARGE_INLINE_BUFFER macro in String.cpp
 #define LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE 24
-    static String* fromLatin1(const LChar* s, size_t len);
-    static String* fromLatin1(const char16_t* s, size_t len);
+    static String* fromLatin1(const LChar* s, size_t len, Optional<ExecutionState*> state = NullOption);
+    static String* fromLatin1(const char16_t* s, size_t len, Optional<ExecutionState*> state = NullOption);
 
     static String* fromCharCode(char32_t code);
     static String* fromDouble(double v);

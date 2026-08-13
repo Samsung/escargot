@@ -51,6 +51,8 @@ public:
         return AtomicString((String*)payload);
     }
 
+    static Optional<AtomicString> has(AtomicStringMap* map, const LChar* src, size_t len);
+
     AtomicString(AtomicStringMap* map, const char* src, size_t len);
     enum FromExternalMemoryTag {
         FromExternalMemory

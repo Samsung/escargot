@@ -79,6 +79,7 @@ class VMInstance : public gc {
     friend class VMInstanceRef;
     friend class ScriptParser;
     friend class SandBox;
+    friend class String;
     friend void vmMarkStartCallback(void* data);
     friend void vmReclaimEndCallback(void* data);
 
@@ -578,6 +579,18 @@ private:
 
     std::condition_variable m_waitEventFromAnotherThreadConditionVariable;
 #endif
+
+    struct LRUStringCacheEntry {
+        String* stringObject = nullptr;
+        size_t len = 0;
+        LChar buffer[String::StringBufferData::bufferPointerAsArraySize] = { 0 };
+    };
+    static constexpr size_t lruStringCacheSize = 32;
+    LRUStringCacheEntry m_lruStringCache[lruStringCacheSize];
+
+public:
+    Optional<String*> lookupShortStringCache(const LChar* src, size_t len);
+    void insertShortStringCache(const LChar* src, size_t len, String* resultString);
 };
 } // namespace Escargot
 
