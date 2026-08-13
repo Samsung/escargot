@@ -76,10 +76,10 @@ static void tcpLogError(int errorNumber)
                   (LPTSTR)&errorMessage,
                   0,
                   NULL);
-    ESCARGOT_LOG_ERROR("TCP Error: %s\n", errorMessage);
+    ESCARGOT_LOG_ERROR("TCP Error: %s", errorMessage);
     LocalFree(errorMessage);
 #else /* !WIN32 */
-    ESCARGOT_LOG_ERROR("TCP Error: %s\n", strerror(errorNumber));
+    ESCARGOT_LOG_ERROR("TCP Error: %s", strerror(errorNumber));
 #endif /* WIN32 */
 }
 
@@ -172,7 +172,7 @@ bool DebuggerTcp::send(const uint8_t type, const void* buffer, const size_t leng
            || (m_websocketMessageType == ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME && length <= ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH));
 
     if (length > ESCARGOT_WS_MAX_MESSAGE_LENGTH) {
-        ESCARGOT_LOG_ERROR("Cannot send WebSocket payload: 64-bit payload length is not supported.\n");
+        ESCARGOT_LOG_ERROR("Cannot send WebSocket payload: 64-bit payload length is not supported.");
         close(CloseAbortConnection);
         return false;
     }
@@ -202,7 +202,7 @@ bool DebuggerTcp::send(const uint8_t type, const void* buffer, const size_t leng
     memcpy(message + headerLength, buffer, length);
 
     if (!tcpSend(m_socket, message, headerLength + length)) {
-        ESCARGOT_LOG_ERROR("Failed to send data via WebSocket connection.\n");
+        ESCARGOT_LOG_ERROR("Failed to send data via WebSocket connection.");
         close(CloseAbortConnection);
         return false;
     }
@@ -220,13 +220,13 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
                         m_receiveBuffer + m_receiveBufferFill,
                         m_bufferSize - m_receiveBufferFill,
                         &receivedLength)) {
-            ESCARGOT_LOG_ERROR("Failed to receive data from WebSocket connection.\n");
+            ESCARGOT_LOG_ERROR("Failed to receive data from WebSocket connection.");
             close(CloseAbortConnection);
             return false;
         }
 
         if (receivedLength == 0 && m_receiveBufferFill < m_headerLength) {
-            // ESCARGOT_LOG_INFO("Incomplete WebSocket frame header, waiting for more data.\n");
+            // ESCARGOT_LOG_INFO("Incomplete WebSocket frame header, waiting for more data.");
             return false;
         }
 
@@ -244,14 +244,14 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
                 return false;
             }
 
-            ESCARGOT_LOG_ERROR("Unsupported Websocket opcode.\n");
+            ESCARGOT_LOG_ERROR("Unsupported Websocket opcode.");
             close(CloseProtocolUnsupported);
             return false;
         }
 
         if ((m_receiveBuffer[0] & ~ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT
             || !(m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT)) {
-            ESCARGOT_LOG_ERROR("Unsupported Websocket message.\n");
+            ESCARGOT_LOG_ERROR("Unsupported Websocket message.");
             close(CloseProtocolUnsupported);
             return false;
         }
@@ -259,7 +259,7 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
         uint8_t payloadLengthField = m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_LENGTH_MASK;
 
         if (payloadLengthField > ESCARGOT_WS_MESSAGE_16BIT_LENGTH_MARKER) {
-            ESCARGOT_LOG_ERROR("64-bit WebSocket payload length is not supported.\n");
+            ESCARGOT_LOG_ERROR("64-bit WebSocket payload length is not supported.");
             close(CloseProtocolUnsupported);
             return false;
         }
@@ -279,7 +279,7 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
         }
 
         if (m_payloadLength == 0) {
-            ESCARGOT_LOG_ERROR("Invalid WebSocket payload length: zero-length messages are not supported.\n");
+            ESCARGOT_LOG_ERROR("Invalid WebSocket payload length: zero-length messages are not supported.");
             close(CloseProtocolUnsupported);
             return false;
         }
@@ -373,7 +373,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
         return nullptr;
     }
 
-    ESCARGOT_LOG_INFO("Waiting for client connection 0.0.0.0:%hd\n", port);
+    ESCARGOT_LOG_INFO("Waiting for client connection 0.0.0.0:%hd", port);
 
     struct pollfd fd[1];
     fd[0].fd = serverSocket;
@@ -391,7 +391,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
         }
         timeout -= 10;
         if (timeout < 0) {
-            ESCARGOT_LOG_ERROR("Waiting for client connection error: timeout reached\n");
+            ESCARGOT_LOG_ERROR("Waiting for client connection error: timeout reached");
             tcpCloseSocket(serverSocket);
             return nullptr;
         }
@@ -432,7 +432,7 @@ Debugger* DebuggerTcp::createDebugger(const char* options, Context* context)
         }
 #endif /* WIN32 */
 
-        ESCARGOT_LOG_INFO("Connected from: %s\n", inet_ntoa(addr.sin_addr));
+        ESCARGOT_LOG_INFO("Connected from: %s", inet_ntoa(addr.sin_addr));
 
         if (!httpRouter.handleHttpRequest(clientSocket)) {
             tcpCloseSocket(clientSocket);

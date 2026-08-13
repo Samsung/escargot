@@ -431,7 +431,7 @@ bool DebuggerEscargot::doEval(ExecutionState* state, Optional<ByteCodeBlock*> by
     return true;
 
 error:
-    ESCARGOT_LOG_ERROR("Invalid eval message received. Closing connection.\n");
+    ESCARGOT_LOG_ERROR("Invalid eval message received. Closing connection.");
     close(CloseProtocolError);
     return false;
 }
@@ -1003,13 +1003,13 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
             std::string fileName = snapshot.takeHeapSnapshot(state);
 
             if (fileName.empty()) {
-                ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.\n");
+                ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.");
                 abort();
             } else if (enabled()) {
                 String* data = String::fromUTF8(fileName.c_str(), fileName.length());
 
                 if (data == nullptr) {
-                    ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.\n");
+                    ESCARGOT_LOG_ERROR("Error happened during heap snapshot creation. Aborting now.");
                     abort();
                 }
 
@@ -1021,7 +1021,7 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         }
         }
 
-        ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
+        ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.");
         close(CloseProtocolError);
         return false;
     }
