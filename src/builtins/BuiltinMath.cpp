@@ -532,8 +532,17 @@ static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc
 
 static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    std::uniform_real_distribution<double> distribution;
-    return Value(Value::DoubleToIntConvertibleTestNeeds, distribution(ThreadLocal::randEngine()));
+    // Produce a 53-bit-precision double uniformly in [0, 1) directly from the
+    // mt19937 engine (Matsumoto's genrand_res53). This deliberately avoids
+    // std::uniform_real_distribution<double>, whose generate_canonical<> pulls
+    // in libstdc++'s long-double math machinery (math_stubs_long_double.o) and,
+    // transitively, a large block of otherwise-unused libm code (~12-13KB on
+    // the arm-none-eabi/newlib static link).
+    std::mt19937& engine = ThreadLocal::randEngine();
+    uint64_t a = static_cast<uint64_t>(engine()) >> 5; // 27 bits
+    uint64_t b = static_cast<uint64_t>(engine()) >> 6; // 26 bits
+    double r = (a * 67108864.0 + b) * (1.0 / 9007199254740992.0); // (a * 2^26 + b) / 2^53
+    return Value(Value::DoubleToIntConvertibleTestNeeds, r);
 }
 
 static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
