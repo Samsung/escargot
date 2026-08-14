@@ -108,6 +108,8 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-22.04
+    env:
+      BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
