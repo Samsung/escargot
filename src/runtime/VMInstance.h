@@ -136,6 +136,16 @@ public:
     void enterIdleMode();
     void clearCachesRelatedWithContext();
 
+    StaticStrings& staticStrings()
+    {
+        return m_staticStrings;
+    }
+
+    AtomicStringMap* atomicStringMap()
+    {
+        return &m_atomicStringMap;
+    }
+
     const GlobalSymbols& globalSymbols()
     {
         return m_globalSymbols;
@@ -580,17 +590,78 @@ private:
     std::condition_variable m_waitEventFromAnotherThreadConditionVariable;
 #endif
 
-    struct LRUStringCacheEntry {
-        String* stringObject = nullptr;
+    static constexpr size_t smallStringCacheSets = 128;
+    static constexpr size_t smallStringCacheSize = smallStringCacheSets * 2;
+    static constexpr size_t smallStringCacheStringLength = 16;
+    struct SmallStringCacheMetadata {
         size_t len = 0;
-        LChar buffer[String::StringBufferData::bufferPointerAsArraySize] = { 0 };
+        LChar buffer[smallStringCacheStringLength] = { 0 };
     };
-    static constexpr size_t lruStringCacheSize = 32;
-    LRUStringCacheEntry m_lruStringCache[lruStringCacheSize];
+
+    String** m_smallStringCacheObjects;
+    SmallStringCacheMetadata* m_smallStringCacheMetadata;
+
+    inline size_t computeShortStringCacheHash(const LChar* src, size_t len) const
+    {
+        unsigned int hash = 2166136261U;
+        for (size_t i = 0; i < len; ++i) {
+            hash = (hash ^ src[i]) * 16777619U;
+        }
+        return hash;
+    }
 
 public:
-    Optional<String*> lookupShortStringCache(const LChar* src, size_t len);
-    void insertShortStringCache(const LChar* src, size_t len, String* resultString);
+    inline Optional<String*> lookupShortStringCache(const LChar* src, size_t len)
+    {
+        ASSERT(len <= smallStringCacheStringLength);
+
+        size_t hash = computeShortStringCacheHash(src, len);
+        size_t index = hash % smallStringCacheSets;
+        size_t baseIdx = index * 2;
+
+        // Check Way 0
+        String* str0 = m_smallStringCacheObjects[baseIdx + 0];
+        auto& meta0 = m_smallStringCacheMetadata[baseIdx + 0];
+        if (str0 && meta0.len == len && memcmp(meta0.buffer, src, len) == 0) {
+            return str0;
+        }
+
+        // Check Way 1
+        String* str1 = m_smallStringCacheObjects[baseIdx + 1];
+        auto& meta1 = m_smallStringCacheMetadata[baseIdx + 1];
+        if (str1 && meta1.len == len && memcmp(meta1.buffer, src, len) == 0) {
+            // Swap Way 0 and Way 1 (LRU promotion) using value copies to prevent reference aliasing bugs
+            String* tempStr = m_smallStringCacheObjects[baseIdx + 0];
+            SmallStringCacheMetadata tempMeta = m_smallStringCacheMetadata[baseIdx + 0];
+
+            m_smallStringCacheObjects[baseIdx + 0] = str1;
+            m_smallStringCacheMetadata[baseIdx + 0] = meta1;
+
+            m_smallStringCacheObjects[baseIdx + 1] = tempStr;
+            m_smallStringCacheMetadata[baseIdx + 1] = tempMeta;
+            return str1;
+        }
+
+        return nullptr;
+    }
+
+    inline void insertShortStringCache(const LChar* src, size_t len, String* resultString)
+    {
+        ASSERT(len <= smallStringCacheStringLength);
+
+        size_t hash = computeShortStringCacheHash(src, len);
+        size_t index = hash % smallStringCacheSets;
+        size_t baseIdx = index * 2;
+
+        // Evict Way 1 (LRU), move Way 0 to Way 1, and insert new item into Way 0
+        m_smallStringCacheObjects[baseIdx + 1] = m_smallStringCacheObjects[baseIdx + 0];
+        m_smallStringCacheMetadata[baseIdx + 1] = m_smallStringCacheMetadata[baseIdx + 0];
+
+        m_smallStringCacheObjects[baseIdx + 0] = resultString;
+        auto& meta0 = m_smallStringCacheMetadata[baseIdx + 0];
+        meta0.len = len;
+        memcpy(meta0.buffer, src, len);
+    }
 };
 } // namespace Escargot
 

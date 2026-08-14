@@ -437,6 +437,11 @@ public:
         return (m_typeTag > POINTER_VALUE_STRING_TAG_IN_DATA);
     }
 
+    ALWAYS_INLINE String* canonicalAtomicString() const
+    {
+        return (String*)(m_typeTag & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+    }
+
     bool equals(const String* src) const;
 
     template <const size_t srcLen>

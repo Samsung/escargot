@@ -198,9 +198,8 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_asyncWaiterData));
 #endif
 
-        for (size_t i = 0; i < lruStringCacheSize; i++) {
-            GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_lruStringCache) + i * sizeof(LRUStringCacheEntry) / sizeof(size_t));
-        }
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheObjects));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheMetadata));
 
         descr = GC_make_descriptor(desc, GC_WORD_LEN(VMInstance));
         typeInited = true;
@@ -384,6 +383,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #if defined(ENABLE_CODE_CACHE)
     , m_codeCache(nullptr)
 #endif
+    , m_smallStringCacheObjects(nullptr)
+    , m_smallStringCacheMetadata(nullptr)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -396,6 +397,12 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     m_regexpCache = new (GC) RegExpCacheMap();
     m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(256 * sizeof(ASCIIString*));
     memset(m_regexpOptionStringCache, 0, 256 * sizeof(ASCIIString*));
+
+    m_smallStringCacheObjects = (String**)GC_MALLOC(smallStringCacheSize * sizeof(String*));
+    memset(m_smallStringCacheObjects, 0, smallStringCacheSize * sizeof(String*));
+
+    m_smallStringCacheMetadata = (SmallStringCacheMetadata*)GC_MALLOC_ATOMIC(smallStringCacheSize * sizeof(SmallStringCacheMetadata));
+    memset(m_smallStringCacheMetadata, 0, smallStringCacheSize * sizeof(SmallStringCacheMetadata));
 
 #if defined(ENABLE_ICU)
     m_calendar = nullptr;
@@ -1062,73 +1069,5 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& VMInstance::intlPlu
     return m_intlPluralRulesAvailableLocales;
 }
 #endif
-
-// -------------------------------------------------------------------------
-// Tiny LFU (Least Frequently Used) Cache for Short Strings
-//
-// This cache is divided into two areas to prevent cache pollution by one-off strings:
-// 1. Main Cache [0 to lruStringCacheSize - 3]: Stores frequently accessed strings.
-// 2. Wait Queue [lruStringCacheSize - 2 to lruStringCacheSize - 1]: A temporary probation area.
-//
-// New strings enter the Wait Queue. If a string in the Wait Queue is accessed again,
-// it proves its reuse value and is promoted to the top of the Main Cache.
-// -------------------------------------------------------------------------
-
-Optional<String*> VMInstance::lookupShortStringCache(const LChar* src, size_t len)
-{
-    // 1. Main cache lookup (index 0 to lruStringCacheSize - 3)
-    int mainHitIndex = -1;
-    for (size_t i = 0; i < lruStringCacheSize - 2; i++) {
-        if (m_lruStringCache[i].len == len && memcmp(m_lruStringCache[i].buffer, src, len) == 0) {
-            mainHitIndex = i;
-            break;
-        }
-    }
-
-    if (mainHitIndex != -1) {
-        String* hitObj = m_lruStringCache[mainHitIndex].stringObject;
-        if (mainHitIndex > 0) {
-            auto temp = m_lruStringCache[mainHitIndex];
-            for (int j = mainHitIndex; j > 0; j--) {
-                m_lruStringCache[j] = m_lruStringCache[j - 1];
-            }
-            m_lruStringCache[0] = temp;
-        }
-        return hitObj;
-    }
-
-    // 2. Wait queue lookup (index lruStringCacheSize - 2 to lruStringCacheSize - 1)
-    int waitHitIndex = -1;
-    for (size_t i = lruStringCacheSize - 2; i < lruStringCacheSize; i++) {
-        if (m_lruStringCache[i].len == len && memcmp(m_lruStringCache[i].buffer, src, len) == 0) {
-            waitHitIndex = i;
-            break;
-        }
-    }
-
-    if (waitHitIndex != -1) {
-        // Promote to the top of the Main Cache
-        String* hitObj = m_lruStringCache[waitHitIndex].stringObject;
-        auto temp = m_lruStringCache[waitHitIndex];
-
-        for (size_t j = lruStringCacheSize - 3; j > 0; j--) {
-            m_lruStringCache[j] = m_lruStringCache[j - 1];
-        }
-        m_lruStringCache[0] = temp;
-        return hitObj;
-    }
-
-    return nullptr;
-}
-
-void VMInstance::insertShortStringCache(const LChar* src, size_t len, String* resultString)
-{
-    // Insert into the Wait Queue (evict the oldest wait queue item)
-    m_lruStringCache[lruStringCacheSize - 1] = m_lruStringCache[lruStringCacheSize - 2];
-
-    m_lruStringCache[lruStringCacheSize - 2].len = len;
-    memcpy(m_lruStringCache[lruStringCacheSize - 2].buffer, src, len);
-    m_lruStringCache[lruStringCacheSize - 2].stringObject = resultString;
-}
 
 } // namespace Escargot
