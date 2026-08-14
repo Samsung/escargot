@@ -328,6 +328,11 @@ void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
 
 void AtomicString::init(AtomicStringMap* ec, String* name)
 {
+    if (name->isAtomicStringSource()) {
+        m_string = name->canonicalAtomicString();
+        return;
+    }
+
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         if (name->isStringView() || name->isCompressibleString() || name->isReloadableString()) {

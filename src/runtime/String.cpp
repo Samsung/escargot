@@ -779,26 +779,54 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState
     ) {
         return new Latin1StringWithInlineBuffer(src, len);
     } else {
-        if (len <= String::StringBufferData::bufferPointerAsArraySize) {
-            if (state && isAllASCIIAlphanumeric(src, len)) {
-                // test atomic string
-                auto a = AtomicString::has(state->context()->atomicStringMap(), src, len);
-                if (a) {
-                    return a.value().string();
+        if (state && len <= VMInstance::smallStringCacheStringLength) {
+            auto* vm = state.value()->context()->vmInstance();
+
+            auto hitObj = vm->lookupShortStringCache(src, len);
+            if (hitObj) {
+                return hitObj.value();
+            }
+
+            bool isNumeric = true;
+            for (size_t i = 0; i < len; ++i) {
+                if (src[i] < '0' || src[i] > '9') {
+                    isNumeric = false;
+                    break;
                 }
+            }
 
-                auto* vm = state.value()->context()->vmInstance();
-
-                auto hitObj = vm->lookupShortStringCache(src, len);
-                if (hitObj) {
-                    return hitObj.value();
+            bool isSmallNumeric = false;
+            unsigned int val = 0;
+            if (isNumeric) {
+                if (len < 4 && !(len > 1 && src[0] == '0')) {
+                    for (size_t i = 0; i < len; ++i) {
+                        val = val * 10 + (src[i] - '0');
+                    }
+                    if (val < ESCARGOT_STRINGS_NUMBERS_MAX) {
+                        isSmallNumeric = true;
+                    }
                 }
+            }
 
-                String* resultString = String::fromLatin1(src, len);
+            if (isSmallNumeric) {
+                String* resultString = state.value()->context()->staticStrings().numbers[val].string();
                 vm->insertShortStringCache(src, len, resultString);
-
                 return resultString;
             }
+
+            if (!isNumeric) {
+                auto a = AtomicString::has(state->context()->atomicStringMap(), src, len);
+                if (a) {
+                    String* resultString = a.value().string();
+                    vm->insertShortStringCache(src, len, resultString);
+                    return resultString;
+                }
+            }
+
+            String* resultString = String::fromLatin1(src, len);
+            vm->insertShortStringCache(src, len, resultString);
+
+            return resultString;
         }
         switch (len) {
 #define LATIN1_LARGE_INLINE_BUFFER_SWITCH(N) \
