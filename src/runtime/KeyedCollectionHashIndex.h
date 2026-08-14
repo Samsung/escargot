@@ -43,8 +43,8 @@ struct KeyedCollectionHashIndex {
 
     static KeyedCollectionHashIndex* create(size_t liveCount)
     {
-        uint32_t capacity = 32;
-        while (capacity < liveCount * 2) {
+        uint32_t capacity = 16;
+        while (((size_t)capacity) * 5 <= liveCount * 6) {
             capacity <<= 1;
         }
         size_t bytes = sizeof(KeyedCollectionHashIndex) + (capacity - 1) * sizeof(uint32_t);
@@ -56,7 +56,7 @@ struct KeyedCollectionHashIndex {
 
     bool needsRebuild() const
     {
-        return occupied * 4 >= capacity * 3;
+        return occupied * 6 >= capacity * 5;
     }
 
     // inserts an index for a key known to be absent; caller handles rebuild

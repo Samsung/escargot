@@ -32,7 +32,9 @@ class SetObject : public DerivedObject {
     friend class SetIteratorObject;
 
 public:
-    typedef TightVector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> SetObjectData;
+    typedef Vector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>, ComputeReservedCapacityFunctionWithLog2<>,
+                   StorePositiveNumberAsOddNumber>
+        SetObjectData;
 
     explicit SetObject(ExecutionState& state);
     explicit SetObject(ExecutionState& state, Object* proto);

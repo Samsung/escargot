@@ -66,16 +66,18 @@ void SetObject::clear(ExecutionState& state)
 
 size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key)
 {
+    const EncodedValue encodedKey(key);
     if (LIKELY(!m_hashIndex)) {
-        if (UNLIKELY(m_storage.size() >= KeyedCollectionHashIndex::buildThreshold)) {
+        size_t threshold = !key.isPointerValue() ? 128 : KeyedCollectionHashIndex::buildThreshold;
+        if (UNLIKELY(m_storage.size() >= threshold)) {
             buildOrRebuildHashIndex();
         } else {
             for (size_t i = 0; i < m_storage.size(); i++) {
                 const EncodedValue& existingKey = m_storage[i];
-                if (existingKey.isEmpty()) {
+                if (UNLIKELY(existingKey.isEmpty())) {
                     continue;
                 }
-                if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+                if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
                     return i;
                 }
             }
@@ -90,7 +92,7 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key)
             return SIZE_MAX;
         }
         const EncodedValue& existingKey = m_storage[b - 1];
-        if (!existingKey.isEmpty() && existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (LIKELY(!existingKey.isEmpty()) && existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
             return b - 1;
         }
         i = (i + 1) & mask;
