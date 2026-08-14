@@ -397,11 +397,11 @@ public:
 
     static String* fromCharCode(char32_t code);
     static String* fromDouble(double v);
-    static String* fromInt32(int32_t v)
-    {
-        // TODO
-        return fromDouble(v);
-    }
+    static String* fromDouble(double v, ExecutionState& state); // give ExecutionState& for double to string cache
+    static String* fromInt32(int32_t v);
+    static String* fromInt32(int32_t v, ExecutionState& state); // give ExecutionState& for int32 to string cache
+    static String* fromUint32(uint32_t v);
+    static String* fromUint32(uint32_t v, ExecutionState& state); // give ExecutionState& for int32 to string cache
     static String* fromUTF8(const char* src, size_t len, bool maybeASCII = true);
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     static String* fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len, bool maybeASCII = true);

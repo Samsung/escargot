@@ -244,16 +244,16 @@ public:
     String* toExceptionString() const
     {
         if (isUIntType()) {
-            return String::fromDouble(uintValue());
+            return String::fromUint32(uintValue());
         } else {
             return objectStructurePropertyName().toExceptionString();
         }
     }
 
-    Value toPropertyKeyValue() const
+    Value toPropertyKeyValue(ExecutionState& state) const
     {
         if (isUIntType()) {
-            return Value(String::fromDouble(uintValue()));
+            return Value(String::fromUint32(uintValue(), state));
         } else {
             return objectStructurePropertyName().toValue();
         }

@@ -601,6 +601,18 @@ private:
     String** m_smallStringCacheObjects;
     SmallStringCacheMetadata* m_smallStringCacheMetadata;
 
+    static constexpr size_t int32StringCacheSets = 128;
+    static constexpr size_t int32StringCacheSize = int32StringCacheSets * 2;
+
+    static constexpr size_t doubleStringCacheSets = 128;
+    static constexpr size_t doubleStringCacheSize = doubleStringCacheSets * 2;
+
+    String** m_int32StringCacheObjects;
+    int32_t* m_int32StringCacheKeys;
+
+    String** m_doubleStringCacheObjects;
+    uint64_t* m_doubleStringCacheKeys;
+
     inline size_t computeShortStringCacheHash(const LChar* src, size_t len) const
     {
         unsigned int hash = 2166136261U;
@@ -610,7 +622,132 @@ private:
         return hash;
     }
 
+    inline size_t computeInt32StringCacheHash(int32_t v) const
+    {
+#if defined(__arm__) || defined(__i386__) || (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 4)
+        return static_cast<size_t>(v);
+#else
+        uint32_t x = static_cast<uint32_t>(v);
+        x ^= x >> 16;
+        x *= 0x7feb352d;
+        x ^= x >> 15;
+        x *= 0x846ca68b;
+        x ^= x >> 16;
+        return x;
+#endif
+    }
+
+    inline size_t computeDoubleStringCacheHash(uint64_t v) const
+    {
+#if defined(__arm__) || defined(__i386__) || (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 4)
+        uint32_t low = static_cast<uint32_t>(v);
+        uint32_t high = static_cast<uint32_t>(v >> 32);
+        return static_cast<size_t>(low ^ high);
+#else
+        v ^= v >> 33;
+        v *= 0xff51afd7ed558ccdULL;
+        v ^= v >> 33;
+        v *= 0xc4ceb9fe1a85ec53ULL;
+        v ^= v >> 33;
+        return static_cast<size_t>(v);
+#endif
+    }
+
 public:
+    inline Optional<String*> lookupInt32StringCache(int32_t v)
+    {
+        size_t hash = computeInt32StringCacheHash(v);
+        size_t index = hash & (int32StringCacheSets - 1);
+        size_t baseIdx = index * 2;
+
+        // Check Way 0
+        String* str0 = m_int32StringCacheObjects[baseIdx + 0];
+        if (str0 && m_int32StringCacheKeys[baseIdx + 0] == v) {
+            return str0;
+        }
+
+        // Check Way 1
+        String* str1 = m_int32StringCacheObjects[baseIdx + 1];
+        if (str1 && m_int32StringCacheKeys[baseIdx + 1] == v) {
+            // Swap Way 0 and Way 1 (LRU promotion)
+            String* tempStr = m_int32StringCacheObjects[baseIdx + 0];
+            int32_t tempKey = m_int32StringCacheKeys[baseIdx + 0];
+
+            m_int32StringCacheObjects[baseIdx + 0] = str1;
+            m_int32StringCacheKeys[baseIdx + 0] = v;
+
+            m_int32StringCacheObjects[baseIdx + 1] = tempStr;
+            m_int32StringCacheKeys[baseIdx + 1] = tempKey;
+            return str1;
+        }
+
+        return nullptr;
+    }
+
+    inline void insertInt32StringCache(int32_t v, String* resultString)
+    {
+        size_t hash = computeInt32StringCacheHash(v);
+        size_t index = hash & (int32StringCacheSets - 1);
+        size_t baseIdx = index * 2;
+
+        // Evict Way 1 (LRU), move Way 0 to Way 1, and insert new item into Way 0
+        m_int32StringCacheObjects[baseIdx + 1] = m_int32StringCacheObjects[baseIdx + 0];
+        m_int32StringCacheKeys[baseIdx + 1] = m_int32StringCacheKeys[baseIdx + 0];
+
+        m_int32StringCacheObjects[baseIdx + 0] = resultString;
+        m_int32StringCacheKeys[baseIdx + 0] = v;
+    }
+
+    inline Optional<String*> lookupDoubleStringCache(double d)
+    {
+        uint64_t v;
+        memcpy(&v, &d, sizeof(double));
+
+        size_t hash = computeDoubleStringCacheHash(v);
+        size_t index = hash & (doubleStringCacheSets - 1);
+        size_t baseIdx = index * 2;
+
+        // Check Way 0
+        String* str0 = m_doubleStringCacheObjects[baseIdx + 0];
+        if (str0 && m_doubleStringCacheKeys[baseIdx + 0] == v) {
+            return str0;
+        }
+
+        // Check Way 1
+        String* str1 = m_doubleStringCacheObjects[baseIdx + 1];
+        if (str1 && m_doubleStringCacheKeys[baseIdx + 1] == v) {
+            // Swap Way 0 and Way 1 (LRU promotion)
+            String* tempStr = m_doubleStringCacheObjects[baseIdx + 0];
+            uint64_t tempKey = m_doubleStringCacheKeys[baseIdx + 0];
+
+            m_doubleStringCacheObjects[baseIdx + 0] = str1;
+            m_doubleStringCacheKeys[baseIdx + 0] = v;
+
+            m_doubleStringCacheObjects[baseIdx + 1] = tempStr;
+            m_doubleStringCacheKeys[baseIdx + 1] = tempKey;
+            return str1;
+        }
+
+        return nullptr;
+    }
+
+    inline void insertDoubleStringCache(double d, String* resultString)
+    {
+        uint64_t v;
+        memcpy(&v, &d, sizeof(double));
+
+        size_t hash = computeDoubleStringCacheHash(v);
+        size_t index = hash & (doubleStringCacheSets - 1);
+        size_t baseIdx = index * 2;
+
+        // Evict Way 1 (LRU), move Way 0 to Way 1, and insert new item into Way 0
+        m_doubleStringCacheObjects[baseIdx + 1] = m_doubleStringCacheObjects[baseIdx + 0];
+        m_doubleStringCacheKeys[baseIdx + 1] = m_doubleStringCacheKeys[baseIdx + 0];
+
+        m_doubleStringCacheObjects[baseIdx + 0] = resultString;
+        m_doubleStringCacheKeys[baseIdx + 0] = v;
+    }
+
     inline Optional<String*> lookupShortStringCache(const LChar* src, size_t len)
     {
         ASSERT(len <= smallStringCacheStringLength);

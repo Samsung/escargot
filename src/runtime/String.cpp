@@ -855,12 +855,6 @@ String* String::fromLatin1(const char16_t* src, size_t len, Optional<ExecutionSt
     }
 }
 
-String* String::fromDouble(double v)
-{
-    auto s = dtoa(v);
-    return String::fromASCII(s.data(), s.length());
-}
-
 String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 {
     if (maybeASCII && isAllASCII(src, len)) {
@@ -905,6 +899,140 @@ String* String::fromCharCode(char32_t code)
         return new UTF16StringWithLargeInlineBuffer<2>(buf, 2);
 #endif
     }
+}
+
+String* String::fromDouble(double v)
+{
+    int32_t i = static_cast<int32_t>(v);
+    if (static_cast<double>(i) == v) {
+        return String::fromInt32(i);
+    }
+
+    auto s = dtoa(v);
+    return String::fromASCII(s.data(), s.length());
+}
+
+String* String::fromInt32(int32_t v)
+{
+    // Fast itoa
+    char buffer[12];
+    char* ptr = buffer + 11;
+    *ptr = '\0';
+    if (v == 0) {
+        ptr--;
+        *ptr = '0';
+    } else {
+        bool negative = v < 0;
+        uint32_t absVal;
+        if (negative) {
+            absVal = static_cast<uint32_t>(-(static_cast<int64_t>(v)));
+        } else {
+            absVal = static_cast<uint32_t>(v);
+        }
+        while (absVal > 0) {
+            *(--ptr) = '0' + (absVal % 10);
+            absVal /= 10;
+        }
+        if (negative) {
+            *(--ptr) = '-';
+        }
+    }
+
+    size_t len = (buffer + 11) - ptr;
+    return String::fromASCII(ptr, len);
+}
+
+String* String::fromDouble(double v, ExecutionState& state)
+{
+    int32_t i = static_cast<int32_t>(v);
+    if (static_cast<double>(i) == v) {
+        return String::fromInt32(i, state);
+    }
+
+    auto* vm = state.context()->vmInstance();
+    auto hitObj = vm->lookupDoubleStringCache(v);
+    if (hitObj) {
+        return hitObj.value();
+    }
+
+    auto s = dtoa(v);
+    String* resultString = String::fromASCII(s.data(), s.length());
+    vm->insertDoubleStringCache(v, resultString);
+    return resultString;
+}
+
+String* String::fromInt32(int32_t v, ExecutionState& state)
+{
+    auto* vm = state.context()->vmInstance();
+    if (v >= 0 && v < ESCARGOT_STRINGS_NUMBERS_MAX) {
+        return vm->staticStrings().numbers[v].string();
+    }
+
+    auto hitObj = vm->lookupInt32StringCache(v);
+    if (hitObj) {
+        return hitObj.value();
+    }
+
+    // Fast itoa
+    char buffer[12];
+    char* ptr = buffer + 11;
+    *ptr = '\0';
+    if (v == 0) {
+        ptr--;
+        *ptr = '0';
+    } else {
+        bool negative = v < 0;
+        uint32_t absVal;
+        if (negative) {
+            absVal = static_cast<uint32_t>(-(static_cast<int64_t>(v)));
+        } else {
+            absVal = static_cast<uint32_t>(v);
+        }
+        while (absVal > 0) {
+            *(--ptr) = '0' + (absVal % 10);
+            absVal /= 10;
+        }
+        if (negative) {
+            *(--ptr) = '-';
+        }
+    }
+
+    size_t len = (buffer + 11) - ptr;
+    String* resultString = String::fromASCII(ptr, len);
+    vm->insertInt32StringCache(v, resultString);
+    return resultString;
+}
+
+String* String::fromUint32(uint32_t v)
+{
+    // Fast itoa
+    char buffer[12];
+    char* ptr = buffer + 11;
+    *ptr = '\0';
+    if (v == 0) {
+        ptr--;
+        *ptr = '0';
+    } else {
+        while (v > 0) {
+            *(--ptr) = '0' + (v);
+            v /= 10;
+        }
+    }
+    size_t len = (buffer + 11) - ptr;
+    return String::fromASCII(ptr, len);
+}
+
+ALWAYS_INLINE bool isUint32Only(uint32_t num)
+{
+    return (num & 0x80000000) != 0;
+}
+
+String* String::fromUint32(uint32_t v, ExecutionState& state)
+{
+    if (UNLIKELY(isUint32Only(v))) {
+        return String::fromUint32(v);
+    }
+    return String::fromInt32(static_cast<int32_t>(v), state);
 }
 
 int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* c2)

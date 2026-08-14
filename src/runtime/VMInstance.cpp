@@ -150,8 +150,6 @@ void* VMInstance::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(VMInstance)] = { 0 };
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_staticStrings.dtoaCache));
-
         markHashSet(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringMap));
 #define DECLARE_GLOBAL_SYMBOLS(name) GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_globalSymbols.name));
         DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
@@ -200,6 +198,11 @@ void* VMInstance::operator new(size_t size)
 
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheObjects));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheMetadata));
+
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_int32StringCacheObjects));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_int32StringCacheKeys));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_doubleStringCacheObjects));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_doubleStringCacheKeys));
 
         descr = GC_make_descriptor(desc, GC_WORD_LEN(VMInstance));
         typeInited = true;
@@ -385,6 +388,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #endif
     , m_smallStringCacheObjects(nullptr)
     , m_smallStringCacheMetadata(nullptr)
+    , m_int32StringCacheObjects(nullptr)
+    , m_int32StringCacheKeys(nullptr)
+    , m_doubleStringCacheObjects(nullptr)
+    , m_doubleStringCacheKeys(nullptr)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -403,6 +410,18 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 
     m_smallStringCacheMetadata = (SmallStringCacheMetadata*)GC_MALLOC_ATOMIC(smallStringCacheSize * sizeof(SmallStringCacheMetadata));
     memset(m_smallStringCacheMetadata, 0, smallStringCacheSize * sizeof(SmallStringCacheMetadata));
+
+    m_int32StringCacheObjects = (String**)GC_MALLOC(int32StringCacheSize * sizeof(String*));
+    memset(m_int32StringCacheObjects, 0, int32StringCacheSize * sizeof(String*));
+
+    m_int32StringCacheKeys = (int32_t*)GC_MALLOC_ATOMIC(int32StringCacheSize * sizeof(int32_t));
+    memset(m_int32StringCacheKeys, 0, int32StringCacheSize * sizeof(int32_t));
+
+    m_doubleStringCacheObjects = (String**)GC_MALLOC(doubleStringCacheSize * sizeof(String*));
+    memset(m_doubleStringCacheObjects, 0, doubleStringCacheSize * sizeof(String*));
+
+    m_doubleStringCacheKeys = (uint64_t*)GC_MALLOC_ATOMIC(doubleStringCacheSize * sizeof(uint64_t));
+    memset(m_doubleStringCacheKeys, 0, doubleStringCacheSize * sizeof(uint64_t));
 
 #if defined(ENABLE_ICU)
     m_calendar = nullptr;
