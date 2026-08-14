@@ -199,15 +199,94 @@ option(ESCARGOT_THREADING "Enable threading features (e.g. Atomics, SharedArrayB
 # darwin. No explicit -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON anywhere in this
 # repo (packaging/CI) ever targets darwin, confirming it was never validated
 # there. Skipped entirely if the caller already set either flag explicitly.
+# =============================================================================
+# THREAD LOCAL STORAGE (TLS) ACCESS OPTIMIZATION STRATEGIES
+# =============================================================================
+# Two types of fast TLS access optimizations are implemented in this project:
+#
+# 1. Raw Address TLS Optimization (ESCARGOT_TLS_ACCESS_BY_ADDRESS)
+#    - Bypasses traditional TLS lookups by reading the Thread Pointer directly
+#      from hardware registers (e.g. %fs, %gs, tpidr_el0, or tp) via inline asm,
+#      and applying a static offset calculated at startup.
+#    - RISK: Assumes a strictly static memory layout. Under dynamic linking (.so),
+#      lazy TLS allocation, or NPTL variances, offsets may diverge per-thread,
+#      causing dynamic-sharing crashes or RELEASE_ASSERT failures.
+#    - Darwin (macOS) Warning: Known to fail completely. Mach-O thread-local 
+#      variables (TLV) are lazily allocated and do not hold a fixed-offset guarantee.
+#
+# 2. Pthread Key Offset Search TLS Optimization (ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY)
+#    - Bypasses pthread_getspecific() call overhead. During startup, it writes a
+#      known signature using pthread_setspecific(), scans the TCB (Thread Control
+#      Block) memory space to discover the exact slot offset, and uses pointer
+#      arithmetic (tlsBase + offset) for subsequent accesses.
+#    - RISK: Lower-level memory bypass hack. Bears potential for signature collisions
+#      in other TCB fields, future libc layout changes, or memory violations.
+#      It may fail or crash on certain environments with unique TCB structures or
+#      hardened memory restrictions.
+#    - Darwin (macOS) Warning: Known to fail on Darwin. Darwin's TCB internal layout
+#      differs significantly from glibc/Bionic, making memory-scanning offsets 
+#      unreliable and causing unexpected crashes.
+#
+# * RECOMMENDATION FOR PERFORMANCE:
+#   For maximum performance on stable GNU libc (glibc) or Bionic (Android) based 
+#   environments, it is highly recommended to manually opt into ONE of these 
+#   optimizations depending on your platform requirements. Passing either flag can
+#   drastically improve TLS access speeds.
+#
+# * DEFAULT BEHAVIOR (SAFETY-FIRST):
+#   Because memory layout and thread environments can vary wildly, BOTH optimizations
+#   are disabled by default (OFF) to guarantee absolute runtime stability.
+#
+#   To enable them, pass either of the following flags to your CMake configuration:
+#   -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY=ON  (or -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON)
+# =============================================================================
+
+# Detect Sanitizers (ASAN/TSAN) and force-disable TLS optimizations.
+# Manual memory scans and address bypass hacks violate safety invariants 
+# monitored by sanitizers and will produce false-positive memory access traps.
+SET (ESCARGOT_SANITIZER_ACTIVE OFF)
+IF (ESCARGOT_ASAN)
+    SET (ESCARGOT_SANITIZER_ACTIVE ON)
+ENDIF()
+IF ("${CMAKE_C_FLAGS}" MATCHES "-fsanitize=address" OR "${CMAKE_CXX_FLAGS}" MATCHES "-fsanitize=address" OR
+    "${CMAKE_C_FLAGS}" MATCHES "-fsanitize=thread" OR "${CMAKE_CXX_FLAGS}" MATCHES "-fsanitize=thread" OR
+    "$ENV{CFLAGS}" MATCHES "-fsanitize=address" OR "$ENV{CXXFLAGS}" MATCHES "-fsanitize=address" OR
+    "$ENV{CFLAGS}" MATCHES "-fsanitize=thread" OR "$ENV{CXXFLAGS}" MATCHES "-fsanitize=thread")
+    SET (ESCARGOT_SANITIZER_ACTIVE ON)
+ENDIF()
+
+IF (ESCARGOT_SANITIZER_ACTIVE)
+    MESSAGE (STATUS "Sanitizer (ASAN/TSAN) detected. Forcing fast TLS access optimizations OFF for safety.")
+    SET (ESCARGOT_TLS_ACCESS_BY_ADDRESS OFF CACHE BOOLEAN "Enable thread local storage access optimization (offset)" FORCE)
+    SET (ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY OFF CACHE BOOLEAN "Enable thread local storage access optimization (pthread_key)" FORCE)
+ENDIF()
+
+# Default to OFF for safety-first policy across most environments.
+# Exception: Android is a highly controlled environment with consistent Bionic libc
+# and TCB structure where TLS Pthread Key optimization is proven to be extremely stable.
+# Therefore, it is enabled by default for Android host targets.
 IF (ESCARGOT_THREADING AND NOT DEFINED ESCARGOT_TLS_ACCESS_BY_ADDRESS AND NOT DEFINED ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY)
     IF (ESCARGOT_HOST STREQUAL "android")
+        SET (ESCARGOT_TLS_ACCESS_BY_ADDRESS OFF)
         SET (ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY ON)
-    ELSEIF (NOT ESCARGOT_HOST STREQUAL "windows" AND NOT ESCARGOT_HOST STREQUAL "baremetal" AND NOT ESCARGOT_HOST STREQUAL "darwin")
-        SET (ESCARGOT_TLS_ACCESS_BY_ADDRESS ON)
+    ELSE()
+        SET (ESCARGOT_TLS_ACCESS_BY_ADDRESS OFF)
+        SET (ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY OFF)
     ENDIF()
 ENDIF()
 option(ESCARGOT_TLS_ACCESS_BY_ADDRESS "Enable thread local storage access optimization (offset)" ${ESCARGOT_TLS_ACCESS_BY_ADDRESS})
 option(ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY "Enable thread local storage access optimization (pthread_key)" ${ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY})
+
+IF (ESCARGOT_THREADING AND NOT ESCARGOT_TLS_ACCESS_BY_ADDRESS AND NOT ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY)
+    MESSAGE(STATUS "--------------------------------------------------------------------------------")
+    MESSAGE(STATUS " TLS OPTIMIZATION NOTICE:")
+    MESSAGE(STATUS "   Fast TLS access optimizations are currently DISABLED by default for maximum safety.")
+    MESSAGE(STATUS "   On stable glibc or Android Bionic platforms, manually enabling one of these can")
+    MESSAGE(STATUS "   significantly improve TLS access speeds. Consider passing either:")
+    MESSAGE(STATUS "     -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY=ON  (Recommended)")
+    MESSAGE(STATUS "     -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON")
+    MESSAGE(STATUS "--------------------------------------------------------------------------------")
+ENDIF()
 
 SET (ESCARGOT_TARGET escargot)
 SET (ESCARGOT_CCTEST_TARGET cctest)
