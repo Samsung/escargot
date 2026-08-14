@@ -32,7 +32,9 @@ class MapObject : public DerivedObject {
     friend class MapIteratorObject;
 
 public:
-    typedef TightVector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>> MapObjectData;
+    typedef Vector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>,
+                   ComputeReservedCapacityFunctionWithLog2<>, StorePositiveNumberAsOddNumber>
+        MapObjectData;
 
     explicit MapObject(ExecutionState& state);
     explicit MapObject(ExecutionState& state, Object* proto);

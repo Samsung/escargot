@@ -266,6 +266,14 @@ public:
         return toValue().equalsToByTheSameValueZeroAlgorithm(state, other);
     }
 
+    ALWAYS_INLINE bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& state, const EncodedValue& other) const
+    {
+        if (LIKELY(HAS_SMI_TAG(m_data.payload) && HAS_SMI_TAG(other.m_data.payload))) {
+            return m_data.payload == other.m_data.payload;
+        }
+        return toValue().equalsToByTheSameValueZeroAlgorithm(state, other.toValue());
+    }
+
     template <const bool shouldTreatEmptyAsUndefined = false>
     ALWAYS_INLINE Value toValue() const
     {
