@@ -134,7 +134,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 10. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P, descObj»)).
     // 11. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
-    Value arguments[] = { target, P.toPropertyKeyValue(), Value(ObjectPropertyDescriptor::fromObjectPropertyDescriptor(state, desc)) };
+    Value arguments[] = { target, P.toPropertyKeyValue(state), Value(ObjectPropertyDescriptor::fromObjectPropertyDescriptor(state, desc)) };
     booleanTrapResult = Object::call(state, trap, handler, 3, arguments).toBoolean();
 
     // 12. If booleanTrapResult is false, return false.
@@ -215,7 +215,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
-    Value arguments[] = { target, P.toPropertyKeyValue() };
+    Value arguments[] = { target, P.toPropertyKeyValue(state) };
     booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, return false.
@@ -275,7 +275,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 9. Let trapResultObj be Call(trap, handler, «target, P»).
     // 10. ReturnIfAbrupt(trapResultObj).
     Value trapResultObj;
-    Value arguments[] = { target, P.toPropertyKeyValue() };
+    Value arguments[] = { target, P.toPropertyKeyValue(state) };
     trapResultObj = Object::call(state, trap, handler, 2, arguments);
 
     // 11. If Type(trapResultObj) is neither Object nor Undefined, throw a TypeError exception.
@@ -435,7 +435,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
-    Value arguments[] = { target, propertyName.toPropertyKeyValue() };
+    Value arguments[] = { target, propertyName.toPropertyKeyValue(state) };
     booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, then
@@ -852,7 +852,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 9. Let trapResult be Call(trap, handler, «target, P, Receiver»).
     // 10. ReturnIfAbrupt(trapResult).
     Value trapResult;
-    Value arguments[] = { target, propertyName.toPropertyKeyValue(), Value(this) };
+    Value arguments[] = { target, propertyName.toPropertyKeyValue(state), Value(this) };
     trapResult = Object::call(state, trap, handler, 3, arguments);
 
     // 11. Let targetDesc be target.[[GetOwnProperty]](P).
@@ -917,7 +917,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P, V, Receiver»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
-    Value arguments[] = { target, propertyName.toPropertyKeyValue(), v, receiver };
+    Value arguments[] = { target, propertyName.toPropertyKeyValue(state), v, receiver };
     booleanTrapResult = Object::call(state, trap, handler, 4, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, return false.

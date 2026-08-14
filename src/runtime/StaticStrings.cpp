@@ -176,33 +176,4 @@ FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 
-::Escargot::String* StaticStrings::dtoa(double d) const
-{
-    size_t size = dtoaCache.size();
-
-    for (size_t i = 0; i < size; ++i) {
-        if (dtoaCache[i].first == d) {
-            return dtoaCache[i].second;
-        }
-    }
-
-    ::Escargot::String* s = String::fromDouble(d);
-    dtoaCache.insert(0, std::make_pair(d, s));
-    if (dtoaCache.size() > dtoaCacheSize) {
-        dtoaCache.erase(dtoaCache.size() - 1);
-    }
-
-    return s;
-}
-
-bool StaticStrings::dtoaCacheHas(double d) const
-{
-    size_t size = dtoaCache.size();
-    for (size_t i = 0; i < size; ++i) {
-        if (dtoaCache[i].first == d) {
-            return true;
-        }
-    }
-    return false;
-}
 } // namespace Escargot

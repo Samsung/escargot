@@ -157,7 +157,7 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
 
     // Let name be the name of the WebAssembly function funcaddr.
     // Perform ! SetFunctionName(function, name).
-    AtomicString name = (index < ESCARGOT_STRINGS_NUMBERS_MAX) ? state.context()->staticStrings().numbers[index] : AtomicString(state.context(), String::fromDouble(index));
+    AtomicString name = (index < ESCARGOT_STRINGS_NUMBERS_MAX) ? state.context()->staticStrings().numbers[index] : AtomicString(state.context(), String::fromDouble(index, state));
 
     // Perform ! SetFunctionLength(function, arity).
     // Let steps be "call the Exported Function funcaddr with arguments."

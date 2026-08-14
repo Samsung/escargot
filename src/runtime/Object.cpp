@@ -98,13 +98,7 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
 ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUintCase(ExecutionState& state) const
 {
     ASSERT(isUIntType());
-
-    auto uint = uintValue();
-    if (uint < ESCARGOT_STRINGS_NUMBERS_MAX) {
-        return ObjectStructurePropertyName(state.context()->staticStrings().numbers[uint]);
-    }
-
-    return ObjectStructurePropertyName(state, String::fromDouble(uint));
+    return ObjectStructurePropertyName(state, String::fromUint32(uintValue(), state));
 }
 
 ObjectRareData::ObjectRareData(Object* obj)

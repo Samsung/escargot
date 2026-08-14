@@ -89,10 +89,10 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
     ASSERT(!isString());
     if (isInt32()) {
         int num = asInt32();
-        if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX)
+        if (num >= 0 && num < ESCARGOT_STRINGS_NUMBERS_MAX) {
             return ec.context()->staticStrings().numbers[num].string();
-
-        return ec.context()->staticStrings().dtoa(num);
+        }
+        return String::fromInt32(num, ec);
     } else if (isNumber()) {
         double d = asNumber();
         if (std::isnan(d))
@@ -108,7 +108,7 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         if (d == 0.0)
             d = 0;
 
-        return ec.context()->staticStrings().dtoa(d);
+        return String::fromDouble(d, ec);
     } else if (isUndefined()) {
         return ec.context()->staticStrings().undefined.string();
     } else if (isNull()) {

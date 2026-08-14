@@ -1064,8 +1064,7 @@ namespace Escargot {
 class StaticStrings {
 public:
     StaticStrings(AtomicStringMap* atomicStringMap)
-        : dtoaCacheSize(5)
-        , m_atomicStringMap(atomicStringMap)
+        : m_atomicStringMap(atomicStringMap)
     {
         asciiTable = new (malloc(sizeof(AtomicString) * ESCARGOT_ASCII_TABLE_MAX)) AtomicString[ESCARGOT_ASCII_TABLE_MAX];
         numbers = new (malloc(sizeof(AtomicString) * ESCARGOT_STRINGS_NUMBERS_MAX)) AtomicString[ESCARGOT_STRINGS_NUMBERS_MAX];
@@ -1204,16 +1203,6 @@ public:
     // initStaticStrings() collapse to a single call each instead of inlining
     // the ASCIIStringFromExternalMemory construction at every site (code-size).
     NEVER_INLINE void initStaticStringImpl(AtomicString& as, const char* str, size_t len);
-
-    const size_t dtoaCacheSize; // 5;
-    mutable Vector<std::pair<double, ::Escargot::String*>, GCUtil::gc_malloc_allocator<std::pair<double, ::Escargot::String*>>> dtoaCache;
-
-    ::Escargot::String* dtoa(double d) const;
-    // cheap (<= dtoaCacheSize comparisons, no allocation) peek at whether d is
-    // already cached - lets a caller choose the cached-String path (dtoa()) when
-    // it'll hit for free, and a from-scratch path when it's known to miss anyway
-    // (see InterpreterSlowPath::appendValueToTemplateBuilder)
-    bool dtoaCacheHas(double d) const;
 
 protected:
     AtomicStringMap* m_atomicStringMap;
