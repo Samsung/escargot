@@ -443,6 +443,14 @@ public:
         return m_bufferData;
     }
 
+    ALWAYS_INLINE StringBufferAccessData bufferAccessDataForRange(size_t start, size_t length) const
+    {
+        if (UNLIKELY(m_bufferData.hasSpecialImpl)) {
+            return const_cast<String*>(this)->bufferAccessDataSpecialImplForRange(start, length);
+        }
+        return m_bufferData;
+    }
+
     bool isAtomicStringSource() const
     {
         return (m_typeTag > POINTER_VALUE_STRING_TAG_IN_DATA);
@@ -644,6 +652,11 @@ protected:
     {
         RELEASE_ASSERT_NOT_REACHED();
         return m_bufferData;
+    }
+
+    virtual StringBufferAccessData bufferAccessDataSpecialImplForRange(size_t start, size_t length)
+    {
+        return bufferAccessDataSpecialImpl();
     }
 
     static int stringCompare(size_t l1, size_t l2, const String* c1, const String* c2);

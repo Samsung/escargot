@@ -62,6 +62,7 @@ public:
     }
 
     virtual StringBufferAccessData bufferAccessDataSpecialImpl() override;
+    virtual StringBufferAccessData bufferAccessDataSpecialImplForRange(size_t start, size_t length) override;
 
     bool isCompressed()
     {
@@ -83,6 +84,13 @@ public:
     bool compress();
     void decompress();
 
+    bool isPartiallyDecompressed() const
+    {
+        return m_isPartiallyDecompressed;
+    }
+
+    void decompressRange(size_t start, size_t length);
+
 private:
     CompressibleString(VMInstance* instance);
 
@@ -101,14 +109,18 @@ private:
     NEVER_INLINE bool compressWorker();
     template <typename StringType>
     NEVER_INLINE void decompressWorker();
+    template <typename StringType>
+    NEVER_INLINE void decompressRangeWorker(size_t start, size_t length);
 
     bool m_isOwnerMayFreed;
     bool m_isCompressed;
+    bool m_isPartiallyDecompressed;
     size_t m_refCount; // reference count representing the usage of this CompressibleString
     VMInstance* m_vmInstance;
     uint64_t m_lastUsedTickcount;
     typedef std::vector<std::vector<char>> CompressedDataVector;
     CompressedDataVector m_compressedData;
+    std::vector<char> m_isChunkDecompressed;
 };
 } // namespace Escargot
 

@@ -66,6 +66,17 @@ public:
         return m_start + m_bufferData.length;
     }
 
+    bool hasUnderlyingString() const
+    {
+        return m_bufferData.hasSpecialImpl;
+    }
+
+    String* underlyingString() const
+    {
+        ASSERT(m_bufferData.hasSpecialImpl);
+        return m_bufferData.bufferAsString;
+    }
+
     virtual UTF16StringData toUTF16StringData() const override
     {
         UTF16StringData ret;
@@ -111,11 +122,11 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    virtual StringBufferAccessData bufferAccessDataSpecialImplForRange(size_t start, size_t length) override
     {
         ASSERT(m_bufferData.hasSpecialImpl);
 
-        StringBufferAccessData r = m_bufferData.bufferAsString->bufferAccessData();
+        StringBufferAccessData r = m_bufferData.bufferAsString->bufferAccessDataForRange(m_start + start, length);
         r.length = m_bufferData.length;
         if (r.has8BitContent) {
             r.bufferAs8Bit += m_start;
@@ -124,6 +135,11 @@ protected:
         }
 
         return r;
+    }
+
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        return bufferAccessDataSpecialImplForRange(0, length());
     }
 
     ALWAYS_INLINE void initBufferAccessData(String* str, size_t start, size_t end)
