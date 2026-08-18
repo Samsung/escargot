@@ -475,6 +475,7 @@ bool ArrayObject::copyFastModeElementsFrom(ExecutionState& state, ArrayObject* s
             return false;
         }
     }
+
     for (uint32_t i = 0; i < count; i++) {
         Value v = src->m_fastModeData[srcStart + i];
         if (LIKELY(!v.isEmpty())) {
@@ -491,7 +492,7 @@ bool ArrayObject::pushIntoFastModeElements(ExecutionState& state, Value* values,
     // useFitStorage=false: this is append growth, so let setArrayLength keep
     // tracking spare capacity (see its append-growth fast path) instead of
     // reallocating to the exact new size every push() call
-    if (UNLIKELY(!setArrayLength(state, oldLength + (uint32_t)count)) || UNLIKELY(!isFastModeArray())) {
+    if (UNLIKELY(!setArrayLength(state, oldLength + (uint32_t)count, false, true, false)) || UNLIKELY(!isFastModeArray())) {
         return false;
     }
     for (size_t i = 0; i < count; i++) {
@@ -524,7 +525,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
     return ret;
 }
 
-bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage, bool considerHole)
+bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage, bool considerHole, bool clearNewSlots)
 {
     bool isFastMode = isFastModeArray();
 
@@ -644,7 +645,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     GC_FREE(m_fastModeData);
                     m_fastModeData = newFastModeData;
 
-                    if (oldLength < newLength) {
+                    if (clearNewSlots && oldLength < newLength) {
                         memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
 
@@ -653,7 +654,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                         rd->m_arrayObjectFastModeBufferExpandCount++;
                     }
                 } else {
-                    if (oldLength < newLength) {
+                    if (clearNewSlots && oldLength < newLength) {
                         memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
                     rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
