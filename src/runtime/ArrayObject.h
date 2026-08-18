@@ -123,6 +123,11 @@ public:
 #endif
     }
 
+    ALWAYS_INLINE uint32_t fastModeArrayLength() const
+    {
+        return m_arrayLength;
+    }
+
     ALWAYS_INLINE bool isLengthPropertyWritableDirect() const
     {
         return isLengthPropertyWritable();

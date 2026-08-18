@@ -571,19 +571,20 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
         // For each element nextKey of keys in List order, do
         for (size_t i = 0; i < keys.size(); i++) {
             Value nextKey = keys[i];
+            ObjectPropertyName nextPropertyName(state, nextKey);
             // Let desc be ? from.[[GetOwnProperty]](nextKey).
-            auto desc = from->getOwnProperty(state, ObjectPropertyName(state, nextKey));
+            auto desc = from->getOwnProperty(state, nextPropertyName);
             // If desc is not undefined and desc.[[Enumerable]] is true, then
             if (desc.hasValue() && desc.isEnumerable()) {
                 // Let propValue be ? Get(from, nextKey).
                 Value propValue;
                 if (from->isProxyObject()) {
-                    propValue = from->get(state, ObjectPropertyName(state, Value(nextKey))).value(state, from);
+                    propValue = from->get(state, nextPropertyName).value(state, from);
                 } else {
                     propValue = desc.value(state, from);
                 }
                 // Perform ? Set(to, nextKey, propValue, true).
-                to->setThrowsException(state, ObjectPropertyName(state, nextKey), propValue, to);
+                to->setThrowsException(state, nextPropertyName, propValue, to);
             }
         }
     }
