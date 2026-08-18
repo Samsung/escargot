@@ -65,13 +65,23 @@ static void processPiece(LChar* buffer, const StringBuilderBase::StringBuilderPi
         memcpy(&buffer[currentLength], numberScratch + piece.m_digitsOffset, piece.m_length);
         currentLength += piece.m_length;
     } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::String) {
-        const auto& accessData = piece.m_string->bufferAccessData();
-        const auto& l = accessData.length;
-        if (accessData.has8BitContent) {
-            memcpy(&buffer[currentLength], accessData.bufferAs8Bit, l);
+        String* str = piece.m_string;
+        size_t l = str->length();
+        bool is8Bit = false;
+        const void* rawBuf = nullptr;
+        if (LIKELY(!str->hasSpecialImpl())) {
+            is8Bit = str->has8BitContent();
+            rawBuf = str->rawBuffer();
+        } else {
+            auto accessData = str->bufferAccessData();
+            is8Bit = accessData.has8BitContent;
+            rawBuf = accessData.buffer;
+        }
+        if (is8Bit) {
+            memcpy(&buffer[currentLength], rawBuf, l);
             currentLength += l;
         } else {
-            auto* b = accessData.bufferAs16Bit;
+            auto* b = (const char16_t*)rawBuf;
             for (size_t k = 0; k < l; k++) {
                 buffer[currentLength++] = b[k];
             }
@@ -81,12 +91,21 @@ static void processPiece(LChar* buffer, const StringBuilderBase::StringBuilderPi
         size_t s = piece.m_start;
         size_t e = piece.m_start + piece.m_length;
         size_t l = piece.m_length;
-        const auto& accessData = data->bufferAccessData();
-        if (accessData.has8BitContent) {
-            memcpy(&buffer[currentLength], accessData.bufferAs8Bit + s, l);
+        bool is8Bit = false;
+        const void* rawBuf = nullptr;
+        if (LIKELY(!data->hasSpecialImpl())) {
+            is8Bit = data->has8BitContent();
+            rawBuf = data->rawBuffer();
+        } else {
+            auto accessData = data->bufferAccessData();
+            is8Bit = accessData.has8BitContent;
+            rawBuf = accessData.buffer;
+        }
+        if (is8Bit) {
+            memcpy(&buffer[currentLength], (const char*)rawBuf + s, l);
             currentLength += l;
         } else {
-            auto* b = accessData.bufferAs16Bit;
+            auto* b = (const char16_t*)rawBuf;
             for (size_t k = s; k < e; k++) {
                 buffer[currentLength++] = b[k];
             }
@@ -116,13 +135,23 @@ static void processPiece(char16_t* buffer, const StringBuilderBase::StringBuilde
     } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::String) {
         String* data = piece.m_string;
         size_t l = data->length();
-        if (data->has8BitContent()) {
-            auto ptr = data->characters8();
+        bool is8Bit = false;
+        const void* rawBuf = nullptr;
+        if (LIKELY(!data->hasSpecialImpl())) {
+            is8Bit = data->has8BitContent();
+            rawBuf = data->rawBuffer();
+        } else {
+            auto accessData = data->bufferAccessData();
+            is8Bit = accessData.has8BitContent;
+            rawBuf = accessData.buffer;
+        }
+        if (is8Bit) {
+            auto ptr = (const LChar*)rawBuf;
             for (size_t j = 0; j < l; j++) {
                 buffer[currentLength++] = ptr[j];
             }
         } else {
-            auto ptr = data->characters16();
+            auto ptr = (const char16_t*)rawBuf;
             for (size_t j = 0; j < l; j++) {
                 buffer[currentLength++] = ptr[j];
             }
@@ -132,14 +161,24 @@ static void processPiece(char16_t* buffer, const StringBuilderBase::StringBuilde
         size_t s = piece.m_start;
         size_t e = piece.m_start + piece.m_length;
         size_t l = piece.m_length;
-        if (data->has8BitContent()) {
-            auto ptr = data->characters8();
+        bool is8Bit = false;
+        const void* rawBuf = nullptr;
+        if (LIKELY(!data->hasSpecialImpl())) {
+            is8Bit = data->has8BitContent();
+            rawBuf = data->rawBuffer();
+        } else {
+            auto accessData = data->bufferAccessData();
+            is8Bit = accessData.has8BitContent;
+            rawBuf = accessData.buffer;
+        }
+        if (is8Bit) {
+            auto ptr = (const LChar*)rawBuf;
             ptr += s;
             for (size_t j = 0; j < l; j++) {
                 buffer[currentLength++] = ptr[j];
             }
         } else {
-            auto ptr = data->characters16();
+            auto ptr = (const char16_t*)rawBuf;
             ptr += s;
             for (size_t j = 0; j < l; j++) {
                 buffer[currentLength++] = ptr[j];

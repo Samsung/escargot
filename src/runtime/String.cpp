@@ -814,7 +814,7 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState
                 return resultString;
             }
 
-            if (!isNumeric) {
+            if (!isNumeric && isAllASCIIAlphanumeric(src, len)) {
                 auto a = AtomicString::has(state->context()->atomicStringMap(), src, len);
                 if (a) {
                     String* resultString = a.value().string();
