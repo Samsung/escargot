@@ -56,7 +56,7 @@ ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const O
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectHasPropertyResult(ObjectGetResult(state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx)), false, true, false));
+            return ObjectHasPropertyResult(ObjectGetResult(String::fromCharCode(m_primitiveValue->charAt(idx), &state), false, true, false));
         }
     }
     return Object::hasProperty(state, P);
@@ -69,7 +69,7 @@ ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const Object
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectGetResult(state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx)), false, true, false);
+            return ObjectGetResult(String::fromCharCode(m_primitiveValue->charAt(idx), &state), false, true, false);
         }
     }
     return Object::getOwnProperty(state, P);
@@ -120,7 +120,7 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectGetResult(state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx)), false, true, false);
+            return ObjectGetResult(String::fromCharCode(m_primitiveValue->charAt(idx), &state), false, true, false);
         }
     }
     return get(state, ObjectPropertyName(state, property), receiver);
@@ -132,7 +132,7 @@ Value StringObject::getIndexedPropertyValue(ExecutionState& state, const Value& 
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx));
+            return String::fromCharCode(m_primitiveValue->charAt(idx), &state);
         }
     }
     return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);
@@ -144,7 +144,7 @@ ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, 
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectHasPropertyResult(ObjectGetResult(state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx)), false, true, false));
+            return ObjectHasPropertyResult(ObjectGetResult(String::fromCharCode(m_primitiveValue->charAt(idx), &state), false, true, false));
         }
     }
     return hasProperty(state, ObjectPropertyName(state, propertyName));
@@ -197,13 +197,13 @@ std::pair<Value, bool> StringIteratorObject::advance(ExecutionState& state)
     // If first < 0xD800 or first > 0xDBFF or position+1 = len, let resultString be the string consisting of the single code unit first.
     String* resultString;
     if (first < 0xD800 || first > 0xDBFF || (position + 1 == len)) {
-        resultString = state.context()->staticStrings().charCodeToString(first);
+        resultString = String::fromCharCode(first, &state);
     } else {
         // Let second be the code unit value at index position+1 in the String S.
         auto second = s->charAt(position + 1);
         // If second < 0xDC00 or second > 0xDFFF, let resultString be the string consisting of the single code unit first.
         if (second < 0xDC00 || second > 0xDFFF) {
-            resultString = state.context()->staticStrings().charCodeToString(first);
+            resultString = String::fromCharCode(first, &state);
         } else {
             // Else, let resultString be the string consisting of the code unit first followed by the code unit second.
             char16_t s[2] = { first, second };

@@ -181,7 +181,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
         ASSERT(from <= to);
         if (to - from == 1) {
             char16_t c = str->charAt(from);
-            return state.context()->staticStrings().charCodeToString(c);
+            return String::fromCharCode(c, &state);
         }
         return str->substring(from, to);
     }
@@ -855,7 +855,7 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
     const auto length = str->length();
     if (LIKELY(0 <= position && position < (int64_t)length)) {
         char16_t c = str->charAt(position);
-        return state.context()->staticStrings().charCodeToString(c);
+        return String::fromCharCode(c, &state);
     } else {
         return String::emptyString();
     }
@@ -865,7 +865,7 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
 {
     if (argc == 1) {
         char16_t c = argv[0].toUint32(state) & 0xFFFF;
-        return state.context()->staticStrings().charCodeToString(c);
+        return String::fromCharCode(c, &state);
     }
 
     StringBuilder builder;
@@ -1495,7 +1495,7 @@ static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc
     if (relativeStart < 0 || relativeStart >= len) {
         return Value();
     }
-    return state.context()->staticStrings().charCodeToString(str->charAt(relativeStart));
+    return String::fromCharCode(str->charAt(relativeStart), &state);
 }
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                                    \

@@ -877,11 +877,18 @@ String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* s
 }
 #endif
 
-String* String::fromCharCode(char32_t code)
+String* String::fromCharCode(char32_t code, Optional<ExecutionState*> state)
 {
-    if (code < 128) {
-        char c = (char)code;
-        return new ASCIIStringWithInlineBuffer(&c, 1);
+    if (code < 256) {
+        if (LIKELY(state.hasValue() && code < ESCARGOT_ASCII_TABLE_MAX)) {
+            return state.value()->context()->staticStrings().asciiTable[code].string();
+        }
+        LChar c = static_cast<LChar>(code);
+#if defined(ESCARGOT_SMALL_CONFIG)
+        return new Latin1StringWithInlineBuffer(&c, 1);
+#else
+        return new Latin1StringWithLargeInlineBuffer<1>(&c, 1);
+#endif
     } else if (code < 0x10000) {
         char16_t buf = code;
 #if defined(ESCARGOT_SMALL_CONFIG)

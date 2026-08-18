@@ -395,7 +395,7 @@ public:
     static String* fromLatin1(const LChar* s, size_t len, Optional<ExecutionState*> state = NullOption);
     static String* fromLatin1(const char16_t* s, size_t len, Optional<ExecutionState*> state = NullOption);
 
-    static String* fromCharCode(char32_t code);
+    static String* fromCharCode(char32_t code, Optional<ExecutionState*> state = NullOption);
     static String* fromDouble(double v);
     static String* fromDouble(double v, ExecutionState& state); // give ExecutionState& for double to string cache
     static String* fromInt32(int32_t v);
