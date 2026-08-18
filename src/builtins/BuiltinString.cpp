@@ -183,7 +183,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
             char16_t c = str->charAt(from);
             return String::fromCharCode(c, &state);
         }
-        return str->substring(from, to);
+        return str->substring(from, to, &state);
     }
 }
 
@@ -764,7 +764,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                 if (result.m_matchResults[0][0].m_start >= S->length())
                     break;
 
-                String* T = S->substring(p, result.m_matchResults[0][0].m_start);
+                String* T = S->substring(p, result.m_matchResults[0][0].m_start, &state);
                 A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
                 if (lengthA == lim)
                     return A;
@@ -788,7 +788,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                     if (q >= S->length())
                         break;
 
-                    String* T = S->substring(p, q);
+                    String* T = S->substring(p, q, &state);
                     A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
                     if (lengthA == lim)
                         return A;
@@ -799,7 +799,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         }
     }
 
-    String* T = S->substring(p, s);
+    String* T = S->substring(p, s, &state);
     A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
     return A;
 }
@@ -1358,7 +1358,7 @@ static Value stringPad(ExecutionState& state, String* S, size_t argc, Value* arg
 
     // Build the string, than truncate the characters over fillLen
     String* truncatedStringFiller = sb.finalize(&state);
-    truncatedStringFiller = truncatedStringFiller->substring(0, fillLen);
+    truncatedStringFiller = truncatedStringFiller->substring(0, fillLen, &state);
 
     // Return a new String value computed by the concatenation of truncatedStringFiller and S.
     if (isPadStart) {
@@ -1481,7 +1481,7 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
     if (resultLength <= 0)
         return String::emptyString();
 
-    return str->substring(intStart, intStart + resultLength);
+    return str->substring(intStart, intStart + resultLength, &state);
 }
 
 static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

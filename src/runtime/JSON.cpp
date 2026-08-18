@@ -829,7 +829,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
         if (space.asString()->length() <= 10) {
             gap = space.asString();
         } else {
-            gap = space.asString()->substring(0, 10);
+            gap = space.asString()->substring(0, 10, &state);
         }
     }
 

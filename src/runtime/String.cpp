@@ -1291,19 +1291,34 @@ size_t String::rfind(String* str, size_t pos)
     return SIZE_MAX;
 }
 
-String* String::substring(size_t from, size_t to)
+String* String::substring(size_t from, size_t to, Optional<ExecutionState*> state)
 {
     if (UNLIKELY(from >= to)) {
         return String::emptyString();
     }
-#if !defined(ESCARGOT_SMALL_CONFIG)
-    if (to - from > STRING_SUB_STRING_MIN_VIEW_LENGTH) {
+    auto len = to - from;
+    if (len > STRING_BUILDER_INLINE_STORAGE_DEFAULT) {
         StringView* str = new StringView(this, from, to);
         return str;
     }
-#endif
+    auto bad = bufferAccessDataForRange(from, len);
+    if (bad.has8BitContent) {
+        return String::fromLatin1(reinterpret_cast<const LChar*>(bad.bufferAs8Bit + from), len, state);
+    }
+    LChar may8BitBuffer[STRING_BUILDER_INLINE_STORAGE_DEFAULT];
+    bool has8BitContent = true;
     StringBuilder builder;
-    builder.appendSubString(this, from, to);
+    for (size_t i = from; i < to; i++) {
+        auto c = bad.charAt(i);
+        if (c > std::numeric_limits<uint8_t>::max()) {
+            has8BitContent = false;
+        }
+        may8BitBuffer[i - from] = c;
+        builder.appendChar(c);
+    }
+    if (has8BitContent) {
+        return String::fromLatin1(may8BitBuffer, len, state);
+    }
     return builder.finalize();
 }
 
@@ -1382,7 +1397,7 @@ bool String::isAllSpecialCharacters(bool (*fn)(char))
     return true;
 }
 
-String* String::trim(String::StringTrimWhere where)
+String* String::trim(String::StringTrimWhere where, Optional<ExecutionState*> state)
 {
     int64_t stringLength = (int64_t)length();
     int64_t s = 0;
@@ -1405,7 +1420,7 @@ String* String::trim(String::StringTrimWhere where)
     if (s == 0 && e == stringLength - 1) {
         return this;
     }
-    return substring(s, e + 1);
+    return substring(s, e + 1, state);
 }
 
 
@@ -1490,7 +1505,7 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                     namedCaptureEnd++;
                 }
                 if (ValidNamedCapturedGroup && namedCaptureObj) {
-                    String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
+                    String* groupName = replacement->substring((i + 2), (namedCaptureEnd), &state);
                     Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
                     if (!capture.isUndefined()) {
                         builder.appendString(capture.toString(state), &state);

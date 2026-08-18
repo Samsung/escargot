@@ -133,7 +133,7 @@ static Object* createSegmentDataObject(ExecutionState& state, String* string, in
 {
     Object* result = new Object(state);
     result->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazySegment()),
-                                    ObjectPropertyDescriptor(string->substring(startIndex, endIndex), ObjectPropertyDescriptor::AllPresent));
+                                    ObjectPropertyDescriptor(string->substring(startIndex, endIndex, &state), ObjectPropertyDescriptor::AllPresent));
     result->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().index),
                                     ObjectPropertyDescriptor(Value(startIndex), ObjectPropertyDescriptor::AllPresent));
     result->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().input),

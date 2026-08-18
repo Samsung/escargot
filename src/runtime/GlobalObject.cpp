@@ -524,7 +524,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
             return Value(Value::NegativeInfinityInit);
         break;
     }
-    auto u8Str = s->substring(p, len)->toUTF8StringData();
+    auto u8Str = s->substring(p, len)->toNonGCUTF8StringData();
     double number = atof(u8Str.data());
     if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && (ch == '.' || ch == '+') && isdigit(s->charAt(p + 1))))
         return Value(Value::NanInit);

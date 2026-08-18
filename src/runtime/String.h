@@ -500,7 +500,7 @@ public:
 
     size_t rfind(String* str, size_t pos);
 
-    String* substring(size_t from, size_t to);
+    String* substring(size_t from, size_t to, Optional<ExecutionState*> state = NullOption);
 
     // fnv hash
     // https://github.com/catb0t/fnv-hash
@@ -633,7 +633,7 @@ public:
         TrimEnd,
         TrimBoth
     };
-    String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth);
+    String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth, Optional<ExecutionState*> state = NullOption);
 
 private:
     size_t m_typeTag;
