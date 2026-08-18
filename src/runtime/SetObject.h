@@ -32,8 +32,7 @@ class SetObject : public DerivedObject {
     friend class SetIteratorObject;
 
 public:
-    typedef Vector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>, ComputeReservedCapacityFunctionWithLog2<>,
-                   StorePositiveNumberAsOddNumber>
+    typedef Vector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>, ComputeReservedCapacityFunctionWithLog2<>>
         SetObjectData;
 
     explicit SetObject(ExecutionState& state);
@@ -71,8 +70,8 @@ public:
 private:
     // returns index into m_storage or SIZE_MAX; builds the hash index once the
     // storage outgrows KeyedCollectionHashIndex::buildThreshold
-    size_t findKeyIndex(ExecutionState& state, const Value& key);
-    void addToHashIndex(size_t storageIndex);
+    size_t findKeyIndex(ExecutionState& state, const Value& key, size_t* outHash = nullptr);
+    void addToHashIndex(size_t storageIndex, size_t hash = 0);
     void buildOrRebuildHashIndex();
 
     SetObjectData m_storage;
