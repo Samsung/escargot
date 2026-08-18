@@ -424,6 +424,17 @@ public:
         return charAt(idx);
     }
 
+    ALWAYS_INLINE bool hasSpecialImpl() const
+    {
+        return m_bufferData.hasSpecialImpl;
+    }
+
+    ALWAYS_INLINE const void* rawBuffer() const
+    {
+        ASSERT(!m_bufferData.hasSpecialImpl);
+        return m_bufferData.buffer;
+    }
+
     ALWAYS_INLINE StringBufferAccessData bufferAccessData() const
     {
         if (UNLIKELY(m_bufferData.hasSpecialImpl)) {

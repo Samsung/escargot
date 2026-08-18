@@ -26,10 +26,6 @@ namespace Escargot {
 
 void* RopeString::operator new(size_t size, bool is8Bit)
 {
-    if (is8Bit) {
-        // if 8-bit string, we don't needs typed malloc
-        return GC_MALLOC(size);
-    }
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {

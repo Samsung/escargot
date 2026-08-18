@@ -169,11 +169,20 @@ class StringBuilderImpl : public StringBuilderBase {
             piece.m_start = s;
             piece.m_length = pieceLen;
             m_contentLength += pieceLen;
-            const auto& data = str->bufferAccessData();
-            if (!data.has8BitContent) {
+            bool is8Bit = false;
+            const void* rawBuf = nullptr;
+            if (LIKELY(!str->hasSpecialImpl())) {
+                is8Bit = str->has8BitContent();
+                rawBuf = str->rawBuffer();
+            } else {
+                auto data = str->bufferAccessData();
+                is8Bit = data.has8BitContent;
+                rawBuf = data.buffer;
+            }
+            if (!is8Bit) {
                 bool has8 = true;
                 for (size_t i = s; i < e; i++) {
-                    if (((char16_t*)data.buffer)[i] > 255) {
+                    if (((char16_t*)rawBuf)[i] > 255) {
                         has8 = false;
                         break;
                     }
