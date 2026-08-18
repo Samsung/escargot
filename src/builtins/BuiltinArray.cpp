@@ -1741,6 +1741,41 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
     // Let k be 0.
     int64_t k = 0;
 
+    if (O->isArrayObject() && A->isArrayObject()) {
+        auto* arrayO = static_cast<ArrayObject*>(O);
+        auto* arrayA = static_cast<ArrayObject*>(A);
+        if (LIKELY(arrayO->isFastModeArray() && arrayA->isFastModeArray() && arrayO->isLengthPropertyWritableDirect() && arrayA->isLengthPropertyWritableDirect())) {
+            // fast path
+            arrayA->setArrayLengthDirect(state, len, false, false, false); // clearNewSlots = false since we will write them!
+
+            bool bailedOut = false;
+            while (k < len) {
+                if (UNLIKELY(!arrayO->isFastModeArray() || !arrayA->isFastModeArray() || arrayO->fastModeArrayLength() != len || arrayA->fastModeArrayLength() != len)) {
+                    bailedOut = true;
+                    break;
+                }
+                Value kValue = arrayO->getFastModeValue(k);
+                if (LIKELY(!kValue.isEmpty())) {
+                    Value v[] = { kValue, Value(k), O };
+                    Value mappedValue = Object::call(state, callbackfn, T, 3, v);
+                    if (UNLIKELY(!arrayO->isFastModeArray() || !arrayA->isFastModeArray() || arrayO->fastModeArrayLength() != len || arrayA->fastModeArrayLength() != len)) {
+                        A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(k)), ObjectPropertyDescriptor(mappedValue, ObjectPropertyDescriptor::AllPresent));
+                        k++;
+                        bailedOut = true;
+                        break;
+                    }
+                    arrayA->setFastModeValue(k, mappedValue);
+                } else {
+                    arrayA->setFastModeValue(k, Value(Value::EmptyValue));
+                }
+                k++;
+            }
+            if (LIKELY(!bailedOut)) {
+                return A;
+            }
+        }
+    }
+
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ToString(k).
@@ -2198,6 +2233,26 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
         // Return undefined.
         return Value();
     }
+
+    if (O->isArrayObject()) {
+        auto* arrayO = static_cast<ArrayObject*>(O);
+        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+            // fast path
+            Value first = arrayO->getFastModeValue(0);
+            if (UNLIKELY(first.isEmpty())) {
+                first = Value(Value::Undefined);
+            }
+            if (len > 1) {
+                for (int64_t i = 0; i < len - 1; i++) {
+                    arrayO->setFastModeValue(i, arrayO->getFastModeValue(i + 1));
+                }
+            }
+            arrayO->setFastModeValue(len - 1, Value(Value::EmptyValue));
+            arrayO->setArrayLengthDirect(state, len - 1, false, false, false); // clearNewSlots = false
+            return first;
+        }
+    }
+
     // Let first be the result of calling the [[Get]] internal method of O with argument "0".
     Value first = O->get(state, ObjectPropertyName(state, Value(0))).value(state, O);
     // Let k be 1.
@@ -2255,6 +2310,26 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
 
     // Let argCount be the number of actual arguments.
     int64_t argCount = argc;
+
+    if (O->isArrayObject()) {
+        auto* arrayO = static_cast<ArrayObject*>(O);
+        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+            // If len + argCount > 2^53 - 1, throw a TypeError exception.
+            CHECK_ARRAY_LENGTH(len + argCount > Value::maximumLength());
+
+            if (argCount > 0) {
+                arrayO->setArrayLengthDirect(state, len + argCount, false, false, false);
+                for (int64_t i = len - 1; i >= 0; i--) {
+                    arrayO->setFastModeValue(i + argCount, arrayO->getFastModeValue(i));
+                }
+                for (int64_t i = 0; i < argCount; i++) {
+                    arrayO->setFastModeValue(i, argv[i]);
+                }
+            }
+            return Value(len + argCount);
+        }
+    }
+
     // Let k be len.
     int64_t k = len;
 
