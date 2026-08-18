@@ -1927,4 +1927,23 @@ public class EscargotTest {
         vmInstance = null;
         finalizeEngine();
     }
+
+    @Test
+    public void icuCollatorTest()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        // Test Basic ICU-based localeCompare to verify ABI compatibility (ucol_strcoll) without crashing
+        Optional<JavaScriptValue> ret = Evaluator.evalScript(context, "'abcd'.localeCompare('abcd')", "");
+        assertTrue(ret.isPresent());
+
+        Optional<JavaScriptValue> ret2 = Evaluator.evalScript(context, "'abcd'.localeCompare('1234')", "");
+        assertTrue(ret2.isPresent());
+
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
 }

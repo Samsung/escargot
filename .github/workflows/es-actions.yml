@@ -128,6 +128,15 @@ jobs:
     # ubuntu-latest, a known-working KVM-accelerated fast stand-in for real
     # (arm) devices -- don't retry the macOS route without a fix landing in
     # one of those two upstream issues first.
+    #
+    # The x86_64 leg additionally builds the real arm64-v8a `escargot-shell`
+    # (releaseShell buildType) and extracts a real bionic runtime for
+    # android-baremetal-test below (used to be a standalone `build-android`
+    # job). Folded in here because it duplicated this job's
+    # checkout/submodule/JDK/Gradle-setup overhead for no reason -- both used
+    # the same ubuntu-latest x86_64 host and the same Gradle/NDK toolchain,
+    # so running them as one job removes a whole extra job's worth of fixed
+    # setup cost.
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -166,6 +175,70 @@ jobs:
         java-version: 17
     - name: Gradle cache
       uses: gradle/actions/setup-gradle@v3
+
+    # ---- arm64-v8a escargot-shell + bionic runtime (x86_64 leg only) ----
+    # escargot-shell was built with the Android NDK and is linked against
+    # bionic (libc.so/libm.so/libdl.so/liblog.so + ICU), not glibc. The
+    # android-baremetal-test job runs it on a plain ubuntu-24.04-arm host (no
+    # Android emulator, no /dev/kvm available there at all), so we pull the
+    # *real* bionic runtime out of an official Android system image here and
+    # ship it alongside escargot-shell. That job then installs it at the
+    # exact absolute paths (/system/bin/linker64, /system/lib64/*.so) that
+    # the NDK toolchain already bakes into escargot-shell's ELF headers
+    # (PT_INTERP / DT_NEEDED search path), so the kernel loads and runs it
+    # directly -- no patchelf/LD_PRELOAD tricks and no fake/stub libraries.
+    #
+    # Only done once, on the x86_64 leg (which already targets the matching
+    # arm64-v8a device_abi) -- doing it on the x86 leg too would just rebuild
+    # and re-upload the identical arm64-v8a binaries a second time.
+    - name: Build Android arm64-v8a shell binary (Gradle)
+      if: matrix.arch == 'x86_64'
+      working-directory: ./build/android
+      run: |
+        ./gradlew :escargot:assembleReleaseShell -DESCARGOT_TEST=ON -Dhttp.socketTimeout=60000 -Dhttp.connectionTimeout=60000 -DESCARGOT_TEST_ABI=arm64-v8a
+
+    # NDK sysroot .so files are NOT usable here: since NDK r23 they are
+    # link-time-only stubs with no real implementation.
+    #
+    # android-28 (matching this project's minSdk) is used deliberately: it's
+    # the last API level where ICU still ships as plain
+    # /system/lib64/libicuuc.so + libicui18n.so, before it was moved into the
+    # Mainline com.android.i18n APEX (API 29+, which would need extra
+    # APEX-image unpacking), and the last generation before /system was
+    # wrapped in a "super" dynamic-partitions container (API 29+, which would
+    # need lpunpack). Verified locally against an android-27 image (same
+    # pre-dynamic-partitions generation as android-28): the image is a raw
+    # GPT disk with a single ext4 partition whose ROOT already IS /system
+    # (files live at <partition>/bin/..., <partition>/lib64/..., not
+    # <partition>/system/bin/...).
+    - name: Checkout modern Android 36 (ICU 76) Bionic Runtime
+      if: matrix.arch == 'x86_64'
+      uses: actions/checkout@v4
+      with:
+        ref: misc/ci-data/android-36-icu
+        path: ./bionic-runtime
+
+    - name: Clean git metadata from bionic runtime
+      if: matrix.arch == 'x86_64'
+      run: |
+        rm -rf ./bionic-runtime/.git
+        chmod +x ./bionic-runtime/linker64
+
+    - name: Prepare Android arm64-v8a Artifacts for Upload
+      if: matrix.arch == 'x86_64'
+      run: |
+        mkdir -p ./build_artifacts
+        BUILD_ID=$(ls ./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/)
+        BUILD_PATH="./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/${BUILD_ID}/obj/arm64-v8a"
+        cp ${BUILD_PATH}/escargot-shell ./build_artifacts/
+        cp -r ./bionic-runtime ./build_artifacts/bionic-runtime
+    - name: Upload Android arm64-v8a Binaries
+      if: matrix.arch == 'x86_64'
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-arm64-binaries
+        path: ./build_artifacts/
+
     - name: Create AVD and run tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
@@ -175,6 +248,229 @@ jobs:
         emulator-options: -no-window -gpu swiftshader_indirect -camera-back none -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim
         disable-animations: true
         script: cd build/android/;./gradlew connectedDebugAndroidTest -DESCARGOT_TEST_ABI=${{ matrix.arch }},${{ matrix.device_abi }}
+
+  # Kept directly after build-test-on-android (its only dependency) so all
+  # Android CI jobs live together instead of being scattered across this
+  # file. Split into two jobs (vendor suites vs. test262) so they run in
+  # parallel instead of test262 alone (~81k tests) serializing after the
+  # other five, much smaller, suites -- that dominated this job's total
+  # wall-clock time.
+  android-baremetal-test:
+    needs: build-test-on-android
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Host Build Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake ninja-build libicu-dev
+
+      - name: Sync Submodules
+        run: |
+          git submodule init test/vendortest
+          git submodule init third_party/GCutil
+          git submodule init third_party/walrus
+          git submodule update
+          cd third_party/walrus && git submodule init && git submodule update && cd -
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Download Android Binaries from Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-arm64-binaries
+          path: ./android_binaries
+
+      - name: Build Host Engine for Dump Generation
+        run: |
+          # ESCARGOT_SHADOWREALM must match escargot-shell's own build (see
+          # build/android/escargot/build.gradle, ON by default there) --
+          # this binary only generates the *expected* dump data that
+          # test-data-runner replays against escargot-shell below, so if it
+          # disagrees on which features are enabled, every ShadowRealm test
+          # reports a bogus mismatch against the android build.
+          cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=aarch64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=ON -DESCARGOT_THREADING=ON -DESCARGOT_WASM=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON
+          ninja
+
+          # Compile host-native test-data-runner for ARM64 Ubuntu host.
+          # test-data-runner itself is a plain glibc/Linux binary (it only
+          # forks+execs the target `--shell` as a subprocess) so it does NOT
+          # need any bionic runtime itself -- only escargot-shell does.
+          g++ -O3 -std=c++11 tools/test/test-data-runner/test-data-runner.cpp -o ./tools/test/test-data-runner/test-data-runner
+
+      # The real bionic runtime (linker64 + libc/libm/libdl/liblog/libc++/ICU) was
+      # already extracted from an official Android system image in the
+      # build-test-on-android job's x86_64 leg (see its "Provision real
+      # Android bionic runtime" step for why) and shipped inside this same
+      # artifact. Install it at the exact absolute paths
+      # (/system/bin/linker64, /system/lib64/*.so) that the NDK toolchain
+      # already bakes into escargot-shell's ELF headers (PT_INTERP /
+      # DT_NEEDED search path), so the kernel loads and runs it directly --
+      # no patchelf/LD_PRELOAD tricks and no fake/stub libraries involved.
+      - name: Install bionic runtime at absolute Android paths
+        run: |
+          chmod +x ./android_binaries/escargot-shell
+
+          sudo mkdir -p /system/bin /system/lib64 /apex/com.android.i18n/etc/icu /apex/com.android.tzdata/etc/tz
+          sudo cp ./android_binaries/bionic-runtime/linker64 /system/bin/linker64
+          sudo cp ./android_binaries/bionic-runtime/*.so /system/lib64/
+          sudo cp ./android_binaries/bionic-runtime/etc/icu/*.dat /apex/com.android.i18n/etc/icu/
+          sudo cp -r ./android_binaries/bionic-runtime/apex/com.android.tzdata/etc/tz/* /apex/com.android.tzdata/etc/tz/
+          sudo chmod +x /system/bin/linker64
+
+          # Diagnostic: confirm escargot-shell really expects this exact
+          # interpreter path. If this ever stops printing /system/bin/linker64
+          # the NDK toolchain's defaults changed and this step needs revisiting.
+          readelf -l ./android_binaries/escargot-shell | grep -i interpreter
+
+      # test-data-runner always exits 0 regardless of pass/fail (it only
+      # prints a "Result -> x/y(Skipped z) : Passed"/"...: Failed" summary
+      # line -- see tools/test/test-data-runner/test-data-runner.cpp), so
+      # every invocation below explicitly greps that line and fails the step
+      # itself. Without this, a real regression (e.g. a missing bionic
+      # library breaking every single test in a suite) shows up only as text
+      # in an otherwise-green step.
+      # ----------------------------------------------------
+      # [1] Escargot Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run Escargot Tests
+        run: |
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 escargot-test-dump
+          ./tools/test/test-data-runner/test-data-runner --shell ./android_binaries/escargot-shell --test-data ./test/vendortest/Escargot/data.txt | tee escargot-result.log
+          grep -q ': Passed$' escargot-result.log
+
+      # ----------------------------------------------------
+      # [2] ChakraCore Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run ChakraCore Tests
+        run: |
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 chakracore-dump
+          ./tools/test/test-data-runner/test-data-runner --shell ./android_binaries/escargot-shell --test-data ./tools/test/chakracore/chakracore.x86.data.txt --env 'GC_FREE_SPACE_DIVISOR=1 TZ=US/Pacific' --treat-global-tostring-as-object | tee chakracore-result.log
+          grep -q ': Passed$' chakracore-result.log
+
+      # ----------------------------------------------------
+      # [3] JSC Stress Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run JSC Stress Tests
+        run: |
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 jsc-stress-dump
+          ./tools/test/test-data-runner/test-data-runner --shell ./android_binaries/escargot-shell --test-data ./test/vendortest/driver/jsc.stress.x86.data.txt --env 'GC_FREE_SPACE_DIVISOR=1' | tee jsc-stress-result.log
+          grep -q ': Passed$' jsc-stress-result.log
+
+      # ----------------------------------------------------
+      # [4] SpiderMonkey Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run SpiderMonkey Tests
+        run: |
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 spidermonkey-dump
+          ./tools/test/test-data-runner/test-data-runner --shell ./android_binaries/escargot-shell --test-data ./tools/test/spidermonkey/x86.data.txt --env 'LOCALE=en_US' | tee spidermonkey-result.log
+          grep -q ': Passed$' spidermonkey-result.log
+
+      # ----------------------------------------------------
+      # [5] V8 Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run V8 Tests
+        run: |
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 v8-dump
+          ./tools/test/test-data-runner/test-data-runner --shell ./android_binaries/escargot-shell --test-data ./tools/test/v8/x86.data.txt --env 'GC_FREE_SPACE_DIVISOR=1' | tee v8-result.log
+          grep -q ': Passed$' v8-result.log
+
+  # Split from android-baremetal-test above (see its comment) so this
+  # dominant-cost suite doesn't serialize after the other five.
+  android-baremetal-test262:
+    needs: build-test-on-android
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Host Build Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake ninja-build libicu-dev
+
+      - name: Sync Submodules
+        run: |
+          git submodule init test/test262
+          git submodule init third_party/GCutil
+          git submodule init third_party/walrus
+          git submodule update
+          cd third_party/walrus && git submodule init && git submodule update && cd -
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Download Android Binaries from Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-arm64-binaries
+          path: ./android_binaries
+
+      - name: Build Host Engine for Dump Generation
+        run: |
+          # See android-baremetal-test's identical step for why
+          # -DESCARGOT_SHADOWREALM=ON matters here (this run enables the
+          # built-ins/ShadowRealm/* test262 cases, which aren't in the
+          # --skip list below).
+          cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=aarch64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=ON -DESCARGOT_THREADING=ON -DESCARGOT_WASM=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON
+          ninja
+
+          # Compile host-native test-data-runner for ARM64 Ubuntu host.
+          # test-data-runner itself is a plain glibc/Linux binary (it only
+          # forks+execs the target `--shell` as a subprocess) so it does NOT
+          # need any bionic runtime itself -- only escargot-shell does.
+          g++ -O3 -std=c++11 tools/test/test-data-runner/test-data-runner.cpp -o ./tools/test/test-data-runner/test-data-runner
+
+      # See android-baremetal-test's identical step for why.
+      - name: Install bionic runtime at absolute Android paths
+        run: |
+          chmod +x ./android_binaries/escargot-shell
+
+          sudo mkdir -p /system/bin /system/lib64 /apex/com.android.i18n/etc/icu /apex/com.android.tzdata/etc/tz
+          sudo cp ./android_binaries/bionic-runtime/linker64 /system/bin/linker64
+          sudo cp ./android_binaries/bionic-runtime/*.so /system/lib64/
+          sudo cp ./android_binaries/bionic-runtime/etc/icu/*.dat /apex/com.android.i18n/etc/icu/
+          sudo cp -r ./android_binaries/bionic-runtime/apex/com.android.tzdata/etc/tz/* /apex/com.android.tzdata/etc/tz/
+          sudo chmod +x /system/bin/linker64
+
+          readelf -l ./android_binaries/escargot-shell | grep -i interpreter
+
+      # See android-baremetal-test's comment above its suite steps for why
+      # this greps test-data-runner's own summary line instead of trusting
+      # its (always-0) exit code.
+      # ----------------------------------------------------
+      # Test262 Test Suite (Bare-metal Execution)
+      # ----------------------------------------------------
+      - name: Run Test262 Tests
+        run: |
+          gcc -shared -fPIC -o backtrace-hooking.so tools/test/test262/backtrace-hooking.c
+
+          ./tools/run-tests.py --engine="${PWD}/escargot" --arch=x86 \
+            --test262-extra-arg="--skip Temporal --skip tco --skip sm --skip intl402 --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers/part-unicode- --skip identifiers/start-unicode-" \
+            test262-dump
+
+          # test262_data/*.txt was dumped with test file paths relative to
+          # test/test262/ (run_test262_dump in tools/run-tests.py runs with
+          # cwd=test/test262), e.g. "test262_data/test262-xxx.js" -- so
+          # test-data-runner must also run from that same directory or those
+          # relative paths don't resolve ("Cannot open file ..."). Matches
+          # the real-device adb pipeline, which pushes test262_data/ next to
+          # test-data-runner and cd's there before running it.
+          cd test/test262
+          ../../tools/test/test-data-runner/test-data-runner --shell ../../android_binaries/escargot-shell --test test262 --test-data test262_data/ 2> /dev/null | tee ../../test262-result.log
+          cd ../..
+          grep -q ': Passed$' test262-result.log
 
   build-test-tizen:
     runs-on: ubuntu-24.04
@@ -1504,9 +1800,9 @@ jobs:
   # them changes. Since they now live in this single workflow (so they show
   # up on the same Actions run page as everything else) rather than their
   # own path-triggered workflow files, that per-job skip is done via this
-  # shared `changes` job + each RTOS job's own `if:`, instead of the
+  # shared `detect-changes-for-rtos` job + each RTOS job's own `if:`, instead of the
   # top-level `on: push: paths:` this repo's workflows otherwise use.
-  changes:
+  detect-changes-for-rtos:
     runs-on: ubuntu-24.04
     outputs:
       freertos: ${{ steps.filter.outputs.freertos }}
@@ -1541,8 +1837,8 @@ jobs:
             - '.github/workflows/es-actions.yml'
 
   build-boot-test-freertos-qemu:
-    needs: changes
-    if: needs.changes.outputs.freertos == 'true'
+    needs: detect-changes-for-rtos
+    if: needs.detect-changes-for-rtos.outputs.freertos == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -1711,8 +2007,8 @@ jobs:
           }
 
   build-boot-test-nuttx-qemu:
-    needs: changes
-    if: needs.changes.outputs.nuttx == 'true'
+    needs: detect-changes-for-rtos
+    if: needs.detect-changes-for-rtos.outputs.nuttx == 'true'
     runs-on: ubuntu-24.04
     env:
       # Pinned upstream commits this sample is verified against. NuttX itself
@@ -1880,3 +2176,4 @@ jobs:
 
         echo "NuttX/QEMU sample: boot + exception-suite + SunSpider 1.0.2 all passed ($marker_count marker lines)."
       timeout-minutes: 60
+

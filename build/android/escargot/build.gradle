@@ -40,6 +40,11 @@ android {
                 // apply, so this AAR build actually exercises that default
                 // instead of just re-stating it from a second source of truth.
                 arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DCMAKE_SYSTEM_NAME=Android", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DENABLE_SHELL=OFF",
+                        // Every other platform's CI leg already builds with this ON by
+                        // default (see .github/workflows/es-actions.yml); Android was
+                        // the one place still defaulting to CMakeLists.txt's opt-in
+                        // OFF, so ShadowRealm silently went untested/unshipped here.
+                        "-DESCARGOT_SHADOWREALM=ON",
                         "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
                         "-DESCARGOT_TEST="+project.ext.escargotTestOption
             }
