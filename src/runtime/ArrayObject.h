@@ -114,12 +114,52 @@ public:
     // which is what makes this observably identical to running that iterator.
     static ArrayObject* createDenseCopy(ExecutionState& state, ArrayObject* src);
 
-    ALWAYS_INLINE bool isFastModeArray()
+    ALWAYS_INLINE bool isFastModeArray() const
     {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
         return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
 #else
         return (m_fastModeData != &ArrayObject::DummyArrayElement);
+#endif
+    }
+
+    ALWAYS_INLINE bool isLengthPropertyWritableDirect() const
+    {
+        return isLengthPropertyWritable();
+    }
+
+    ALWAYS_INLINE bool setArrayLengthDirect(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true, bool clearNewSlots = true)
+    {
+        return setArrayLength(state, newLength, useFitStorage, considerHole, clearNewSlots);
+    }
+
+    ALWAYS_INLINE Value getFastModeValue(size_t idx) const
+    {
+        ASSERT(isFastModeArray());
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_fastModeData.data()[idx];
+#else
+        return m_fastModeData[idx];
+#endif
+    }
+
+    ALWAYS_INLINE void setFastModeValue(size_t idx, const Value& v)
+    {
+        ASSERT(isFastModeArray());
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_fastModeData.data()[idx] = v;
+#else
+        m_fastModeData[idx] = v;
+#endif
+    }
+
+    ALWAYS_INLINE EncodedValue* fastModeDataRaw()
+    {
+        ASSERT(isFastModeArray());
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_fastModeData.data();
+#else
+        return m_fastModeData;
 #endif
     }
 
@@ -153,7 +193,7 @@ protected:
     void convertIntoNonFastMode(ExecutionState& state);
 
 private:
-    bool isLengthPropertyWritable()
+    bool isLengthPropertyWritable() const
     {
         return hasRareData() ? rareData()->m_isArrayObjectLengthWritable : true;
     }
@@ -171,7 +211,7 @@ private:
     }
 
     bool setArrayLength(ExecutionState& state, const Value& newLength);
-    bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true);
+    bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true, bool clearNewSlots = true);
 
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
