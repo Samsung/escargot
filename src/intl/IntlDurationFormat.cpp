@@ -1073,7 +1073,7 @@ ArrayObject* IntlDurationFormatObject::formatToParts(ExecutionState& state, cons
                     }
 
                     String* s = DurationRecord::typeName(state, element.m_unit);
-                    String* type = s->substring(status, s->length() - 1);
+                    String* type = s->substring(status, s->length() - 1, &state);
                     IntlFieldIterator subiter(*fieldItr);
                     formatToPartsInternal(state, state.context()->staticStrings().lazyUnit().string(),
                                           element.m_valueSignBit ? -1 : 1, element.m_string, subiter, parts, nullptr, type);

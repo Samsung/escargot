@@ -498,7 +498,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
                 arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
             } else {
-                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)));
+                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state)));
             }
         }
     }
@@ -562,7 +562,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
                         for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
                             if (indicesIndex == index) {
                                 if (result.m_matchResults[i][j].m_start != std::numeric_limits<unsigned>::max()) {
-                                    indexValue = input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end);
+                                    indexValue = input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state);
                                 }
                                 break;
                             }
@@ -601,7 +601,7 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
             if (std::numeric_limits<unsigned>::max() == result.m_matchResults[i][j].m_start) {
                 array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
             } else {
-                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(str->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end), ObjectPropertyDescriptor::AllPresent));
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(str->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state), ObjectPropertyDescriptor::AllPresent));
             }
             if (index == limit)
                 return;

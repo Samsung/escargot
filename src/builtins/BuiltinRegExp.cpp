@@ -363,7 +363,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
                     matchStart = p;
                 }
                 // Let T be a String value equal to the substring of S consisting of the elements at indices p (inclusive) through q (exclusive).
-                String* T = S->substring(p, matchStart);
+                String* T = S->substring(p, matchStart, &state);
                 // Perform CreateDataProperty(A, ToString(lengthA), T).
                 A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(lengthA).toString(state)), ObjectPropertyDescriptor(T, (ObjectPropertyDescriptor::AllPresent)));
                 // Let lengthA be lengthA + 1.
@@ -402,7 +402,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     }
 
     // Let T be a String value equal to the substring of S consisting of the elements at indices p (inclusive) through size (exclusive).
-    String* T = S->substring(p, size);
+    String* T = S->substring(p, size, &state);
     // Perform CreateDataProperty(A, ToString(lengthA), T ).
     A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(lengthA).toString(state)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
     // Return A.

@@ -678,23 +678,23 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
             if (unitString->contains("-per-")) {
                 size_t pos = unitString->find("-per-");
                 skeleton += u"measure-unit/";
-                const char* u = findICUUnitTypeFromUnitString(unitString->substring(0, pos)->toNonGCUTF8StringData());
+                const char* u = findICUUnitTypeFromUnitString(unitString->substring(0, pos, &state)->toNonGCUTF8StringData());
                 size_t len = strlen(u);
                 for (size_t i = 0; i < len; i++) {
                     skeleton += u[i];
                 }
                 skeleton += '-';
-                skeleton += unitString->substring(0, pos)->toUTF16StringData().data();
+                skeleton += unitString->substring(0, pos, &state)->toUTF16StringData().data();
                 skeleton += ' ';
 
                 skeleton += u"per-measure-unit/";
-                u = findICUUnitTypeFromUnitString(unitString->substring(pos + 5, unitString->length())->toNonGCUTF8StringData());
+                u = findICUUnitTypeFromUnitString(unitString->substring(pos + 5, unitString->length(), &state)->toNonGCUTF8StringData());
                 len = strlen(u);
                 for (size_t i = 0; i < len; i++) {
                     skeleton += u[i];
                 }
                 skeleton += '-';
-                skeleton += unitString->substring(pos + 5, unitString->length())->toUTF16StringData().data();
+                skeleton += unitString->substring(pos + 5, unitString->length(), &state)->toUTF16StringData().data();
                 skeleton += ' ';
             } else {
                 skeleton += u"measure-unit/";
@@ -780,23 +780,23 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
         if (unitString->contains("-per-")) {
             size_t pos = unitString->find("-per-");
             skeleton += u"measure-unit/";
-            const char* u = findICUUnitTypeFromUnitString(unitString->substring(0, pos)->toNonGCUTF8StringData());
+            const char* u = findICUUnitTypeFromUnitString(unitString->substring(0, pos, &state)->toNonGCUTF8StringData());
             size_t len = strlen(u);
             for (size_t i = 0; i < len; i++) {
                 skeleton += u[i];
             }
             skeleton += '-';
-            skeleton += unitString->substring(0, pos)->toUTF16StringData().data();
+            skeleton += unitString->substring(0, pos, &state)->toUTF16StringData().data();
             skeleton += ' ';
 
             skeleton += u"per-measure-unit/";
-            u = findICUUnitTypeFromUnitString(unitString->substring(pos + 5, unitString->length())->toNonGCUTF8StringData());
+            u = findICUUnitTypeFromUnitString(unitString->substring(pos + 5, unitString->length(), &state)->toNonGCUTF8StringData());
             len = strlen(u);
             for (size_t i = 0; i < len; i++) {
                 skeleton += u[i];
             }
             skeleton += '-';
-            skeleton += unitString->substring(pos + 5, unitString->length())->toUTF16StringData().data();
+            skeleton += unitString->substring(pos + 5, unitString->length(), &state)->toUTF16StringData().data();
             skeleton += ' ';
         } else {
             skeleton += u"measure-unit/";
@@ -1318,7 +1318,7 @@ ArrayObject* IntlNumberFormat::formatRangeToParts(ExecutionState& state, Object*
 
         Object* part = new Object(state);
         part->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(type, ObjectPropertyDescriptor::AllPresent));
-        String* value = resultString->substring(beginIndex, endIndex);
+        String* value = resultString->substring(beginIndex, endIndex, &state);
         part->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
         part->defineOwnPropertyThrowsException(state, ObjectPropertyName(sourceAtom), ObjectPropertyDescriptor(sourceType(beginIndex), ObjectPropertyDescriptor::AllPresent));
         return part;

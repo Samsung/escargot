@@ -2516,7 +2516,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
             pos -= 2;
 
         // d. Let candidate be the substring of candidate from position 0, inclusive, to position pos, exclusive.
-        candidate = candidate->substring(0, pos);
+        candidate = candidate->substring(0, pos, &state);
     }
 
     return String::emptyString();
@@ -2582,7 +2582,7 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
                     }
                     end++;
                 }
-                result.extension = locale->substring(extensionIndex, extensionIndex + extensionLength);
+                result.extension = locale->substring(extensionIndex, extensionIndex + extensionLength, &state);
                 result.extensionIndex = extensionIndex;
             }
         }
@@ -2660,7 +2660,7 @@ static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* ex
 
         // Return the String value equal to the substring of extension
         // consisting of the code units at indices start (inclusive) through end (exclusive).
-        return extension->substring(start, end);
+        return extension->substring(start, end, &state);
     }
 
     // Let searchValue be the concatenation of "-" and key.
@@ -2816,12 +2816,12 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
         } else {
             size_t len = foundLocale->length();
             // Let preExtension be the substring of foundLocale from position 0, inclusive, to position extensionIndex, exclusive.
-            String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len);
+            String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len, &state);
 
             // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
             String* postExtension = String::emptyString();
             if (r.extensionIndex < len) {
-                postExtension = foundLocale->substring(r.extensionIndex, len);
+                postExtension = foundLocale->substring(r.extensionIndex, len, &state);
             }
             // Let foundLocale be the concatenation of preExtension, supportedExtension, and postExtension.
             StringBuilder sb;
