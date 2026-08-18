@@ -820,28 +820,36 @@ inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredT
 
 inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) const
 {
-    if (isInt32() && val.isInt32()) {
-#ifdef ESCARGOT_64
-        return u.asInt64 == val.u.asInt64;
-#else
-        return u.asBits.payload == val.u.asBits.payload;
-#endif
-    } else {
-        return abstractEqualsToSlowCase(state, val);
+    if (u.asInt64 == val.u.asInt64) {
+        if (UNLIKELY(isDouble())) {
+            double d = asDouble();
+            return !std::isnan(d);
+        }
+        return true;
     }
+
+    if (isNumber() && val.isNumber()) {
+        return asNumber() == val.asNumber();
+    }
+
+    return abstractEqualsToSlowCase(state, val);
 }
 
 inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 {
-    if (isInt32() && val.isInt32()) {
-#ifdef ESCARGOT_64
-        return u.asInt64 == val.u.asInt64;
-#else
-        return u.asBits.payload == val.u.asBits.payload;
-#endif
-    } else {
-        return equalsToSlowCase(state, val);
+    if (u.asInt64 == val.u.asInt64) {
+        if (UNLIKELY(isDouble())) {
+            double d = asDouble();
+            return !std::isnan(d);
+        }
+        return true;
     }
+
+    if (isNumber() && val.isNumber()) {
+        return asNumber() == val.asNumber();
+    }
+
+    return equalsToSlowCase(state, val);
 }
 
 inline bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& state, const Value& val) const
@@ -864,6 +872,18 @@ inline bool Value::toBoolean() const // $7.1.2 ToBoolean
 
     if (isInt32())
         return asInt32();
+
+    if (isUndefinedOrNull())
+        return false;
+
+    if (isObject()) {
+#if defined(ESCARGOT_ENABLE_TEST)
+        if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
+            return false;
+        }
+#endif
+        return true;
+    }
 
     return toBooleanSlowCase();
 }
