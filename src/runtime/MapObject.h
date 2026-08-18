@@ -33,7 +33,7 @@ class MapObject : public DerivedObject {
 
 public:
     typedef Vector<std::pair<EncodedValue, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, EncodedValue>>,
-                   ComputeReservedCapacityFunctionWithLog2<>, StorePositiveNumberAsOddNumber>
+                   ComputeReservedCapacityFunctionWithLog2<>>
         MapObjectData;
 
     explicit MapObject(ExecutionState& state);
@@ -68,8 +68,8 @@ public:
 private:
     // returns index into m_storage or SIZE_MAX; builds the hash index once the
     // storage outgrows KeyedCollectionHashIndex::buildThreshold
-    size_t findKeyIndex(ExecutionState& state, const Value& key);
-    void addToHashIndex(size_t storageIndex);
+    size_t findKeyIndex(ExecutionState& state, const Value& key, size_t* outHash = nullptr);
+    void addToHashIndex(size_t storageIndex, size_t hash = 0);
     void buildOrRebuildHashIndex();
 
     MapObjectData m_storage;

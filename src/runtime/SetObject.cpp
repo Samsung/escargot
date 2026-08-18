@@ -64,35 +64,63 @@ void SetObject::clear(ExecutionState& state)
     m_hashIndex = nullptr;
 }
 
-size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key)
+size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* outHash)
 {
+    size_t hash = 0;
+    bool hashComputed = false;
+
     const EncodedValue encodedKey(key);
     if (LIKELY(!m_hashIndex)) {
         size_t threshold = !key.isPointerValue() ? 128 : KeyedCollectionHashIndex::buildThreshold;
         if (UNLIKELY(m_storage.size() >= threshold)) {
             buildOrRebuildHashIndex();
+            hash = keyedCollectionHash(key);
+            hashComputed = true;
         } else {
             for (size_t i = 0; i < m_storage.size(); i++) {
                 const EncodedValue& existingKey = m_storage[i];
-                if (UNLIKELY(existingKey.isEmpty())) {
+                intptr_t p = existingKey.payload();
+                if (HAS_SMI_TAG(p) && key.isInt32()) {
+                    if (EncodedValueImpl::PlatformSmiTagging::SmiToInt(p) == key.asInt32()) {
+                        return i;
+                    }
+                    continue;
+                }
+                if (UNLIKELY(p == ValueEmpty)) {
                     continue;
                 }
                 if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
                     return i;
                 }
             }
+            if (outHash) {
+                *outHash = keyedCollectionHash(key);
+            }
             return SIZE_MAX;
         }
+    } else {
+        hash = keyedCollectionHash(key);
+        hashComputed = true;
     }
-    size_t mask = m_hashIndex->capacity - 1;
-    size_t i = keyedCollectionHash(key) & mask;
+
+    if (outHash && hashComputed) {
+        *outHash = hash;
+    }
+
+    size_t mask = m_hashIndex.value()->capacity - 1;
+    size_t i = hash & mask;
     while (true) {
-        uint32_t b = m_hashIndex->buckets[i];
+        uint32_t b = m_hashIndex.value()->buckets[i];
         if (!b) {
             return SIZE_MAX;
         }
         const EncodedValue& existingKey = m_storage[b - 1];
-        if (LIKELY(!existingKey.isEmpty()) && existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
+        intptr_t p = existingKey.payload();
+        if (HAS_SMI_TAG(p) && key.isInt32()) {
+            if (EncodedValueImpl::PlatformSmiTagging::SmiToInt(p) == key.asInt32()) {
+                return b - 1;
+            }
+        } else if (LIKELY(p != ValueEmpty) && existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
             return b - 1;
         }
         i = (i + 1) & mask;
@@ -115,17 +143,20 @@ void SetObject::buildOrRebuildHashIndex()
     m_hashIndex = index;
 }
 
-void SetObject::addToHashIndex(size_t storageIndex)
+void SetObject::addToHashIndex(size_t storageIndex, size_t hash)
 {
     if (!m_hashIndex) {
         return;
     }
-    if (UNLIKELY(m_hashIndex->needsRebuild())) {
+    if (UNLIKELY(m_hashIndex.value()->needsRebuild())) {
         // the rebuilt index already covers storageIndex
         buildOrRebuildHashIndex();
         return;
     }
-    m_hashIndex->insert(keyedCollectionHash(m_storage[storageIndex]), storageIndex);
+    if (hash == 0) {
+        hash = keyedCollectionHash(m_storage[storageIndex]);
+    }
+    m_hashIndex.value()->insert(hash, storageIndex);
 }
 
 bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
@@ -142,7 +173,8 @@ bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
 
 void SetObject::add(ExecutionState& state, const Value& key)
 {
-    if (findKeyIndex(state, key) != SIZE_MAX) {
+    size_t hash = 0;
+    if (findKeyIndex(state, key, &hash) != SIZE_MAX) {
         return;
     }
 
@@ -152,7 +184,7 @@ void SetObject::add(ExecutionState& state, const Value& key)
     } else {
         m_storage.pushBack(key);
     }
-    addToHashIndex(m_storage.size() - 1);
+    addToHashIndex(m_storage.size() - 1, hash);
 }
 
 bool SetObject::has(ExecutionState& state, const Value& key)
