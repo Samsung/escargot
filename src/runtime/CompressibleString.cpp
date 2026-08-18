@@ -44,9 +44,11 @@ CompressibleString::CompressibleString(VMInstance* instance)
     : String()
     , m_isOwnerMayFreed(false)
     , m_isCompressed(false)
+    , m_isPartiallyDecompressed(false)
     , m_refCount(0)
     , m_vmInstance(instance)
     , m_lastUsedTickcount(fastTickCount())
+    , m_isChunkDecompressed()
 {
     m_bufferData.hasSpecialImpl = true;
 
@@ -56,17 +58,20 @@ CompressibleString::CompressibleString(VMInstance* instance)
         CompressibleString* self = (CompressibleString*)obj;
         ASSERT(self->refCount() == 0);
 
-        if (self->isCompressed()) {
-            self->m_compressedData.~CompressedDataVector();
-        } else {
+        if (!self->isCompressed()) {
             deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2));
         }
+        self->m_compressedData.~CompressedDataVector();
+        self->m_isChunkDecompressed.~vector<char>();
 
         if (!self->m_isOwnerMayFreed) {
             self->m_vmInstance->compressibleStringsUncomressedBufferSize() -= self->decomressedBufferSize();
 
             auto& v = self->m_vmInstance->compressibleStrings();
-            v.erase(std::find(v.begin(), v.end(), self));
+            auto it = std::find(v.begin(), v.end(), self);
+            if (it != v.end()) {
+                v.erase(it);
+            }
         } }, nullptr, nullptr, nullptr);
 }
 
@@ -137,8 +142,19 @@ UTF16StringData CompressibleString::toUTF16StringData() const
 StringBufferAccessData CompressibleString::bufferAccessDataSpecialImpl()
 {
     m_lastUsedTickcount = m_vmInstance->lastGCMarkStartTickCount();
-    if (isCompressed()) {
+    if (isCompressed() || m_isPartiallyDecompressed) {
         decompress();
+    }
+
+    // add refCount pointer to count its usage in StringBufferAccessData
+    return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer), &m_refCount);
+}
+
+StringBufferAccessData CompressibleString::bufferAccessDataSpecialImplForRange(size_t start, size_t length)
+{
+    m_lastUsedTickcount = m_vmInstance->lastGCMarkStartTickCount();
+    if (isCompressed() || m_isPartiallyDecompressed) {
+        decompressRange(start, length);
     }
 
     // add refCount pointer to count its usage in StringBufferAccessData
@@ -172,7 +188,7 @@ bool CompressibleString::compress()
 
 void CompressibleString::decompress()
 {
-    ASSERT(m_isCompressed);
+    ASSERT(m_isCompressed || m_isPartiallyDecompressed);
     ASSERT(m_bufferData.length);
 
     bool has8Bit = m_bufferData.has8BitContent;
@@ -183,14 +199,39 @@ void CompressibleString::decompress()
     }
 }
 
-constexpr static const size_t g_compressChunkSize = 1044465;
-static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
+void CompressibleString::decompressRange(size_t start, size_t length)
+{
+    ASSERT(m_isCompressed || m_isPartiallyDecompressed);
+
+    bool has8Bit = m_bufferData.has8BitContent;
+    if (has8Bit) {
+        decompressRangeWorker<LChar>(start, length);
+    } else {
+        decompressRangeWorker<char16_t>(start, length);
+    }
+}
+
+constexpr static const size_t g_compressChunkSize = 65536;
+static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 65809, "");
 
 template <typename StringType>
 bool CompressibleString::compressWorker()
 {
     ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
+
+    if (m_isPartiallyDecompressed) {
+        m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
+
+        deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
+
+        m_bufferData.bufferAs8Bit = nullptr;
+        m_isChunkDecompressed.clear();
+        m_isChunkDecompressed.shrink_to_fit();
+        m_isPartiallyDecompressed = false;
+        m_isCompressed = true;
+        return true;
+    }
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
     int lastBoundLength = 0;
@@ -236,31 +277,80 @@ bool CompressibleString::compressWorker()
 template <typename StringType>
 void CompressibleString::decompressWorker()
 {
-    ASSERT(m_isCompressed);
+    ASSERT(m_isCompressed || m_isPartiallyDecompressed);
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
 
-    char* dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
-    int dstIndex = 0;
+    char* dstBuffer = nullptr;
+    if (m_isCompressed) {
+        dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
+        m_isChunkDecompressed.resize(m_compressedData.size(), 0);
+    } else {
+        dstBuffer = const_cast<char*>(m_bufferData.bufferAs8Bit);
+    }
 
-    for (size_t srcIndex = 0, bufIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize, bufIndex++) {
-        int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
+    for (size_t chunkIndex = 0; chunkIndex < m_compressedData.size(); chunkIndex++) {
+        if (!m_isChunkDecompressed[chunkIndex]) {
+            size_t srcIndex = chunkIndex * g_compressChunkSize;
+            int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
 
-        int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[bufIndex].data(), dstBuffer + dstIndex, m_compressedData[bufIndex].size(), srcSize);
-        if (!decompressedLength) {
-            // decompress fail
-            RELEASE_ASSERT_NOT_REACHED();
+            int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[chunkIndex].data(), dstBuffer + srcIndex, m_compressedData[chunkIndex].size(), srcSize);
+            if (!decompressedLength) {
+                // decompress fail
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            m_isChunkDecompressed[chunkIndex] = true;
         }
-
-        dstIndex += srcSize;
     }
 
     CompressedDataVector().swap(m_compressedData);
+    m_isChunkDecompressed.clear();
+    m_isChunkDecompressed.shrink_to_fit();
 
-    m_bufferData.bufferAs8Bit = const_cast<const char*>(dstBuffer);
-    m_isCompressed = false;
+    if (m_isCompressed) {
+        m_bufferData.bufferAs8Bit = const_cast<const char*>(dstBuffer);
+        m_isCompressed = false;
+        m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+    }
+    m_isPartiallyDecompressed = false;
+}
 
-    m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+template <typename StringType>
+void CompressibleString::decompressRangeWorker(size_t start, size_t length)
+{
+    ASSERT(m_isCompressed || m_isPartiallyDecompressed);
+
+    size_t originByteLength = m_bufferData.length * sizeof(StringType);
+
+    if (m_isCompressed) {
+        char* dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
+        m_bufferData.bufferAs8Bit = dstBuffer;
+        m_isChunkDecompressed.resize(m_compressedData.size(), 0);
+        m_isPartiallyDecompressed = true;
+        m_isCompressed = false;
+        m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+    }
+
+    size_t startByte = start * sizeof(StringType);
+    size_t endByte = (start + length) * sizeof(StringType);
+    size_t startChunk = startByte / g_compressChunkSize;
+    size_t endChunk = length > 0 ? ((endByte - 1) / g_compressChunkSize) : startChunk;
+
+    char* dstBuffer = const_cast<char*>(m_bufferData.bufferAs8Bit);
+
+    for (size_t chunkIndex = startChunk; chunkIndex <= endChunk && chunkIndex < m_compressedData.size(); chunkIndex++) {
+        if (!m_isChunkDecompressed[chunkIndex]) {
+            size_t srcIndex = chunkIndex * g_compressChunkSize;
+            int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
+
+            int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[chunkIndex].data(), dstBuffer + srcIndex, m_compressedData[chunkIndex].size(), srcSize);
+            if (!decompressedLength) {
+                // decompress fail
+                RELEASE_ASSERT_NOT_REACHED();
+            }
+            m_isChunkDecompressed[chunkIndex] = true;
+        }
+    }
 }
 } // namespace Escargot
 
