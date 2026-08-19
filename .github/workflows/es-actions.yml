@@ -389,8 +389,9 @@ jobs:
   # Split from android-baremetal-test above (see its comment) so this
   # dominant-cost suite doesn't serialize after the other five.
   android-baremetal-test262:
+    if: github.repository == 'Samsung/escargot'
     needs: build-test-on-android
-    runs-on: ubuntu-24.04-arm
+    runs-on: [self-hosted, linux, arm64, test]
     env:
       ANDROID_TZDATA_ROOT: /apex/com.android.tzdata
       ANDROID_ROOT: /system

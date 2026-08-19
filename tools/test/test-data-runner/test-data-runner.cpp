@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 
                 if (skip) {
                     g_skipCount++;
-                    printf("SKIP [%d] %s\n", g_index++, info.data());
+                    g_index++;
                     continue;
                 }
 
@@ -303,7 +303,7 @@ int main(int argc, char* argv[])
 
                 if (data.code == std::to_string(result.second) && outputTest) {
                     g_passCount++;
-                    printf("Success [%d] %s => %d\n", g_index++, info.data(), result.second);
+                    g_index++;
                 } else {
                     printf("Fail [%d] %s\n", g_index++, commandline.data());
                     printf("Fail output->\n%s\n", result.first.data());
