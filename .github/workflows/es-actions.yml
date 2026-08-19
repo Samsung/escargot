@@ -2046,11 +2046,24 @@ jobs:
           sleep 10
         done
 
+    - name: Cache APT packages
+      id: apt-cache
+      uses: actions/cache@v5
+      with:
+        path: ~/apt-cache
+        key: ${{ runner.os }}-apt-${{ hashFiles('escargot/.github/workflows/es-actions.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-
+
     - name: Install cross-compile toolchain, QEMU, and NuttX build deps
       run: |
+        mkdir -p ~/apt-cache
+        sudo cp -a ~/apt-cache/. /var/cache/apt/archives/ 2>/dev/null || true
+        echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/01keep-debs > /dev/null
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build python3 bison flex \
           kconfig-frontends gcc-arm-none-eabi qemu-system-arm
+        cp -a /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
 
     # NUTTX_BASE_COMMIT/NUTTX_APPS_COMMIT are pinned, so the cloned+patched
     # NuttX kernel + apps source tree AND its full build output (object
