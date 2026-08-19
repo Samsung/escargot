@@ -51,6 +51,15 @@ std::pair<std::string, int> exec(const std::string& cmd)
         throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
+        std::string line(buffer);
+        // Filter out Android dynamic linker (linker64) configuration warnings.
+        // On bare-metal environments (like CI runners), linker64 cannot find
+        // /linkerconfig/ld.config.txt and prints non-fatal warnings to stderr.
+        // Since we capture stderr (2>&1), these warnings prepend to the captured
+        // stdout of tests, breaking text-based stdout output comparisons.
+        if (line.find("linker: Warning:") != std::string::npos || line.find("WARNING: linker:") != std::string::npos) {
+            continue;
+        }
         result += buffer;
     }
     return std::make_pair(result, WEXITSTATUS(pclose(fp)));
