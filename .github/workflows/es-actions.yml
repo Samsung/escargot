@@ -258,6 +258,10 @@ jobs:
   android-baremetal-test:
     needs: build-test-on-android
     runs-on: ubuntu-24.04-arm
+    env:
+      ANDROID_TZDATA_ROOT: /apex/com.android.tzdata
+      ANDROID_ROOT: /system
+      ANDROID_I18N_ROOT: /apex/com.android.i18n
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -387,6 +391,10 @@ jobs:
   android-baremetal-test262:
     needs: build-test-on-android
     runs-on: ubuntu-24.04-arm
+    env:
+      ANDROID_TZDATA_ROOT: /apex/com.android.tzdata
+      ANDROID_ROOT: /system
+      ANDROID_I18N_ROOT: /apex/com.android.i18n
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
