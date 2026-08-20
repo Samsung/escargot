@@ -191,6 +191,36 @@ void *ICU::loadFunction(Soname soname, Function kind)
     return fn;
 }
 
+bool ICU::isNumberRangeFormatterSupported()
+{
+    std::lock_guard<std::mutex> guard(m_dataMutex);
+    if (m_numberRangeFormatterSupported != -1) {
+        return m_numberRangeFormatterSupported;
+    }
+
+    ensureLoadSo(Soname::i18n);
+    const char *name = "unumrf_openForSkeletonWithCollapseAndIdentityFallback";
+    void *fn;
+#if defined(OS_POSIX)
+    if (m_icuVersion == -1) {
+        fn = dlsym(so(Soname::i18n), name);
+    } else {
+        char nameBuffer[256];
+        snprintf(nameBuffer, sizeof(nameBuffer), "%s_%d", name, m_icuVersion);
+        fn = dlsym(so(Soname::i18n), nameBuffer);
+    }
+#else
+    fn = GetProcAddress((HMODULE)so(Soname::i18n), name);
+#endif
+
+    m_numberRangeFormatterSupported = fn ? 1 : 0;
+    if (fn) {
+        // cache it so the real call below doesn't need to look it up again
+        m_functions[functionunumrf_openForSkeletonWithCollapseAndIdentityFallback] = fn;
+    }
+    return m_numberRangeFormatterSupported;
+}
+
 #if defined(OS_POSIX)
 // https://stackoverflow.com/questions/3118582/how-do-i-find-the-current-system-timezone
 /* Look for tag=someValue within filename.  When found, return someValue
@@ -358,6 +388,7 @@ std::string ICU::findSystemTimezoneName()
 }
 
 ICU::ICU()
+    : m_numberRangeFormatterSupported(-1)
 {
     memset(m_soHandles, 0, sizeof(void *) * ICU::Soname::SonameMax);
     memset(m_functions, 0, sizeof(void *) * ICU::Function::FunctionMax);

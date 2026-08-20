@@ -129,6 +129,10 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     if (true
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
         && versionArray[0] >= 68
+        // Some runtime-loaded ICU builds (e.g. Windows' system icu.dll) report
+        // a new-enough version but don't actually export the unumrf_* C API;
+        // probe for it instead of assuming it's there.
+        && RuntimeICUBinder::ICU::instance().isNumberRangeFormatterSupported()
 #endif
     ) {
         m_icuNumberRangeFormat = unumrf_openForSkeletonWithCollapseAndIdentityFallback((UChar*)skeleton.data(), skeleton.length(),
