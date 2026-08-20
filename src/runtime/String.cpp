@@ -297,6 +297,13 @@ UTF16StringDataNonGCStd utf8StringToUTF16StringNonGC(const char* buf, const size
     int charlen;
     bool valid;
     while (source < buf + len) {
+        unsigned char c = static_cast<unsigned char>(*source);
+        if (c < 0x80) {
+            str += c;
+            source++;
+            continue;
+        }
+
         char32_t ch = readUTF8Sequence(source, valid, charlen, buf + len - source);
         if (!valid) { // Invalid sequence
             str += 0xFFFD;
