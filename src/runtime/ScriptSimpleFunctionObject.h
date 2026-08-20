@@ -94,6 +94,8 @@ protected:
         } else {
             if (thisValue.isUndefinedOrNull()) {
                 stackStorage[0] = newState.context()->globalObjectProxy();
+            } else if (thisValue.isObject()) {
+                stackStorage[0] = thisValue;
             } else {
                 stackStorage[0] = thisValue.toObject(newState);
             }
