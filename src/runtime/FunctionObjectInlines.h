@@ -60,6 +60,8 @@ public:
             // Let thisValue be calleeRealm.[[globalThis]]
             if (thisArgument.isUndefinedOrNull()) {
                 return calleeState.context()->globalObjectProxy();
+            } else if (thisArgument.isObject()) {
+                return thisArgument;
             } else {
                 // Else
                 // Let thisValue be ToObject(thisArgument).
