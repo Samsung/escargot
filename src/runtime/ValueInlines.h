@@ -832,6 +832,23 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
         return asNumber() == val.asNumber();
     }
 
+    if (isUndefinedOrNull() || val.isUndefinedOrNull()) {
+#if defined(ESCARGOT_ENABLE_TEST)
+        // Under spec compliance test environments (like test262), we must support historical
+        // quirks such as IsHTMLDDA objects (e.g. document.all), where document.all == null/undefined
+        // must observably evaluate to true. Since document.all is an Object (PointerValue),
+        // we fall back to the out-of-line slow case handler to resolve this specific spec exception.
+        if (UNLIKELY(isPointerValue() || val.isPointerValue())) {
+            return abstractEqualsToSlowCase(state, val);
+        }
+#endif
+        return isUndefinedOrNull() && val.isUndefinedOrNull();
+    }
+
+    if (isObject() && val.isObject()) {
+        return false;
+    }
+
     return abstractEqualsToSlowCase(state, val);
 }
 
@@ -845,8 +862,16 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
         return true;
     }
 
+    if (isPointerValue() != val.isPointerValue()) {
+        return false;
+    }
+
     if (isNumber() && val.isNumber()) {
         return asNumber() == val.asNumber();
+    }
+
+    if (isObject() && val.isObject()) {
+        return false;
     }
 
     return equalsToSlowCase(state, val);
