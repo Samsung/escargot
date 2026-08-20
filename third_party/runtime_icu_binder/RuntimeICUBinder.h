@@ -355,6 +355,13 @@ public:
         return m_soHandles[name];
     }
 
+    // Some platforms (e.g. Windows' system icu.dll) report an ICU version that
+    // is normally new enough to support the NumberRangeFormat C API but don't
+    // actually export it. Probe for the symbol instead of dying, so callers can
+    // fall back to formatting without range support; this also means we pick
+    // the API up automatically if a future icu.dll ships it.
+    bool isNumberRangeFormatterSupported();
+
 #define DECLARE_UC_FN(name, fnType, fnReturnType)                                              \
     template <typename... Args>                                                                \
     fnReturnType name(Args... args)                                                            \
@@ -453,6 +460,8 @@ private:
     void* m_soHandles[SonameMax];
     void* m_functions[FunctionMax];
     int m_icuVersion;
+    // -1: not probed yet, 0: probed and missing, 1: probed and present
+    int m_numberRangeFormatterSupported;
     std::mutex m_dataMutex;
 };
 } // namespace RuntimeICUBinder
