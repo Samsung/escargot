@@ -80,11 +80,8 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* 
             for (size_t i = 0; i < m_storage.size(); i++) {
                 const EncodedValue& existingKey = m_storage[i];
                 intptr_t p = existingKey.payload();
-                if (HAS_SMI_TAG(p) && key.isInt32()) {
-                    if (EncodedValueImpl::PlatformSmiTagging::SmiToInt(p) == key.asInt32()) {
-                        return i;
-                    }
-                    continue;
+                if (p == encodedKey.payload()) {
+                    return i;
                 }
                 if (UNLIKELY(p == ValueEmpty)) {
                     continue;
@@ -116,11 +113,10 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* 
         }
         const EncodedValue& existingKey = m_storage[b - 1];
         intptr_t p = existingKey.payload();
-        if (HAS_SMI_TAG(p) && key.isInt32()) {
-            if (EncodedValueImpl::PlatformSmiTagging::SmiToInt(p) == key.asInt32()) {
-                return b - 1;
-            }
-        } else if (LIKELY(p != ValueEmpty) && existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
+        if (p == encodedKey.payload()) {
+            return b - 1;
+        }
+        if (LIKELY(p != ValueEmpty) && existingKey.equalsToByTheSameValueZeroAlgorithm(state, encodedKey)) {
             return b - 1;
         }
         i = (i + 1) & mask;
@@ -276,7 +272,7 @@ std::pair<Value, bool> SetIteratorObject::advance(ExecutionState& state)
     // Repeat while index is less than the total number of elements of entries. The number of elements must be redetermined each time this method is evaluated.
     while (index < s->m_storage.size()) {
         // Let e be entries[index].
-        Value e = s->m_storage[index];
+        const EncodedValue& e = s->m_storage[index];
         // Set index to index+1.
         index++;
         // Set the [[SetNextIndex]] internal slot of O to index.
