@@ -220,10 +220,17 @@ option(ESCARGOT_TCO_DEBUG "Enable extra tail-call-optimization debug checks (deb
 IF (ESCARGOT_TCO)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO)
     IF (ESCARGOT_TCO_DEBUG)
-        IF (NOT ESCARGOT_MODE STREQUAL "debug")
+        # ESCARGOT_MODE is resolved once at configure time from
+        # CMAKE_BUILD_TYPE, which is meaningless on multi-config generators
+        # (see CMakeLists.txt) -- this early-error check can only run where
+        # the config is actually known at configure time. Correctness for
+        # multi-config is instead handled below by gating the define itself
+        # on the Debug config via a generator expression, so a non-Debug
+        # build from the same tree just silently doesn't get it.
+        IF (NOT ESCARGOT_IS_MULTI_CONFIG_GENERATOR AND NOT ESCARGOT_MODE STREQUAL "debug")
             MESSAGE (FATAL_ERROR "ESCARGOT_TCO_DEBUG is enabled only for debug mode")
         ENDIF()
-        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO_DEBUG)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} $<$<CONFIG:Debug>:ENABLE_TCO_DEBUG>)
     ENDIF()
 ENDIF()
 

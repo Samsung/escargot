@@ -102,6 +102,15 @@ ENDIF()
 # ESCARGOT_TCO_DEBUG's debug-only check below). ESCARGOT_OUTPUT itself no
 # longer exists -- it was split into the independent ESCARGOT_ENABLE_SHELL /
 # ESCARGOT_BUILD_SHARED_LIBS / ESCARGOT_BUILD_CCTEST booleans below.
+#
+# On multi-config generators (Visual Studio, Xcode, Ninja Multi-Config),
+# CMAKE_BUILD_TYPE is always empty at configure time -- the config is only
+# selected at build time via --config -- so ESCARGOT_MODE always resolves to
+# "release" there regardless of what will actually be built. Record whether
+# we're on such a generator so configure-time-only consumers of ESCARGOT_MODE
+# (see ESCARGOT_TCO_DEBUG below) can skip checks they can't correctly perform.
+GET_PROPERTY (ESCARGOT_IS_MULTI_CONFIG_GENERATOR GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
 IF (NOT DEFINED ESCARGOT_MODE)
     STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
     IF (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
