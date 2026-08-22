@@ -615,7 +615,17 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        arch: [x86, x64]
+        include:
+          - arch: x86
+            generator: Ninja
+          # Exercises the VS solution + msbuild config path documented in
+          # README.md (cmake -G "Visual Studio 17 2022" / msbuild
+          # ESCARGOT.sln) that the Ninja leg above never touches --
+          # multi-config-generator-specific CMake bugs (CMAKE_BUILD_TYPE is
+          # always empty at configure time there; see 392a015d0) only show
+          # up on this leg.
+          - arch: x64
+            generator: "Visual Studio 17 2022"
     steps:
     - name: Set git cllf config
       run: |
@@ -646,27 +656,55 @@ jobs:
       with:
         arch: ${{ matrix.arch }}
         sdk: "10.0.26100.0"
-    - name: Build ${{ matrix.arch }} Release
+    - name: Build ${{ matrix.arch }} Release (Ninja)
+      if: matrix.generator == 'Ninja'
       run: |
         CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
       shell: cmd
-    - name: Upload build artifact
+    # VS generator is multi-config -- arch is fixed at configure time via
+    # CMAKE_GENERATOR_PLATFORM (there's no single-config "MSBuild"
+    # generator), config (Release) is picked at build time via --config,
+    # same as the Ninja leg. Deliberately no CMAKE_C/CXX_COMPILER override
+    # here: the VS generator manages its own MSVC toolset.
+    - name: Build ${{ matrix.arch }} Release (MSBuild)
+      if: matrix.generator != 'Ninja'
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
+        CMake --build out/ --config Release
+      shell: cmd
+    # walrus.dll: -DESCARGOT_WASM=ON below unconditionally builds Walrus
+    # (the WASM engine) as WALRUS_OUTPUT="shared_lib" regardless of
+    # ESCARGOT_BUILD_SHARED_LIBS (see build/escargot.cmake) -- escargot.exe
+    # dynamically depends on it at runtime even in an otherwise-static
+    # build. The old single combined build+test job never surfaced this
+    # because build and run happened in the same working directory; once
+    # split across jobs via artifact upload/download, walrus.dll has to be
+    # carried across explicitly too, or escargot.exe fails to start.
+    #
+    # upload-artifact strips the common leading directory of the listed
+    # paths, so both legs land as escargot.exe/escargot.dll/walrus.dll at
+    # the artifact root regardless of which subdirectory the generator
+    # actually wrote them to -- test262/octane-on-windows below need no
+    # generator-specific handling.
+    - name: Upload build artifact (Ninja)
+      if: matrix.generator == 'Ninja'
       uses: actions/upload-artifact@v6
       with:
         name: build-artifact-win-${{ matrix.arch }}
-        # walrus.dll: -DESCARGOT_WASM=ON below unconditionally builds Walrus
-        # (the WASM engine) as WALRUS_OUTPUT="shared_lib" regardless of
-        # ESCARGOT_BUILD_SHARED_LIBS (see build/escargot.cmake) -- escargot.exe
-        # dynamically depends on it at runtime even in an otherwise-static
-        # build. The old single combined build+test job never surfaced this
-        # because build and run happened in the same working directory; once
-        # split across jobs via artifact upload/download, walrus.dll has to be
-        # carried across explicitly too, or escargot.exe fails to start.
         path: |
           out/escargot.exe
           out/escargot.dll
           out/walrus.dll
+    - name: Upload build artifact (MSBuild)
+      if: matrix.generator != 'Ninja'
+      uses: actions/upload-artifact@v6
+      with:
+        name: build-artifact-win-${{ matrix.arch }}
+        path: |
+          out/Release/escargot.exe
+          out/Release/escargot.dll
+          out/Release/walrus.dll
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
