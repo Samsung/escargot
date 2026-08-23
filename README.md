@@ -165,7 +165,7 @@ configures the engine side of this (`-DOS_BAREMETAL=1` and friends,
 ICU/threading defaulted off):
 
 ```sh
-cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm ... /path/to/escargot
+cmake -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm ... /path/to/escargot
 ```
 
 A full port additionally needs its own small CMake project for BDWGC
@@ -200,7 +200,7 @@ Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Pr
 ```sh
 git submodule update --init third_party # update submodules
 
-CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -Bout -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
+CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -Bout -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
 cd out
 msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
 ```

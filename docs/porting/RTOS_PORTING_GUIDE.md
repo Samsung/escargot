@@ -35,18 +35,19 @@ Before writing any port-specific glue, configure the main engine build
 by setting `CMAKE_SYSTEM_NAME` to a bare-metal target (such as `Generic` or your specific RTOS like `FreeRTOS` or `NuttX`):
 
 ```sh
-cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm ... /path/to/escargot
+cmake -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm ... /path/to/escargot
 ```
 
 This sets exactly the engine-side (`escargot` target) definitions/flags a
 bare-metal/RTOS port needs -- `-DOS_BAREMETAL=1`, the right 32/64-bit
-mode per `ESCARGOT_ARCH`, `-Wl,--gc-sections`, and (see `CMakeLists.txt`)
-`ESCARGOT_LIBICU_SUPPORT`/`ESCARGOT_THREADING` both defaulted `OFF`
-(no ICU, no thread runtime on these targets). A new port does not need to
-independently rediscover this list and hand-copy it into its own
-CMakeLists.txt -- both existing reference ports instead
+mode per `CMAKE_SYSTEM_PROCESSOR` (auto-derived into the internal
+`ESCARGOT_ARCH` variable by the top-level `CMakeLists.txt`), `-Wl,--gc-sections`,
+and (see `CMakeLists.txt`) `ESCARGOT_LIBICU_SUPPORT`/`ESCARGOT_THREADING`
+both defaulted `OFF` (no ICU, no thread runtime on these targets). A new
+port does not need to independently rediscover this list and hand-copy it
+into its own CMakeLists.txt -- both existing reference ports instead
 `add_subdirectory()` this repo's own top-level `CMakeLists.txt` directly
-(with `CMAKE_SYSTEM_NAME`/`ESCARGOT_ARCH`/`CMAKE_BUILD_TYPE`
+(with `CMAKE_SYSTEM_NAME`/`CMAKE_SYSTEM_PROCESSOR`/`CMAKE_BUILD_TYPE`
 set as cache variables beforehand) to get a real, correctly cross-compiled
 `escargot` static-library target, instead of hand-globbing `src/*.cpp` and
 hand-copying `ESCARGOT_DEFS` themselves -- see
@@ -97,7 +98,7 @@ earlier version checked the heuristics first, which silently mis-detected
 under such a libc, even though it's dead code on a real bare-metal
 target).
 
-(Verified for this guide: `cmake -DCMAKE_SYSTEM_NAME=Generic -DESCARGOT_ARCH=arm
+(Verified for this guide: `cmake -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm
 -DENABLE_SHELL=ON -S <repo> -B <builddir>` configures cleanly from a
 clean out-of-tree build directory and prints `ESCARGOT_DEFINITIONS`
 containing `-DOS_BAREMETAL=1`, with `ESCARGOT_LIBICU_SUPPORT: OFF` and

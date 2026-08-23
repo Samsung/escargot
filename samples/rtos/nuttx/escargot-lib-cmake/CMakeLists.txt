@@ -79,7 +79,7 @@ set(ESCARGOT_ROOT  ${CMAKE_SOURCE_DIR}/../../../..)
 set(THIRD          ${ESCARGOT_ROOT}/third_party)
 
 
-set(ESCARGOT_ARCH   arm       CACHE STRING "" FORCE)
+set(CMAKE_SYSTEM_PROCESSOR arm CACHE STRING "" FORCE)
 set(ESCARGOT_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 # This port builds its own executable against the engine as a static lib --
 # it never wants the standard src/shell/Shell.cpp target. Under the old
