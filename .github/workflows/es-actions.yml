@@ -1648,9 +1648,19 @@ jobs:
           arm32v7/ubuntu:24.04 \
           chown -R "$(id -u):$(id -g)" /work 2>/dev/null || true
 
+  # Moved off the self-hosted arm64 pool (2026-08-23): unlike
+  # build-test-on-self-hosted-arm32-docker (needs AArch32 hardware execution
+  # the self-hosted host has and GitHub's Ampere-class hosted arm64 runners
+  # likely don't) or android-baremetal-test262 (already proven too slow off
+  # self-hosted -- that's why it was split from android-baremetal-test in
+  # the first place), this job is a plain native aarch64 build+test with no
+  # hardware-specific dependency. Its only self-hosted coupling was a
+  # pre-provisioned ICU 78 at /usr/icu78-64 on that one machine; replaced
+  # below with the same cache-or-build-from-source pattern the x86/x64
+  # Linux jobs already use.
   build-test-on-self-hosted-arm64-linux:
     if: github.repository == 'Samsung/escargot'
-    runs-on: [self-hosted, linux, arm64, test]
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
         compiler: [ {cxx: g++-11, cc: gcc-11}, {cxx: clang++, cc: clang} ]
@@ -1662,8 +1672,7 @@ jobs:
         attempt_limit: 3
         attempt_delay: 10000
     # Build needs GCutil; Test runs test262/chakracore/spidermonkey/v8/new-es
-    # -- test262 -> test/test262, the rest -> test/vendortest. Persistent
-    # self-hosted runner, so this is an incremental fetch either way.
+    # -- test262 -> test/test262, the rest -> test/vendortest.
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
@@ -1671,21 +1680,40 @@ jobs:
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build pkg-config build-essential gcc-11 g++-11 clang locales
+    - name: Cache ICU release-78.1 (arm64)
+      id: cache-icu-arm64
+      uses: actions/cache@v5
+      with:
+        path: icuarm64
+        key: icu-linux-arm64-release-78.1
+    - name: Build ICU(arm64)
+      if: steps.cache-icu-arm64.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --single-branch -b release-78.1 https://github.com/unicode-org/icu.git $GITHUB_WORKSPACE/icu-arm64-build/
+        cd $GITHUB_WORKSPACE/icu-arm64-build/icu4c/source
+        LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icuarm64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icuarm64/"
+        make -j$(nproc)
+        make install
     - name: Build
       run: |
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -H./ -Bout -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
+        LDFLAGS=" -L$GITHUB_WORKSPACE/icuarm64/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icuarm64/lib/" PKG_CONFIG_PATH="$GITHUB_WORKSPACE/icuarm64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -H./ -Bout -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
         cmake --build ./out/
     - name: Test
       run: |
-        export LD_LIBRARY_PATH=/usr/icu78-64/lib/
-        # v8's perfdata cache (test/vendortest/v8/out/testrunner_data) is a
-        # Berkeley DB file when it was last written by a python2/bsddb-era
-        # run -- this is a persistent self-hosted checkout, so that stale
-        # file survives across runs and python3's dbm can't open it
-        # ("db type could not be determined"). It's a disposable cache, so
-        # just drop it; v8's own test runner regenerates it as needed.
-        rm -rf test/vendortest/v8/out/testrunner_data
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icuarm64/lib/
+        # v8's and spidermonkey's test runners both force LANG/LC_ALL=en_US.UTF-8
+        # for their child escargot processes -- generate it, same as the other
+        # jobs running these suites (e.g. build-test-on-self-hosted-arm32-docker).
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   build-test-on-riscv64-release:
     runs-on: ubuntu-latest
