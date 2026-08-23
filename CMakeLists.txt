@@ -200,22 +200,6 @@ IF (NOT DEFINED ESCARGOT_THREADING)
 ENDIF()
 option(ESCARGOT_THREADING "Enable threading features (e.g. Atomics, SharedArrayBuffer)" ${ESCARGOT_THREADING})
 
-# Default a fast TLS access strategy when threading is enabled, so callers
-# don't have to discover/opt into ESCARGOT_TLS_ACCESS_BY_ADDRESS or
-# ESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY themselves. Android's bionic pthread_key
-# implementation is the fast path there; linux/tizen (glibc-style static/
-# initial-exec ELF TLS) prefer TLS-by-address. Windows and bare-metal don't
-# support pthreads at all (ESCARGOT_THREADING itself already defaults OFF on
-# bare-metal above), so neither applies there. darwin is ALSO excluded from
-# the by-address default: src/runtime/ThreadLocal.h/.cpp's implementation
-# assumes ELF/glibc TLS layout (reads the thread pointer from %fs on x86_64,
-# and RELEASE_ASSERTs a fixed per-variable offset from that base that holds
-# across every thread) -- macOS actually uses %gs on x86_64, and Darwin's
-# mach-o TLV variables are lazily allocated with no such fixed-offset
-# guarantee, so this would be silently wrong (or an outright crash) on
-# darwin. No explicit -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON anywhere in this
-# repo (packaging/CI) ever targets darwin, confirming it was never validated
-# there. Skipped entirely if the caller already set either flag explicitly.
 # =============================================================================
 # THREAD LOCAL STORAGE (TLS) ACCESS OPTIMIZATION STRATEGIES
 # =============================================================================
