@@ -2006,51 +2006,13 @@ jobs:
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
 
-  # These two RTOS/QEMU jobs are heavier (cross-compile + full boot test)
-  # than the rest of this workflow, so -- same as every other job here --
-  # they still only need to actually run when something that can affect
-  # them changes. Since they now live in this single workflow (so they show
-  # up on the same Actions run page as everything else) rather than their
-  # own path-triggered workflow files, that per-job skip is done via this
-  # shared `detect-changes-for-rtos` job + each RTOS job's own `if:`, instead of the
-  # top-level `on: push: paths:` this repo's workflows otherwise use.
-  detect-changes-for-rtos:
-    runs-on: ubuntu-24.04
-    outputs:
-      freertos: ${{ steps.filter.outputs.freertos }}
-      nuttx: ${{ steps.filter.outputs.nuttx }}
-    steps:
-    - uses: Wandalen/wretry.action@v3
-      with:
-        action: actions/checkout@v5
-        attempt_limit: 3
-        attempt_delay: 10000
-    - uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          freertos:
-            - 'src/**'
-            - 'third_party/GCutil/**'
-            - 'samples/rtos/**'
-            - 'CMakeLists.txt'
-            - 'build/config.cmake'
-            - 'build/escargot.cmake'
-            - 'build/target.cmake'
-            - '.github/workflows/es-actions.yml'
-          nuttx:
-            - 'src/**'
-            - 'third_party/GCutil/**'
-            - 'samples/rtos/nuttx/**'
-            - 'CMakeLists.txt'
-            - 'build/config.cmake'
-            - 'build/escargot.cmake'
-            - 'build/target.cmake'
-            - '.github/workflows/es-actions.yml'
-
+  # These two RTOS/QEMU jobs used to be gated behind a `detect-changes-for-rtos`
+  # paths-filter job (skip when nothing under src/**, samples/rtos/**, etc.
+  # changed). Dropped: the filter included src/** and this workflow file
+  # itself, both of which change on nearly every PR in this repo, so the gate
+  # almost never actually skipped anything -- it just added a checkout +
+  # queue-wait hop in front of both jobs for no real benefit.
   build-boot-test-freertos-qemu:
-    needs: detect-changes-for-rtos
-    if: needs.detect-changes-for-rtos.outputs.freertos == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -2232,8 +2194,6 @@ jobs:
           }
 
   build-boot-test-nuttx-qemu:
-    needs: detect-changes-for-rtos
-    if: needs.detect-changes-for-rtos.outputs.nuttx == 'true'
     runs-on: ubuntu-24.04
     env:
       # Pinned upstream commits this sample is verified against. NuttX itself
