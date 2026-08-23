@@ -190,7 +190,13 @@ ELSEIF (ESCARGOT_HOST STREQUAL "android")
         SET (ESCARGOT_THIRDPARTY_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} -UKEEP_BACK_PTRS -USAVE_CALL_COUNT -UDBG_HDRS_ALL)
     ENDIF()
 ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
-    FIND_PACKAGE (PkgConfig REQUIRED)
+    IF (NOT ESCARGOT_LIBICU_SUPPORT_VENDORED)
+        # Only needed for the non-vendored, pkg-config-located system/Homebrew
+        # ICU path (build/config.cmake's PKG_CHECK_MODULES(ICU ...) call) --
+        # the vendored path (default now, see build/VendoredICU.cmake) builds
+        # its own static ICU from the third_party/icu submodule instead.
+        FIND_PACKAGE (PkgConfig REQUIRED)
+    ENDIF()
     IF ((NOT ESCARGOT_ARCH STREQUAL "x64") AND (NOT ESCARGOT_ARCH STREQUAL "aarch64"))
         MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
     ENDIF()
@@ -205,7 +211,13 @@ ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
         SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
     ENDIF()
 ELSEIF (ESCARGOT_HOST STREQUAL "windows")
-    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} icu.lib)
+    IF (NOT ESCARGOT_LIBICU_SUPPORT_VENDORED)
+        # Vendored (default): linked via the vcpkg-sourced import libs found
+        # in build/VendoredICU.cmake instead -- the OS-provided icu.lib (from
+        # the Windows 10 SDK's built-in ICU) is only wanted when explicitly
+        # opted out of vendoring.
+        SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} icu.lib)
+    ENDIF()
     IF ((ESCARGOT_ARCH STREQUAL "x64") OR (ESCARGOT_ARCH STREQUAL "x86_64"))
         SET (ESCARGOT_BUILD_64BIT ON)
         SET (ESCARGOT_BUILD_64BIT_LARGE ON)

@@ -44,3 +44,13 @@
 	# CI job's `submodules: true` checkout runs) skip it automatically.
 	# Only fetch it deliberately with a sparse checkout.
 	update = none
+[submodule "third_party/icu"]
+    path = third_party/icu
+    url = https://github.com/unicode-org/icu.git
+    ignore = untracked
+	shallow = true
+	# Full history is large (unicode-org/icu carries decades of data-file
+	# churn) -- pinned to tag release-78.1 (see build/VendoredICU.cmake),
+	# matching CI's existing Linux ICU pin. `shallow = true` makes a plain
+	# `git submodule update --init` fetch just that pinned commit instead
+	# of the whole repo.

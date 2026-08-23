@@ -364,7 +364,13 @@ extern "C" {
 #else
 #define U_SHOW_CPLUSPLUS_API 0
 #define U_SHOW_CPLUSPLUS_HEADER_API 0
-#if defined(OS_WINDOWS)
+// The OS-provided Windows ICU only exposes the single SDK-style <icu.h>
+// umbrella header, not the standard per-component unicode/*.h layout --
+// but a vendored (vcpkg) Windows ICU ships that standard layout, same as
+// every other host below, so it needs the same #include list, not <icu.h>
+// (which would silently resolve to the OS SDK's *older* icu.h instead and
+// mismatch against the newer vcpkg .lib actually being linked).
+#if defined(OS_WINDOWS) && !defined(ENABLE_ICU_VENDORED)
 #include <icu.h>
 #else
 #include <unicode/utypes.h>

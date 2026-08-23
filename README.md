@@ -76,7 +76,8 @@ The following build options are supported when generating build rules using cmak
 | **ESCARGOT_ASAN** | Build with AddressSanitizer | -DESCARGOT_ASAN | ON/OFF | OFF |
 | **ESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | -DESCARGOT_COVERAGE | ON/OFF | OFF |
 | **ESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | -DESCARGOT_DEPLOY | ON/OFF | OFF |
-| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there) |
+| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there) and when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
+| **ESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | -DESCARGOT_LIBICU_SUPPORT_VENDORED | ON/OFF | ON on windows and macOS, OFF elsewhere (available on linux too) |
 | **ESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | -DESCARGOT_USE_EXTENDED_API | ON/OFF | ON when NAPI is ON, otherwise OFF |
 | **ESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | -DESCARGOT_USE_CUSTOM_LOGGING | ON/OFF | OFF |
 | **ESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | -DESCARGOT_TCO_DEBUG | ON/OFF | OFF |
@@ -117,18 +118,29 @@ ninja
 
 General build prerequisites:
 ```sh
-brew install autoconf automake cmake icu4c libtool ninja pkg-config
-
-# add icu path to pkg_config_path (x64)
-export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
-# add icu path to pkg_config_path (arm64)
-export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+brew install autoconf automake cmake libtool ninja pkg-config
 ```
 
 Build Escargot:
 ```sh
 git submodule update --init third_party # update submodules
 cmake -DENABLE_SHELL=ON -GNinja
+ninja
+```
+
+ICU is vendored by default on macOS (see "Vendored ICU" below) -- it's built
+from the `third_party/icu` submodule above and linked statically, so no
+Homebrew `icu4c`/`pkg-config` setup is needed for the default path. To opt
+back into a Homebrew/system-provided ICU instead:
+```sh
+brew install icu4c
+
+# add icu path to pkg_config_path (x64)
+export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+# add icu path to pkg_config_path (arm64)
+export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+cmake -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
@@ -197,13 +209,66 @@ way. Both ports' shared contract and checklist are in
 Install VS2022 with cmake and ninja.
 Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Prompt for VS 2022 ]
 
+ICU is vendored by default on Windows (see "Vendored ICU" below) via
+[vcpkg](https://github.com/microsoft/vcpkg) -- install it first and pass its
+installed-tree path as `ICU_ROOT`:
+
 ```sh
+git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git
+call vcpkg\bootstrap-vcpkg.bat
+vcpkg\vcpkg.exe install icu --triplet=x64-windows # or x86-windows / arm64-windows
+
 git submodule update --init third_party # update submodules
 
-CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -Bout -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON
+CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DICU_ROOT=vcpkg\installed\x64-windows -Bout -DENABLE_SHELL=ON
+# ICU_ROOT above points at a vcpkg-installed ICU; drop it (and pass
+# -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF) to use the OS-provided ICU instead.
 cd out
 msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
 ```
+
+After building, copy the ICU DLLs the binary actually depends on (`dumpbin
+/dependents out\escargot.exe | findstr /i icu`) from
+`vcpkg\installed\x64-windows\bin\` next to `escargot.exe` -- see the
+`build-on-windows-x86-x64`/`build-windows` CI jobs for the exact commands.
+Pass `-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF` to fall back to the
+OS-provided ICU (Windows 10 1703+'s built-in `icu.lib`) instead and skip all
+of the above.
+
+### Vendored ICU
+
+By default, Escargot loads ICU from wherever the target OS/dev environment
+already provides it (system package on linux/Android, Homebrew on macOS,
+OS-built-in on Windows). `-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON` (the windows
+and macOS default; opt-in on linux) makes Escargot bring/build its own ICU
+instead -- useful for targets with no usable system ICU, or to pin an exact
+ICU version/build independent of the host. The actual mechanism differs per
+host, since ICU's own build system does too:
+
+- **linux** and **macOS**: both build the `third_party/icu` submodule
+  (pinned to tag `release-78.1`, matching this repo's CI pin) from source --
+  via `runConfigureICU Linux/gcc`/`MacOSX` respectively -- with its data
+  trimmed via `build/icu-filters/escargot.json` to just what
+  `third_party/runtime_icu_binder/RuntimeICUBinder.h`'s call surface uses,
+  and links the result statically -- no separate ICU data file, no runtime
+  ICU dependency at all. (The macOS static archives are just as mutually
+  referential as the linux ones, but don't need linux's
+  `-Wl,--start-group`/`--end-group` treatment -- Apple's `ld64` doesn't
+  understand that GNU ld syntax, and doesn't need an equivalent either since
+  it resolves undefined symbols across all archives on the command line
+  regardless of order.)
+- **windows**: ICU's own Windows build only ships `common`/`i18n` as DLLs (no
+  static `.lib` variant), so this locates an ICU installed via
+  [vcpkg](https://github.com/microsoft/vcpkg) (`-DICU_ROOT=<vcpkg>/installed/<triplet>`)
+  and links against its import libs; the matching DLLs (selected via
+  `dumpbin /dependents`, not a blanket copy) need to ship next to
+  `escargot.exe`/`escargot.dll` -- see the Windows build instructions above
+  and the `build-on-windows-x86-x64`/`build-windows` CI jobs.
+
+See `build/VendoredICU.cmake` for the implementation and
+`.github/workflows/es-actions.yml`'s `build-test-on-vendored-icu-linux`/
+`build-on-macos`/`build-on-macos-arm64` jobs for full end-to-end examples
+(build, verify static linking via `ldd`/`otool -L`, run tests).
 
 ## Debugger
 
