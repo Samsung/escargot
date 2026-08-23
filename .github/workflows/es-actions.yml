@@ -129,6 +129,95 @@ jobs:
           exit 1
         fi
 
+  # Cross-compiles for the iOS Simulator (arm64 only, matching this
+  # Apple-Silicon runner -- no device/physical-hardware support, no
+  # iphoneos SDK) with ESCARGOT_LIBICU_SUPPORT_VENDORED (see
+  # build/VendoredICU.cmake and README.md's "iOS" section): there is no
+  # system/pkg-config ICU on iOS at all, so vendoring is the only way to get
+  # ICU (Temporal/Intl) there. Runs Octane the same way build-on-macos-arm64
+  # above does, but the resulting binary is a simulator binary, which needs
+  # two extra steps a native macOS binary doesn't: an ad-hoc code signature
+  # (required for any arm64 executable on Apple Silicon, signed or not
+  # doesn't otherwise change) and running inside a *booted* simulator device
+  # via `xcrun simctl spawn` -- a bare `./out/release/escargot` fails at
+  # dyld startup with "DYLD_ROOT_PATH not set for simulator program" (see
+  # README.md's "iOS" section for why `simctl spawn` is used instead of
+  # hand-deriving that path). Release-only (no debug leg / new-es run, see
+  # build-on-macos-arm64 above for that combination) -- this job's job is
+  # validating that the ios host + vendored ICU cross-build actually
+  # produces a working, ICU-enabled binary, same spirit as
+  # build-test-on-vendored-icu-linux's scoped role elsewhere in this file.
+  build-test-on-ios-simulator-arm64:
+    runs-on: macos-latest
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # GCutil (bdwgc) for the engine itself, the icu submodule for
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED, octane for the benchmark below.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/icu test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Install Packages
+      run: |
+        brew update
+        brew install ninja
+    - name: Build arm64 Release (iOS Simulator, vendored ICU)
+      env:
+        BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DENABLE_SHELL=ON -GNinja
+      run: |
+        # fail fast with a clear message if Xcode (not just the CLT) isn't
+        # selected -- build/VendoredICU.cmake needs the iphonesimulator SDK
+        xcrun --sdk iphonesimulator --show-sdk-path
+        cmake -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
+        ninja -Cout/release/
+    - name: Ad-hoc codesign
+      # macOS on Apple Silicon enforces code signing on every arm64
+      # executable -- the linker's own default "linker-signed" signature is
+      # not enough (recent macOS rejects it outright, `Killed: 9`) even
+      # though nothing else about the binary is wrong.
+      run: codesign --sign - --force out/release/escargot
+    - name: Boot a simulator device
+      run: |
+        python3 <<'PY' > /tmp/device_udid.txt
+        import json, subprocess
+        devices_by_runtime = json.loads(subprocess.check_output(
+            ["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+        for runtime, devices in devices_by_runtime.items():
+            if not runtime.startswith("com.apple.CoreSimulator.SimRuntime.iOS-"):
+                continue  # skip watchOS/tvOS/visionOS runtimes
+            for d in devices:
+                print(d["udid"])
+                raise SystemExit
+        raise SystemExit("no available iOS simulator device found")
+        PY
+        DEVICE_UDID=$(cat /tmp/device_udid.txt)
+        echo "DEVICE_UDID=$DEVICE_UDID" >> "$GITHUB_ENV"
+        xcrun simctl boot "$DEVICE_UDID" || true   # "already booted" on some runner images is fine
+        xcrun simctl bootstatus "$DEVICE_UDID" -b  # wait until fully booted before spawn below
+    - name: Run octane
+      run: |
+        cp test/octane/*.js .
+        # escargot's own working directory when simctl-spawned isn't this
+        # runner's checkout dir, so both the run.js path given to escargot
+        # AND run.js's own internal load(base_dir + 'base.js') etc. calls
+        # (resolved against escargot's actual cwd at runtime, same as any
+        # relative path) need to be absolute. A /bin/sh -C wrapper to fix
+        # the cwd instead doesn't work here -- /bin/sh is a macOS-platform
+        # binary, and simctl spawn's DYLD_ROOT_PATH only has iOS-simulator
+        # dylibs, so it dies with "incompatible platform" trying to load
+        # libSystem. Patch just the local copy's base_dir instead (not the
+        # test/octane submodule itself) to sidestep needing a working
+        # directory at all.
+        sed -i '' "s#var base_dir = '';#var base_dir = '$(pwd)/';#" run.js
+        xcrun simctl spawn "$DEVICE_UDID" "$(pwd)/out/release/escargot" "$(pwd)/run.js"
+
   # -DESCARGOT_TEST_ABI=<cpu-abi>,<device-abi> (build/android/escargot/
   # build.gradle) restricts each matrix leg's native build to its own tested
   # emulator ABI paired with the real-device ABI in the same word size

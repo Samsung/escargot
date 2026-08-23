@@ -38,6 +38,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 |-|-|
 | **Linux(Ubuntu)** | x86/x64/arm/aarch64/riscv64 |
 | macOS | x64/aarch64 |
+| iOS (Simulator only) | aarch64 |
 | Windows | Win32/x64 |
 | Android | x86/x64/arm/aarch64 |
 | Tizen | arm (build-only) |
@@ -76,8 +77,8 @@ The following build options are supported when generating build rules using cmak
 | **ESCARGOT_ASAN** | Build with AddressSanitizer | -DESCARGOT_ASAN | ON/OFF | OFF |
 | **ESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | -DESCARGOT_COVERAGE | ON/OFF | OFF |
 | **ESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | -DESCARGOT_DEPLOY | ON/OFF | OFF |
-| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there) and when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
-| **ESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | -DESCARGOT_LIBICU_SUPPORT_VENDORED | ON/OFF | ON on windows and macOS, OFF elsewhere (available on linux too) |
+| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
+| **ESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | -DESCARGOT_LIBICU_SUPPORT_VENDORED | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
 | **ESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | -DESCARGOT_USE_EXTENDED_API | ON/OFF | ON when NAPI is ON, otherwise OFF |
 | **ESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | -DESCARGOT_USE_CUSTOM_LOGGING | ON/OFF | OFF |
 | **ESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | -DESCARGOT_TCO_DEBUG | ON/OFF | OFF |
@@ -235,15 +236,91 @@ Pass `-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF` to fall back to the
 OS-provided ICU (Windows 10 1703+'s built-in `icu.lib`) instead and skip all
 of the above.
 
+### iOS
+
+`ESCARGOT_HOST=ios` cross-compiles Escargot from a macOS host to the **iOS
+Simulator** only (arm64, matching an Apple Silicon build machine) -- there is
+no device/physical-hardware support (no code signing, no `iphoneos` SDK) and
+no separate "ipados" host: Apple ships one SDK/platform identifier ("iOS")
+and one arm64 sysroot/triple for both iPhone and iPad at the CMake/toolchain
+level.
+
+Prerequisites: a full Xcode install (not just the Command Line Tools --
+`xcrun --sdk iphonesimulator --show-sdk-path` must succeed) and `ninja`.
+
+ICU on iOS has exactly two supported configurations: vendored (the default;
+see "Vendored ICU" below) or off entirely (`-DESCARGOT_LIBICU_SUPPORT=OFF`).
+There is no system/pkg-config ICU dev package available on iOS, and
+dlopen-loading an arbitrary library is unavailable there too, so both of
+those other ICU paths are rejected with a `FATAL_ERROR` at configure time.
+
+```sh
+git submodule update --init third_party/GCutil third_party/icu # update submodules (+ vendored ICU source)
+
+cmake -B out -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphonesimulator \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout
+```
+
+The resulting `out/escargot` is an arm64 Mach-O binary linked against the
+iphonesimulator SDK, and running it takes two steps -- neither of them
+optional, both confirmed against real-world reports of the same two
+failures (not guessed):
+
+1. **Ad-hoc code-sign it.** macOS on Apple Silicon enforces code signing on
+   *every* arm64 executable, including plain command-line tools -- the
+   linker only emits a minimal "linker-signed" signature by default, which
+   recent macOS versions reject outright (`Killed: 9`) even though nothing
+   else about the binary is wrong:
+   ```sh
+   codesign --sign - --force out/escargot   # ad-hoc signature, no identity/provisioning needed
+   ```
+2. **Run it inside a booted simulator device via `simctl spawn`,** not by
+   invoking it bare from Terminal. A simulator-platform Mach-O binary still
+   needs `DYLD_ROOT_PATH` pointed at a *booted* simulator runtime's root
+   (not the Xcode SDK path used at build time) or it fails at dyld startup
+   with `dyld: attempt to run simulator program outside simulator
+   (DYLD_ROOT_PATH not set)` -- `xcrun simctl spawn` sets this up for you
+   (and everything else the simulator runtime environment needs), so it's
+   the robust way to do this rather than hand-deriving that runtime-root
+   path yourself:
+   ```sh
+   xcrun simctl list devices available   # pick any pre-provisioned iOS (not watchOS/tvOS) device's UDID
+   xcrun simctl boot <device-udid>
+   xcrun simctl spawn <device-udid> "$(pwd)/out/escargot" run.js   # simctl spawn needs an absolute path
+   ```
+
+A GitHub Actions `macos-latest` runner already has Xcode-provisioned
+simulator devices available (no extra download), so both steps above are
+CI-safe as-is. Manually exporting `DYLD_ROOT_PATH=<a booted device's
+CoreSimulator runtime root>` and invoking `out/escargot` directly (bypassing
+`simctl spawn` entirely) is also technically possible -- it's the lower-level
+mechanism `simctl spawn` itself relies on internally -- but that runtime-root
+path lives under `/Library/Developer/CoreSimulator/...`, resolved
+per-runtime/per-Xcode-version rather than being a fixed, easy-to-derive
+path (unlike the build-time SDK path from `xcrun --sdk iphonesimulator
+--show-sdk-path`), so `simctl spawn` is the supported, non-fragile way to do
+this and what the CI job below actually uses.
+
+See the `build-test-on-ios-simulator-arm64` CI job
+(`.github/workflows/es-actions.yml`) for a full working example, including
+running the Octane benchmark this way.
+
 ### Vendored ICU
 
 By default, Escargot loads ICU from wherever the target OS/dev environment
 already provides it (system package on linux/Android, Homebrew on macOS,
-OS-built-in on Windows). `-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON` (the windows
-and macOS default; opt-in on linux) makes Escargot bring/build its own ICU
-instead -- useful for targets with no usable system ICU, or to pin an exact
-ICU version/build independent of the host. The actual mechanism differs per
-host, since ICU's own build system does too:
+OS-built-in on Windows) -- except on iOS, which has no system ICU at all.
+`-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON` (the windows, macOS and iOS default
+-- and, on iOS, the only supported ICU option, see the "iOS" section above;
+opt-in on linux) makes Escargot bring/build its own ICU instead -- useful for
+targets with no usable system ICU, or to pin an exact ICU version/build
+independent of the host. The actual mechanism differs per host, since ICU's
+own build system does too:
 
 - **linux** and **macOS**: both build the `third_party/icu` submodule
   (pinned to tag `release-78.1`, matching this repo's CI pin) from source --
@@ -264,11 +341,23 @@ host, since ICU's own build system does too:
   `dumpbin /dependents`, not a blanket copy) need to ship next to
   `escargot.exe`/`escargot.dll` -- see the Windows build instructions above
   and the `build-on-windows-x86-x64`/`build-windows` CI jobs.
+- **ios**: ICU has no native "iOS" autoconf target, so this does the
+  standard two-pass cross build from ICU's User Guide's cross-compilation
+  section (`--with-cross-build`): first build ICU's own tools (`genrb`,
+  `genbrk`, ...) natively for the macOS build machine
+  (`runConfigureICU MacOSX`), then cross-compile the real target ICU
+  (`configure --with-cross-build=<pass-1 build dir>`) with `CC`/`CFLAGS`/
+  `LDFLAGS` pointed at the iphonesimulator SDK sysroot and an explicit
+  `-target arm64-apple-ios<ver>-simulator` triple, reusing pass 1's tools to
+  generate its (filtered, per `build/icu-filters/escargot.json`) data. The
+  result is linked statically -- no separate ICU data file, no runtime ICU
+  dependency at all.
 
 See `build/VendoredICU.cmake` for the implementation and
 `.github/workflows/es-actions.yml`'s `build-test-on-vendored-icu-linux`/
-`build-on-macos`/`build-on-macos-arm64` jobs for full end-to-end examples
-(build, verify static linking via `ldd`/`otool -L`, run tests).
+`build-on-macos`/`build-on-macos-arm64`/`build-test-on-ios-simulator-arm64`
+jobs for full end-to-end examples (build, verify static linking via
+`ldd`/`otool -L`, run tests, and for iOS run the Octane benchmark).
 
 ## Debugger
 

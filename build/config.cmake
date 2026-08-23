@@ -54,16 +54,19 @@ SET (ESCARGOT_THIRD_PARTY_ROOT ${ESCARGOT_ROOT}/third_party)
 SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 
 # Resolved early (before build/target.cmake, which needs the final value to
-# decide whether to still link the OS-provided ICU -- see its windows
-# branch) rather than down in the main ICU block below, where the rest of
+# decide whether to still link the OS-provided ICU / whether the plain
+# pkg-config ICU path is even reachable -- see its windows/darwin/ios
+# branches) rather than down in the main ICU block below, where the rest of
 # ESCARGOT_LIBICU_SUPPORT_VENDORED's wiring (option() declaration, forcing
 # WITH_DLOPEN off, including build/VendoredICU.cmake) still happens.
-# Escargot ships/builds its own ICU on windows and macOS by default now
-# (windows: vcpkg-sourced DLLs placed next to the binary; macOS: the
+# Escargot ships/builds its own ICU on windows, macOS and iOS by default now
+# (windows: vcpkg-sourced DLLs placed next to the binary; macOS/iOS: the
 # third_party/icu submodule built+linked statically, same as linux's opt-in
 # path -- see build/VendoredICU.cmake and the vendored-icu CI jobs) since
 # that's more portable than relying on whatever ICU happens to be present on
-# the target install; linux stays opt-in (ESCARGOT_LIBICU_SUPPORT_VENDORED=ON
+# the target install (and, on iOS, there is no system/pkg-config ICU at all
+# -- see the FATAL_ERRORs below enforcing "vendored or off, nothing else"
+# for that host); linux stays opt-in (ESCARGOT_LIBICU_SUPPORT_VENDORED=ON
 # builds+statically links the third_party/icu submodule instead).
 #
 # ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT records whether the value above
@@ -75,7 +78,7 @@ SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 # the configure) or a hard error (explicitly requested -- honor it).
 IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_VENDORED)
     SET (ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT ON)
-    IF (ESCARGOT_HOST STREQUAL "windows" OR ESCARGOT_HOST STREQUAL "darwin")
+    IF (ESCARGOT_HOST STREQUAL "windows" OR ESCARGOT_HOST STREQUAL "darwin" OR ESCARGOT_HOST STREQUAL "ios")
         SET (ESCARGOT_LIBICU_SUPPORT_VENDORED ON)
     ELSE()
         SET (ESCARGOT_LIBICU_SUPPORT_VENDORED OFF)
@@ -83,8 +86,8 @@ IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_VENDORED)
 ELSE()
     SET (ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT OFF)
 ENDIF()
-IF (ESCARGOT_LIBICU_SUPPORT_VENDORED AND NOT ESCARGOT_HOST STREQUAL "linux" AND NOT ESCARGOT_HOST STREQUAL "windows" AND NOT ESCARGOT_HOST STREQUAL "darwin")
-    MESSAGE (FATAL_ERROR "ESCARGOT_LIBICU_SUPPORT_VENDORED is only supported on ESCARGOT_HOST=linux, windows or darwin for now")
+IF (ESCARGOT_LIBICU_SUPPORT_VENDORED AND NOT ESCARGOT_HOST STREQUAL "linux" AND NOT ESCARGOT_HOST STREQUAL "windows" AND NOT ESCARGOT_HOST STREQUAL "darwin" AND NOT ESCARGOT_HOST STREQUAL "ios")
+    MESSAGE (FATAL_ERROR "ESCARGOT_LIBICU_SUPPORT_VENDORED is only supported on ESCARGOT_HOST=linux, windows, darwin or ios for now")
 ENDIF()
 
 #######################################################
@@ -159,19 +162,33 @@ ENDIF()
 option(ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN "Load libicu at runtime via dlopen() instead of linking directly" ${ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN})
 
 # Builds Escargot's own ICU instead of relying on a system/dev-package ICU --
-# on linux and macOS, from the vendored third_party/icu submodule (filtered
-# down to just the data/services Escargot's own ICU call surface uses -- see
-# third_party/runtime_icu_binder/RuntimeICUBinder.h), linked statically; on
-# windows, via vcpkg-sourced ICU DLLs placed next to the binary (see
-# build/VendoredICU.cmake and the vendored-icu CI jobs for all three).
-# Default and host guard are resolved earlier, before build/target.cmake --
-# see above.
+# on linux, macOS and iOS, from the vendored third_party/icu submodule
+# (filtered down to just the data/services Escargot's own ICU call surface
+# uses -- see third_party/runtime_icu_binder/RuntimeICUBinder.h), linked
+# statically; on windows, via vcpkg-sourced ICU DLLs placed next to the
+# binary (see build/VendoredICU.cmake and the vendored-icu CI jobs for all
+# four). Default and host guard are resolved earlier, before
+# build/target.cmake -- see above.
 option(ESCARGOT_LIBICU_SUPPORT_VENDORED "Build/ship Escargot's own ICU instead of relying on a system-provided one" ${ESCARGOT_LIBICU_SUPPORT_VENDORED})
 
 IF (ESCARGOT_LIBICU_SUPPORT_VENDORED AND ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
     # Vendored ICU is linked directly into the binary -- there's nothing to dlopen().
     MESSAGE (STATUS "ESCARGOT_LIBICU_SUPPORT_VENDORED forces ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF")
     SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
+ENDIF()
+
+# ESCARGOT_HOST=ios only supports ICU via ESCARGOT_LIBICU_SUPPORT_VENDORED --
+# there is no system ICU and no dlopen()-able ICU on iOS at all. Enforced
+# here (rather than in build/target.cmake's ios branch) because
+# ESCARGOT_LIBICU_SUPPORT/ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN aren't fully
+# resolved to their final ON/OFF value until the option() calls above have
+# run -- build/target.cmake is INCLUDEd earlier (see "FLAGS FOR TARGET"
+# above) and can't see either variable's final default yet.
+IF (ESCARGOT_HOST STREQUAL "ios" AND ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+    MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios does not support ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN (dlopen-loaded ICU / any system ICU is unavailable on iOS) -- use ESCARGOT_LIBICU_SUPPORT_VENDORED=ON (the default) or -DESCARGOT_LIBICU_SUPPORT=OFF")
+ENDIF()
+IF (ESCARGOT_HOST STREQUAL "ios" AND ESCARGOT_LIBICU_SUPPORT AND NOT ESCARGOT_LIBICU_SUPPORT_VENDORED)
+    MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios only supports ICU via ESCARGOT_LIBICU_SUPPORT_VENDORED=ON (the default) -- there is no system/pkg-config ICU on iOS. Pass -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON or disable ICU entirely with -DESCARGOT_LIBICU_SUPPORT=OFF")
 ENDIF()
 
 #######################################################

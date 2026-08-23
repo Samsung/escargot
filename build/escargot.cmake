@@ -335,6 +335,12 @@ TARGET_COMPILE_OPTIONS (${ESCARGOT_TARGET} PRIVATE ${ESCARGOT_CONFIG_CXXFLAGS} $
 # 2. Build the Escargot shell if enabled
 IF(ESCARGOT_ENABLE_SHELL)
     ADD_EXECUTABLE (escargot_shell ${ESCARGOT_ROOT}/src/shell/Shell.cpp)
+    # CMake defaults executables to a .app bundle on iOS/tvOS/watchOS (the
+    # escargot_shell binary itself ends up at out/.../escargot.app/escargot
+    # instead of out/.../escargot otherwise) -- this is a plain CLI tool run
+    # via `xcrun simctl spawn`, not an app users launch from a home screen,
+    # so keep it a bare executable at the plain path CI/tooling expect.
+    SET_TARGET_PROPERTIES(escargot_shell PROPERTIES MACOSX_BUNDLE OFF)
     # Avoid output name clash with Android library directory 'escargot'
     IF (NOT ESCARGOT_HOST STREQUAL "android")
         SET_TARGET_PROPERTIES(escargot_shell PROPERTIES OUTPUT_NAME ${ESCARGOT_TARGET})
