@@ -39,28 +39,35 @@ jobs:
         action: actions/checkout@v5
         attempt_limit: 3
         attempt_delay: 10000
-    # Only the submodules this job's build (GCutil, Walrus for -DESCARGOT_WASM=ON)
-    # and test runs (new-es -> vendortest, octane) actually touch.
+    # Only the submodules this job's build (GCutil, Walrus for -DESCARGOT_WASM=ON,
+    # icu for the now-default-ON vendored/statically-linked ICU -- see
+    # build/VendoredICU.cmake) and test runs (new-es -> vendortest, octane)
+    # actually touch.
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init --recursive -- third_party/GCutil third_party/walrus test/vendortest test/octane && break
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
     - name: Install Packages
       run: |
         brew update
-        brew install ninja icu4c
+        brew install ninja
+        # ICU is vendored by default on macOS now (built from the
+        # third_party/icu submodule above and linked statically -- see
+        # build/VendoredICU.cmake), so no brew icu4c/pkg-config wiring is
+        # needed for the default path. To opt back into the old
+        # Homebrew/system ICU instead: `brew install icu4c`, export
+        # PKG_CONFIG_PATH as below, and pass
+        # -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF to cmake.
+        #   export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
         # check cpu
         sysctl -a | grep machdep.cpu
-        # add icu path to pkg_config_path
-        export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
-        echo $PKG_CONFIG_PATH
         cmake -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
@@ -68,6 +75,13 @@ jobs:
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
+    - name: Verify ICU is statically linked (no libicu*.dylib pulled in)
+      run: |
+        if otool -L out/release/escargot | grep -qi icu; then
+          echo "escargot binary still depends on a shared libicu -- static link didn't take:" >&2
+          otool -L out/release/escargot >&2
+          exit 1
+        fi
 
   build-on-macos-arm64:
     runs-on: macos-latest
@@ -81,23 +95,25 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init --recursive -- third_party/GCutil third_party/walrus test/vendortest test/octane && break
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
     - name: Install Packages
       run: |
         brew update
-        brew install ninja icu4c
+        brew install ninja
+        # See build-on-macos's identical comment: ICU is vendored (built
+        # from third_party/icu, linked statically) by default on macOS now,
+        # so brew icu4c/PKG_CONFIG_PATH is only needed to opt back into the
+        # old system-ICU path via -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF.
+        #   export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
     - name: Build arm64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
         # check cpu
         sysctl -a | grep machdep.cpu
-        # add icu path to pkg_config_path
-        export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
-        echo $PKG_CONFIG_PATH
         cmake -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
@@ -105,6 +121,13 @@ jobs:
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
+    - name: Verify ICU is statically linked (no libicu*.dylib pulled in)
+      run: |
+        if otool -L out/release/escargot | grep -qi icu; then
+          echo "escargot binary still depends on a shared libicu -- static link didn't take:" >&2
+          otool -L out/release/escargot >&2
+          exit 1
+        fi
 
   # -DESCARGOT_TEST_ABI=<cpu-abi>,<device-abi> (build/android/escargot/
   # build.gradle) restricts each matrix leg's native build to its own tested
@@ -576,10 +599,26 @@ jobs:
       with:
         version: 19.1.7
         platform: ${{ matrix.arch.cpu }}
-    - name: Build ${{ matrix.arch.cpu }} Release
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
+    # build/config.cmake) -- see build-on-windows-x86-x64's identical vcpkg
+    # step for why (ICU's Windows build only ships DLLs, no static .lib).
+    - name: Setup vcpkg ICU
+      shell: cmd
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
+        git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
+        call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=${{ matrix.arch.cpu }}-windows
+    - name: Build ${{ matrix.arch.cpu }} Release
+      shell: cmd
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch.cpu }}-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
         CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch.cpu }}-windows\bin\%%f" out\ >nul
+        rem escargot.exe only depends on icuuc/icuin directly -- icuuc.dll itself
+        rem depends on icudt (the data DLL), which the pass above misses since it
+        rem only inspects escargot.exe's own import table. Re-scan the icu*.dll
+        rem files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch.cpu }}-windows\bin\%%f" out\ >nul
     - name: Run octane
       run: |
         copy test\octane\*.js
@@ -676,11 +715,29 @@ jobs:
       with:
         arch: ${{ matrix.arch }}
         sdk: "10.0.26100.0"
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
+    # build/config.cmake) -- ICU's own Windows build only ships DLLs (no
+    # static .lib), so build/VendoredICU.cmake looks up a vcpkg-installed
+    # ICU via -DICU_ROOT instead of the OS-provided icu.lib used before.
+    # Pinned vcpkg tag for reproducibility, same spirit as the release-78.1
+    # pin used for the linux ICU builds elsewhere in this file.
+    - name: Setup vcpkg ICU
+      shell: cmd
+      run: |
+        git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
+        call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=${{ matrix.arch }}-windows
     - name: Build ${{ matrix.arch }} Release (Ninja)
       if: matrix.generator == 'Ninja'
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe out\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
+        rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
+        rem itself depends on icudt (the data DLL), which the pass above misses
+        rem since it only inspects escargot's own import table. Re-scan the
+        rem icu*.dll files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
       shell: cmd
     # VS generator is multi-config -- arch is fixed at configure time via
     # CMAKE_GENERATOR_PLATFORM (there's no single-config "MSBuild"
@@ -690,8 +747,14 @@ jobs:
     - name: Build ${{ matrix.arch }} Release (MSBuild)
       if: matrix.generator != 'Ninja'
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
         CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\escargot.exe out\Release\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\Release\ >nul
+        rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
+        rem itself depends on icudt (the data DLL), which the pass above misses
+        rem since it only inspects escargot's own import table. Re-scan the
+        rem icu*.dll files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\Release\ >nul
       shell: cmd
     # walrus.dll: -DESCARGOT_WASM=ON below unconditionally builds Walrus
     # (the WASM engine) as WALRUS_OUTPUT="shared_lib" regardless of
@@ -716,6 +779,7 @@ jobs:
           out/escargot.exe
           out/escargot.dll
           out/walrus.dll
+          out/icu*.dll
     # arm64 leg only -- wasm is OFF there (see the matrix comment above), so
     # walrus.dll never gets built and escargot.exe has no runtime dependency
     # on it either.
@@ -727,6 +791,7 @@ jobs:
         path: |
           out/escargot.exe
           out/escargot.dll
+          out/icu*.dll
     - name: Upload build artifact (MSBuild)
       if: matrix.generator != 'Ninja'
       uses: actions/upload-artifact@v6
@@ -736,6 +801,7 @@ jobs:
           out/Release/escargot.exe
           out/Release/escargot.dll
           out/Release/walrus.dll
+          out/Release/icu*.dll
     # windows-11-arm doesn't ship the msys64/bash.exe this action shells
     # out to install tmate through (ENOENT) -- windows-2022 does, so keep
     # the debug shell for the x86/x64 legs and just skip it on arm64.
@@ -1016,6 +1082,60 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
+  # Prototype for ESCARGOT_LIBICU_SUPPORT_VENDORED (build/VendoredICU.cmake):
+  # builds ICU from the vendored third_party/icu submodule (pinned to tag
+  # release-78.1, filtered per build/icu-filters/escargot.json) and links it
+  # statically instead of relying on a system ICU. Kept separate from the
+  # release-78.1-from-source Linux legs elsewhere in this file -- this
+  # validates the new mechanism, it doesn't replace them. Linux prototype for
+  # eventually reusing the same mechanism on targets with no usable system
+  # ICU (e.g. iOS). Scoped to test262-strict's intl402/Date/Temporal subset
+  # (see the "Run test262" step below for why) instead of the full suite.
+  build-test-on-vendored-icu-linux:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil third_party/icu test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build build-essential pkg-config
+    - name: Build (vendored, statically-linked ICU)
+      env:
+        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja
+      run: |
+        cmake -H. -Bout/vendored-icu $BUILD_OPTIONS
+        ninja -Cout/vendored-icu
+    - name: Verify ICU is statically linked (no libicu*.so pulled in)
+      run: |
+        if ldd out/vendored-icu/escargot | grep -qi libicu; then
+          echo "escargot binary still depends on a shared libicu -- static link didn't take:" >&2
+          ldd out/vendored-icu/escargot >&2
+          exit 1
+        fi
+    # Scoped to the ICU-touching corners of test262 (strict mode only) rather
+    # than the full suite: every other CI leg in this file already runs full
+    # test262 against a non-vendored build, so this job's job is validating
+    # the ICU integration itself, not re-covering the whole language again.
+    - name: Run test262 (intl402/Date/Temporal, strict only)
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: |
+        python3 tools/run-tests.py --engine="$GITHUB_WORKSPACE/out/vendored-icu/escargot" test262-strict --test262-extra-arg="intl402 built-ins/Date built-ins/Temporal"
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15

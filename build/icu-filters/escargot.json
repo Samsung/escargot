@@ -1,0 +1,14 @@
+{
+    "_comment": [
+        "ICU data filter for ESCARGOT_LIBICU_SUPPORT_VENDORED (see build/VendoredICU.cmake).",
+        "Consumed via the ICU_DATA_FILTER_FILE env var during the vendored third_party/icu",
+        "build. No feature exclusions right now: an earlier pass excluded 'coll'/'coll_tree'",
+        "on the assumption Intl.Collator wasn't implemented -- it is, and excluding them",
+        "broke 13 intl402 Collator/getCollations tests (caught by the vendored-icu CI job's",
+        "test262 run). 'Escargot doesn't call this today' isn't a safe reason to drop a data",
+        "tree on its own -- it may still be needed once a feature gets implemented later, or",
+        "reachable through a path this pass didn't trace. Only exclude something here once",
+        "it's verified (via test262, not assumption) that dropping it is actually safe."
+    ],
+    "featureFilters": {}
+}

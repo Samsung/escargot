@@ -53,6 +53,40 @@ SET (ESCARGOT_ROOT ${PROJECT_SOURCE_DIR})
 SET (ESCARGOT_THIRD_PARTY_ROOT ${ESCARGOT_ROOT}/third_party)
 SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 
+# Resolved early (before build/target.cmake, which needs the final value to
+# decide whether to still link the OS-provided ICU -- see its windows
+# branch) rather than down in the main ICU block below, where the rest of
+# ESCARGOT_LIBICU_SUPPORT_VENDORED's wiring (option() declaration, forcing
+# WITH_DLOPEN off, including build/VendoredICU.cmake) still happens.
+# Escargot ships/builds its own ICU on windows and macOS by default now
+# (windows: vcpkg-sourced DLLs placed next to the binary; macOS: the
+# third_party/icu submodule built+linked statically, same as linux's opt-in
+# path -- see build/VendoredICU.cmake and the vendored-icu CI jobs) since
+# that's more portable than relying on whatever ICU happens to be present on
+# the target install; linux stays opt-in (ESCARGOT_LIBICU_SUPPORT_VENDORED=ON
+# builds+statically links the third_party/icu submodule instead).
+#
+# ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT records whether the value above
+# was just defaulted here vs. explicitly requested by the caller (-D on the
+# command line) -- build/VendoredICU.cmake's windows branch uses this to
+# decide whether a missing vcpkg ICU is a soft fallback (defaulted -- most
+# likely a first-time Windows dev who hasn't set up vcpkg yet, so fall back
+# to ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN with a warning instead of failing
+# the configure) or a hard error (explicitly requested -- honor it).
+IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_VENDORED)
+    SET (ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT ON)
+    IF (ESCARGOT_HOST STREQUAL "windows" OR ESCARGOT_HOST STREQUAL "darwin")
+        SET (ESCARGOT_LIBICU_SUPPORT_VENDORED ON)
+    ELSE()
+        SET (ESCARGOT_LIBICU_SUPPORT_VENDORED OFF)
+    ENDIF()
+ELSE()
+    SET (ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT OFF)
+ENDIF()
+IF (ESCARGOT_LIBICU_SUPPORT_VENDORED AND NOT ESCARGOT_HOST STREQUAL "linux" AND NOT ESCARGOT_HOST STREQUAL "windows" AND NOT ESCARGOT_HOST STREQUAL "darwin")
+    MESSAGE (FATAL_ERROR "ESCARGOT_LIBICU_SUPPORT_VENDORED is only supported on ESCARGOT_HOST=linux, windows or darwin for now")
+ENDIF()
+
 #######################################################
 # FLAGS FOR TARGET
 #######################################################
@@ -124,6 +158,22 @@ IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
 ENDIF()
 option(ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN "Load libicu at runtime via dlopen() instead of linking directly" ${ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN})
 
+# Builds Escargot's own ICU instead of relying on a system/dev-package ICU --
+# on linux and macOS, from the vendored third_party/icu submodule (filtered
+# down to just the data/services Escargot's own ICU call surface uses -- see
+# third_party/runtime_icu_binder/RuntimeICUBinder.h), linked statically; on
+# windows, via vcpkg-sourced ICU DLLs placed next to the binary (see
+# build/VendoredICU.cmake and the vendored-icu CI jobs for all three).
+# Default and host guard are resolved earlier, before build/target.cmake --
+# see above.
+option(ESCARGOT_LIBICU_SUPPORT_VENDORED "Build/ship Escargot's own ICU instead of relying on a system-provided one" ${ESCARGOT_LIBICU_SUPPORT_VENDORED})
+
+IF (ESCARGOT_LIBICU_SUPPORT_VENDORED AND ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+    # Vendored ICU is linked directly into the binary -- there's nothing to dlopen().
+    MESSAGE (STATUS "ESCARGOT_LIBICU_SUPPORT_VENDORED forces ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF")
+    SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
+ENDIF()
+
 #######################################################
 # FLAGS FOR ADDITIONAL FUNCTION
 #######################################################
@@ -136,7 +186,24 @@ IF (ESCARGOT_LIBICU_SUPPORT)
         SET (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     ENDIF()
 
-    IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+    IF (ESCARGOT_LIBICU_SUPPORT_VENDORED)
+        INCLUDE (${ESCARGOT_ROOT}/build/VendoredICU.cmake)
+    ENDIF()
+
+    # Re-evaluated (not just an ELSEIF/ELSE off the IF above) because the
+    # windows branch of build/VendoredICU.cmake, when
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED_IS_DEFAULT, may itself have just
+    # flipped ESCARGOT_LIBICU_SUPPORT_VENDORED to OFF and
+    # ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN to ON (missing vcpkg ICU fallback)
+    # -- this needs to see that updated value, not the pre-INCLUDE one.
+    IF (ESCARGOT_LIBICU_SUPPORT_VENDORED)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_ICU -DENABLE_INTL -DENABLE_ICU_VENDORED)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_DISPLAYNAMES -DENABLE_INTL_NUMBERFORMAT -DENABLE_INTL_PLURALRULES)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_RELATIVETIMEFORMAT -DENABLE_INTL_LISTFORMAT -DENABLE_INTL_DURATIONFORMAT)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_SEGMENTER)
+        SET (ESCARGOT_INCDIRS ${ESCARGOT_INCDIRS} ${VENDORED_ICU_INCLUDE_DIRS})
+        SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} ${VENDORED_ICU_LIBRARIES})
+    ELSEIF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_ICU -DENABLE_INTL -DENABLE_RUNTIME_ICU_BINDER)
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_DISPLAYNAMES -DENABLE_INTL_NUMBERFORMAT -DENABLE_INTL_PLURALRULES)
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_RELATIVETIMEFORMAT -DENABLE_INTL_LISTFORMAT -DENABLE_INTL_DURATIONFORMAT)

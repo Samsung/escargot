@@ -236,15 +236,32 @@ jobs:
         if (-Not (Get-Command zip -ErrorAction SilentlyContinue)) {
           choco install zip -y
         }
-    - name: Build ${{ matrix.arch }}
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
+    # build/config.cmake) -- see es-actions.yml's build-on-windows-x86-x64
+    # for why (ICU's Windows build only ships DLLs, no static .lib). The
+    # release zip below now carries those DLLs alongside escargot.exe.
+    - name: Setup vcpkg ICU
+      shell: cmd
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
+        call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=${{ matrix.arch }}-windows
+    - name: Build ${{ matrix.arch }}
+      shell: cmd
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows" -Bout/ -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
+        rem escargot.exe only depends on icuuc/icuin directly -- icuuc.dll itself
+        rem depends on icudt (the data DLL), which the pass above misses since it
+        rem only inspects escargot.exe's own import table. Re-scan the icu*.dll
+        rem files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
     - name: Check
       run: |
         python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
         rename out\escargot.exe escargot-win-${{ matrix.arch }}.exe
-        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe
+        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe out\icu*.dll
       shell: cmd
     - name: Upload
       uses: actions/upload-artifact@v6
