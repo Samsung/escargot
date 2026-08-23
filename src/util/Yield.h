@@ -21,9 +21,15 @@
 #define __EscargotYield__
 
 #if defined(COMPILER_MSVC)
+#if defined(CPU_ARM64) || defined(CPU_ARM32)
+extern "C" void __yield();
+#pragma intrinsic(__yield)
+#define YIELD_PROCESSOR __yield()
+#else
 extern "C" void _mm_pause();
 #pragma intrinsic(_mm_pause)
 #define YIELD_PROCESSOR _mm_pause()
+#endif
 #else
 #if defined(CPU_X86)
 #define YIELD_PROCESSOR __asm__ __volatile__("pause")

@@ -85,6 +85,10 @@
 
 #include <time.h>
 
+#if defined(OS_WINDOWS)
+#include <windows.h>
+#endif
+
 namespace Escargot {
 
 #define RESOLVECACHE(state)  \
@@ -178,7 +182,6 @@ DateObject::DateObject(ExecutionState& state, Object* proto)
 
 #if defined(OS_WINDOWS)
 #define CLOCK_REALTIME 0
-#include <windows.h>
 struct timespec {
     long tv_sec;
     long tv_nsec;
