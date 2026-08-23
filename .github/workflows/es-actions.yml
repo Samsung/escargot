@@ -226,39 +226,129 @@ jobs:
   # while still compile-verifying armeabi-v7a/arm64-v8a (never installable on
   # a hosted emulator, see the comment below) as their own signal instead of
   # only ever building them incidentally.
-  build-test-on-android:
-    # Real arm64 ABI is not achievable on any GitHub-hosted runner right now:
-    # hosted arm64 Linux exposes no /dev/kvm at all, and Apple Silicon hosted
-    # macOS fails "HVF error: HV_UNSUPPORTED" even after ad-hoc codesigning
-    # the qemu binary with the com.apple.security.hypervisor entitlement
-    # (confirmed by actually running it -- codesign applied cleanly, HVF
-    # init still failed) -- an infra-level nested-virt restriction on that
-    # runner class, not an entitlement/signing problem. See
-    # https://github.com/ReactiveCircus/android-emulator-runner/issues/350
-    # and https://github.com/actions/runner-images/issues/9472 (both
-    # unresolved upstream, no known fix). Back to x86/x86_64 on
-    # ubuntu-latest, a known-working KVM-accelerated fast stand-in for real
-    # (arm) devices -- don't retry the macOS route without a fix landing in
-    # one of those two upstream issues first.
-    #
-    # The x86_64 leg additionally builds the real arm64-v8a `escargot-shell`
-    # (releaseShell buildType) and extracts a real bionic runtime for
-    # android-baremetal-test below (used to be a standalone `build-android`
-    # job). Folded in here because it duplicated this job's
-    # checkout/submodule/JDK/Gradle-setup overhead for no reason -- both used
-    # the same ubuntu-latest x86_64 host and the same Gradle/NDK toolchain,
-    # so running them as one job removes a whole extra job's worth of fixed
-    # setup cost.
+  # Build-only: produces the arm64-v8a escargot-shell + bionic runtime
+  # artifact that android-baremetal-test/android-baremetal-test262 below
+  # need. Split from the instrumented-emulator-test job below (formerly one
+  # combined build-test-on-android job) because those two baremetal jobs'
+  # `needs:` on a single job waits for that job's *entire* run, including
+  # its instrumented test -- which doesn't produce anything they consume,
+  # but still blocked them for its full duration (and, per run
+  # 32637552511's job 97189470943, sometimes far longer than that: the
+  # emulator test hung on a cached AVD snapshot for 38+ minutes -- see
+  # test-on-android's comment for why that cache is gone).
+  build-on-android:
+    # escargot-shell was built with the Android NDK and is linked against
+    # bionic (libc.so/libm.so/libdl.so/liblog.so + ICU), not glibc. The
+    # android-baremetal-test job runs it on a plain ubuntu-24.04-arm host (no
+    # Android emulator, no /dev/kvm available there at all), so we pull the
+    # *real* bionic runtime out of an official Android system image here and
+    # ship it alongside escargot-shell. That job then installs it at the
+    # exact absolute paths (/system/bin/linker64, /system/lib64/*.so) that
+    # the NDK toolchain already bakes into escargot-shell's ELF headers
+    # (PT_INTERP / DT_NEEDED search path), so the kernel loads and runs it
+    # directly -- no patchelf/LD_PRELOAD tricks and no fake/stub libraries.
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: x86
-            device_abi: armeabi-v7a
-            api: 28
-          - arch: x86_64
-            device_abi: arm64-v8a
-            api: 28
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # This job builds via the Android CMakeLists (GCutil only).
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Set up JDK
+      uses: actions/setup-java@v4.1.0
+      with:
+        distribution: "zulu"
+        java-version: 17
+    - name: Gradle cache
+      uses: gradle/actions/setup-gradle@v3
+    - name: Build Android arm64-v8a shell binary (Gradle)
+      working-directory: ./build/android
+      run: |
+        ./gradlew :escargot:assembleReleaseShell -DESCARGOT_TEST=ON -Dhttp.socketTimeout=60000 -Dhttp.connectionTimeout=60000 -DESCARGOT_TEST_ABI=arm64-v8a
+
+    # NDK sysroot .so files are NOT usable here: since NDK r23 they are
+    # link-time-only stubs with no real implementation.
+    #
+    # android-28 (matching this project's minSdk) is used deliberately: it's
+    # the last API level where ICU still ships as plain
+    # /system/lib64/libicuuc.so + libicui18n.so, before it was moved into the
+    # Mainline com.android.i18n APEX (API 29+, which would need extra
+    # APEX-image unpacking), and the last generation before /system was
+    # wrapped in a "super" dynamic-partitions container (API 29+, which would
+    # need lpunpack). Verified locally against an android-27 image (same
+    # pre-dynamic-partitions generation as android-28): the image is a raw
+    # GPT disk with a single ext4 partition whose ROOT already IS /system
+    # (files live at <partition>/bin/..., <partition>/lib64/..., not
+    # <partition>/system/bin/...).
+    - name: Checkout modern Android 36 (ICU 76) Bionic Runtime
+      uses: actions/checkout@v4
+      with:
+        ref: misc/ci-data/android-36-icu
+        path: ./bionic-runtime
+
+    - name: Clean git metadata from bionic runtime
+      run: |
+        rm -rf ./bionic-runtime/.git
+        chmod +x ./bionic-runtime/linker64
+
+    - name: Prepare Android arm64-v8a Artifacts for Upload
+      run: |
+        mkdir -p ./build_artifacts
+        BUILD_ID=$(ls ./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/)
+        BUILD_PATH="./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/${BUILD_ID}/obj/arm64-v8a"
+        cp ${BUILD_PATH}/escargot-shell ./build_artifacts/
+        cp -r ./bionic-runtime ./build_artifacts/bionic-runtime
+    - name: Upload Android arm64-v8a Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-arm64-binaries
+        path: ./build_artifacts/
+
+  # Instrumented emulator test -- independent of build-on-android above (no
+  # needs: either way, nothing here consumes that job's artifact and nothing
+  # downstream consumes this job's output).
+  #
+  # Real arm64 ABI is not achievable on any GitHub-hosted runner right now:
+  # hosted arm64 Linux exposes no /dev/kvm at all, and Apple Silicon hosted
+  # macOS fails "HVF error: HV_UNSUPPORTED" even after ad-hoc codesigning
+  # the qemu binary with the com.apple.security.hypervisor entitlement
+  # (confirmed by actually running it -- codesign applied cleanly, HVF
+  # init still failed) -- an infra-level nested-virt restriction on that
+  # runner class, not an entitlement/signing problem. See
+  # https://github.com/ReactiveCircus/android-emulator-runner/issues/350
+  # and https://github.com/actions/runner-images/issues/9472 (both
+  # unresolved upstream, no known fix). Back to x86/x86_64 on
+  # ubuntu-latest, a known-working KVM-accelerated fast stand-in for real
+  # (arm) devices -- don't retry the macOS route without a fix landing in
+  # one of those two upstream issues first.
+  #
+  # Previously two matrix legs (a whole separate x86 emulator boot + an
+  # x86_64 one). Collapsed to a single x86_64 boot running two sequential
+  # connectedDebugAndroidTest passes instead: an x86_64-capable AVD can run
+  # x86 guest code too (x86_64 Android system images ship x86 as a secondary
+  # ABI), and since -DESCARGOT_TEST_ABI restricts each pass's test APK to
+  # exactly one guest ABI (plus its paired real-device ABI for
+  # compile-only verification, unchanged from before), there's never a
+  # "device prefers its native ABI" ambiguity to worry about -- each pass's
+  # APK simply doesn't contain the other ABI's .so at all. uninstallAll
+  # between passes so the second install isn't left fighting the first
+  # pass's still-installed (and now ABI-mismatched) APK.
+  #
+  # AVD-snapshot caching (cache ~/.android/avd + boot once to prime a
+  # snapshot) was tried here and reverted: it hung for 38+ minutes on a
+  # cache hit in practice (run 32637552511, job 97189470943) versus this
+  # job's normal ~5-10 minute total run -- not a marginal flakiness cost,
+  # an outright broken state. Every boot below is a plain cold boot.
+  test-on-android:
+    runs-on: ubuntu-latest
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
@@ -287,114 +377,29 @@ jobs:
         java-version: 17
     - name: Gradle cache
       uses: gradle/actions/setup-gradle@v3
-
-    # ---- arm64-v8a escargot-shell + bionic runtime (x86_64 leg only) ----
-    # escargot-shell was built with the Android NDK and is linked against
-    # bionic (libc.so/libm.so/libdl.so/liblog.so + ICU), not glibc. The
-    # android-baremetal-test job runs it on a plain ubuntu-24.04-arm host (no
-    # Android emulator, no /dev/kvm available there at all), so we pull the
-    # *real* bionic runtime out of an official Android system image here and
-    # ship it alongside escargot-shell. That job then installs it at the
-    # exact absolute paths (/system/bin/linker64, /system/lib64/*.so) that
-    # the NDK toolchain already bakes into escargot-shell's ELF headers
-    # (PT_INTERP / DT_NEEDED search path), so the kernel loads and runs it
-    # directly -- no patchelf/LD_PRELOAD tricks and no fake/stub libraries.
-    #
-    # Only done once, on the x86_64 leg (which already targets the matching
-    # arm64-v8a device_abi) -- doing it on the x86 leg too would just rebuild
-    # and re-upload the identical arm64-v8a binaries a second time.
-    - name: Build Android arm64-v8a shell binary (Gradle)
-      if: matrix.arch == 'x86_64'
-      working-directory: ./build/android
-      run: |
-        ./gradlew :escargot:assembleReleaseShell -DESCARGOT_TEST=ON -Dhttp.socketTimeout=60000 -Dhttp.connectionTimeout=60000 -DESCARGOT_TEST_ABI=arm64-v8a
-
-    # NDK sysroot .so files are NOT usable here: since NDK r23 they are
-    # link-time-only stubs with no real implementation.
-    #
-    # android-28 (matching this project's minSdk) is used deliberately: it's
-    # the last API level where ICU still ships as plain
-    # /system/lib64/libicuuc.so + libicui18n.so, before it was moved into the
-    # Mainline com.android.i18n APEX (API 29+, which would need extra
-    # APEX-image unpacking), and the last generation before /system was
-    # wrapped in a "super" dynamic-partitions container (API 29+, which would
-    # need lpunpack). Verified locally against an android-27 image (same
-    # pre-dynamic-partitions generation as android-28): the image is a raw
-    # GPT disk with a single ext4 partition whose ROOT already IS /system
-    # (files live at <partition>/bin/..., <partition>/lib64/..., not
-    # <partition>/system/bin/...).
-    - name: Checkout modern Android 36 (ICU 76) Bionic Runtime
-      if: matrix.arch == 'x86_64'
-      uses: actions/checkout@v4
-      with:
-        ref: misc/ci-data/android-36-icu
-        path: ./bionic-runtime
-
-    - name: Clean git metadata from bionic runtime
-      if: matrix.arch == 'x86_64'
-      run: |
-        rm -rf ./bionic-runtime/.git
-        chmod +x ./bionic-runtime/linker64
-
-    - name: Prepare Android arm64-v8a Artifacts for Upload
-      if: matrix.arch == 'x86_64'
-      run: |
-        mkdir -p ./build_artifacts
-        BUILD_ID=$(ls ./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/)
-        BUILD_PATH="./build/android/escargot/build/intermediates/cxx/RelWithDebInfo/${BUILD_ID}/obj/arm64-v8a"
-        cp ${BUILD_PATH}/escargot-shell ./build_artifacts/
-        cp -r ./bionic-runtime ./build_artifacts/bionic-runtime
-    - name: Upload Android arm64-v8a Binaries
-      if: matrix.arch == 'x86_64'
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-arm64-binaries
-        path: ./build_artifacts/
-
-    # Documented caching pattern from reactivecircus/android-emulator-runner's
-    # own README: cache the AVD (keyed on api-level + arch, since those pick
-    # the emulator system image), and on a cache miss, boot the emulator once
-    # just to let it write a boot snapshot into that same AVD dir *without*
-    # -no-snapshot-save. The real test run below always passes
-    # -no-snapshot-save so it never mutates/invalidates the cached snapshot
-    # with test-run side effects -- only this warm-up step, gated on a cache
-    # miss, ever writes one.
-    - name: AVD cache
-      id: avd-cache
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.android/avd/*
-          ~/.android/adb*
-        key: avd-android-${{ matrix.api }}-${{ matrix.arch }}
-    - name: Create AVD snapshot for caching
-      if: steps.avd-cache.outputs.cache-hit != 'true'
+    - name: Create AVD and run tests (x86 then x86_64, one boot)
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: ${{ matrix.api }}
-        arch: ${{ matrix.arch }}
-        force-avd-creation: false
-        emulator-options: -no-window -gpu swiftshader_indirect -camera-back none -gpu swiftshader_indirect -noaudio -no-boot-anim
-        disable-animations: false
-        script: echo "Generated AVD snapshot for caching."
-    - name: Create AVD and run tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: ${{ matrix.api }}
-        arch: ${{ matrix.arch }}
+        api-level: 28
+        arch: x86_64
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -camera-back none -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim
         disable-animations: true
-        script: cd build/android/;./gradlew connectedDebugAndroidTest -DESCARGOT_TEST_ABI=${{ matrix.arch }},${{ matrix.device_abi }}
+        # Each line of a multiline `script:` here runs as its own separate
+        # `sh -c` invocation (confirmed by an actual CI failure: `cd
+        # build/android/` on one line did not carry over to `./gradlew` on
+        # the next, "./gradlew: not found") -- unlike a normal shell script,
+        # so this has to be one logical line chained with && instead.
+        script: cd build/android/ && ./gradlew connectedDebugAndroidTest -DESCARGOT_TEST_ABI=x86,armeabi-v7a && ./gradlew :escargot:uninstallAll && ./gradlew connectedDebugAndroidTest -DESCARGOT_TEST_ABI=x86_64,arm64-v8a
 
-  # Kept directly after build-test-on-android (its only dependency) so all
+  # Kept directly after build-on-android (its only dependency) so all
   # Android CI jobs live together instead of being scattered across this
   # file. Split into two jobs (vendor suites vs. test262) so they run in
   # parallel instead of test262 alone (~81k tests) serializing after the
   # other five, much smaller, suites -- that dominated this job's total
   # wall-clock time.
   android-baremetal-test:
-    needs: build-test-on-android
+    needs: build-on-android
     runs-on: ubuntu-24.04-arm
     env:
       ANDROID_TZDATA_ROOT: /apex/com.android.tzdata
@@ -449,8 +454,8 @@ jobs:
 
       # The real bionic runtime (linker64 + libc/libm/libdl/liblog/libc++/ICU) was
       # already extracted from an official Android system image in the
-      # build-test-on-android job's x86_64 leg (see its "Provision real
-      # Android bionic runtime" step for why) and shipped inside this same
+      # build-on-android job (see its "Checkout modern Android 36 (ICU 76)
+      # Bionic Runtime" step for why) and shipped inside this same
       # artifact. Install it at the exact absolute paths
       # (/system/bin/linker64, /system/lib64/*.so) that the NDK toolchain
       # already bakes into escargot-shell's ELF headers (PT_INTERP /
@@ -528,7 +533,7 @@ jobs:
   # dominant-cost suite doesn't serialize after the other five.
   android-baremetal-test262:
     if: github.repository == 'Samsung/escargot'
-    needs: build-test-on-android
+    needs: build-on-android
     runs-on: [self-hosted, linux, arm64, test]
     env:
       ANDROID_TZDATA_ROOT: /apex/com.android.tzdata
