@@ -612,12 +612,14 @@ jobs:
   # the first place to look. Also newly covers x64 DLL linking, which nothing
   # tested before.
   build-on-windows-x86-x64:
-    runs-on: windows-2022
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - arch: x86
             generator: Ninja
+            os: windows-2022
+            wasm: "ON"
           # Exercises the VS solution + msbuild config path documented in
           # README.md (cmake -G "Visual Studio 17 2022" / msbuild
           # ESCARGOT.sln) that the Ninja leg above never touches --
@@ -626,6 +628,24 @@ jobs:
           # up on this leg.
           - arch: x64
             generator: "Visual Studio 17 2022"
+            os: windows-2022
+            wasm: "ON"
+          # windows-11-arm is a native arm64 host (GitHub-hosted, free for
+          # public repos), so this leg builds natively -- no cross-compiler
+          # arch juggling like the Linux/macOS arm64 legs need. Ninja (not
+          # the VS generator) to keep it on the same single-config path as
+          # the x86 leg above. wasm is OFF here -- wabt (vendored under
+          # third_party/walrus/third_party/wabt, pulled in by
+          # -DESCARGOT_WASM=ON) hard-errors on MSVC/arm64 with "unexpected
+          # architecture": its Clz/Ctz/Popcount bit-scan shims only have
+          # _M_X64/_M_IX86 branches, no _M_ARM64 one, upstream. No test262
+          # coverage is lost either way -- test262 has zero WebAssembly
+          # cases in this repo (that's the separate wasm-js runner, see
+          # tools/run-tests.py), so nothing needs skipping there.
+          - arch: arm64
+            generator: Ninja
+            os: windows-11-arm
+            wasm: "OFF"
     steps:
     - name: Set git cllf config
       run: |
@@ -659,7 +679,7 @@ jobs:
     - name: Build ${{ matrix.arch }} Release (Ninja)
       if: matrix.generator == 'Ninja'
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
       shell: cmd
     # VS generator is multi-config -- arch is fixed at configure time via
@@ -670,7 +690,7 @@ jobs:
     - name: Build ${{ matrix.arch }} Release (MSBuild)
       if: matrix.generator != 'Ninja'
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
         CMake --build out/ --config Release
       shell: cmd
     # walrus.dll: -DESCARGOT_WASM=ON below unconditionally builds Walrus
@@ -687,8 +707,8 @@ jobs:
     # the artifact root regardless of which subdirectory the generator
     # actually wrote them to -- test262/octane-on-windows below need no
     # generator-specific handling.
-    - name: Upload build artifact (Ninja)
-      if: matrix.generator == 'Ninja'
+    - name: Upload build artifact (Ninja, wasm)
+      if: matrix.generator == 'Ninja' && matrix.wasm == 'ON'
       uses: actions/upload-artifact@v6
       with:
         name: build-artifact-win-${{ matrix.arch }}
@@ -696,6 +716,17 @@ jobs:
           out/escargot.exe
           out/escargot.dll
           out/walrus.dll
+    # arm64 leg only -- wasm is OFF there (see the matrix comment above), so
+    # walrus.dll never gets built and escargot.exe has no runtime dependency
+    # on it either.
+    - name: Upload build artifact (Ninja, no wasm)
+      if: matrix.generator == 'Ninja' && matrix.wasm == 'OFF'
+      uses: actions/upload-artifact@v6
+      with:
+        name: build-artifact-win-${{ matrix.arch }}
+        path: |
+          out/escargot.exe
+          out/escargot.dll
     - name: Upload build artifact (MSBuild)
       if: matrix.generator != 'Ninja'
       uses: actions/upload-artifact@v6
@@ -705,7 +736,10 @@ jobs:
           out/Release/escargot.exe
           out/Release/escargot.dll
           out/Release/walrus.dll
-    - if: ${{ failure() }}
+    # windows-11-arm doesn't ship the msys64/bash.exe this action shells
+    # out to install tmate through (ENOENT) -- windows-2022 does, so keep
+    # the debug shell for the x86/x64 legs and just skip it on arm64.
+    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
@@ -717,11 +751,24 @@ jobs:
   # top of the arch-level x86/x64 parallelism already here.
   test262-on-windows:
     needs: build-on-windows-x86-x64
-    runs-on: windows-2022
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [x86, x64]
+        arch: [x86, x64, arm64]
         mode: [strict, nonstrict]
+        # x86/x64 exe run fine on the x64 windows-2022 host; the arm64
+        # build needs a native arm64 host (windows-2022 can't run arm64
+        # PE binaries -- there's no x64->arm64 emulation direction on
+        # Windows, only arm64->x86/x64). These include entries just tag
+        # an `os` onto each arch value in the cross product above, same
+        # trick as build-on-windows-x86-x64's matrix.
+        include:
+          - arch: x86
+            os: windows-2022
+          - arch: x64
+            os: windows-2022
+          - arch: arm64
+            os: windows-11-arm
     steps:
     - name: Set git cllf config
       run: |
@@ -750,20 +797,14 @@ jobs:
     - name: Download and Install Visual C++ Redistributable
       shell: powershell
       run: |
-        $vcRedistUrl64 = "https://aka.ms/vs/17/release/vc_redist.x64.exe" # Or the appropriate URL for your target architecture/version
-        $vcRedistPath64 = "$env:TEMP\vc_redist.x64.exe"
-        $vcRedistUrl32 = "https://aka.ms/vs/17/release/vc_redist.x86.exe" # Or the appropriate URL for your target architecture/version
-        $vcRedistPath32 = "$env:TEMP\vc_redist.x86.exe"
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.${{ matrix.arch }}.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.${{ matrix.arch }}.exe"
 
-        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl64"
-        Invoke-WebRequest -Uri $vcRedistUrl64 -OutFile $vcRedistPath64
-
-        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl32"
-        Invoke-WebRequest -Uri $vcRedistUrl32 -OutFile $vcRedistPath32
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
 
         Write-Host "Installing Visual C++ Redistributable silently"
-        Start-Process -FilePath $vcRedistPath64 -ArgumentList "/install /quiet /norestart" -Wait
-        Start-Process -FilePath $vcRedistPath32 -ArgumentList "/install /quiet /norestart" -Wait
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
         Write-Host "Visual C++ Redistributable installation complete."
     - name: Download build artifact
       uses: actions/download-artifact@v6
@@ -787,16 +828,27 @@ jobs:
         pip install chardet
         python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
-    - if: ${{ failure() }}
+    # See build-on-windows-x86-x64's identical guard -- tmate's msys64/bash.exe
+    # dependency isn't present on windows-11-arm.
+    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
   octane-on-windows:
     needs: build-on-windows-x86-x64
-    runs-on: windows-2022
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [x86, x64]
+        arch: [x86, x64, arm64]
+        # See test262-on-windows's identical include block for why arm64
+        # needs its own (native) host.
+        include:
+          - arch: x86
+            os: windows-2022
+          - arch: x64
+            os: windows-2022
+          - arch: arm64
+            os: windows-11-arm
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
@@ -815,20 +867,14 @@ jobs:
     - name: Download and Install Visual C++ Redistributable
       shell: powershell
       run: |
-        $vcRedistUrl64 = "https://aka.ms/vs/17/release/vc_redist.x64.exe" # Or the appropriate URL for your target architecture/version
-        $vcRedistPath64 = "$env:TEMP\vc_redist.x64.exe"
-        $vcRedistUrl32 = "https://aka.ms/vs/17/release/vc_redist.x86.exe" # Or the appropriate URL for your target architecture/version
-        $vcRedistPath32 = "$env:TEMP\vc_redist.x86.exe"
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.${{ matrix.arch }}.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.${{ matrix.arch }}.exe"
 
-        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl64"
-        Invoke-WebRequest -Uri $vcRedistUrl64 -OutFile $vcRedistPath64
-
-        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl32"
-        Invoke-WebRequest -Uri $vcRedistUrl32 -OutFile $vcRedistPath32
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
 
         Write-Host "Installing Visual C++ Redistributable silently"
-        Start-Process -FilePath $vcRedistPath64 -ArgumentList "/install /quiet /norestart" -Wait
-        Start-Process -FilePath $vcRedistPath32 -ArgumentList "/install /quiet /norestart" -Wait
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
         Write-Host "Visual C++ Redistributable installation complete."
     - name: Download build artifact
       uses: actions/download-artifact@v6
@@ -840,7 +886,9 @@ jobs:
         copy test\octane\*.js
         dir
         .\out\escargot.exe run.js
-    - if: ${{ failure() }}
+    # See build-on-windows-x86-x64's identical guard -- tmate's msys64/bash.exe
+    # dependency isn't present on windows-11-arm.
+    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
