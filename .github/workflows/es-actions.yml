@@ -704,7 +704,21 @@ jobs:
     # ICU via -DICU_ROOT instead of the OS-provided icu.lib used before.
     # Pinned vcpkg tag for reproducibility, same spirit as the release-78.1
     # pin used for the linux ICU builds elsewhere in this file.
+    #
+    # vcpkg builds ICU from source with no binary cache of its own, which
+    # took 7-15 minutes per arch here (measured on run 32630894309) -- on
+    # windows-11-arm that landed on the critical path together with
+    # test262-on-windows (arm64) and drove the whole workflow's wall time.
+    # Cache the installed tree directly (skip clone+bootstrap+install on a
+    # hit) instead of wiring up vcpkg's own binary-caching machinery.
+    - name: Cache vcpkg ICU
+      id: cache-vcpkg-icu-win
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}\vcpkg\installed
+        key: vcpkg-icu-windows-${{ matrix.arch }}-2026.07.29
     - name: Setup vcpkg ICU
+      if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
       shell: cmd
       run: |
         git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
