@@ -731,8 +731,7 @@ jobs:
     # build/config.cmake) -- ICU's own Windows build only ships DLLs (no
     # static .lib), so build/VendoredICU.cmake looks up a vcpkg-installed
     # ICU via -DICU_ROOT instead of the OS-provided icu.lib used before.
-    # Pinned vcpkg tag for reproducibility, same spirit as the release-78.1
-    # pin used for the linux ICU builds elsewhere in this file.
+    # Pinned vcpkg tag (below) for reproducibility.
     #
     # vcpkg builds ICU from source with no binary cache of its own, which
     # took 7-15 minutes per arch here (measured on run 32630894309) -- on
@@ -740,12 +739,24 @@ jobs:
     # test262-on-windows (arm64) and drove the whole workflow's wall time.
     # Cache the installed tree directly (skip clone+bootstrap+install on a
     # hit) instead of wiring up vcpkg's own binary-caching machinery.
+    #
+    # Cache key uses third_party/icu's pinned submodule commit (not a
+    # literal ICU/vcpkg version string) so every ICU-related cache in this
+    # file -- this vcpkg one included, even though vcpkg itself doesn't
+    # actually consume that submodule -- busts from one single canonical
+    # "ICU version" source instead of several hand-maintained strings that
+    # can drift out of sync. This does mean bumping the vcpkg tag alone
+    # (without also bumping third_party/icu) won't bust this cache -- bump
+    # both together when updating ICU.
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache vcpkg ICU
       id: cache-vcpkg-icu-win
       uses: actions/cache@v5
       with:
         path: ${{ github.workspace }}\vcpkg\installed
-        key: vcpkg-icu-windows-x86-2026.07.29
+        key: vcpkg-icu-windows-x86-${{ env.ICU_VERSION_HASH }}
     - name: Setup vcpkg ICU
       if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
       shell: cmd
@@ -827,12 +838,15 @@ jobs:
     # build/config.cmake) -- see build-on-windows-x86's identical vcpkg step
     # for why (ICU's Windows build only ships DLLs, no static .lib), and
     # why this is cached.
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache vcpkg ICU
       id: cache-vcpkg-icu-win
       uses: actions/cache@v5
       with:
         path: ${{ github.workspace }}\vcpkg\installed
-        key: vcpkg-icu-windows-x64-2026.07.29
+        key: vcpkg-icu-windows-x64-${{ env.ICU_VERSION_HASH }}
     - name: Setup vcpkg ICU
       if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
       shell: cmd
@@ -925,12 +939,15 @@ jobs:
     # why this is cached. This leg's 15-minute uncached ICU build used to sit
     # directly on the workflow's critical path ahead of test262-on-windows
     # (arm64) -- see the cache comment there.
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache vcpkg ICU
       id: cache-vcpkg-icu-win
       uses: actions/cache@v5
       with:
         path: ${{ github.workspace }}\vcpkg\installed
-        key: vcpkg-icu-windows-arm64-2026.07.29
+        key: vcpkg-icu-windows-arm64-${{ env.ICU_VERSION_HASH }}
     - name: Setup vcpkg ICU
       if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
       shell: cmd
@@ -1315,12 +1332,24 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib pkg-config
+    # Cache key is third_party/icu's pinned submodule commit hash, not a
+    # hand-maintained "release-78.1" string -- one canonical "ICU version"
+    # source for every ICU-related cache in this file (see build-on-windows-x86's
+    # identical step for the same rationale on the vcpkg side), so the cache
+    # busts automatically whenever that submodule pin moves instead of also
+    # needing this key updated by hand. This job clones ICU fresh from
+    # upstream rather than building the submodule directly (see "Build ICU"
+    # below), so keep its `-b release-78.1` in sync with wherever
+    # third_party/icu is pinned if that ever changes.
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
       with:
         path: icu32
-        key: icu-linux-m32-release-78.1
+        key: icu-linux-m32-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU
       if: steps.cache-icu-m32.outputs.cache-hit != 'true'
       run: |
@@ -1371,12 +1400,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y gcc-multilib g++-multilib make g++ pkg-config git build-essential libc6-dev
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
       with:
         path: icu32
-        key: icu-linux-m32-release-78.1
+        key: icu-linux-m32-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU
       if: steps.cache-icu-m32.outputs.cache-hit != 'true'
       run: |
@@ -1491,12 +1523,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build g++ pkg-config
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
       uses: actions/cache@v5
       with:
         path: icu64
-        key: icu-linux-x64-release-78.1
+        key: icu-linux-x64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(64)
       if: steps.cache-icu-x64.outputs.cache-hit != 'true'
       run: |
@@ -1553,12 +1588,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y g++ pkg-config git build-essential libc6-dev
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
       uses: actions/cache@v5
       with:
         path: icu64
-        key: icu-linux-x64-release-78.1
+        key: icu-linux-x64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(64)
       if: steps.cache-icu-x64.outputs.cache-hit != 'true'
       run: |
@@ -1608,12 +1646,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
       with:
         path: icu32
-        key: icu-linux-m32-release-78.1
+        key: icu-linux-m32-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(32)
       if: steps.cache-icu-m32.outputs.cache-hit != 'true'
       run: |
@@ -1627,7 +1668,7 @@ jobs:
       uses: actions/cache@v5
       with:
         path: icu64
-        key: icu-linux-x64-release-78.1
+        key: icu-linux-x64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(64)
       if: steps.cache-icu-x64.outputs.cache-hit != 'true'
       run: |
@@ -1753,12 +1794,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib clang
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
       with:
         path: icu32
-        key: icu-linux-m32-release-78.1
+        key: icu-linux-m32-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU
       if: steps.cache-icu-m32.outputs.cache-hit != 'true'
       run: |
@@ -1809,12 +1853,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build clang pkg-config
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
       uses: actions/cache@v5
       with:
         path: icu64
-        key: icu-linux-x64-release-78.1
+        key: icu-linux-x64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(64)
       if: steps.cache-icu-x64.outputs.cache-hit != 'true'
       run: |
@@ -1993,12 +2040,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build pkg-config build-essential gcc-11 g++-11 clang locales
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (arm64)
       id: cache-icu-arm64
       uses: actions/cache@v5
       with:
         path: icuarm64
-        key: icu-linux-arm64-release-78.1
+        key: icu-linux-arm64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(arm64)
       if: steps.cache-icu-arm64.outputs.cache-hit != 'true'
       run: |
@@ -2292,12 +2342,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+    - name: Determine pinned ICU version
+      shell: bash
+      run: echo "ICU_VERSION_HASH=$(git ls-tree HEAD third_party/icu | awk '{print $3}')" >> "$GITHUB_ENV"
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
       with:
         path: icu32
-        key: icu-linux-m32-release-78.1
+        key: icu-linux-m32-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(32)
       if: steps.cache-icu-m32.outputs.cache-hit != 'true'
       run: |
@@ -2311,7 +2364,7 @@ jobs:
       uses: actions/cache@v5
       with:
         path: icu64
-        key: icu-linux-x64-release-78.1
+        key: icu-linux-x64-${{ env.ICU_VERSION_HASH }}
     - name: Build ICU(64)
       if: steps.cache-icu-x64.outputs.cache-hit != 'true'
       run: |
