@@ -614,6 +614,32 @@ jobs:
       run: echo "deb [trusted=yes] http://download.tizen.org/tools/latest-release/Ubuntu_24.04/ /" | sudo tee /etc/apt/sources.list.d/tizen.list
     - name: install GBS
       run: sudo apt-get update && sudo apt-get install -y gbs
+    # `build`'s --incremental flag asks gbs to reuse an existing buildroot
+    # instead of reinitializing one from scratch -- but on a fresh
+    # GitHub-hosted runner ~/GBS-ROOT never exists beforehand, so that flag
+    # has had nothing to reuse and every run has paid for a full buildroot
+    # init (base image + all build deps fetched from download.tizen.org)
+    # regardless. Cache ~/GBS-ROOT across runs so --incremental actually has
+    # something to work with.
+    #
+    # Key rotates weekly (not pinned forever like the ICU/vcpkg caches
+    # elsewhere in this file): repo.tizen_reference/repo.tizen_base_reference
+    # in gbs.conf point at Tizen's rolling "reference" snapshot repos, not a
+    # version-pinned tag, so package contents drift upstream over time with
+    # no corresponding change in this repo to bust a fixed key. restore-keys
+    # falls back to the most recent previous week's cache if this week's
+    # doesn't exist yet, so gbs still starts from a recent buildroot (small
+    # incremental package delta) instead of nothing.
+    - name: Determine GBS buildroot cache key
+      id: gbs-cache-key
+      run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+    - name: Cache GBS buildroot
+      uses: actions/cache@v5
+      with:
+        path: ~/GBS-ROOT
+        key: gbs-tizen-buildroot-${{ steps.gbs-cache-key.outputs.week }}
+        restore-keys: |
+          gbs-tizen-buildroot-
     - name: build
       run: |
         gbs -c .github/workflows/gbs.conf build -A armv7l -P profile.tizen --incremental --define "enable_shell 1"
