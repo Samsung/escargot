@@ -1370,31 +1370,7 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-multilib g++-multilib make g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
-    # Both build-test-on-x86-release and build-test-on-x64-release build this
-    # same host-native python2.7 from source uncached (~1.5m each), across a
-    # combined ~12 matrix legs between the two jobs -- one shared cache key
-    # (native ubuntu-24.04 x64 host toolchain either way, regardless of
-    # which arch's escargot binary the job under test targets) covers both.
-    - name: Cache python2.7
-      id: cache-python27
-      uses: actions/cache@v5
-      with:
-        path: /usr/local/python2.7
-        key: python-2.7.18-ubuntu-24.04-x64
-    - name: Build python2
-      if: steps.cache-python27.outputs.cache-hit != 'true'
-      run: |
-        mkdir $GITHUB_WORKSPACE/python2-build/
-        cd $GITHUB_WORKSPACE/python2-build/
-        wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
-        tar xzf Python-2.7.18.tgz
-        cd Python-2.7.18
-        ./configure --prefix=/usr/local/python2.7
-        make -j8
-        sudo make install
-    - name: Register python2 via update-alternatives
-      run: sudo update-alternatives --install /usr/bin/python python /usr/local/python2.7/bin/python2.7 1
+        sudo apt-get install -y gcc-multilib g++-multilib make g++ pkg-config git build-essential libc6-dev
     - name: Cache ICU release-78.1 (m32)
       id: cache-icu-m32
       uses: actions/cache@v5
@@ -1576,7 +1552,7 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++ pkg-config automake libtool git build-essential checkinstall libncurses-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev
+        sudo apt-get install -y g++ pkg-config git build-essential libc6-dev
     - name: Cache ICU release-78.1 (x64)
       id: cache-icu-x64
       uses: actions/cache@v5
@@ -1591,30 +1567,6 @@ jobs:
         LDFLAGS="-Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib/" ./runConfigureICU Linux/gcc --prefix="$GITHUB_WORKSPACE/icu64/"
         make -j8
         make install
-    # Both build-test-on-x86-release and build-test-on-x64-release build this
-    # same host-native python2.7 from source uncached (~1.5m each), across a
-    # combined ~12 matrix legs between the two jobs -- one shared cache key
-    # (native ubuntu-24.04 x64 host toolchain either way, regardless of
-    # which arch's escargot binary the job under test targets) covers both.
-    - name: Cache python2.7
-      id: cache-python27
-      uses: actions/cache@v5
-      with:
-        path: /usr/local/python2.7
-        key: python-2.7.18-ubuntu-24.04-x64
-    - name: Build python2
-      if: steps.cache-python27.outputs.cache-hit != 'true'
-      run: |
-        mkdir $GITHUB_WORKSPACE/python2-build/
-        cd $GITHUB_WORKSPACE/python2-build/
-        wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
-        tar xzf Python-2.7.18.tgz
-        cd Python-2.7.18
-        ./configure --prefix=/usr/local/python2.7
-        make -j8
-        sudo make install
-    - name: Register python2 via update-alternatives
-      run: sudo update-alternatives --install /usr/bin/python python /usr/local/python2.7/bin/python2.7 1
     - name: Download build artifact
       uses: actions/download-artifact@v6
       with:
