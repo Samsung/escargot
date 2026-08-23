@@ -36,32 +36,32 @@ Escargot is an open-source project that allows developers to contribute to its d
 ### Supported Platforms and Architectures
 | **OS** | **Architecture** |
 |-|-|
-| **Linux(Ubuntu)** | x86/x64/arm/aarch64 |
+| **Linux(Ubuntu)** | x86/x64/arm/aarch64/riscv64 |
 | macOS | x64/aarch64 |
 | Windows | Win32/x64 |
 | Android | x86/x64/arm/aarch64 |
-| Bare-metal / RTOS | arm/aarch64/x86/x64/riscv64 |
+| Tizen | arm (build-only) |
+| Bare-metal / RTOS | arm (Cortex-M, via FreeRTOS/NuttX samples) |
 
 ### Build Options
 
 The following build options are supported when generating build rules using cmake.
 
-| **Option** | **Description** | **Flag** | **Value** | **Default** |
-|-|-|-|-|-|
-| **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
-| **ESCARGOT_BUILD_SHARED_LIBS** | Build shared library | -DESCARGOT_BUILD_SHARED_LIBS | ON/OFF | OFF |
-| **ESCARGOT_BUILD_GC_SHARED_LIBS** | Build GCutil as a shared library | -DESCARGOT_BUILD_GC_SHARED_LIBS | ON/OFF | OFF |
-| **ENABLE_SHELL** | Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL) | -DENABLE_SHELL | ON/OFF | ON, except OFF when ESCARGOT_NAPI is ON |
-| **ESCARGOT_BUILD_CCTEST** | Build the C++ tests | -DESCARGOT_BUILD_CCTEST | ON/OFF | OFF |
-| **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON, except OFF on bare-metal |
-| **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
-| **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
-| **TCO** | Enable tail call optimization | -DESCARGOT_TCO | ON/OFF | OFF |
-| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON, except OFF on bare-metal |
-| **TLS_ADDRESS_OFFSET** | Enable thread local storge access optimization(offset) | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | ON/OFF | ON when THREADING is ON, except on Android/Windows/macOS/bare-metal (assumes ELF/glibc-style TLS) |
-| **TLS_PTHREAD_KEY** | Enable thread local storge access optimization(pthread_key) | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | ON/OFF | ON when THREADING is ON and host is Android |
-| **TEMPORAL** | Enable Temporal support (requires ICU) | -DESCARGOT_TEMPORAL | ON/OFF | ON when LIBICU is ON, otherwise OFF |
-| **SHADOWREALM** | Enable ShadowRealm support | -DESCARGOT_SHADOWREALM | ON/OFF | OFF |
+| **Flag** | **Description** | **Value** | **Default** |
+|-|-|-|-|
+| -DESCARGOT_BUILD_SHARED_LIBS | Build shared library | ON/OFF | OFF |
+| -DESCARGOT_BUILD_GC_SHARED_LIBS | Build GCutil as a shared library | ON/OFF | OFF |
+| -DENABLE_SHELL | Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL) | ON/OFF | ON, except OFF when ESCARGOT_NAPI is ON |
+| -DESCARGOT_BUILD_CCTEST | Build the C++ tests | ON/OFF | OFF |
+| -DESCARGOT_LIBICU_SUPPORT | Include libicu library | ON/OFF | ON, except OFF on bare-metal |
+| -DESCARGOT_WASM | Enable WebAssembly support | ON/OFF | OFF |
+| -DESCARGOT_CODE_CACHE | Enable code cache | ON/OFF | OFF |
+| -DESCARGOT_TCO | Enable tail call optimization | ON/OFF | OFF |
+| -DESCARGOT_THREADING | Enable threading features (e.g. Atomics, SharedArrayBuffer) | ON/OFF | ON, except OFF on bare-metal |
+| -DESCARGOT_TLS_ACCESS_BY_ADDRESS | Enable thread local storage access optimization (offset) | ON/OFF | OFF everywhere (safety-first; opt in manually on stable glibc-style targets) |
+| -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | Enable thread local storage access optimization (pthread_key) | ON/OFF | ON when THREADING is ON and host is Android, otherwise OFF |
+| -DESCARGOT_TEMPORAL | Enable Temporal support (requires ICU) | ON/OFF | ON when LIBICU is ON, otherwise OFF |
+| -DESCARGOT_SHADOWREALM | Enable ShadowRealm support | ON/OFF | OFF |
 | **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
 | **EXPORT_ALL** | Export all symbols instead of the default curated public API | -DESCARGOT_EXPORT_ALL | ON/OFF | OFF |
 | **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
