@@ -166,7 +166,7 @@ def run_internal_test(engine, arch, extra_arg):
     copy(join(INTERNAL_OVERRIDE_DIR, 'internal-test-cases.txt'), join(INTERNAL_DIR, 'internal-test-cases.txt'))
     copy(join(INTERNAL_OVERRIDE_DIR, 'internal-test-driver.py'), join(INTERNAL_DIR, 'driver.py'))
 
-    run(['python', 'driver.py', engine, 'internal-test-cases.txt'],
+    run([sys.executable, 'driver.py', engine, 'internal-test-cases.txt'],
         cwd=INTERNAL_DIR)
 
 def copy_test262_files():
@@ -475,7 +475,7 @@ def _run_jetstream(engine, target_test):
 
     run([join('.', 'run.sh'), engine, target_test],
         cwd=JETSTREAM_DIR)
-    run(['python', join(JETSTREAM_OVERRIDE_DIR, 'parsingResults.py'),
+    run([sys.executable, join(JETSTREAM_OVERRIDE_DIR, 'parsingResults.py'),
          join(JETSTREAM_OVERRIDE_DIR, 'jetstream-result-raw.res'),
          target_test])
     if 'NaN' in ''.join(readfile(join(JETSTREAM_OVERRIDE_DIR, 'jetstream-result-raw.res'))):
