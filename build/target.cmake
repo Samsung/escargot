@@ -210,6 +210,65 @@ ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
     IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
         SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
     ENDIF()
+ELSEIF (ESCARGOT_HOST STREQUAL "ios")
+    # ESCARGOT_HOST=ios targets only the iOS Simulator today (arm64,
+    # matching an Apple Silicon `macos-latest` GitHub Actions runner) -- no
+    # device/physical-hardware code signing, no iphoneos SDK. iPadOS ships
+    # the same "iOS" SDK/platform identifier and arm64 sysroot/triple as
+    # iPhone at the CMake/toolchain level (Apple does not build a separate
+    # iPadOS SDK), so this one host value covers both; there is no separate
+    # "ipados" host.
+    #
+    # Unlike the android branch above (which relies on the caller passing
+    # the NDK's own -DCMAKE_TOOLCHAIN_FILE=.../android.toolchain.cmake to
+    # set up CMAKE_SYSTEM_NAME/sysroot/target-triple before this file ever
+    # runs), Apple's CMake generators have first-class iOS cross-compilation
+    # support built in via plain cache variables: the caller passes
+    # -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator
+    # -DCMAKE_OSX_ARCHITECTURES=arm64 [-DCMAKE_OSX_DEPLOYMENT_TARGET=<ver>]
+    # at the *initial* `cmake -B...` invocation (see README.md's "iOS"
+    # section and the build-test-on-ios-simulator-arm64 CI job) -- CMake's
+    # own Clang compiler module then derives the right
+    # "-target arm64-apple-ios<ver>-simulator -isysroot <SDK>" flags for
+    # every compile/link step automatically. This branch, like every other
+    # host branch here, only adds Escargot's own engine-specific flags on
+    # top; it cannot retroactively fix up the cross-compilation setup at
+    # this point in the configure run (CMake's own compiler/ABI detection
+    # already ran before build/config.cmake -- let alone this file -- was
+    # ever INCLUDEd), hence the FATAL_ERRORs below instead of trying to set
+    # CMAKE_SYSTEM_NAME/CMAKE_OSX_SYSROOT here.
+    IF (NOT ESCARGOT_ARCH STREQUAL "aarch64")
+        MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported (ESCARGOT_HOST=ios currently only targets the arm64 iOS Simulator, matching an Apple Silicon build host)")
+    ENDIF()
+    IF (NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios requires -DCMAKE_SYSTEM_NAME=iOS to be passed at the initial cmake invocation -- it cannot be set afterward. See README.md's \"iOS\" section.")
+    ENDIF()
+    # CMake resolves the short SDK name passed at the command line
+    # (-DCMAKE_OSX_SYSROOT=iphonesimulator) into the full SDK path by this
+    # point (e.g. ".../SDKs/iPhoneSimulator18.4.sdk") -- mixed-case, unlike
+    # the lowercase short name -- so match case-insensitively.
+    STRING (TOLOWER "${CMAKE_OSX_SYSROOT}" ESCARGOT_IOS_SYSROOT_LOWER)
+    IF (NOT ESCARGOT_IOS_SYSROOT_LOWER MATCHES "iphonesimulator")
+        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios only supports the iOS Simulator SDK for now -- pass -DCMAKE_OSX_SYSROOT=iphonesimulator (found: '${CMAKE_OSX_SYSROOT}')")
+    ENDIF()
+    SET (ESCARGOT_BUILD_64BIT_LARGE ON)
+    # recent ICU (see the darwin branch above) and this engine's own vendored
+    # ICU build (build/VendoredICU.cmake) both need c++17
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -std=c++17)
+    SET (ESCARGOT_LDFLAGS -Wl,-dead_strip)
+    # bdwgc mac/iOS cannot support pthread_getattr_np (same as darwin above)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} -UHAVE_PTHREAD_GETATTR_NP)
+    # No FIND_PACKAGE(PkgConfig) call here (unlike every other host branch
+    # above) -- there is no pkg-config'able system ICU on iOS at all.
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED is the only supported ICU path (see
+    # build/config.cmake, which both defaults it ON for this host and
+    # FATAL_ERRORs if ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN or the plain
+    # pkg-config path would otherwise be selected -- that enforcement lives
+    # there and not here because ESCARGOT_LIBICU_SUPPORT/_WITH_DLOPEN aren't
+    # resolved to their final value until after this file returns).
+    IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+        SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
+    ENDIF()
 ELSEIF (ESCARGOT_HOST STREQUAL "windows")
     IF (NOT ESCARGOT_LIBICU_SUPPORT_VENDORED)
         # Vendored (default): linked via the vcpkg-sourced import libs found

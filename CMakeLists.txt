@@ -41,6 +41,19 @@ IF ("${CMAKE_C_FLAGS}" MATCHES "-m32" OR "${CMAKE_CXX_FLAGS}" MATCHES "-m32" OR
 ENDIF()
 
 IF (NOT DEFINED ESCARGOT_ARCH)
+    # CMake's own iOS (and tvOS/watchOS) cross-compilation support takes the
+    # target arch from -DCMAKE_OSX_ARCHITECTURES instead of
+    # -DCMAKE_SYSTEM_PROCESSOR -- unlike e.g. Android-Determine.cmake, no
+    # Apple-platform CMake module derives CMAKE_SYSTEM_PROCESSOR from it, so
+    # it's left empty there. Follow the same standard variable the caller
+    # already has to pass for the SDK/toolchain selection to work at all,
+    # rather than inventing a second, redundant Escargot-specific flag.
+    IF (NOT CMAKE_SYSTEM_PROCESSOR AND CMAKE_OSX_ARCHITECTURES)
+        LIST (LENGTH CMAKE_OSX_ARCHITECTURES _escargot_osx_arch_count)
+        IF (_escargot_osx_arch_count EQUAL 1)
+            SET (CMAKE_SYSTEM_PROCESSOR "${CMAKE_OSX_ARCHITECTURES}")
+        ENDIF()
+    ENDIF()
     IF ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "X86" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86"
         OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i386" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i686")
         SET(ESCARGOT_ARCH "x86")
@@ -89,6 +102,8 @@ IF (NOT DEFINED ESCARGOT_HOST)
         SET(ESCARGOT_HOST "android")
     ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         SET(ESCARGOT_HOST "darwin")
+    ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        SET(ESCARGOT_HOST "ios")
     ELSEIF (ESCARGOT_IS_BAREMETAL)
         SET(ESCARGOT_HOST "baremetal")
     ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Tizen")
