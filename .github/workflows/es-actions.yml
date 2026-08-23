@@ -618,10 +618,20 @@ jobs:
       run: |
         gbs -c .github/workflows/gbs.conf build -A armv7l -P profile.tizen --incremental --define "enable_shell 1"
 
-  # Build once per arch, then fan out into test262/octane jobs below instead of
-  # running build->test262->octane serially in one job -- test262 (~14m) and
-  # octane (~3m) no longer block each other this way. Also builds
-  # ESCARGOT_BUILD_SHARED_LIBS=ON (the escargot.dll the old
+  # Split into one job per arch (previously a single build-on-windows-x86-x64
+  # job with an {x86,x64,arm64} matrix) so that test262-on-windows-*/
+  # octane-on-windows-* below can each `needs:` only their own arch's build.
+  # GitHub Actions' `needs:` on a matrixed job waits for ALL of that job's
+  # matrix legs to finish, not just the one a given downstream leg actually
+  # consumes -- with the old single build job, the x64 test262/octane legs
+  # were idling ~10 minutes and the x86 ones ~3.6 minutes waiting on the
+  # unrelated, much slower arm64 leg (mostly vcpkg building ICU from source;
+  # see the "Cache vcpkg ICU" step below) even after their own artifact was
+  # long since ready (measured on run 32630894309).
+  #
+  # Each of these three build-only jobs uploads an artifact for the matching
+  # test262-on-windows-*/octane-on-windows-* jobs below to consume. Also
+  # builds ESCARGOT_BUILD_SHARED_LIBS=ON (the escargot.dll the old
   # build-on-windows-x86-shared job built separately, x86-only) together with
   # the shell in the SAME configure: ESCARGOT_ENABLE_SHELL=ON +
   # ESCARGOT_BUILD_SHARED_LIBS=ON links escargot_shell dynamically against
@@ -633,41 +643,8 @@ jobs:
   # unverified for exported data). If this specific link fails, that macro is
   # the first place to look. Also newly covers x64 DLL linking, which nothing
   # tested before.
-  build-on-windows-x86-x64:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - arch: x86
-            generator: Ninja
-            os: windows-2022
-            wasm: "ON"
-          # Exercises the VS solution + msbuild config path documented in
-          # README.md (cmake -G "Visual Studio 17 2022" / msbuild
-          # ESCARGOT.sln) that the Ninja leg above never touches --
-          # multi-config-generator-specific CMake bugs (CMAKE_BUILD_TYPE is
-          # always empty at configure time there; see 392a015d0) only show
-          # up on this leg.
-          - arch: x64
-            generator: "Visual Studio 17 2022"
-            os: windows-2022
-            wasm: "ON"
-          # windows-11-arm is a native arm64 host (GitHub-hosted, free for
-          # public repos), so this leg builds natively -- no cross-compiler
-          # arch juggling like the Linux/macOS arm64 legs need. Ninja (not
-          # the VS generator) to keep it on the same single-config path as
-          # the x86 leg above. wasm is OFF here -- wabt (vendored under
-          # third_party/walrus/third_party/wabt, pulled in by
-          # -DESCARGOT_WASM=ON) hard-errors on MSVC/arm64 with "unexpected
-          # architecture": its Clz/Ctz/Popcount bit-scan shims only have
-          # _M_X64/_M_IX86 branches, no _M_ARM64 one, upstream. No test262
-          # coverage is lost either way -- test262 has zero WebAssembly
-          # cases in this repo (that's the separate wasm-js runner, see
-          # tools/run-tests.py), so nothing needs skipping there.
-          - arch: arm64
-            generator: Ninja
-            os: windows-11-arm
-            wasm: "OFF"
+  build-on-windows-x86:
+    runs-on: windows-2022
     steps:
     - name: Set git cllf config
       run: |
@@ -696,7 +673,7 @@ jobs:
         sdk-version: 26100
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
-        arch: ${{ matrix.arch }}
+        arch: x86
         sdk: "10.0.26100.0"
     # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
     # build/config.cmake) -- ICU's own Windows build only ships DLLs (no
@@ -716,44 +693,26 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ${{ github.workspace }}\vcpkg\installed
-        key: vcpkg-icu-windows-${{ matrix.arch }}-2026.07.29
+        key: vcpkg-icu-windows-x86-2026.07.29
     - name: Setup vcpkg ICU
       if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
       shell: cmd
       run: |
         git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
         call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
-        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=${{ matrix.arch }}-windows
-    - name: Build ${{ matrix.arch }} Release (Ninja)
-      if: matrix.generator == 'Ninja'
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=x86-windows
+    - name: Build x86 Release (Ninja)
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\x86-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
-        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe out\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe out\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x86-windows\bin\%%f" out\ >nul
         rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
         rem itself depends on icudt (the data DLL), which the pass above misses
         rem since it only inspects escargot's own import table. Re-scan the
         rem icu*.dll files just copied to pick up that transitive dependency too.
-        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x86-windows\bin\%%f" out\ >nul
       shell: cmd
-    # VS generator is multi-config -- arch is fixed at configure time via
-    # CMAKE_GENERATOR_PLATFORM (there's no single-config "MSBuild"
-    # generator), config (Release) is picked at build time via --config,
-    # same as the Ninja leg. Deliberately no CMAKE_C/CXX_COMPILER override
-    # here: the VS generator manages its own MSVC toolset.
-    - name: Build ${{ matrix.arch }} Release (MSBuild)
-      if: matrix.generator != 'Ninja'
-      run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DCMAKE_GENERATOR_PLATFORM=${{ matrix.arch }} -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=${{ matrix.wasm }} -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "${{ matrix.generator }}"
-        CMake --build out/ --config Release
-        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\escargot.exe out\Release\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\Release\ >nul
-        rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
-        rem itself depends on icudt (the data DLL), which the pass above misses
-        rem since it only inspects escargot's own import table. Re-scan the
-        rem icu*.dll files just copied to pick up that transitive dependency too.
-        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\Release\ >nul
-      shell: cmd
-    # walrus.dll: -DESCARGOT_WASM=ON below unconditionally builds Walrus
+    # walrus.dll: -DESCARGOT_WASM=ON above unconditionally builds Walrus
     # (the WASM engine) as WALRUS_OUTPUT="shared_lib" regardless of
     # ESCARGOT_BUILD_SHARED_LIBS (see build/escargot.cmake) -- escargot.exe
     # dynamically depends on it at runtime even in an otherwise-static
@@ -763,75 +722,210 @@ jobs:
     # carried across explicitly too, or escargot.exe fails to start.
     #
     # upload-artifact strips the common leading directory of the listed
-    # paths, so both legs land as escargot.exe/escargot.dll/walrus.dll at
-    # the artifact root regardless of which subdirectory the generator
-    # actually wrote them to -- test262/octane-on-windows below need no
+    # paths, so this lands as escargot.exe/escargot.dll/walrus.dll at the
+    # artifact root regardless of which subdirectory the generator actually
+    # wrote them to -- test262/octane-on-windows-x86 below need no
     # generator-specific handling.
-    - name: Upload build artifact (Ninja, wasm)
-      if: matrix.generator == 'Ninja' && matrix.wasm == 'ON'
+    - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
-        name: build-artifact-win-${{ matrix.arch }}
+        name: build-artifact-win-x86
         path: |
           out/escargot.exe
           out/escargot.dll
           out/walrus.dll
           out/icu*.dll
-    # arm64 leg only -- wasm is OFF there (see the matrix comment above), so
-    # walrus.dll never gets built and escargot.exe has no runtime dependency
-    # on it either.
-    - name: Upload build artifact (Ninja, no wasm)
-      if: matrix.generator == 'Ninja' && matrix.wasm == 'OFF'
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
+  build-on-windows-x64:
+    runs-on: windows-2022
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build-only job (uploads an artifact for test262/octane-on-windows below
+    # to consume) -- needs GCutil + Walrus (-DESCARGOT_WASM=ON), no test suite.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
+      with:
+        sdk-version: 26100
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
+      with:
+        arch: x64
+        sdk: "10.0.26100.0"
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
+    # build/config.cmake) -- see build-on-windows-x86's identical vcpkg step
+    # for why (ICU's Windows build only ships DLLs, no static .lib), and
+    # why this is cached.
+    - name: Cache vcpkg ICU
+      id: cache-vcpkg-icu-win
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}\vcpkg\installed
+        key: vcpkg-icu-windows-x64-2026.07.29
+    - name: Setup vcpkg ICU
+      if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
+        call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=x64-windows
+    # Exercises the VS solution + msbuild config path documented in
+    # README.md (cmake -G "Visual Studio 17 2022" / msbuild ESCARGOT.sln)
+    # that the Ninja legs (x86/arm64) never touch -- multi-config-generator-
+    # specific CMake bugs (CMAKE_BUILD_TYPE is always empty at configure
+    # time there; see 392a015d0) only show up on this leg. VS generator is
+    # multi-config -- arch is fixed at configure time via
+    # CMAKE_GENERATOR_PLATFORM (there's no single-config "MSBuild"
+    # generator), config (Release) is picked at build time via --config.
+    # Deliberately no CMAKE_C/CXX_COMPILER override here: the VS generator
+    # manages its own MSVC toolset.
+    - name: Build x64 Release (MSBuild)
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x64 -DCMAKE_GENERATOR_PLATFORM=x64 -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G "Visual Studio 17 2022"
+        CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\escargot.exe out\Release\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\%%f" out\Release\ >nul
+        rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
+        rem itself depends on icudt (the data DLL), which the pass above misses
+        rem since it only inspects escargot's own import table. Re-scan the
+        rem icu*.dll files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\%%f" out\Release\ >nul
+      shell: cmd
+    # See build-on-windows-x86's identical comment above its upload step for
+    # why walrus.dll has to be carried across explicitly.
+    - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
-        name: build-artifact-win-${{ matrix.arch }}
-        path: |
-          out/escargot.exe
-          out/escargot.dll
-          out/icu*.dll
-    - name: Upload build artifact (MSBuild)
-      if: matrix.generator != 'Ninja'
-      uses: actions/upload-artifact@v6
-      with:
-        name: build-artifact-win-${{ matrix.arch }}
+        name: build-artifact-win-x64
         path: |
           out/Release/escargot.exe
           out/Release/escargot.dll
           out/Release/walrus.dll
           out/Release/icu*.dll
-    # windows-11-arm doesn't ship the msys64/bash.exe this action shells
-    # out to install tmate through (ENOENT) -- windows-2022 does, so keep
-    # the debug shell for the x86/x64 legs and just skip it on arm64.
-    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
+    - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
+
+  # windows-11-arm is a native arm64 host (GitHub-hosted, free for public
+  # repos), so this leg builds natively -- no cross-compiler arch juggling
+  # like the Linux/macOS arm64 legs need. Ninja (not the VS generator) to
+  # keep it on the same single-config path as build-on-windows-x86. wasm is
+  # OFF here -- wabt (vendored under third_party/walrus/third_party/wabt,
+  # pulled in by -DESCARGOT_WASM=ON) hard-errors on MSVC/arm64 with
+  # "unexpected architecture": its Clz/Ctz/Popcount bit-scan shims only have
+  # _M_X64/_M_IX86 branches, no _M_ARM64 one, upstream. No test262 coverage
+  # is lost either way -- test262 has zero WebAssembly cases in this repo
+  # (that's the separate wasm-js runner, see tools/run-tests.py), so nothing
+  # needs skipping there.
+  build-on-windows-arm64:
+    runs-on: windows-11-arm
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # Build-only job (uploads an artifact for test262/octane-on-windows below
+    # to consume) -- needs GCutil + Walrus (-DESCARGOT_WASM=ON), no test suite.
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/walrus && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
+      with:
+        sdk-version: 26100
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
+      with:
+        arch: arm64
+        sdk: "10.0.26100.0"
+    # ESCARGOT_LIBICU_SUPPORT_VENDORED defaults ON on windows now (see
+    # build/config.cmake) -- see build-on-windows-x86's identical vcpkg step
+    # for why (ICU's Windows build only ships DLLs, no static .lib), and
+    # why this is cached. This leg's 15-minute uncached ICU build used to sit
+    # directly on the workflow's critical path ahead of test262-on-windows
+    # (arm64) -- see the cache comment there.
+    - name: Cache vcpkg ICU
+      id: cache-vcpkg-icu-win
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}\vcpkg\installed
+        key: vcpkg-icu-windows-arm64-2026.07.29
+    - name: Setup vcpkg ICU
+      if: steps.cache-vcpkg-icu-win.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git "%GITHUB_WORKSPACE%\vcpkg"
+        call "%GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat"
+        "%GITHUB_WORKSPACE%\vcpkg\vcpkg.exe" install icu --triplet=arm64-windows
+    - name: Build arm64 Release (Ninja)
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=arm64 -DICU_ROOT="%GITHUB_WORKSPACE%\vcpkg\installed\arm64-windows" -Bout/ -DENABLE_SHELL=ON -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake --build out/ --config Release
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\escargot.exe out\escargot.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\arm64-windows\bin\%%f" out\ >nul
+        rem escargot.exe/.dll only depend on icuuc/icuin directly -- icuuc.dll
+        rem itself depends on icudt (the data DLL), which the pass above misses
+        rem since it only inspects escargot's own import table. Re-scan the
+        rem icu*.dll files just copied to pick up that transitive dependency too.
+        for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\arm64-windows\bin\%%f" out\ >nul
+      shell: cmd
+    # wasm is OFF on this leg (see the job comment above), so walrus.dll
+    # never gets built and escargot.exe has no runtime dependency on it
+    # either -- unlike build-on-windows-x86/x64's artifact.
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: build-artifact-win-arm64
+        path: |
+          out/escargot.exe
+          out/escargot.dll
+          out/icu*.dll
+    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
+    # to install tmate through (ENOENT), so no debug-shell step on this leg.
 
   # test262.py runs each applicable test in BOTH strict and non-strict mode by
   # default (roughly doubling the test count), so splitting strict/non-strict
   # into separate matrix legs via the pre-existing (but previously unused --
   # and buggy, now fixed in tools/run-tests.py -- see that commit) test262-strict/
-  # test262-nonstrict runners roughly halves this job's wall time per arch, on
-  # top of the arch-level x86/x64 parallelism already here.
-  test262-on-windows:
-    needs: build-on-windows-x86-x64
-    runs-on: ${{ matrix.os }}
+  # test262-nonstrict runners roughly halves this job's wall time per arch.
+  #
+  # One job per arch (see build-on-windows-x86's comment block above for why),
+  # each `needs:` only its own arch's build job so it starts as soon as that
+  # artifact is ready instead of waiting on the other two archs' builds too.
+  test262-on-windows-x86:
+    needs: build-on-windows-x86
+    runs-on: windows-2022
     strategy:
       matrix:
-        arch: [x86, x64, arm64]
         mode: [strict, nonstrict]
-        # x86/x64 exe run fine on the x64 windows-2022 host; the arm64
-        # build needs a native arm64 host (windows-2022 can't run arm64
-        # PE binaries -- there's no x64->arm64 emulation direction on
-        # Windows, only arm64->x86/x64). These include entries just tag
-        # an `os` onto each arch value in the cross product above, same
-        # trick as build-on-windows-x86-x64's matrix.
-        include:
-          - arch: x86
-            os: windows-2022
-          - arch: x64
-            os: windows-2022
-          - arch: arm64
-            os: windows-11-arm
     steps:
     - name: Set git cllf config
       run: |
@@ -860,8 +954,8 @@ jobs:
     - name: Download and Install Visual C++ Redistributable
       shell: powershell
       run: |
-        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.${{ matrix.arch }}.exe"
-        $vcRedistPath = "$env:TEMP\vc_redist.${{ matrix.arch }}.exe"
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x86.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.x86.exe"
 
         Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
         Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
@@ -872,7 +966,7 @@ jobs:
     - name: Download build artifact
       uses: actions/download-artifact@v6
       with:
-        name: build-artifact-win-${{ matrix.arch }}
+        name: build-artifact-win-x86
         path: out
     # windows internal ICU doesn't support Temporal and intl402 well
     # github action windows runner only have 2 CPUs. that's why I disable Atomics(timeout occured with some tests)
@@ -891,27 +985,129 @@ jobs:
         pip install chardet
         python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
-    # See build-on-windows-x86-x64's identical guard -- tmate's msys64/bash.exe
-    # dependency isn't present on windows-11-arm.
-    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
+    - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
-  octane-on-windows:
-    needs: build-on-windows-x86-x64
-    runs-on: ${{ matrix.os }}
+  test262-on-windows-x64:
+    needs: build-on-windows-x64
+    runs-on: windows-2022
     strategy:
       matrix:
-        arch: [x86, x64, arm64]
-        # See test262-on-windows's identical include block for why arm64
-        # needs its own (native) host.
-        include:
-          - arch: x86
-            os: windows-2022
-          - arch: x64
-            os: windows-2022
-          - arch: arm64
-            os: windows-11-arm
+        mode: [strict, nonstrict]
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - uses: szenius/set-timezone@v2.0
+      with:
+        timezoneWindows: "Pacific Standard Time"
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
+      run: |
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.x64.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
+    - name: Download build artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-win-x64
+        path: out
+    # See test262-on-windows-x86's identical comments above its test step.
+    - name: Run test262 (${{ matrix.mode }})
+      run: |
+        set GC_FREE_SPACE_DIVISOR=1
+        pip install chardet
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
+      shell: cmd
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
+  test262-on-windows-arm64:
+    needs: build-on-windows-arm64
+    runs-on: windows-11-arm
+    strategy:
+      matrix:
+        mode: [strict, nonstrict]
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/test262 && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - uses: szenius/set-timezone@v2.0
+      with:
+        timezoneWindows: "Pacific Standard Time"
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
+      run: |
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.arm64.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.arm64.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
+    - name: Download build artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-win-arm64
+        path: out
+    # See test262-on-windows-x86's identical comments above its test step.
+    - name: Run test262 (${{ matrix.mode }})
+      run: |
+        set GC_FREE_SPACE_DIVISOR=1
+        pip install chardet
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
+      shell: cmd
+    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
+    # to install tmate through (ENOENT), so no debug-shell step on this leg.
+
+  # One job per arch, same reasoning as test262-on-windows-* above.
+  octane-on-windows-x86:
+    needs: build-on-windows-x86
+    runs-on: windows-2022
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
@@ -930,8 +1126,8 @@ jobs:
     - name: Download and Install Visual C++ Redistributable
       shell: powershell
       run: |
-        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.${{ matrix.arch }}.exe"
-        $vcRedistPath = "$env:TEMP\vc_redist.${{ matrix.arch }}.exe"
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x86.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.x86.exe"
 
         Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
         Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
@@ -942,18 +1138,101 @@ jobs:
     - name: Download build artifact
       uses: actions/download-artifact@v6
       with:
-        name: build-artifact-win-${{ matrix.arch }}
+        name: build-artifact-win-x86
         path: out
     - name: Run octane
       run: |
         copy test\octane\*.js
         dir
         .\out\escargot.exe run.js
-    # See build-on-windows-x86-x64's identical guard -- tmate's msys64/bash.exe
-    # dependency isn't present on windows-11-arm.
-    - if: ${{ failure() && matrix.os != 'windows-11-arm' }}
+    - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
+
+  octane-on-windows-x64:
+    needs: build-on-windows-x64
+    runs-on: windows-2022
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
+      run: |
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.x64.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
+    - name: Download build artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-win-x64
+        path: out
+    - name: Run octane
+      run: |
+        copy test\octane\*.js
+        dir
+        .\out\escargot.exe run.js
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
+  octane-on-windows-arm64:
+    needs: build-on-windows-arm64
+    runs-on: windows-11-arm
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- test/octane && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
+      run: |
+        $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.arm64.exe"
+        $vcRedistPath = "$env:TEMP\vc_redist.arm64.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl"
+        Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
+    - name: Download build artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-win-arm64
+        path: out
+    - name: Run octane
+      run: |
+        copy test\octane\*.js
+        dir
+        .\out\escargot.exe run.js
+    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
+    # to install tmate through (ENOENT), so no debug-shell step on this leg.
 
   # Was one job whose 5-way `tc` matrix each independently reran the exact
   # same x86 release configure+build just to test a different suite subset --
