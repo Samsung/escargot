@@ -61,10 +61,10 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
+        cmake -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
+        cmake -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
@@ -98,10 +98,10 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
+        cmake -H. -Bout/debug/ -DCMAKE_BUILD_TYPE=Debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
+        cmake -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
@@ -943,7 +943,7 @@ jobs:
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/lib/pkgconfig
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x86 $BUILD_OPTIONS
+        cmake -H. -Bout/release/x86 $BUILD_OPTIONS
         ninja -Cout/release/x86
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
@@ -1075,7 +1075,7 @@ jobs:
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/lib/pkgconfig
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.variant.opt }}
+        cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.variant.opt }}
         ninja -Cout/release/x64
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
@@ -1215,8 +1215,8 @@ jobs:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
         BUILD_OPTIONS_X64: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/x86 $BUILD_OPTIONS_X86
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
+        cmake -H. -Bout/debug/x86 $BUILD_OPTIONS_X86
+        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
         ninja -Cout/debug/x86
         ninja -Cout/debug/x64
     - name: Run debug-mode test
@@ -1269,9 +1269,9 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
       run: |
-        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-32/lib/ -Wl,-rpath=/usr/icu78-32/lib/" PKG_CONFIG_PATH="/usr/icu78-32/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -H./ -Bbuild/out_linux -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -H./ -Bbuild/out_linux64 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
     - name: Test
@@ -1348,7 +1348,7 @@ jobs:
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/lib/ -Wl,-rpath=$GITHUB_WORKSPACE/icu32/lib/"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/lib/pkgconfig
-        cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 $BUILD_OPTIONS
+        cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -H. -Bout -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 $BUILD_OPTIONS
         ninja -Cout
     - name: Run test262
       env:
@@ -1404,7 +1404,7 @@ jobs:
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/lib/pkgconfig
-        cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout $BUILD_OPTIONS
+        cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -H. -Bout $BUILD_OPTIONS
         ninja -Cout
     - name: Run test262
       env:
@@ -1475,7 +1475,7 @@ jobs:
             # (new-es, chakracore, test262 with intl402 skipped) pass fine.
             locale-gen en_US.UTF-8
             if [ "${{ matrix.compiler }}" = "clang" ]; then CC=clang; CXX=clang++; else CC=gcc; CXX=g++; fi
-            cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout \
+            cmake -H. -Bout \
               -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
               -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 \
               -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=OFF -DESCARGOT_TCO=ON \
@@ -1556,7 +1556,7 @@ jobs:
         done
     - name: Build
       run: |
-        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
+        LDFLAGS=" -L/usr/icu78-64/lib/ -Wl,-rpath=/usr/icu78-64/lib/" PKG_CONFIG_PATH="/usr/icu78-64/lib/pkgconfig/" cmake -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -H./ -Bout -DCMAKE_BUILD_TYPE=Release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
         cmake --build ./out/
     - name: Test
       run: |
@@ -1597,7 +1597,7 @@ jobs:
         CC: riscv64-linux-gnu-gcc
         CXX: riscv64-linux-gnu-g++
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/riscv64 \
+        cmake -H. -Bout/riscv64 \
           -DCMAKE_SYSTEM_NAME=Linux \
           -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
           -DESCARGOT_TEMPORAL=ON \
@@ -1645,7 +1645,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debugger $BUILD_OPTIONS
+        cmake -H. -Bout/debugger $BUILD_OPTIONS
         ninja -Cout/debugger
     - name: Debugger Test
       run: |
@@ -1681,9 +1681,9 @@ jobs:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=ON -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
         BUILD_OPTIONS_X64: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
+        cmake -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
         ninja -Cout/cctest/x86
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
+        cmake -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
         ninja -Cout/cctest/x64
     - name: Run Test
       run: |
@@ -1734,7 +1734,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -DESCARGOT_NAPI=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/cctest/napi $BUILD_OPTIONS
+        cmake -H. -Bout/cctest/napi $BUILD_OPTIONS
         ninja -Cout/cctest/napi
     - name: Run Test
       run: |
@@ -1768,19 +1768,19 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/x86 $BUILD_OPTIONS
+        cmake -H. -Bout/codecache/x86 $BUILD_OPTIONS
         ninja -Cout/codecache/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/x64 $BUILD_OPTIONS
+        cmake -H. -Bout/codecache/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/x64
     - name: Build x64 Release Mode
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
+        cmake -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/release/x64
     - name: Run x86 test
       run: |
@@ -1870,13 +1870,13 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/wasm/x86 $BUILD_OPTIONS
+        cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
       run: |
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/wasm/x64 $BUILD_OPTIONS
+        cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
     - name: Run x86 test
       run: |
