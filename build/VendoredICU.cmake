@@ -80,10 +80,21 @@ IF (ESCARGOT_HOST STREQUAL "linux")
     ENDIF()
 
     SET (VENDORED_ICU_SOURCE_DIR ${ESCARGOT_THIRD_PARTY_ROOT}/icu/icu4c/source)
-    SET (VENDORED_ICU_INSTALL_DIR ${CMAKE_BINARY_DIR}/vendored-icu)
+    # PREFIX is deliberately outside CMAKE_BINARY_DIR (ExternalProject's
+    # default would be <binary_dir>/vendored-icu-build-prefix) and keyed on
+    # ESCARGOT_ARCH instead: this ICU build never varies with
+    # CMAKE_BUILD_TYPE, so a checkout that configures more than one
+    # CMAKE_BINARY_DIR against the same arch (e.g. a debug and a release
+    # build in the same job, see build-on-macos in es-actions.yml) shares
+    # one build+install instead of redoing the whole configure+make from
+    # scratch per binary dir. Keyed on arch (not build type) so switching
+    # target arch in the same checkout doesn't reuse a stale/mismatched one.
+    SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    SET (VENDORED_ICU_INSTALL_DIR ${VENDORED_ICU_PREFIX}/install)
     SET (VENDORED_ICU_DATA_FILTER_FILE ${ESCARGOT_ROOT}/build/icu-filters/escargot.json)
 
     ExternalProject_Add (vendored-icu-build
+        PREFIX ${VENDORED_ICU_PREFIX}
         SOURCE_DIR ${VENDORED_ICU_SOURCE_DIR}
         DOWNLOAD_COMMAND ""
         UPDATE_COMMAND ""
@@ -143,10 +154,16 @@ ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
     ENDIF()
 
     SET (VENDORED_ICU_SOURCE_DIR ${ESCARGOT_THIRD_PARTY_ROOT}/icu/icu4c/source)
-    SET (VENDORED_ICU_INSTALL_DIR ${CMAKE_BINARY_DIR}/vendored-icu)
+    # See the linux branch above's identical comment: shared build+install
+    # outside CMAKE_BINARY_DIR, keyed on ESCARGOT_ARCH, so build-on-macos's
+    # debug + release configs in es-actions.yml don't each rebuild this from
+    # source (this ICU build never varies with CMAKE_BUILD_TYPE).
+    SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    SET (VENDORED_ICU_INSTALL_DIR ${VENDORED_ICU_PREFIX}/install)
     SET (VENDORED_ICU_DATA_FILTER_FILE ${ESCARGOT_ROOT}/build/icu-filters/escargot.json)
 
     ExternalProject_Add (vendored-icu-build
+        PREFIX ${VENDORED_ICU_PREFIX}
         SOURCE_DIR ${VENDORED_ICU_SOURCE_DIR}
         DOWNLOAD_COMMAND ""
         UPDATE_COMMAND ""
