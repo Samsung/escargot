@@ -257,7 +257,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
     auto iter = map->find(&stringForSearch);
     if (map->end() == iter) {
         String* newStr;
-        if (isAllASCII(src, len)) {
+        if (isAllLatin1(src, len)) {
             newStr = String::fromLatin1(src, len);
         } else {
             newStr = new UTF16String(src, len);
