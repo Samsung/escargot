@@ -935,6 +935,10 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
     size_t maxLength = m_buffer.get<size_t>();
     size_t tableSize = m_buffer.get<size_t>();
 
+    if (maxLength > STRING_MAXIMUM_LENGTH) {
+        throw CodeCacheReader::Error("invalid maxLength");
+    }
+
     if (LIKELY(!has16BitString)) {
         LChar* buffer = new LChar[maxLength + 1];
         for (size_t i = 0; i < tableSize; i++) {
