@@ -68,6 +68,7 @@ public:
             , m_dotAll(option & RegExpObject::Option::DotAll)
             , m_unicode(option & RegExpObject::Option::Unicode)
             , m_unicodeSets(option & RegExpObject::Option::UnicodeSets)
+            , m_sticky(option & RegExpObject::Option::Sticky)
         {
         }
 
@@ -78,7 +79,8 @@ public:
                 && (m_multiline == otherKey.m_multiline)
                 && (m_dotAll == otherKey.m_dotAll)
                 && (m_unicode == otherKey.m_unicode)
-                && (m_unicodeSets == otherKey.m_unicodeSets);
+                && (m_unicodeSets == otherKey.m_unicodeSets)
+                && (m_sticky == otherKey.m_sticky);
         }
         String* m_body;
         bool m_ignoreCase : 1;
@@ -86,6 +88,7 @@ public:
         bool m_dotAll : 1;
         bool m_unicode : 1;
         bool m_unicodeSets : 1;
+        bool m_sticky : 1;
     };
 
     struct RegExpCacheEntry {
@@ -278,6 +281,7 @@ struct hash<Escargot::RegExpObject::RegExpCacheKey> {
         hash ^= static_cast<size_t>(x.m_dotAll) << 3;
         hash ^= static_cast<size_t>(x.m_unicode) << 4;
         hash ^= static_cast<size_t>(x.m_unicodeSets) << 5;
+        hash ^= static_cast<size_t>(x.m_sticky) << 6;
         return hash;
     }
 };
