@@ -980,7 +980,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         }
 
         if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
-            return String::fromLatin1(dest, len);
+            return String::fromLatin1(dest, len, &state);
         } else {
             return new Latin1String(std::move(newStr));
         }
