@@ -2287,10 +2287,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib
         sudo apt-get install -y libicu-dev libicu-dev:i386
+    # The two configurations differ on purpose: x86 enables the debugger and therefore
+    # covers the DebuggerOperationsRef tests, while x64 is built the way the engine
+    # actually ships -- without the debugger. That matters for the memory tests
+    # (LeakCheck.*, GCLeak.*): with ESCARGOT_DEBUGGER enabled a ByteCodeBlock is
+    # allocated as an ordinary, fully traced GC object and bytecode pruning is disabled
+    # altogether, so the weak owner reference of ByteCodeBlockKind and the pruning cycle
+    # -- the things those tests guard -- only exist in a build without the debugger.
+    # Debugger tests are compiled out in that configuration (see test/cctest/testapi.cpp).
     - name: Build x86/x64
       env:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=ON -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
-        BUILD_OPTIONS_X64: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
+        BUILD_OPTIONS_X64: -DCMAKE_BUILD_TYPE=Debug -DESCARGOT_THREADING=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_BUILD_CCTEST=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
       run: |
         cmake -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
         ninja -Cout/cctest/x86

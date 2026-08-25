@@ -32,6 +32,7 @@
 namespace Escargot {
 class Node;
 class ObjectStructure;
+class VMInstance;
 struct GlobalVariableAccessCacheItem;
 
 /*
@@ -3739,7 +3740,18 @@ public:
     // m_otherLiteralData only holds various typed addesses not to be deallocated by GC
     ByteCodeOtherLiteralData m_otherLiteralData;
 
+    // the owner CodeBlock. this is a weak reference: the mark procedure of this kind
+    // stops tracing it once the block becomes garbage (see getValidValueInByteCodeBlock),
+    // so it must not be dereferenced from the disclaim callback without a liveness check.
+    // while the block is in use the reference is traced as usual, so all mutator code
+    // (codeBlock(), the interpreter, ...) can use it without any extra care
     InterpretedCodeBlock* m_codeBlock;
+    // the VMInstance owning this block, reached through m_codeBlock at construction time
+    // and cached here so that clearByteCodeBlock() can do its bookkeeping without walking
+    // the (possibly already dead) CodeBlock. never traced -- the VMInstance outlives its
+    // bytecode, and once it is gone isFinalized() stops us from touching it.
+    // empty only for the stack allocated block used while generating bytecode
+    Optional<VMInstance*> m_vm;
 };
 } // namespace Escargot
 

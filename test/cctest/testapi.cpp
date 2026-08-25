@@ -2558,6 +2558,16 @@ TEST(DisabledStackOverflow, Basic)
     });
 }
 
+// The tests below drive DebuggerOperationsRef, whose implementation only exists when the
+// library is built with ESCARGOT_DEBUGGER. Without it the calls resolve to the link-time
+// stubs in debugger_stubs.cpp, which do nothing, so the tests cannot pass and would not
+// mean anything anyway. CI covers both sides: the x86 cctest build enables the debugger,
+// while the x64 build is made the way the engine ships -- without it -- which is the only
+// configuration in which the GC tests below (GCLeak.*, LeakCheck.*) are meaningful, since
+// enabling the debugger turns ByteCodeBlock into an ordinary traced object and disables
+// bytecode pruning entirely.
+#if defined(ESCARGOT_DEBUGGER)
+
 class DebuggerTest : public DebuggerOperationsRef::DebuggerClient {
 public:
     DebuggerTest()
@@ -2913,6 +2923,8 @@ TEST(Debugger, ObjectStore)
     instance.release();
 }
 
+#endif /* ESCARGOT_DEBUGGER */
+
 TEST(WeakPtr, Basic)
 {
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
@@ -3089,6 +3101,94 @@ TEST(Finalizer, Basic)
     instance.release();
 }
 
+// ---------------------------------------------------------------------------
+// GC leak regression tests
+//
+// A ByteCodeBlock must never keep its owner InterpretedCodeBlock alive. The GC kind of
+// ByteCodeBlock is registered with mark-unconditionally, so the collector runs its mark
+// procedure even for blocks that are already garbage; a block that traced its owner from
+// there would resurrect the owner, the owner would trace the block right back through
+// InterpretedCodeBlock::m_byteCodeBlock, and the pair -- plus the Script, the Context and
+// the whole VMInstance behind it -- would stay alive for the rest of the process.
+//
+// The test below observes that from the outside: a function whose compiled ByteCodeBlock
+// is pruned while the function itself stays reachable has to keep working, which is only
+// possible if a pruned block fully disconnects itself from its owner CodeBlock.
+// ---------------------------------------------------------------------------
+
+static PersistentRefHolder<ScriptRef> parseAndRunScript(ContextRef* context, const std::string& source, const std::string& srcName)
+{
+    auto parseResult = context->scriptParser()->initializeScript(StringRef::createFromUTF8(source.data(), source.length()),
+                                                                 StringRef::createFromUTF8(srcName.data(), srcName.length()), false);
+    EXPECT_TRUE(parseResult.isSuccessful());
+
+    PersistentRefHolder<ScriptRef> script(parseResult.script.value());
+    auto executeResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* s) -> ValueRef* { return s->execute(state); }, script.get());
+    EXPECT_TRUE(executeResult.isSuccessful());
+
+    return script;
+}
+
+// Overwrites the part of the native stack the interpreter has just been using: the
+// collector scans the stack conservatively, so a stale word left behind by a frame that
+// has already returned would keep the objects under test alive and make the assertions
+// below meaningless.
+static size_t scribbleNativeStack(size_t depth)
+{
+    volatile size_t buffer[64];
+    for (size_t i = 0; i < 64; i++) {
+        buffer[i] = depth + i;
+    }
+    if (depth == 0) {
+        return buffer[0];
+    }
+    return scribbleNativeStack(depth - 1) + buffer[63];
+}
+
+static void collectEverythingUnreachable()
+{
+    EXPECT_TRUE(scribbleNativeStack(48) != 0);
+    // allocating in between moves the free lists away from the objects that are expected
+    // to die, and gives pending finalizers a chance to run (same idiom as the WeakPtr
+    // tests above)
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    for (size_t i = 0; i < 5; i++) {
+        Memory::gc();
+    }
+}
+
+TEST(GCLeak, PrunedByteCodeOfLiveFunctionIsRecompiled)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    instance->setConfig(instance->config()
+                        | (size_t)VMInstanceRef::ConfigFlag::PruneCompiledByteCodesWhileGC
+                        | (size_t)VMInstanceRef::ConfigFlag::PruneCompiledByteCodesEnterIdle);
+    instance->setMaxCompiledByteCodeSize(1);
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    // the function itself stays reachable through the global object, so only its
+    // ByteCodeBlock is thrown away by the pruning cycles below. if a dying block failed to
+    // disconnect itself from its owner CodeBlock, the next call would run through a
+    // pointer to reclaimed memory
+    PersistentRefHolder<ScriptRef> script = parseAndRunScript(context.get(),
+                                                              "var keepMe = function (a) { var s = 0; for (var j = 0; j < 4; j++) { s += a + j; } return s; };\n"
+                                                              "if (keepMe(1) !== 10) { throw new Error('unexpected result'); }\n",
+                                                              "gcLeakTestKeepMe.js");
+
+    for (size_t round = 0; round < 3; round++) {
+        collectEverythingUnreachable();
+        instance->enterIdleMode();
+
+        PersistentRefHolder<ScriptRef> check = parseAndRunScript(context.get(),
+                                                                 "if (keepMe(1) !== 10) { throw new Error('unexpected result after pruning'); }\n",
+                                                                 "gcLeakTestCheck.js");
+    }
+
+    context.release();
+    instance.release();
+}
 
 TEST(EvaluateJob, Job)
 {

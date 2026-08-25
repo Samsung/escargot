@@ -107,38 +107,85 @@ ByteCodeBlock::ByteCodeBlock()
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_codeBlock(nullptr)
+    , m_vm(nullptr)
 {
     // This constructor is used to allocate a ByteCodeBlock on the stack
+}
+
+// Returns the owner CodeBlock of a dying block if it may still be dereferenced, and
+// nothing if it may not.
+//
+// m_codeBlock is a weak reference: the mark procedure of this kind stops tracing it
+// as soon as the block becomes garbage (see getValidValueInByteCodeBlock), so the
+// CodeBlock is no longer guaranteed to be alive here. It cannot have died *before* this
+// block -- a marked block always marks its owner, so the owner survives every
+// collection the block survives -- but both of them may be dying in the collection that
+// is sweeping us right now, and the heap block holding the CodeBlock may already have
+// been reclaimed as a whole by that same collection.
+//
+// The mark bits of the last collection are still valid while its sweep runs, so an
+// unmarked CodeBlock means "already dead" (as does a CodeBlock whose heap block is
+// gone, which GC_base() reports as not being a heap object any more). The remaining
+// case -- a reclaimed slot that has been handed out again and marked since -- is ruled
+// out by the back pointer comparison in the caller: nothing live can point at a block
+// that is being reclaimed, so a foreign object cannot point back at us. Reading the
+// back pointer of such an object stays inside its heap block, so it is harmless.
+static Optional<InterpretedCodeBlock*> touchableOwnerCodeBlockOf(ByteCodeBlock* block)
+{
+    Optional<InterpretedCodeBlock*> codeBlock = block->codeBlock();
+#ifdef ESCARGOT_DEBUGGER
+    // in debugger builds this GC kind is not used at all (see operator new): the block
+    // is a normally traced object and the cleanup runs as its finalizer, and the
+    // collector keeps everything reachable from an object with a pending finalizer
+    // alive for that cycle, so the owner is always valid here
+    return codeBlock;
+#else
+    if (!codeBlock || !isMarkedHeapObject(codeBlock.value())) {
+        return nullptr;
+    }
+    return codeBlock;
+#endif
 }
 
 void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
 {
     ByteCodeBlock* self = (ByteCodeBlock*)obj;
-    // accessing m_codeBlock here is safe since this kind is registered with
-    // mark-unconditionally, which keeps referents of dying blocks alive
-    // (in debugger builds the finalizer mechanism gives the same guarantee)
-    VMInstance* vm = self->m_codeBlock->context()->vmInstance();
-#ifdef ESCARGOT_DEBUGGER
-    if (!vm->isFinalized()) {
-        Debugger* debugger = self->codeBlock()->context()->debugger();
-        if (debugger != nullptr && self->codeBlock()->markDebugging()) {
-            debugger->byteCodeReleaseNotification(self);
-        }
-    }
-#endif
-    size_t accountedByteCodeSize = self->m_isAccounted ? self->m_code.size() : 0;
-    self->m_code.clear();
-    self->m_numeralLiteralData.clear();
-    self->m_jumpFlowRecordData.clear();
 
-    if (!vm->isFinalized()) {
-        // disconnect the (untraced during pruning) reference from the owner CodeBlock
-        if (self->m_codeBlock->byteCodeBlock() == self) {
-            self->m_codeBlock->setByteCodeBlock(nullptr);
+    // the VMInstance is taken from the cached back pointer instead of
+    // m_codeBlock->context()->vmInstance(): the CodeBlock may already be gone (see
+    // touchableOwnerCodeBlockOf), while the VMInstance outlives all of its bytecode.
+    // m_vm is only empty for the stack allocated block used while generating bytecode,
+    // which never reaches the GC
+    Optional<VMInstance*> vm = self->m_vm;
+    if (vm && !vm->isFinalized()) {
+        Optional<InterpretedCodeBlock*> codeBlock = touchableOwnerCodeBlockOf(self);
+        if (codeBlock) {
+#ifdef ESCARGOT_DEBUGGER
+            Optional<Debugger*> debugger = codeBlock->context()->debugger();
+            if (debugger && codeBlock->markDebugging()) {
+                debugger->byteCodeReleaseNotification(self);
+            }
+#endif
+            // disconnect the reference from the owner CodeBlock: it is not traced from
+            // this block any more (and not traced from the CodeBlock either while a
+            // pruning cycle is in progress), so the mutator must never get to see a
+            // pointer to the memory we are about to release.
+            // the CodeBlock may already own a freshly compiled block, and it may not
+            // even be our CodeBlock any more (see touchableOwnerCodeBlockOf), so only
+            // clear the field if it really still points at us
+            if (codeBlock->byteCodeBlock() == self) {
+                codeBlock->setByteCodeBlock(nullptr);
+            }
         }
+
+        const size_t accountedByteCodeSize = self->m_isAccounted ? self->m_code.size() : 0;
         ASSERT(vm->compiledByteCodeSize() >= accountedByteCodeSize);
         vm->compiledByteCodeSize() -= accountedByteCodeSize;
     }
+
+    self->m_code.clear();
+    self->m_numeralLiteralData.clear();
+    self->m_jumpFlowRecordData.clear();
 }
 
 int ByteCodeBlock::clearByteCodeBlockFromDisclaimGC(void* obj)
@@ -165,6 +212,7 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_codeBlock(codeBlock)
+    , m_vm(codeBlock->context()->vmInstance())
 {
 #ifdef ESCARGOT_DEBUGGER
     GC_REGISTER_FINALIZER_NO_ORDER(this, clearByteCodeBlock, nullptr, nullptr, nullptr);
@@ -174,8 +222,10 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
 void ByteCodeBlock::accountCompiledByteCodeSize()
 {
     ASSERT(!m_isAccounted);
+    ASSERT(m_vm.hasValue() && m_vm.value() == m_codeBlock->context()->vmInstance());
     m_isAccounted = true;
-    auto& currentCodeSizeTotal = m_codeBlock->context()->vmInstance()->compiledByteCodeSize();
+    // use the cached back pointer, the same one clearByteCodeBlock() subtracts through
+    auto& currentCodeSizeTotal = m_vm->compiledByteCodeSize();
     ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max() - m_code.size());
     currentCodeSizeTotal += m_code.size();
     // Pruning of compiled bytecode only happens as part of a GC cycle, and GC is

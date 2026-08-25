@@ -89,16 +89,51 @@ int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[0].to = (GC_word*)current->m_stringLiteralData.data();
     arr[1].from = (GC_word*)&current->m_otherLiteralData;
     arr[1].to = (GC_word*)current->m_otherLiteralData.data();
+    // NOTE
+    // the owner reference is traced only while this block itself is reachable.
+    //
+    // this kind is registered with mark-unconditionally (see initializeCustomAllocators),
+    // which means the collector also runs this procedure for blocks that are already
+    // garbage (GC_push_unconditionally), so that the disclaim callback of a dying block
+    // can still look at its referents. tracing m_codeBlock in that case resurrects the
+    // owner CodeBlock, the resurrected CodeBlock traces m_byteCodeBlock right back to
+    // this block (outside of a pruning cycle), and the pair keeps each other -- plus
+    // everything the CodeBlock reaches: Script, Context, VMInstance and thus the whole
+    // heap -- alive forever. that is the leak this condition prevents.
+    //
+    // a genuinely reachable block is pushed twice: once unconditionally (mark bit clear)
+    // and once through the object graph, where PUSH_CONTENTS sets the mark bit before
+    // pushing. so the owner reference is still traced for every block that is in use;
+    // only dying blocks let go of it. as a consequence the disclaim callback must treat
+    // m_codeBlock as a weak reference, see ByteCodeBlock::clearByteCodeBlock().
     arr[2].from = (GC_word*)&current->m_codeBlock;
-    arr[2].to = (GC_word*)current->m_codeBlock;
+    arr[2].to = isMarkedHeapObject(current) ? (GC_word*)current->m_codeBlock : nullptr;
     return 0;
 }
 
+// NOTE
+// the observer list holds back references: every entry points at the ArrayBuffer (or
+// ArrayBufferView) that registered itself to be notified when the buffer address moves,
+// and those objects point at this BackingStore again through ArrayBuffer::m_backingStore.
+//
+// like ByteCodeBlockKind above, the backing store kinds are registered with
+// mark-unconditionally, so this procedure also runs for stores that are already garbage.
+// tracing the observer list there resurrects the observing ArrayBuffer, which marks this
+// store right back, and the pair -- plus the observer's prototype chain, its realm's
+// GlobalObject, Context and VMInstance, i.e. the whole heap -- can never be collected.
+// so the list is traced only while the store itself is reachable; the disclaim callbacks
+// (clearNonSharedBackingStore()/clearSharedBackingStore()) never look at it.
+//
+// the observer entries are already registered as disappearing links, so a live store
+// whose observer died gets its entry cleared instead of dangling.
 int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
 {
     NonSharedBackingStore* current = (NonSharedBackingStore*)ptr;
     arr[0].from = (GC_word*)&current->m_observerItems;
-    arr[0].to = (GC_word*)current->m_observerItems.data();
+    arr[0].to = isMarkedHeapObject(current) ? (GC_word*)current->m_observerItems.data() : nullptr;
+    // unlike the observer list this one is traced unconditionally: the disclaim callback
+    // hands m_deleterData to the deleter, so it has to stay valid for a dying store too.
+    // it is opaque embedder data with no reference back here, so it forms no cycle
     arr[1].from = (GC_word*)&current->m_deleterData;
     if (!current->m_isResizable) {
         arr[1].to = (GC_word*)current->m_deleterData;
@@ -112,8 +147,9 @@ int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
 int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
 {
     SharedBackingStore* current = (SharedBackingStore*)ptr;
+    // same reasoning as getValidValueInNonSharedBackingStore() above
     arr[0].from = (GC_word*)&current->m_observerItems;
-    arr[0].to = (GC_word*)current->m_observerItems.data();
+    arr[0].to = isMarkedHeapObject(current) ? (GC_word*)current->m_observerItems.data() : nullptr;
     return 0;
 }
 #endif
