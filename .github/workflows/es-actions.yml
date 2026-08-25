@@ -1486,7 +1486,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs', 'test262']
+        tc: ['new-es', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs', 'test262']
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
@@ -1499,7 +1499,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- test/vendortest test/octane test/test262 && break
+          git submodule update --init -- test/vendortest test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -2019,12 +2019,12 @@ jobs:
         attempt_limit: 3
         attempt_delay: 10000
     # Build needs GCutil; the run-tests.py suites here (new-es/v8/spidermonkey/
-    # chakracore -> vendortest, test262 -> test262) are the only ones used.
+    # chakracore -> vendortest, test262 -> test262, octane) are the only ones used.
     # Persistent self-hosted runner, so this is an incremental fetch either way.
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/vendortest test/test262 && break
+          git submodule update --init -- third_party/GCutil test/vendortest test/octane test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -2047,7 +2047,7 @@ jobs:
             OWNER=$(stat -c "%u:%g" /work)
             trap "chown -R $OWNER /work 2>/dev/null || true" EXIT
             apt-get update
-            apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build pkg-config libicu-dev python3 python3-chardet locales gcc g++ clang
+            apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build pkg-config libicu-dev python3 python3-chardet locales gcc g++ clang time
             # v8'"'"'s and spidermonkey'"'"'s test runners both force LANG/LC_ALL=en_US.UTF-8
             # for their child escargot processes (see tools/test/v8/v8.run-tests.py and
             # SpiderMonkey/lib/tests.py'"'"'s get_environment_overlay) -- generate it, or
@@ -2096,6 +2096,7 @@ jobs:
               cat tools/test/spidermonkey/x86_64.gen.txt 2>/dev/null || true
               exit 1
             }
+            python3 tools/run-tests.py --arch=arm --engine="$(pwd)/out/escargot" octane
           '
     - name: Fix workspace ownership (always runs, even if the job above is cancelled)
       # The chown-on-EXIT trap inside the container above only fires on a
@@ -2135,11 +2136,11 @@ jobs:
         attempt_limit: 3
         attempt_delay: 10000
     # Build needs GCutil; Test runs test262/chakracore/spidermonkey/v8/new-es
-    # -- test262 -> test/test262, the rest -> test/vendortest.
+    # -- test262 -> test/test262, the rest -> test/vendortest -- plus Octane.
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/vendortest test/test262 && break
+          git submodule update --init -- third_party/GCutil test/vendortest test/octane test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -2177,6 +2178,7 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
+        $RUNNER --arch=aarch64 --engine="${{ github.workspace }}/out/escargot" octane
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15

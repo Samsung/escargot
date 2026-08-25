@@ -123,19 +123,20 @@ def run_octane(engine, arch, extra_arg):
         try:
             OCTANE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'octane')
 
-            stdout = run(['/usr/bin/time', '-f', '%M', '-o', 'mem.txt', engine, 'run.js'],
-                         cwd=OCTANE_DIR,
-                         stdout=PIPE)
-            f = open(join(OCTANE_DIR, 'mem.txt'))
-            for s in f:
-                rss = s.strip("\n")
-            mem = int(rss)
-            print('Octane maximum resident set size: ' + str(mem) + 'KB')
+            if arch in ("arm", "aarch64"):
+                stdout = run(["/usr/bin/time", "-f", "%M", "-o", "mem.txt", engine, "run.js"],
+                             cwd=OCTANE_DIR,
+                             stdout=PIPE)
+                with open(join(OCTANE_DIR, "mem.txt")) as f:
+                    mem = int(f.read().strip())
+                print("Octane maximum resident set size: " + str(mem) + "KB")
 
-            if arch == str('x86_64') and mem > 250000:
-                raise Exception('Exceed memory consumption')
-            if arch == str('x86') and mem > 150000:
-                raise Exception('Exceed memory consumption')
+                if arch == "aarch64" and mem > 300000:
+                    raise Exception("Exceed memory consumption")
+                if arch == "arm" and mem > 100000:
+                    raise Exception("Exceed memory consumption")
+            else:
+                stdout = run([engine, "run.js"], cwd=OCTANE_DIR, stdout=PIPE)
 
             if 'Score' not in stdout.decode("utf-8"):
                 raise Exception('no "Score" in stdout')
@@ -1065,7 +1066,7 @@ def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')
     parser.add_argument('--engine', metavar='PATH', default=DEFAULT_ESCARGOT,
                         help='path to the engine to be tested (default: %(default)s)')
-    parser.add_argument('--arch', metavar='NAME', choices=['x86', 'x86_64'], default='x86_64',
+    parser.add_argument('--arch', metavar='NAME', choices=['x86', 'x86_64', 'arm', 'aarch64'], default='x86_64',
                         help='architecture the engine was built for (%(choices)s; default: %(default)s)')
     parser.add_argument('--test262-extra-arg', default='',
                         help='extra argument variable to test262')
