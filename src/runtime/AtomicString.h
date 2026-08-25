@@ -237,4 +237,12 @@ struct equal_to<Escargot::AtomicString> {
 };
 } // namespace std
 
+namespace tsl {
+namespace detail_robin_hash {
+template <>
+struct should_never_store_hash<Escargot::AtomicString> : std::true_type {
+};
+} // namespace detail_robin_hash
+} // namespace tsl
+
 #endif
