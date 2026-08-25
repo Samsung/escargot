@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "AtomicString.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "parser/ParserStringView.h"
 
 namespace Escargot {
@@ -358,6 +359,19 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
 
 void AtomicString::init(Context* c, String* name)
 {
+    VMInstance* vm = c->vmInstance();
+    auto bad = name->bufferAccessData();
+    if (bad.has8BitContent && bad.length <= 16) {
+        const LChar* buf = (const LChar*)bad.buffer;
+        auto hit = vm->lookupAtomicStringCache(buf, bad.length);
+        if (hit) {
+            m_string = hit.value();
+            return;
+        }
+        init(c->atomicStringMap(), name);
+        vm->insertAtomicStringCache(buf, bad.length, m_string);
+        return;
+    }
     init(c->atomicStringMap(), name);
 }
 } // namespace Escargot

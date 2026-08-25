@@ -196,8 +196,11 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_asyncWaiterData));
 #endif
 
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheObjects));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCacheMetadata));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCache.m_objects));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCache.m_metadata));
+
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringLookupCache.m_objects));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringLookupCache.m_metadata));
 
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_int32StringCacheObjects));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_int32StringCacheKeys));
@@ -386,8 +389,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #if defined(ENABLE_CODE_CACHE)
     , m_codeCache(nullptr)
 #endif
-    , m_smallStringCacheObjects(nullptr)
-    , m_smallStringCacheMetadata(nullptr)
     , m_int32StringCacheObjects(nullptr)
     , m_int32StringCacheKeys(nullptr)
     , m_doubleStringCacheObjects(nullptr)
@@ -405,11 +406,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(256 * sizeof(ASCIIString*));
     memset(m_regexpOptionStringCache, 0, 256 * sizeof(ASCIIString*));
 
-    m_smallStringCacheObjects = (String**)GC_MALLOC(smallStringCacheSize * sizeof(String*));
-    memset(m_smallStringCacheObjects, 0, smallStringCacheSize * sizeof(String*));
-
-    m_smallStringCacheMetadata = (SmallStringCacheMetadata*)GC_MALLOC_ATOMIC(smallStringCacheSize * sizeof(SmallStringCacheMetadata));
-    memset(m_smallStringCacheMetadata, 0, smallStringCacheSize * sizeof(SmallStringCacheMetadata));
+    m_smallStringCache.init();
+    m_atomicStringLookupCache.init();
 
     m_int32StringCacheObjects = (String**)GC_MALLOC(int32StringCacheSize * sizeof(String*));
     memset(m_int32StringCacheObjects, 0, int32StringCacheSize * sizeof(String*));

@@ -24,6 +24,7 @@
 #include "runtime/AtomicString.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
+#include "runtime/SetAssociativeCache.h"
 
 namespace Escargot {
 
@@ -591,15 +592,21 @@ private:
 #endif
 
     static constexpr size_t smallStringCacheSets = 128;
-    static constexpr size_t smallStringCacheSize = smallStringCacheSets * 2;
-    static constexpr size_t smallStringCacheStringLength = 16;
-    struct SmallStringCacheMetadata {
-        size_t len = 0;
-        LChar buffer[smallStringCacheStringLength] = { 0 };
-    };
+    static constexpr size_t smallStringCacheStringLength = SLRUSetCache<smallStringCacheSets>::maxKeyLength;
+    typedef SLRUSetCache<smallStringCacheSets> SmallStringCache;
+    typedef SmallStringCache::Metadata SmallStringCacheMetadata;
 
-    String** m_smallStringCacheObjects;
-    SmallStringCacheMetadata* m_smallStringCacheMetadata;
+    SmallStringCache m_smallStringCache;
+
+    // content-keyed cache in front of AtomicStringMap: maps a short Latin1
+    // buffer directly to its already-interned canonical String*, so a fresh
+    // (never-tagged) String instance holding previously-seen content (e.g. a
+    // computed property key rebuilt on every access) can skip the
+    // AtomicStringMap (open-addressing hash set) probe entirely
+    static constexpr size_t atomicStringLookupCacheSets = 128;
+    typedef SLRUSetCache<atomicStringLookupCacheSets> AtomicStringLookupCache;
+
+    AtomicStringLookupCache m_atomicStringLookupCache;
 
     static constexpr size_t int32StringCacheSets = 128;
     static constexpr size_t int32StringCacheSize = int32StringCacheSets * 2;
@@ -612,15 +619,6 @@ private:
 
     String** m_doubleStringCacheObjects;
     uint64_t* m_doubleStringCacheKeys;
-
-    inline size_t computeShortStringCacheHash(const LChar* src, size_t len) const
-    {
-        unsigned int hash = 2166136261U;
-        for (size_t i = 0; i < len; ++i) {
-            hash = (hash ^ src[i]) * 16777619U;
-        }
-        return hash;
-    }
 
     inline size_t computeInt32StringCacheHash(int32_t v) const
     {
@@ -750,54 +748,26 @@ public:
 
     inline Optional<String*> lookupShortStringCache(const LChar* src, size_t len)
     {
-        ASSERT(len <= smallStringCacheStringLength);
-
-        size_t hash = computeShortStringCacheHash(src, len);
-        size_t index = hash % smallStringCacheSets;
-        size_t baseIdx = index * 2;
-
-        // Check Way 0
-        String* str0 = m_smallStringCacheObjects[baseIdx + 0];
-        auto& meta0 = m_smallStringCacheMetadata[baseIdx + 0];
-        if (str0 && meta0.len == len && memcmp(meta0.buffer, src, len) == 0) {
-            return str0;
-        }
-
-        // Check Way 1
-        String* str1 = m_smallStringCacheObjects[baseIdx + 1];
-        auto& meta1 = m_smallStringCacheMetadata[baseIdx + 1];
-        if (str1 && meta1.len == len && memcmp(meta1.buffer, src, len) == 0) {
-            // Swap Way 0 and Way 1 (LRU promotion) using value copies to prevent reference aliasing bugs
-            String* tempStr = m_smallStringCacheObjects[baseIdx + 0];
-            SmallStringCacheMetadata tempMeta = m_smallStringCacheMetadata[baseIdx + 0];
-
-            m_smallStringCacheObjects[baseIdx + 0] = str1;
-            m_smallStringCacheMetadata[baseIdx + 0] = meta1;
-
-            m_smallStringCacheObjects[baseIdx + 1] = tempStr;
-            m_smallStringCacheMetadata[baseIdx + 1] = tempMeta;
-            return str1;
-        }
-
-        return nullptr;
+        return m_smallStringCache.lookup(src, len);
     }
 
     inline void insertShortStringCache(const LChar* src, size_t len, String* resultString)
     {
-        ASSERT(len <= smallStringCacheStringLength);
+        m_smallStringCache.insertMRU(src, len, resultString);
+    }
 
-        size_t hash = computeShortStringCacheHash(src, len);
-        size_t index = hash % smallStringCacheSets;
-        size_t baseIdx = index * 2;
+    inline Optional<String*> lookupAtomicStringCache(const LChar* src, size_t len)
+    {
+        return m_atomicStringLookupCache.lookup(src, len);
+    }
 
-        // Evict Way 1 (LRU), move Way 0 to Way 1, and insert new item into Way 0
-        m_smallStringCacheObjects[baseIdx + 1] = m_smallStringCacheObjects[baseIdx + 0];
-        m_smallStringCacheMetadata[baseIdx + 1] = m_smallStringCacheMetadata[baseIdx + 0];
-
-        m_smallStringCacheObjects[baseIdx + 0] = resultString;
-        auto& meta0 = m_smallStringCacheMetadata[baseIdx + 0];
-        meta0.len = len;
-        memcpy(meta0.buffer, src, len);
+    inline void insertAtomicStringCache(const LChar* src, size_t len, String* resultString)
+    {
+        // SLRU admission (see SLRUSetCache::insertProbation): content seen
+        // just once (e.g. a one-shot computed key) can't evict an entry
+        // another, actually-repeating, key relies on -- it only earns the
+        // protected slot by being looked up a second time.
+        m_atomicStringLookupCache.insertProbation(src, len, resultString);
     }
 };
 } // namespace Escargot
