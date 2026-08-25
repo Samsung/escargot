@@ -181,14 +181,18 @@ TEST(NapiMemoryDemo, CompressibleStringRSS)
            static_cast<double>(saved) / (1024.0 * 1024.0), percentSaved);
     printf("====================================================\n");
 
-    // A real, reproducible regression guard - not a faked number. The exact
-    // percentage depends on how compressible the content is and on
-    // conservative-GC/allocator timing, so this threshold is intentionally
-    // well below what a healthy run should show, to avoid a flaky test
-    // while still catching a real regression (e.g. compression silently not
-    // happening at all, which would show ~0% here).
-    EXPECT_GT(saved, 0);
-    EXPECT_GT(percentSaved, 15.0);
+    // A real, reproducible regression guard - not a faked number. Guard on the
+    // absolute number of bytes handed back, not on a percentage: the percentage
+    // is taken against the whole process RSS, so it also moves with whatever
+    // else the process happens to be holding. Run as part of the full cctest
+    // binary, the earlier tests leave tens of MB of warm, fragmented heap
+    // behind, which both inflates that denominator and leaves the freed string
+    // blocks sharing pages with live objects, so a healthy run legitimately
+    // reports a much smaller percentage there than the same workload does
+    // standalone. The threshold is intentionally well below what either case
+    // shows, to avoid a flaky test while still catching a real regression
+    // (e.g. compression silently not happening at all, which would show ~0).
+    EXPECT_GT(saved, 4 * 1024 * 1024);
 
     // keep the reference alive (and therefore silence "unused" concerns)
     // until the very end of the test, exactly as a long-lived addon would.

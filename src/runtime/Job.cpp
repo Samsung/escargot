@@ -144,6 +144,17 @@ SandBox::SandBoxResult CleanupSomeJob::run()
     return result;
 }
 
+SandBox::SandBoxResult FinalizationRegistryCleanupJob::run()
+{
+    SandBox sandbox(relatedContext());
+    return sandbox.run([](ExecutionState& state, void* data) -> Value {
+        FinalizationRegistryCleanupJob* self = reinterpret_cast<FinalizationRegistryCleanupJob*>(data);
+        Value argv = self->m_heldValue;
+        return Object::call(state, self->m_callback, Value(), 1, &argv);
+    },
+                       this);
+}
+
 SandBox::SandBoxResult EvaluateJob::run()
 {
     SandBox sandbox(relatedContext());

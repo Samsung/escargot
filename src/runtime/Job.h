@@ -100,6 +100,24 @@ private:
     Optional<Object*> m_callback;
 };
 
+// Runs a FinalizationRegistry cleanup callback that could not be run from the GC
+// finalizer that triggered it -- see FinalizationRegistryObject::finalizer().
+class FinalizationRegistryCleanupJob : public Job {
+public:
+    FinalizationRegistryCleanupJob(Context* relatedContext, Object* callback, const EncodedValue& heldValue)
+        : Job(relatedContext)
+        , m_callback(callback)
+        , m_heldValue(heldValue)
+    {
+    }
+
+    SandBox::SandBoxResult run();
+
+private:
+    Object* m_callback;
+    EncodedValue m_heldValue;
+};
+
 class EvaluateJob : public Job {
 public:
     typedef Value (*Callback)(ExecutionState& state, void* data);

@@ -209,12 +209,27 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
     }
 
     if (!wasCallbackDeleted && Globals::isInitialized()) {
-        try {
-            ExecutionState tempState(item->source->m_realm);
-            Value argv = item->heldValue;
-            Object::call(tempState, callback, Value(), 1, &argv);
-        } catch (const Value& v) {
-            // do nothing
+        if (UNLIKELY(GC_is_disabled())) {
+            // GC is disabled around the engine's own non-reentrant work -- most notably
+            // parsing and bytecode generation, which hold state that a nested parse would
+            // pull out from under them (the AST allocator is shared per thread, so the
+            // nested parse's reset() frees the pools the outer parse is still building
+            // its AST in). A finalizer can run at any allocation point, including one of
+            // those, and calling the cleanup callback here would re-enter JS right there:
+            // a lazily compiled callee alone is enough to start that nested parse.
+            // Run the callback from a job instead, which is where the spec puts it anyway
+            // (HostEnqueueFinalizationRegistryCleanupJob). Only the call is deferred; the
+            // item is unregistered below exactly as in the immediate case.
+            Context* realm = item->source->m_realm;
+            realm->vmInstance()->enqueueJob(new FinalizationRegistryCleanupJob(realm, callback, item->heldValue));
+        } else {
+            try {
+                ExecutionState tempState(item->source->m_realm);
+                Value argv = item->heldValue;
+                Object::call(tempState, callback, Value(), 1, &argv);
+            } catch (const Value& v) {
+                // do nothing
+            }
         }
     }
 
