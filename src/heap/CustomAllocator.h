@@ -73,6 +73,23 @@ enum HeapObjectKind : unsigned {
 
 void initializeCustomAllocators();
 
+// Tests whether `ptr` is a heap object that survived the most recent collection.
+//
+// This is only meaningful where the mark bits of that collection are still valid and
+// the allocator lock is held, i.e. from a mark procedure, a disclaim callback or a
+// finalizer. Objects allocated after the collection are not marked, which is exactly
+// what a caller using this as a liveness test wants: a slot that was reclaimed and
+// then handed out to a new object reads as dead.
+//
+// GC_is_marked() wants the real address of the object, so the user pointer is passed
+// through GC_base() (in debug builds every object carries an allocation header, and
+// GC_base() also rejects addresses whose heap block has already been freed).
+inline bool isMarkedHeapObject(const void* ptr)
+{
+    void* base = GC_base(const_cast<void*>(ptr));
+    return base != nullptr && GC_is_marked(base) != 0;
+}
+
 typedef std::function<void(ExecutionState& state, void* obj)> HeapObjectIteratorCallback;
 
 /*
