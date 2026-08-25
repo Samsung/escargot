@@ -122,8 +122,18 @@ class ThreadLocal {
 #endif
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-    static int g_stackLimitKeyOffset;
+    // signed: on glibc TLS_DTV_AT_TP targets (arm, aarch64, riscv) the key slot
+    // lies below the thread pointer, see checkPthreadKey() in ThreadLocal.cpp
+    static ptrdiff_t g_stackLimitKeyOffset;
     static pthread_key_t g_stackLimitKey;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // the empty string needs a key (and thus a slot) of its own: the word next
+    // to another key's slot belongs to that key's neighbor in libc's key array,
+    // not to us
+    static ptrdiff_t g_emptyStringKeyOffset;
+    static pthread_key_t g_emptyStringKey;
+#endif
+    static void initializeTlsKeySlotOffsets();
 #endif
 
     // Global data per thread
@@ -235,7 +245,7 @@ public:
         return reinterpret_cast<String*>(readTlsValue(g_emptyStringTlsOffset));
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
         auto base = tlsBaseAddress();
-        String*** ptr = reinterpret_cast<String***>(base + g_stackLimitKeyOffset + sizeof(size_t));
+        String*** ptr = reinterpret_cast<String***>(base + g_emptyStringKeyOffset);
         return **ptr;
 #else
         return g_emptyStringInstance;

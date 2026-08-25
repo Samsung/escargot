@@ -47,6 +47,9 @@
 
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
 #include <unistd.h> // getpagesize
+#if defined(__BIONIC__)
+#include <android/api-level.h>
+#endif
 #endif
 
 // we needs to define new macro here since wtfbridge redefine original macro
@@ -70,8 +73,13 @@ size_t ThreadLocal::g_emptyStringTlsOffset;
 #endif
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-int ThreadLocal::g_stackLimitKeyOffset;
+ptrdiff_t ThreadLocal::g_stackLimitKeyOffset;
 pthread_key_t ThreadLocal::g_stackLimitKey;
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+ptrdiff_t ThreadLocal::g_emptyStringKeyOffset;
+pthread_key_t ThreadLocal::g_emptyStringKey;
+#endif
 #endif
 
 #if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -248,29 +256,220 @@ static void genericGCEventListener(GC_EventType evtType)
 }
 
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-Optional<size_t*> checkPthreadKey(pthread_key_t key, char* tlsBase)
-{
+/*
+ * Locate this thread's storage slot for a pthread key as a fixed offset from
+ * the thread pointer. The whole mechanism relies on that offset being identical
+ * on every thread, which holds because both supported libc families place the
+ * per-thread key storage at a compile-time constant displacement from the
+ * thread pointer:
+ *
+ *   - glibc: the slot is `struct pthread.specific_1stblock[idx].data`, and
+ *     `THREAD_SELF` is the thread pointer plus or minus a constant. On
+ *     TLS_TCB_AT_TP targets (x86, x86_64) `struct pthread` starts at the thread
+ *     pointer, so the slot is at a positive offset; on TLS_DTV_AT_TP targets
+ *     (arm, aarch64, riscv) it is placed immediately below the thread pointer,
+ *     so the offset is negative. Both directions are therefore searched, the
+ *     more likely one first.
+ *   - bionic changed layout at Android 10. Through Android 9 the key array is
+ *     inline in `pthread_internal_t`, immediately above the thread pointer, so
+ *     the original one-page upward scan is used. Since Android 10 the array is
+ *     the first member of `bionic_tls`; its address is derived through
+ *     TLS_SLOT_BIONIC_TLS, see bionicPthreadKeySlot().
+ *
+ * Note that the direction is a property of the libc rather than of the target
+ * architecture: on aarch64 bionic keeps the slot above the thread pointer while
+ * glibc keeps it below.
+ */
 #if defined(ESCARGOT_32)
-    pthread_setspecific(key, (void*)(0xbeefdead));
+#define ESCARGOT_TLS_KEY_MAGIC1 ((size_t)0xbeefdeadu)
+#define ESCARGOT_TLS_KEY_MAGIC2 ((size_t)0xfeedfaceu)
 #else
-    pthread_setspecific(key, (void*)(0xbeefdeaddeadbeefull));
+#define ESCARGOT_TLS_KEY_MAGIC1 ((size_t)0xbeefdeaddeadbeefull)
+#define ESCARGOT_TLS_KEY_MAGIC2 ((size_t)0xfeedfacecafebabeull)
 #endif
-    size_t* ptr = reinterpret_cast<size_t*>(tlsBase);
-    size_t* tcbMayEnd = reinterpret_cast<size_t*>(tlsBase + getpagesize());
 
-    while (ptr < tcbMayEnd) {
-#if defined(ESCARGOT_32)
-        if (*ptr == 0xbeefdead) {
-#else
-        if (*ptr == 0xbeefdeaddeadbeefull) {
+// glibc keeps the slot below the thread pointer on TLS_DTV_AT_TP targets
+#if !defined(__BIONIC__) && (defined(CPU_ARM32) || defined(CPU_ARM64) || defined(CPU_RISCV32) || defined(CPU_RISCV64))
+#define ESCARGOT_TLS_KEY_SLOT_BELOW_TP
 #endif
-            pthread_setspecific(key, nullptr);
-            return ptr;
-        }
-        ptr++;
+
+#if defined(__BIONIC__)
+// thread pointer slot holding `bionic_tls`, per bionic's tls_defines.h
+#if defined(CPU_ARM32) || defined(CPU_ARM64)
+#define ESCARGOT_TLS_SLOT_BIONIC_TLS (-1)
+#elif defined(CPU_X86) || defined(CPU_X86_64)
+#define ESCARGOT_TLS_SLOT_BIONIC_TLS 9
+#elif defined(CPU_RISCV32) || defined(CPU_RISCV64)
+#define ESCARGOT_TLS_SLOT_BIONIC_TLS (-9)
+#endif
+#endif
+
+// tell a real key slot from a stale copy of the magic sitting in unrelated
+// memory: the value was just passed to pthread_setspecific, so it may well have
+// been spilled onto the stack, and only the real slot follows the key to a
+// second value. MAGIC1 is put back on the way out so that rejecting a candidate
+// does not disturb the caller's scan
+static bool verifyPthreadKeySlot(pthread_key_t key, size_t* candidate)
+{
+    if (*candidate != ESCARGOT_TLS_KEY_MAGIC1) {
+        return false;
     }
-    pthread_setspecific(key, nullptr);
+    pthread_setspecific(key, reinterpret_cast<void*>(ESCARGOT_TLS_KEY_MAGIC2));
+    bool result = (*candidate == ESCARGOT_TLS_KEY_MAGIC2);
+    pthread_setspecific(key, reinterpret_cast<void*>(ESCARGOT_TLS_KEY_MAGIC1));
+    return result;
+}
+
+static Optional<size_t*> scanPthreadKeySlotUp(pthread_key_t key, char* lo, char* hi)
+{
+    for (size_t* p = reinterpret_cast<size_t*>(lo); p < reinterpret_cast<size_t*>(hi); p++) {
+        if (verifyPthreadKeySlot(key, p)) {
+            return p;
+        }
+    }
     return nullptr;
+}
+
+// searched downward from `hi` on purpose: the slot sits just below the thread
+// pointer, while the bottom of the range is already past the start of the
+// thread descriptor (the thread's own stack, or data below the initial break)
+// and is the part most likely to hold a stale magic
+static Optional<size_t*> scanPthreadKeySlotDown(pthread_key_t key, char* lo, char* hi)
+{
+    for (size_t* p = reinterpret_cast<size_t*>(hi); p > reinterpret_cast<size_t*>(lo);) {
+        if (verifyPthreadKeySlot(key, --p)) {
+            return p;
+        }
+    }
+    return nullptr;
+}
+
+#if defined(ESCARGOT_TLS_SLOT_BIONIC_TLS)
+// layout of bionic's `pthread_key_data_t`
+struct BionicKeyData {
+    size_t seq;
+    void* data;
+};
+
+#define ESCARGOT_BIONIC_KEY_VALID_FLAG ((unsigned)1 << 31)
+
+// `bionic_tls` is reachable through a thread pointer slot of a known index and
+// `pthread_key_data_t key_data[]` is its first member, so the slot address
+// follows from the key index without searching memory. All PTHREAD_KEYS_MAX
+// slots live in that array, hence no equivalent of the glibc limit described in
+// initializeTlsKeySlotOffsets(). Still verified against the magic, as the
+// layout is a libc implementation detail
+static Optional<size_t*> bionicPthreadKeySlot(pthread_key_t key, char* tlsBase)
+{
+    // Android 9 keeps key_data[] in pthread_internal_t instead. Although this
+    // TLS slot already exists there, it points at an older bionic_tls whose
+    // first member is not key_data[].
+    int androidApiLevel = android_get_device_api_level();
+    if (androidApiLevel > 0 && androidApiLevel < 29) {
+        return nullptr;
+    }
+
+    char* bionicTls = reinterpret_cast<char*>(reinterpret_cast<void**>(tlsBase)[ESCARGOT_TLS_SLOT_BIONIC_TLS]);
+    if (!bionicTls || (reinterpret_cast<uintptr_t>(bionicTls) & (alignof(BionicKeyData) - 1))) {
+        return nullptr;
+    }
+    BionicKeyData* keyData = reinterpret_cast<BionicKeyData*>(bionicTls);
+    size_t* candidate = reinterpret_cast<size_t*>(&keyData[(unsigned)key & ~ESCARGOT_BIONIC_KEY_VALID_FLAG].data);
+    return verifyPthreadKeySlot(key, candidate) ? candidate : nullptr;
+}
+#endif
+
+// returns the offset of the slot from the thread pointer, or zero if it could
+// not be located (zero is not a valid slot offset for either libc, the thread
+// pointer itself always holds libc's own TCB header)
+static ptrdiff_t checkPthreadKey(pthread_key_t key, char* tlsBase)
+{
+    size_t page = static_cast<size_t>(getpagesize());
+    Optional<size_t*> found;
+
+    pthread_setspecific(key, reinterpret_cast<void*>(ESCARGOT_TLS_KEY_MAGIC1));
+#if defined(ESCARGOT_TLS_SLOT_BIONIC_TLS)
+    int androidApiLevel = android_get_device_api_level();
+    if (androidApiLevel >= 29 || androidApiLevel < 0) {
+        found = bionicPthreadKeySlot(key, tlsBase);
+    } else {
+        // Android 9 and earlier: key_data[] follows the TCB slots in
+        // pthread_internal_t and is always within the page above TP. This is
+        // the pre-Android-10 algorithm; do not probe below TP if it fails.
+        found = scanPthreadKeySlotUp(key, tlsBase, tlsBase + page);
+    }
+#endif
+#if defined(ESCARGOT_TLS_KEY_SLOT_BELOW_TP)
+    if (!found) {
+        found = scanPthreadKeySlotDown(key, tlsBase - page, tlsBase);
+    }
+    if (!found) {
+        found = scanPthreadKeySlotUp(key, tlsBase, tlsBase + page);
+    }
+#elif !defined(ESCARGOT_TLS_SLOT_BIONIC_TLS)
+    if (!found) {
+        found = scanPthreadKeySlotUp(key, tlsBase, tlsBase + page);
+    }
+    if (!found) {
+        found = scanPthreadKeySlotDown(key, tlsBase - page, tlsBase);
+    }
+#else
+    // On Android 10+ the direct layout lookup above should succeed. Keep the
+    // known-safe upward scan as a checked fallback for vendor bionic variants.
+    if (!found && (androidApiLevel >= 29 || androidApiLevel < 0)) {
+        found = scanPthreadKeySlotUp(key, tlsBase, tlsBase + page);
+    }
+#endif
+    pthread_setspecific(key, nullptr);
+    return found ? reinterpret_cast<char*>(found.value()) - tlsBase : 0;
+}
+
+// the offset was probed on whichever thread ran initializeTlsKeySlotOffsets();
+// re-check on every other thread that it really addresses this thread's slot,
+// rather than trusting that the libc layout is thread-invariant
+static bool verifyPthreadKeySlotOffset(pthread_key_t key, char* tlsBase, ptrdiff_t offset)
+{
+    pthread_setspecific(key, reinterpret_cast<void*>(ESCARGOT_TLS_KEY_MAGIC1));
+    bool result = verifyPthreadKeySlot(key, reinterpret_cast<size_t*>(tlsBase + offset));
+    pthread_setspecific(key, nullptr);
+    return result;
+}
+
+static pthread_once_t g_tlsKeySlotOnce = PTHREAD_ONCE_INIT;
+
+static ptrdiff_t createAndProbeTlsKey(pthread_key_t* key, char* tlsBase)
+{
+    int keyCreateReturn = pthread_key_create(key, nullptr);
+    ESCARGOT_RELEASE_ASSERT(keyCreateReturn == 0);
+
+    ptrdiff_t offset = checkPthreadKey(*key, tlsBase);
+    // reached when the slot could not be located within a page of the thread
+    // pointer. With glibc that happens once the key index is
+    // >= PTHREAD_KEY_2NDLEVEL_SIZE (32), i.e. when 32 or more keys were live at
+    // the moment the key above was created: those slots live in per-thread
+    // malloc'ed blocks, which no single fixed offset can address. Beware that
+    // such a block may still happen to land within the searched range on this
+    // particular thread, in which case the probe succeeds and yields an offset
+    // that is wrong on every other thread -- which is what the per-thread
+    // re-check in initialize() is there to catch. The real remedy is to keep
+    // the key index low, i.e. to initialize Escargot early. bionic keeps all
+    // PTHREAD_KEYS_MAX slots inline, so it has no such limit
+    ESCARGOT_RELEASE_ASSERT(offset != 0);
+    return offset;
+}
+
+// the offsets are process-wide values, so exactly one thread may create the
+// keys and probe for them. initialize() runs once per thread, and racing
+// threads would otherwise each create a key of their own, probe the
+// corresponding (different) offsets and all store the result; every loser would
+// then reach its stack limit through an unrelated key's slot
+void ThreadLocal::initializeTlsKeySlotOffsets()
+{
+    char* baseAddr = tlsBaseAddress();
+    g_stackLimitKeyOffset = createAndProbeTlsKey(&g_stackLimitKey, baseAddr);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    g_emptyStringKeyOffset = createAndProbeTlsKey(&g_emptyStringKey, baseAddr);
+#endif
 }
 #endif
 
@@ -332,19 +531,20 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 #endif
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-    int keyCreateReturn;
-    auto baseAddr = tlsBaseAddress();
-    if (!g_stackLimitKeyOffset) {
-        keyCreateReturn = pthread_key_create(&g_stackLimitKey, nullptr);
-        ESCARGOT_RELEASE_ASSERT(keyCreateReturn == 0);
-        auto ptr = checkPthreadKey(g_stackLimitKey, baseAddr);
-        ESCARGOT_RELEASE_ASSERT(ptr);
+    // GC_init() (through Heap::initialize() above) probes the very same way for
+    // its own key, so the allocator is usable here -- but the offsets are still
+    // guarded by pthread_once instead of a lock, see
+    // initializeTlsKeySlotOffsets()
+    int onceReturn = pthread_once(&g_tlsKeySlotOnce, &ThreadLocal::initializeTlsKeySlotOffsets);
+    ESCARGOT_RELEASE_ASSERT(onceReturn == 0);
 
-        g_stackLimitKeyOffset = reinterpret_cast<size_t>(ptr.value()) - reinterpret_cast<size_t>(baseAddr);
-        ESCARGOT_RELEASE_ASSERT(g_stackLimitKeyOffset < getpagesize());
-    }
-    size_t** ptr = reinterpret_cast<size_t**>(tlsBaseAddress() + g_stackLimitKeyOffset);
-    *ptr = &g_stackLimit;
+    auto baseAddr = tlsBaseAddress();
+    ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_stackLimitKey, baseAddr, g_stackLimitKeyOffset));
+    *reinterpret_cast<size_t**>(baseAddr + g_stackLimitKeyOffset) = &g_stackLimit;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_emptyStringKey, baseAddr, g_emptyStringKeyOffset));
+    *reinterpret_cast<String***>(baseAddr + g_emptyStringKeyOffset) = &g_emptyStringInstance;
+#endif
 #endif
 
     // g_stackLimit
