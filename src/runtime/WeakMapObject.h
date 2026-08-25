@@ -22,6 +22,7 @@
 
 #include "runtime/Object.h"
 
+struct GC_ms_entry;
 namespace Escargot {
 
 struct KeyedCollectionHashIndex;
@@ -62,6 +63,8 @@ private:
     WeakMapObjectDataItem* insertNew(PointerValue* key, const Value& value);
     void addToHashIndex(size_t storageIndex);
     void buildOrRebuildHashIndex();
+    static GC_ms_entry* markEphemerons(GC_ms_entry* markStackTop, GC_ms_entry* markStackLimit, void* data);
+    static void removeEphemeronListener(PointerValue* self, void* data);
 
     WeakMapObjectData m_storage;
     Optional<KeyedCollectionHashIndex*> m_hashIndex;

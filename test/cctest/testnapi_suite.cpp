@@ -335,13 +335,9 @@ ValueRef* NativeLoadAddon(ExecutionStateRef* state, ValueRef* thisValue, size_t 
     }
 
     napi_env env = g_currentEnv->env();
-    ExecutionStateRef* previousState = env->executionState;
-    env->executionState = state;
 
     ObjectRef* exports = ObjectRef::create(state);
     napi_value returnedExports = registerModule(env, ToNapi(exports));
-
-    env->executionState = previousState;
 
     if (env->pendingException.hasValue()) {
         ValueRef* exceptionValue = env->pendingException.value();
@@ -578,7 +574,6 @@ static void RealUvTimerCallback(uv_timer_t* handle)
 {
     TimerBaton* baton = reinterpret_cast<TimerBaton*>(handle->data);
     napi_env env = g_currentEnv->env();
-    ExecutionStateRef* previousState = env->executionState;
 
     Evaluator::execute(g_currentEnv->context(), [](ExecutionStateRef* state, TimerBaton* batonRef) -> ValueRef* {
         std::vector<ValueRef*> callArgs;
@@ -587,8 +582,6 @@ static void RealUvTimerCallback(uv_timer_t* handle)
         }
         batonRef->jsCallback->call(state, ValueRef::createUndefined(), callArgs.size(), callArgs.data());
         return ValueRef::createUndefined(); }, baton);
-
-    env->executionState = previousState;
     uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* closeHandle) {
         TimerBaton* b = reinterpret_cast<TimerBaton*>(closeHandle->data);
         delete b;
@@ -770,7 +763,6 @@ bool runNapiCompatTestCore(NapiEnv* napiEnv, const std::string& absTestJsPath, c
 
     Evaluator::EvaluatorResult setupResult = Evaluator::execute(
         context, [](ExecutionStateRef* state, napi_env env, const std::string* absTestJsPath) -> ValueRef* {
-            env->executionState = state;
             installHarness(state, state->context());
 
             ValueRef* runTestFn = state->context()->globalObject()->get(state, StringRef::createFromASCII("__runTest"));
@@ -865,22 +857,12 @@ bool runNapiCompatTestCore(NapiEnv* napiEnv, const std::string& absTestJsPath, c
     // finalizer and crashing. Same "clear stack + churn + gc x5" pattern
     // already used at the end of testnapi.cpp's Napi.ObjectWrap/
     // Napi.FactoryWrap and in NapiEnv::~NapiEnv() itself (see napi-notes.md) -
-    // with one addition: env->executionState must stay set to a *valid*
-    // state of this same env/Context for the whole churn+gc sequence, not
-    // just the first dummy Evaluator::execute call. Those existing
-    // testnapi.cpp cleanups only ever flush finalizers that merely free
-    // native data (no JS calls), so a stale/null env->executionState during
-    // the actual Memory::gc() calls never mattered there; but a finalizer
-    // that calls back into JS (like this one) reads env->executionState to
-    // do so, and Memory::gc() itself runs outside any Evaluator::execute in
-    // the pattern above, leaving it null/stale at exactly the moment the
-    // finalizer needs it - crashing immediately (not just later in a
-    // different env) once GC actually collects the object.
+    // The whole churn+gc sequence stays inside a scoped Evaluator::execute
+    // for this env/Context. Finalizers that call back through napi_* APIs then
+    // establish their own short execution boundary from the same ContextRef,
+    // without retaining this lambda's stack-owned ExecutionStateRef.
     Evaluator::execute(
         context, [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            ExecutionStateRef* previousState = env->executionState;
-            env->executionState = state;
-
             for (size_t i = 0; i < 100; i++) {
                 PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
             }
@@ -889,8 +871,6 @@ bool runNapiCompatTestCore(NapiEnv* napiEnv, const std::string& absTestJsPath, c
             Memory::gc();
             Memory::gc();
             Memory::gc();
-
-            env->executionState = previousState;
             return ValueRef::createUndefined();
         },
         napiEnv->env());

@@ -41,8 +41,6 @@ TEST(Napi, Symbol)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value description = ToNapi(StringRef::createFromASCII("mySymbol"));
             napi_value symbolValue = nullptr;
             if (napi_create_symbol(env, description, &symbolValue) != napi_ok) {
@@ -87,8 +85,6 @@ TEST(Napi, BigIntInt64RoundTrip)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value bigintValue = nullptr;
             if (napi_create_bigint_int64(env, -123456789012345LL, &bigintValue) != napi_ok) {
                 return ValueRef::create(false);
@@ -121,8 +117,6 @@ TEST(Napi, BigIntUint64RoundTrip)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             const uint64_t kValue = 18446744073709551615ULL; // UINT64_MAX
             napi_value bigintValue = nullptr;
             if (napi_create_bigint_uint64(env, kValue, &bigintValue) != napi_ok) {
@@ -164,8 +158,6 @@ TEST(Napi, BigIntCreateWordsSingleWordRoundTrip)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             uint64_t words[1] = { 0xDEADBEEFCAFEBABEULL };
             napi_value bigintValue = nullptr;
             if (napi_create_bigint_words(env, /* sign_bit */ 0, /* word_count */ 1, words, &bigintValue) != napi_ok) {

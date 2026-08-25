@@ -250,8 +250,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_make_callback(napi_env env, napi_async_con
     // compatibility (see napi_async_context__'s own comment, NapiTypes.h).
 
     env->callbackScopeDepth++;
-
-    ExecutionStateRef* state = env->executionState;
     ValueRef* fn = FromNapi(func);
     ValueRef* thisArg = FromNapi(recv);
 
@@ -264,7 +262,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_make_callback(napi_env env, napi_async_con
     // throws a raw C++ exception on an uncaught JS exception, which must not
     // be allowed to cross this function's own stack frame.
     Evaluator::EvaluatorResult callResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
             return fn->call(state, thisArg, argc, argv);
         },
         fn, thisArg, argc, args.data());
@@ -302,7 +300,6 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_buffer_from_arraybuffer(napi_en
         return SetLastError(env, napi_invalid_arg);
     }
     ArrayBufferRef* buf = bufValue->asArrayBuffer();
-    ExecutionStateRef* state = env->executionState;
 
     // Same out-of-bounds check (and RangeError, matching real Node-API) as
     // napi_create_typedarray's identical one (NapiArrayBuffer.cpp) - a
@@ -310,17 +307,25 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_buffer_from_arraybuffer(napi_en
     // No alignment check is needed here (unlike a multi-byte-element typed
     // array): Buffer is a Uint8Array, whose element size is 1.
     if (byte_offset + byte_length > buf->byteLength()) {
-        env->pendingException = ErrorObjectRef::create(state, ErrorObjectRef::RangeError, StringRef::createFromASCII("byte_offset + byte_length must be smaller than the size in bytes of the buffer passed in"));
+        napi_throw_range_error(env, nullptr, "byte_offset + byte_length must be smaller than the size in bytes of the buffer passed in");
         return SetLastError(env, napi_pending_exception);
     }
 
     // Node's Buffer is a Uint8Array subclass - see napi_create_buffer's own
     // comment (NapiArrayBuffer.cpp) for why a plain Uint8ArrayObjectRef
     // stands in for it here.
-    Uint8ArrayObjectRef* view = Uint8ArrayObjectRef::create(state);
-    view->setBuffer(buf, byte_offset, byte_length, byte_length);
-
-    *result = ToNapi(view);
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ArrayBufferRef* buffer, size_t byteOffset, size_t byteLength) -> ValueRef* {
+            Uint8ArrayObjectRef* view = Uint8ArrayObjectRef::create(state);
+            view->setBuffer(buffer, byteOffset, byteLength, byteLength);
+            return view;
+        },
+        buf, byte_offset, byte_length);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 

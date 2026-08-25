@@ -412,10 +412,6 @@ void initializeCustomAllocators()
                                                                                 FALSE,
                                                                                 TRUE);
 
-    s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind] = GC_new_kind(GC_new_free_list(),
-                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakMapObjectDataItem, 1>), 0),
-                                                                       FALSE,
-                                                                       TRUE);
 #endif
 }
 

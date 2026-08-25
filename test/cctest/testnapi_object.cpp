@@ -42,8 +42,6 @@ TEST(Napi, ObjectProperties)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value object;
             napi_create_object(env, &object);
 
@@ -105,8 +103,6 @@ TEST(Napi, ObjectIndexedProperties)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value object;
             napi_create_object(env, &object);
 
@@ -143,8 +139,6 @@ TEST(Napi, ObjectPropertyNamesAndPrototype)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value object;
             napi_create_object(env, &object);
             napi_set_named_property(env, object, "a", ToNapi(ValueRef::create(1)));
@@ -176,8 +170,6 @@ TEST(Napi, ObjectFreeze)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value object;
             napi_create_object(env, &object);
             napi_set_named_property(env, object, "a", ToNapi(ValueRef::create(1)));
@@ -215,8 +207,6 @@ TEST(Napi, ObjectSeal)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value object;
             napi_create_object(env, &object);
             napi_set_named_property(env, object, "a", ToNapi(ValueRef::create(1)));
@@ -253,8 +243,6 @@ TEST(Napi, ObjectArray)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value plainObject;
             napi_create_object(env, &plainObject);
             bool isPlainObjectArray = true;
@@ -300,8 +288,6 @@ TEST(Napi, InstanceOf)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // Exercise napi_instanceof against a real constructor (the built-in
             // Array). A plain no-op native FunctionObjectRef cannot model ES
             // prototype-chain construction in Escargot: a NativeFunctionInfo
@@ -336,8 +322,6 @@ TEST(Napi, TypeChecksOnDowncasts)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value nonObject = nullptr;
             napi_create_double(env, 42.0, &nonObject);
 

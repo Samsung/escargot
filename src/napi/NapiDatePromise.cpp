@@ -27,18 +27,11 @@
 // the opaque type node_api.h forward-declares for napi_create_promise et al.
 // `promise` is a raw GC pointer, not itself rooted by this struct - unlike
 // napi_value (which is fine sitting bare in a native stack local, since
-// Boehm GC conservatively scans the stack), this struct is heap-allocated
-// with plain `new`, so it is *not* itself a GC root and would not keep
-// `promise` alive on its own. It is rooted explicitly via
-// env->napiEnv->persistentValueRefMap()->add()/remove() (the same
-// PersistentValueRefMap primitive napi_create_reference/napi_reference_ref
-// use for strong napi_ref - see NapiFunctions.cpp), for exactly as long as
-// the deferred is outstanding: one add() in napi_create_promise, matched by
-// one remove() in whichever of napi_resolve_deferred/napi_reject_deferred
-// settles it (both also delete the deferred itself, matching real Node-API's
-// contract that a deferred may only be settled once).
+// This handle is allocated with plain new, so it directly owns a persistent
+// holder for the promise. Deleting the deferred after settlement releases the
+// root together with the native handle.
 struct napi_deferred__ {
-    Escargot::PromiseObjectRef* promise;
+    Escargot::PersistentRefHolder<Escargot::PromiseObjectRef> promise;
 };
 
 namespace Escargot {
@@ -52,15 +45,21 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_date(napi_env env, double time, nap
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ExecutionStateRef* state = env->executionState;
-    DateObjectRef* date = DateObjectRef::create(state);
     // DateObjectRef only exposes an int64_t setter; `time` (already
     // milliseconds since epoch, per the napi_create_date contract) is
-    // truncated to fit. Pure - constructing/initializing a DateObject cannot
-    // run user JS, so unlike napi_call_function there is nothing to wrap in
-    // Evaluator::execute here.
-    date->setTimeValue(static_cast<int64_t>(time));
-    *result = ToNapi(date);
+    // truncated to fit.
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, double time) -> ValueRef* {
+            DateObjectRef* date = DateObjectRef::create(state);
+            date->setTimeValue(static_cast<int64_t>(time));
+            return date;
+        },
+        time);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
@@ -90,14 +89,18 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_promise(napi_env env, napi_deferred
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ExecutionStateRef* state = env->executionState;
-    PromiseObjectRef* promiseObj = PromiseObjectRef::create(state);
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state) -> ValueRef* {
+            return PromiseObjectRef::create(state);
+        });
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    PromiseObjectRef* promiseObj = evalResult.result->asPromiseObject();
 
     napi_deferred__* def = new napi_deferred__();
-    def->promise = promiseObj;
-    // root the promise for as long as `def` is outstanding - see the
-    // napi_deferred__ comment above.
-    env->napiEnv->persistentValueRefMap()->add(promiseObj);
+    def->promise.reset(promiseObj);
 
     *deferred = def;
     *promise = ToNapi(promiseObj);
@@ -110,8 +113,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_promise(napi_env env, napi_deferred
 // Node-API).
 static napi_status SettleDeferred(napi_env env, napi_deferred deferred, napi_value resolution, bool isFulfill)
 {
-    ExecutionStateRef* state = env->executionState;
-    PromiseObjectRef* promiseObj = deferred->promise;
+    PromiseObjectRef* promiseObj = deferred->promise.get();
     ValueRef* value = FromNapi(resolution);
 
     // PromiseObjectRef::fulfill/reject only enqueue reaction jobs (see
@@ -123,7 +125,7 @@ static napi_status SettleDeferred(napi_env env, napi_deferred deferred, napi_val
     // PromiseHook), instead of ever letting a raw C++ exception unwind past
     // this function.
     Evaluator::EvaluatorResult settleResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, PromiseObjectRef* promiseObj, ValueRef* value, bool isFulfill) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObj, ValueRef* value, bool isFulfill) -> ValueRef* {
             if (isFulfill) {
                 promiseObj->fulfill(state, value);
             } else {
@@ -133,7 +135,6 @@ static napi_status SettleDeferred(napi_env env, napi_deferred deferred, napi_val
         },
         promiseObj, value, isFulfill);
 
-    env->napiEnv->persistentValueRefMap()->remove(promiseObj);
     delete deferred;
 
     if (!settleResult.isSuccessful()) {
@@ -165,24 +166,15 @@ ESCARGOT_NAPI_EXPORT napi_status napi_run_script(napi_env env, napi_value script
     if (!scriptValue->isString()) {
         return SetLastError(env, napi_string_expected);
     }
-
-    ExecutionStateRef* state = env->executionState;
     ContextRef* context = env->context();
     StringRef* source = scriptValue->toStringWithoutException(context);
 
-    Evaluator::EvaluatorResult evalResult = (state != nullptr) ? Evaluator::execute(
-                                                                     state, [](ExecutionStateRef* state, ContextRef* context, StringRef* source) -> ValueRef* {
-                                                                         ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
-                                                                         return parsedScript->execute(state);
-                                                                     },
-                                                                     context, source)
-                                                               : Evaluator::execute(context, [](ExecutionStateRef* state, napi_env env, StringRef* source) -> ValueRef* {
-                env->executionState = state;
-                ContextRef* context = env->context();
-                ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
-                ValueRef* res = parsedScript->execute(state);
-                env->executionState = nullptr;
-                return res; }, env, source);
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        context, [](ExecutionStateRef* state, ContextRef* context, StringRef* source) -> ValueRef* {
+            ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
+            return parsedScript->execute(state);
+        },
+        context, source);
 
     if (!evalResult.isSuccessful()) {
         env->pendingException = evalResult.error.value();

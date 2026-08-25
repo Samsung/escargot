@@ -27,17 +27,12 @@
 #include <node_api.h>
 #include <uv.h>
 
+#include <cstddef>
 #include <deque>
 #include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
-
-// forward-declared here (full definition, alongside napi_env__/
-// napi_handle_scope__/etc, lives in NapiTypes.h, which includes this header)
-// purely so NapiEnv below can hold pointers to it - see
-// NapiEnv::trackWeakRefTarget/clearWeakRefTargets.
-struct napi_ref__;
 
 // forward-declared here for the same reason as napi_ref__ above (full
 // definitions live in NapiTypes.h) - napi_env__::topCallbackScope below only
@@ -45,12 +40,50 @@ struct napi_ref__;
 // the latter in m_asyncCleanupHooks (NapiRuntime.cpp).
 struct napi_callback_scope__;
 struct napi_async_cleanup_hook_handle__;
+struct napi_threadsafe_function__;
+struct napi_async_work__;
 
 namespace Escargot {
 namespace Napi {
 
 class NapiPlatform;
 class NapiEnv;
+
+// OptionalRef retains only a raw GC pointer. Native N-API handles and EnvData
+// are outside Escargot's root set, so values retained there across an API
+// boundary must be held persistently.
+template <typename T>
+class PersistentOptionalRef {
+public:
+    PersistentOptionalRef() = default;
+    PersistentOptionalRef(const PersistentOptionalRef&) = delete;
+    PersistentOptionalRef& operator=(const PersistentOptionalRef&) = delete;
+
+    PersistentOptionalRef& operator=(T* value)
+    {
+        m_value.reset(value);
+        return *this;
+    }
+
+    PersistentOptionalRef& operator=(std::nullptr_t)
+    {
+        m_value.reset(nullptr);
+        return *this;
+    }
+
+    bool hasValue()
+    {
+        return m_value.get() != nullptr;
+    }
+
+    T* value()
+    {
+        return m_value.get();
+    }
+
+private:
+    PersistentRefHolder<T> m_value;
+};
 
 // the real napi_env__ definition (only forward-declared by node_api.h).
 // Owned directly by NapiEnv (see NapiEnv::m_env below) instead of being
@@ -60,8 +93,7 @@ class NapiEnv;
 // one Evaluator::execute invocation.
 struct EnvData {
     NapiEnv* napiEnv = nullptr;
-    ExecutionStateRef* executionState = nullptr; // only valid for the duration of the current call
-    OptionalRef<ValueRef> pendingException;
+    PersistentOptionalRef<ValueRef> pendingException;
     std::string lastErrorMessage;
     napi_extended_error_info lastErrorInfo;
     // the napi_status of the most recent napi_*/node_api_* call that
@@ -138,9 +170,8 @@ public:
     }
 
     // the napi_env to pass across the N-API boundary; valid for as long as
-    // this NapiEnv is. Callers must still set env()->executionState before
-    // making napi_* calls, since that part is only valid for the duration of
-    // the current Evaluator::execute call.
+    // this NapiEnv is. Each napi_* operation that needs an ExecutionStateRef
+    // creates its own scoped Evaluator::execute call from context().
     napi_env env()
     {
         return &m_env;
@@ -233,6 +264,13 @@ public:
         }
     }
 
+    void trackThreadsafeFunction(napi_threadsafe_function func);
+    void untrackThreadsafeFunction(napi_threadsafe_function func);
+    void trackAsyncWork(napi_async_work work);
+    void untrackAsyncWork(napi_async_work work);
+    std::vector<napi_async_work> snapshotAsyncWorks();
+    std::vector<napi_threadsafe_function> snapshotThreadsafeFunctions();
+
     // backs node_api_post_finalizer (NapiExtras.cpp): unlike a plain
     // finalize_cb passed to napi_wrap/napi_add_finalizer (which runs
     // synchronously from inside the GC's finalizer sweep, where calling back
@@ -255,126 +293,43 @@ public:
 
     // invokes and clears every post-finalizer queued so far, in FIFO order.
     // A finalizer running here is free to enqueue further post-finalizers
-    // (e.g. chaining) or call back into JS via env()->executionState, same as
-    // real Node-API - both are safe at this point, unlike from within
+    // (e.g. chaining) or call back into JS through regular napi_* calls, same
+    // as real Node-API - both are safe at this point, unlike from within
     // node_api_post_finalizer's own registration call or a GC sweep.
     void drainPostFinalizers();
 
-    // backs napi_ref: PersistentValueRefMap::add()/remove() are the GC-root
-    // primitives napi_create_reference/napi_reference_ref/unref/delete_reference
-    // build on for strong (refcount > 0) references
-    PersistentValueRefMap* persistentValueRefMap()
-    {
-        return m_persistentValueRefMap.get();
-    }
+    // Side storage for napi_wrap. This registry lives in native memory, so a
+    // raw ObjectRef* key would neither root the object nor be cleared by GC.
+    struct WrapFinalizerEntry {
+        PersistentRefHolder<ObjectRef> target;
+        void* data;
+    };
 
-    // per-object side storage for napi_wrap's WrapFinalizeData* (NapiFunctions.cpp),
-    // so napi_remove_wrap can find and unregister the GC finalizer napi_wrap
-    // registered without needing extraData() for it - that slot must stay
-    // exactly the caller's native_object, per napi_unwrap's contract. Cleared
-    // by whichever happens first: napi_remove_wrap, or the wrap finalizer
-    // itself once the wrapped object is actually collected. `obj` is a
-    // non-owning key: safe because Escargot's GC never moves objects, and
-    // every insertion is paired with an eventual removal along one of those
-    // two paths, so a collected object's address is never left stale here.
-    void setWrapFinalizerData(ObjectRef* obj, void* data)
-    {
-        m_wrapFinalizerData[obj] = data;
-    }
+    bool hasWrapFinalizerData(ObjectRef* obj) const;
+    void setWrapFinalizerData(ObjectRef* obj, void* data);
+    void* takeWrapFinalizerData(ObjectRef* obj);
+    void* takeWrapFinalizerDataByData(void* data);
+    void* peekWrapFinalizerData(ObjectRef* obj) const;
+    std::vector<std::pair<ObjectRef*, void*>> snapshotWrapFinalizerData() const;
 
-    void* takeWrapFinalizerData(ObjectRef* obj)
-    {
-        auto iter = m_wrapFinalizerData.find(obj);
-        if (iter == m_wrapFinalizerData.end()) {
-            return nullptr;
-        }
-        void* data = iter->second;
-        m_wrapFinalizerData.erase(iter);
-        return data;
-    }
+    struct EnvFinalizerEntry {
+        PersistentRefHolder<ValueRef> target;
+        Memory::GCAllocatedMemoryFinalizer callback;
+        void* data;
+    };
 
-    // non-mutating lookup, used by RunEnvCleanupWrapFinalizers (NapiFunctions.cpp)
-    // to double-check a snapshotted (obj, data) pair is still the object's
-    // *current* wrap-finalizer entry before invoking it (napi_remove_wrap, or
-    // a finalizer that itself already ran reentrantly from within another
-    // one's finalize_cb, may have changed it since the snapshot was taken).
-    void* peekWrapFinalizerData(ObjectRef* obj) const
-    {
-        auto iter = m_wrapFinalizerData.find(obj);
-        return iter == m_wrapFinalizerData.end() ? nullptr : iter->second;
-    }
+    void registerEnvFinalizer(ValueRef* target, Memory::GCAllocatedMemoryFinalizer callback, void* data);
+    void takeEnvFinalizerData(void* data);
+    void runEnvFinalizers();
 
-    // a point-in-time copy of every still-registered napi_wrap finalizer
-    // entry, for env-cleanup-time forced finalization (RunEnvCleanupWrapFinalizers,
-    // NapiFunctions.cpp): iterating m_wrapFinalizerData directly there isn't
-    // safe, since invoking one entry's finalizer removes *itself* from that
-    // same map (NapiWrapFinalizer calls takeWrapFinalizerData up front).
-    std::vector<std::pair<ObjectRef*, void*>> snapshotWrapFinalizerData() const
-    {
-        std::vector<std::pair<ObjectRef*, void*>> result;
-        result.reserve(m_wrapFinalizerData.size());
-        for (auto& entry : m_wrapFinalizerData) {
-            result.push_back(entry);
-        }
-        return result;
-    }
+    struct NativeFinalizerEntry {
+        void (*callback)(void*);
+        void* data;
+    };
 
-    // Tracks every still-weak napi_ref pointing at a given GC-heap target
-    // (`target` is that target's identity as a raw pointer - an ObjectRef*
-    // for napi_wrap/napi_add_finalizer's purposes below, but napi_ref targets
-    // in general can be any heap value a weak napi_ref can point at, e.g. a
-    // Symbol from napi_create_reference; same non-owning-key rationale as
-    // m_wrapFinalizerData above: Escargot's GC never moves objects), tracked
-    // independently of Escargot's own GC finalizer list
-    // (Memory::gcRegisterFinalizer, EscargotPublic.cpp), whose per-object
-    // finalizer callbacks fire in plain registration order - unlike V8,
-    // which clears every weak handle to a dying object *before* running any
-    // of that object's second-pass finalizer callbacks. Without this, an
-    // object that has both a napi_wrap/napi_add_finalizer finalizer *and* a
-    // separate weak napi_ref to the same object
-    // (napi_create_reference/napi_reference_unref) could have its
-    // wrap/add_finalizer callback observe napi_get_reference_value as
-    // still-live (not yet nulled) if that finalizer happened to be
-    // registered - i.e. napi_wrap/napi_add_finalizer called - before the weak
-    // napi_ref was created, which is exactly Escargot's registration order in
-    // that case. NapiWrapFinalizer/NapiAddFinalizerFinalizer
-    // (NapiFunctions.cpp/NapiExtras.cpp) call clearWeakRefTargets() up front,
-    // before invoking the user's own finalize_cb, to force that same
-    // already-nulled guarantee regardless of registration order (found via
-    // test_reference/test.js's validateDeleteBeforeFinalize/
-    // DeleteBeforeFinalizeFinalizer, which asserts exactly this).
-    // NapiWeakRefFinalizer (the plain, no-other-finalizer case) still exists
-    // and independently nulls the same napi_ref__::value - redundantly but
-    // harmlessly, since by the time it runs here it's already null.
-    // `ref` is stored as a type-erased void* (rather than napi_ref__*) so
-    // this header doesn't need napi_ref__ to be a complete type (it's only
-    // forward-declared here) - clearWeakRefTargets casts back once it's
-    // defined out-of-line in NapiTypes.h, after napi_ref__'s real definition.
-    void trackWeakRefTarget(void* target, napi_ref__* ref)
-    {
-        m_weakRefTargets[target].push_back(ref);
-    }
-
-    void untrackWeakRefTarget(void* target, napi_ref__* ref)
-    {
-        if (m_weakRefTargets.count(target) == 0) {
-            return;
-        }
-        std::vector<void*>& refs = m_weakRefTargets[target];
-        for (size_t i = 0; i < refs.size(); i++) {
-            if (refs[i] == ref) {
-                refs.erase(refs.begin() + i);
-                break;
-            }
-        }
-        if (refs.empty()) {
-            m_weakRefTargets.erase(target);
-        }
-    }
-
-    // defined out-of-line in NapiTypes.h, once napi_ref__ is a complete type
-    // (this dereferences ref->value, unlike the two methods above).
-    void clearWeakRefTargets(void* target);
+    void registerNativeFinalizer(void (*callback)(void*), void* data);
+    void takeNativeFinalizerData(void* data);
+    void runNativeFinalizers();
 
     // True for the duration of a synchronous, GC-triggered napi_wrap/
     // napi_add_finalizer/napi_create_external finalize_cb (NapiWrapFinalizer/
@@ -428,14 +383,19 @@ public:
         return m_moduleFileName;
     }
 
+    std::vector<NativeFinalizerEntry> m_nativeFinalizers;
+
 private:
     NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context);
 
+    std::mutex m_asyncWorksMutex;
+    std::vector<napi_async_work> m_asyncWorks;
     PersistentRefHolder<VMInstanceRef> m_vmInstance;
     PersistentRefHolder<ContextRef> m_context;
-    PersistentRefHolder<PersistentValueRefMap> m_persistentValueRefMap;
-    HashMap<ObjectRef*, void*> m_wrapFinalizerData;
-    HashMap<void*, std::vector<void*>> m_weakRefTargets;
+    std::mutex m_threadsafeFunctionsMutex;
+    std::vector<napi_threadsafe_function> m_threadsafeFunctions;
+    std::vector<WrapFinalizerEntry*> m_wrapFinalizerData;
+    std::vector<EnvFinalizerEntry*> m_envFinalizers;
     std::vector<PostFinalizerEntry> m_pendingPostFinalizers;
     std::vector<std::pair<napi_cleanup_hook, void*>> m_envCleanupHooks;
     std::vector<napi_async_cleanup_hook_handle__*> m_asyncCleanupHooks;

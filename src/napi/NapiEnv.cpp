@@ -74,7 +74,6 @@ NapiEnv* NapiEnv::create(VMInstanceRef* sharedVMInstance)
 NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context)
     : m_vmInstance(std::move(vmInstance))
     , m_context(std::move(context))
-    , m_persistentValueRefMap(PersistentValueRefMap::create())
 {
     m_env.napiEnv = this;
     // napi_get_uv_event_loop (NapiRuntime.cpp) and every async_work/
@@ -116,11 +115,21 @@ NapiEnv::~NapiEnv()
         entry.first(entry.second);
     }
 
+    // A queued async work request owns both its native handle and this env.
+    // Cancel what has not started and wait for every after-work callback
+    // before any finalizer can tear down the values those callbacks use.
+    DrainEnvAsyncWorks(this);
+
+    // Close unreleased TSFNs while callbacks can still use the complete env.
+    AbortEnvThreadsafeFunctions(this);
+
     // Real Node-API environment-teardown semantics: every still-registered
     // napi_wrap finalizer runs now, regardless of whether its wrapped object
     // is even still reachable (e.g. kept alive by module.exports) - see
     // RunEnvCleanupWrapFinalizers's own comment (NapiFunctions.cpp).
     RunEnvCleanupWrapFinalizers(this);
+    runEnvFinalizers();
+    runNativeFinalizers();
 
     // napi_set_instance_data's finalizer runs exactly once, here at
     // environment teardown - this is the only other teardown hook this PoC has.
@@ -130,12 +139,8 @@ NapiEnv::~NapiEnv()
         finalizer(&m_env, m_env.instanceData, m_env.instanceDataFinalizeHint);
     }
 
-    // libuv teardown: give any still-in-flight async_work/threadsafe_function
-    // work a bounded chance to actually finish and deliver its completion (a
-    // well-behaved embedder should have already quiesced these before
-    // destroying its NapiEnv - this is a safety net, not the primary drain
-    // path), then force-close every handle this loop still owns (every
-    // napi_threadsafe_function's uv_async_t that was never released, plus
+    // libuv teardown: deliver close callbacks queued by TSFN teardown, then
+    // force-close any remaining addon-owned handles (plus
     // libuv's own internal handles) and run the loop until those close
     // callbacks have actually fired, so uv_loop_close below never sees a
     // handle still open (which it would otherwise refuse to close).
@@ -196,6 +201,203 @@ NapiEnv::~NapiEnv()
     Memory::gc();
 }
 
+
+bool NapiEnv::hasWrapFinalizerData(ObjectRef* obj) const
+{
+    return peekWrapFinalizerData(obj) != nullptr;
+}
+
+void NapiEnv::setWrapFinalizerData(ObjectRef* obj, void* data)
+{
+    WrapFinalizerEntry* entry = new WrapFinalizerEntry();
+    entry->target.reset(obj);
+    entry->target.setWeak();
+    entry->data = data;
+    m_wrapFinalizerData.push_back(entry);
+}
+
+void* NapiEnv::takeWrapFinalizerData(ObjectRef* obj)
+{
+    for (auto iter = m_wrapFinalizerData.begin(); iter != m_wrapFinalizerData.end(); ++iter) {
+        WrapFinalizerEntry* entry = *iter;
+        if (entry->target.get() == obj) {
+            void* data = entry->data;
+            m_wrapFinalizerData.erase(iter);
+            delete entry;
+            return data;
+        }
+    }
+    return nullptr;
+}
+
+void* NapiEnv::takeWrapFinalizerDataByData(void* data)
+{
+    for (auto iter = m_wrapFinalizerData.begin(); iter != m_wrapFinalizerData.end(); ++iter) {
+        WrapFinalizerEntry* entry = *iter;
+        if (entry->data == data) {
+            m_wrapFinalizerData.erase(iter);
+            delete entry;
+            return data;
+        }
+    }
+    return nullptr;
+}
+
+void* NapiEnv::peekWrapFinalizerData(ObjectRef* obj) const
+{
+    for (WrapFinalizerEntry* entry : m_wrapFinalizerData) {
+        if (entry->target.get() == obj) {
+            return entry->data;
+        }
+    }
+    return nullptr;
+}
+
+std::vector<std::pair<ObjectRef*, void*>> NapiEnv::snapshotWrapFinalizerData() const
+{
+    std::vector<std::pair<ObjectRef*, void*>> result;
+    result.reserve(m_wrapFinalizerData.size());
+    for (WrapFinalizerEntry* entry : m_wrapFinalizerData) {
+        ObjectRef* target = entry->target.get();
+        if (target != nullptr) {
+            result.push_back({ target, entry->data });
+        }
+    }
+    return result;
+}
+void NapiEnv::registerEnvFinalizer(ValueRef* target, Memory::GCAllocatedMemoryFinalizer callback, void* data)
+{
+    EnvFinalizerEntry* entry = new EnvFinalizerEntry();
+    entry->target.reset(target);
+    entry->target.setWeak();
+    entry->callback = callback;
+    entry->data = data;
+    m_envFinalizers.push_back(entry);
+    Memory::gcRegisterFinalizer(target, callback, data);
+}
+
+void NapiEnv::takeEnvFinalizerData(void* data)
+{
+    for (auto iter = m_envFinalizers.begin(); iter != m_envFinalizers.end(); ++iter) {
+        EnvFinalizerEntry* entry = *iter;
+        if (entry->data == data) {
+            m_envFinalizers.erase(iter);
+            delete entry;
+            return;
+        }
+    }
+}
+
+void NapiEnv::runEnvFinalizers()
+{
+    for (;;) {
+        // Flush callbacks whose weak target was already cleared before
+        // deciding which still-live targets need explicit env finalization.
+        Memory::gc();
+        GC_invoke_finalizers();
+        if (m_envFinalizers.empty()) {
+            return;
+        }
+
+        bool invoked = false;
+        std::vector<EnvFinalizerEntry*> snapshot = m_envFinalizers;
+        for (EnvFinalizerEntry* candidate : snapshot) {
+            auto live = std::find(m_envFinalizers.begin(), m_envFinalizers.end(), candidate);
+            if (live == m_envFinalizers.end()) {
+                continue;
+            }
+
+            EnvFinalizerEntry* entry = *live;
+            ValueRef* target = entry->target.get();
+            if (target == nullptr) {
+                continue;
+            }
+            Memory::GCAllocatedMemoryFinalizer callback = entry->callback;
+            void* data = entry->data;
+            Memory::gcUnregisterFinalizer(target, callback, data);
+            callback(target, data);
+            invoked = true;
+        }
+
+        if (!invoked) {
+            GC_invoke_finalizers();
+            RELEASE_ASSERT(m_envFinalizers.empty());
+            return;
+        }
+    }
+}
+
+void NapiEnv::registerNativeFinalizer(void (*callback)(void*), void* data)
+{
+    m_nativeFinalizers.push_back({ callback, data });
+}
+
+void NapiEnv::takeNativeFinalizerData(void* data)
+{
+    for (auto iter = m_nativeFinalizers.begin(); iter != m_nativeFinalizers.end(); ++iter) {
+        if (iter->data == data) {
+            m_nativeFinalizers.erase(iter);
+            return;
+        }
+    }
+}
+
+void NapiEnv::runNativeFinalizers()
+{
+    // Pop before invoking: one callback may release another backing store,
+    // whose deleter removes its own still-pending entry reentrantly.
+    while (!m_nativeFinalizers.empty()) {
+        NativeFinalizerEntry entry = m_nativeFinalizers.back();
+        m_nativeFinalizers.pop_back();
+        entry.callback(entry.data);
+    }
+}
+
+void NapiEnv::trackThreadsafeFunction(napi_threadsafe_function func)
+{
+    std::lock_guard<std::mutex> guard(m_threadsafeFunctionsMutex);
+    m_threadsafeFunctions.push_back(func);
+}
+
+void NapiEnv::untrackThreadsafeFunction(napi_threadsafe_function func)
+{
+    std::lock_guard<std::mutex> guard(m_threadsafeFunctionsMutex);
+    for (auto iter = m_threadsafeFunctions.begin(); iter != m_threadsafeFunctions.end(); ++iter) {
+        if (*iter == func) {
+            m_threadsafeFunctions.erase(iter);
+            return;
+        }
+    }
+}
+
+std::vector<napi_threadsafe_function> NapiEnv::snapshotThreadsafeFunctions()
+{
+    std::lock_guard<std::mutex> guard(m_threadsafeFunctionsMutex);
+    return m_threadsafeFunctions;
+}
+
+void NapiEnv::trackAsyncWork(napi_async_work work)
+{
+    std::lock_guard<std::mutex> guard(m_asyncWorksMutex);
+    m_asyncWorks.push_back(work);
+}
+
+void NapiEnv::untrackAsyncWork(napi_async_work work)
+{
+    std::lock_guard<std::mutex> guard(m_asyncWorksMutex);
+    for (auto iter = m_asyncWorks.begin(); iter != m_asyncWorks.end(); ++iter) {
+        if (*iter == work) {
+            m_asyncWorks.erase(iter);
+            return;
+        }
+    }
+}
+
+std::vector<napi_async_work> NapiEnv::snapshotAsyncWorks()
+{
+    std::lock_guard<std::mutex> guard(m_asyncWorksMutex);
+    return m_asyncWorks;
+}
 void NapiEnv::addEnvCleanupHook(napi_cleanup_hook fun, void* arg)
 {
     m_envCleanupHooks.push_back({ fun, arg });
@@ -285,26 +487,10 @@ bool NapiEnv::drainPendingJobs()
         // non-zero - so this loop tracks progress via the VM job queue below
         // instead, which is what a uv callback would actually feed into.
         //
-        // Wrapped in Evaluator::execute so a *raw* libuv callback an addon
-        // registered straight on the loop (e.g. node-api/test_uv_loop's
-        // uv_check, which calls napi_call_function directly) has a live
-        // env->executionState to run against. async_work's complete and
-        // threadsafe_function's call_js each already establish their own state
-        // in a nested Evaluator::execute (NapiAsyncWork.cpp), so they're
-        // unaffected; this only supplies the default state raw callbacks need.
-        // previousState is restored after, since executionState is only ever
-        // meant to be valid for the duration of a single napi call boundary.
-        {
-            ExecutionStateRef* previousState = m_env.executionState;
-            Evaluator::execute(
-                context(), [](ExecutionStateRef* state, napi_env env, uv_loop_t* loop) -> ValueRef* {
-                    env->executionState = state;
-                    uv_run(loop, UV_RUN_NOWAIT);
-                    return ValueRef::createUndefined();
-                },
-                &m_env, &m_uvLoop);
-            m_env.executionState = previousState;
-        }
+        // Raw libuv callbacks may call napi_* functions directly. Operations
+        // that need an ExecutionStateRef create a scoped Evaluator::execute
+        // call from this env's ContextRef, so no stack state is retained here.
+        uv_run(&m_uvLoop, UV_RUN_NOWAIT);
 
         while (instance->hasPendingJob()) {
             instance->executePendingJob();

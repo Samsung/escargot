@@ -27,6 +27,7 @@
 #include "parser/ASTAllocator.h"
 #include "api/EscargotPublic.h"
 #include "BumpPointerAllocator.h"
+#include <gc/gc_mark.h>
 #if defined(ENABLE_WASM)
 #include "wasm.h"
 #endif
@@ -99,6 +100,7 @@ MAY_THREAD_LOCAL bf_context_t ThreadLocal::g_bfContext;
 MAY_THREAD_LOCAL WASMContext ThreadLocal::g_wasmContext;
 #endif
 MAY_THREAD_LOCAL GCEventListenerSet* ThreadLocal::g_gcEventListenerSet;
+static MAY_THREAD_LOCAL GC_on_mark_stack_empty_proc g_previousMarkStackEmptyListener;
 MAY_THREAD_LOCAL ASTAllocator* ThreadLocal::g_astAllocator;
 MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
 #if defined(ENABLE_TCO)
@@ -189,6 +191,46 @@ GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureReclaimEndLis
     return m_reclaimEndListeners.value();
 }
 
+GCEventListenerSet::MarkStackEmptyListenerVector* GCEventListenerSet::ensureMarkStackEmptyListeners()
+{
+    if (!m_markStackEmptyListeners) {
+        m_markStackEmptyListeners = new GCEventListenerSet::MarkStackEmptyListenerVector();
+    }
+    return m_markStackEmptyListeners.value();
+}
+
+bool GCEventListenerSet::hasMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data) const
+{
+    if (!m_markStackEmptyListeners) {
+        return false;
+    }
+    auto& listeners = *m_markStackEmptyListeners.value();
+    return std::find(listeners.begin(), listeners.end(), std::make_pair(listener, data)) != listeners.end();
+}
+
+bool GCEventListenerSet::addMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data)
+{
+    if (hasMarkStackEmptyListener(listener, data)) {
+        return false;
+    }
+    ensureMarkStackEmptyListeners()->push_back(std::make_pair(listener, data));
+    return true;
+}
+
+bool GCEventListenerSet::removeMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data)
+{
+    if (!m_markStackEmptyListeners) {
+        return false;
+    }
+    auto& listeners = *m_markStackEmptyListeners.value();
+    auto iter = std::find(listeners.begin(), listeners.end(), std::make_pair(listener, data));
+    if (iter == listeners.end()) {
+        return false;
+    }
+    listeners.erase(iter);
+    return true;
+}
+
 void GCEventListenerSet::reset()
 {
     if (m_markStartListeners) {
@@ -206,6 +248,10 @@ void GCEventListenerSet::reset()
     if (m_reclaimEndListeners) {
         delete m_reclaimEndListeners.value();
         m_reclaimEndListeners.reset();
+    }
+    if (m_markStackEmptyListeners) {
+        delete m_markStackEmptyListeners.value();
+        m_markStackEmptyListeners.reset();
     }
 }
 
@@ -253,6 +299,24 @@ static void genericGCEventListener(GC_EventType evtType)
         // consuming it in a listener) lets every listener of this cycle observe it
         list.clearFullGCFlag();
     }
+}
+
+static GC_ms_entry* genericGCMarkStackEmptyListener(GC_ms_entry* markStackTop, GC_ms_entry* markStackLimit)
+{
+    if (g_previousMarkStackEmptyListener != nullptr) {
+        markStackTop = g_previousMarkStackEmptyListener(markStackTop, markStackLimit);
+    }
+    if (!ThreadLocal::isInited()) {
+        return markStackTop;
+    }
+
+    auto listeners = ThreadLocal::gcEventListenerSet().markStackEmptyListeners();
+    if (listeners) {
+        for (auto& listener : *listeners.value()) {
+            markStackTop = listener.first(markStackTop, markStackLimit, listener.second);
+        }
+    }
+    return markStackTop;
 }
 
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
@@ -611,6 +675,8 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     g_gcEventListenerSet = new GCEventListenerSet();
     // in addition, register genericGCEventListener here too
     GC_set_on_collection_event(genericGCEventListener);
+    g_previousMarkStackEmptyListener = GC_get_on_mark_stack_empty();
+    GC_set_on_mark_stack_empty(genericGCMarkStackEmptyListener);
     if (GC_is_incremental_mode()) {
         GC_set_start_callback(genericGCFullGCStartCallback);
     }
@@ -675,6 +741,8 @@ void ThreadLocal::finalize()
     delete g_gcEventListenerSet;
     g_gcEventListenerSet = nullptr;
     GC_set_on_collection_event(nullptr);
+    GC_set_on_mark_stack_empty(g_previousMarkStackEmptyListener);
+    g_previousMarkStackEmptyListener = nullptr;
     if (GC_is_incremental_mode()) {
         GC_set_start_callback(nullptr);
     }

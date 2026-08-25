@@ -30,28 +30,37 @@ namespace Napi {
 // (ErrorObjectRef::Code, not to be confused with the napi_value `code`
 // parameter below) from `msg`, then - mirroring napi_throw_error - sets the
 // object's ".code" property to `codeValue`'s string contents when non-null.
-// Constructing an ErrorObjectRef never throws, so no Evaluator::execute
-// wrapping is needed here.
 static napi_status CreateErrorWithCode(napi_env env, napi_value codeValue, napi_value msg, ErrorObjectRef::Code code, napi_value* result)
 {
-    ExecutionStateRef* state = env->executionState;
-
     ValueRef* valMsg = FromNapi(msg);
     if (!valMsg->isString()) {
         return SetLastError(env, napi_string_expected);
     }
     StringRef* message = valMsg->asString();
 
-    ErrorObjectRef* error = ErrorObjectRef::create(state, code, message);
+    StringRef* codeString = nullptr;
     if (codeValue != nullptr) {
         ValueRef* valCode = FromNapi(codeValue);
         if (!valCode->isString()) {
             return SetLastError(env, napi_string_expected);
         }
-        StringRef* codeString = valCode->asString();
-        error->set(state, StringRef::createFromASCII("code"), codeString);
+        codeString = valCode->asString();
     }
-    *result = ToNapi(error);
+
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* message, StringRef* codeString) -> ValueRef* {
+            ErrorObjectRef* error = ErrorObjectRef::create(state, code, message);
+            if (codeString != nullptr) {
+                error->set(state, StringRef::createFromASCII("code"), codeString);
+            }
+            return error;
+        },
+        code, message, codeString);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
@@ -61,13 +70,21 @@ static napi_status CreateErrorWithCode(napi_env env, napi_value codeValue, napi_
 // of throwing across the API boundary.
 static napi_status ThrowErrorWithCode(napi_env env, const char* code, const char* msg, ErrorObjectRef::Code errorCode)
 {
-    ExecutionStateRef* state = env->executionState;
     StringRef* message = StringRef::createFromUTF8(msg, strlen(msg));
-    ErrorObjectRef* error = ErrorObjectRef::create(state, errorCode, message);
-    if (code) {
-        error->set(state, StringRef::createFromASCII("code"), StringRef::createFromUTF8(code, strlen(code)));
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ErrorObjectRef::Code errorCode, StringRef* message, const char* code) -> ValueRef* {
+            ErrorObjectRef* error = ErrorObjectRef::create(state, errorCode, message);
+            if (code != nullptr) {
+                error->set(state, StringRef::createFromASCII("code"), StringRef::createFromUTF8(code, strlen(code)));
+            }
+            return error;
+        },
+        errorCode, message, code);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
     }
-    env->pendingException = error;
+    env->pendingException = evalResult.result;
     return napi_ok;
 }
 

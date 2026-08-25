@@ -686,40 +686,34 @@ bool Memory::removeGCEventListener(GCEventType type, OnGCEventListener l, void* 
 
 void PersistentRefHolderBase::setWeak()
 {
-    if (!m_holder) {
+    if (!m_holder || isWeak()) {
         return;
     }
 
-    int kind = GC_get_kind_and_size(m_holder, NULL);
-    if (kind == GC_ATOMIC_UNCOLLECTABLE_KIND) {
-        return;
-    }
+    void** oldHolder = m_holder;
+    void* target = *oldHolder;
+    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_ATOMIC_UNCOLLECTABLE(sizeof(void*)));
+    *newHolder = target;
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(newHolder, target);
 
-    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_ATOMIC_UNCOLLECTABLE(sizeof(size_t)));
-    *newHolder = *m_holder;
-    GC_FREE(m_holder);
     m_holder = newHolder;
-
-    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(m_holder, *m_holder);
+    GC_FREE(oldHolder);
 }
 
 void PersistentRefHolderBase::clearWeak()
 {
-    if (!m_holder) {
+    if (!m_holder || !isWeak()) {
         return;
     }
 
-    GC_unregister_disappearing_link(m_holder);
+    void** oldHolder = m_holder;
+    void* target = *oldHolder;
+    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_UNCOLLECTABLE(sizeof(void*)));
+    *newHolder = target;
+    GC_unregister_disappearing_link(oldHolder);
 
-    int kind = GC_get_kind_and_size(m_holder, NULL);
-    if (kind != GC_ATOMIC_UNCOLLECTABLE_KIND) {
-        return;
-    }
-
-    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_UNCOLLECTABLE(sizeof(size_t)));
-    *newHolder = *m_holder;
-    GC_FREE(m_holder);
     m_holder = newHolder;
+    GC_FREE(oldHolder);
 }
 
 bool PersistentRefHolderBase::isWeak()

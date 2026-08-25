@@ -53,8 +53,6 @@ TEST(Napi, ErrorCreateAndIsError)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value codeValue;
             napi_create_string_utf8(env, "ERR_CODE", NAPI_AUTO_LENGTH, &codeValue);
             napi_value msgValue;
@@ -135,8 +133,6 @@ TEST(Napi, ErrorThrowSetsPendingException)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             struct Kind {
                 const char* name;
                 napi_status (*throwFn)(napi_env, const char*, const char*);

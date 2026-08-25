@@ -34,6 +34,7 @@ struct WASMContext {
 };
 #endif
 
+struct GC_ms_entry;
 namespace Escargot {
 
 class ASTAllocator;
@@ -43,6 +44,9 @@ class Value;
 class GCEventListenerSet {
 public:
     typedef void (*OnEventListener)(void* data);
+    // Listener data is not traced by BDWGC. A listener that stores a GC heap
+    // pointer there must remove itself before that object can be reclaimed.
+    typedef GC_ms_entry* (*OnMarkStackEmptyListener)(GC_ms_entry* markStackTop, GC_ms_entry* markStackLimit, void* data);
     typedef std::vector<std::pair<OnEventListener, void*>> EventListenerVector;
 
     GCEventListenerSet()
@@ -58,6 +62,11 @@ public:
     EventListenerVector* ensureMarkEndListeners();
     EventListenerVector* ensureReclaimStartListeners();
     EventListenerVector* ensureReclaimEndListeners();
+    typedef std::vector<std::pair<OnMarkStackEmptyListener, void*>> MarkStackEmptyListenerVector;
+    MarkStackEmptyListenerVector* ensureMarkStackEmptyListeners();
+    bool hasMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data) const;
+    bool addMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data);
+    bool removeMarkStackEmptyListener(OnMarkStackEmptyListener listener, void* data);
 
     Optional<EventListenerVector*> markStartListeners() const
     {
@@ -72,6 +81,11 @@ public:
     Optional<EventListenerVector*> reclaimStartListeners() const
     {
         return m_reclaimStartListeners;
+    }
+
+    Optional<MarkStackEmptyListenerVector*> markStackEmptyListeners() const
+    {
+        return m_markStackEmptyListeners;
     }
 
     Optional<EventListenerVector*> reclaimEndListeners() const
@@ -104,6 +118,7 @@ private:
     Optional<EventListenerVector*> m_markEndListeners;
     Optional<EventListenerVector*> m_reclaimStartListeners;
     Optional<EventListenerVector*> m_reclaimEndListeners;
+    Optional<MarkStackEmptyListenerVector*> m_markStackEmptyListeners;
     bool m_isFullGC;
 };
 

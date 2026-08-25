@@ -61,11 +61,9 @@ struct AddFinalizerData {
 static void NapiAddFinalizerFinalizer(void* self, void* data)
 {
     AddFinalizerData* finalizeData = reinterpret_cast<AddFinalizerData*>(data);
-    // force any other still-weak napi_ref to this same object to already
-    // read as cleared before this finalizer runs - see
-    // NapiEnv::clearWeakRefTargets's own comment (NapiEnv.h) and
-    // NapiWrapFinalizer's identical call (NapiFunctions.cpp).
-    finalizeData->env->napiEnv->clearWeakRefTargets(self);
+    finalizeData->env->napiEnv->takeEnvFinalizerData(data);
+    // BDWGC disappearing links clear weak napi_ref holders before this
+    // finalizer is invoked.
     // see NapiEnv::isInGCUnsafeFinalizer's own comment (NapiEnv.h) and
     // NapiWrapFinalizer's identical bracketing (NapiFunctions.cpp):
     // finalizeCb only ever received a node_api_basic_env, so calling
@@ -213,6 +211,7 @@ struct ExternalStringFinalizeData {
 static void NapiExternalStringFinalizer(void* self, void* data)
 {
     ExternalStringFinalizeData* finalizeData = reinterpret_cast<ExternalStringFinalizeData*>(data);
+    finalizeData->env->napiEnv->takeEnvFinalizerData(data);
     finalizeData->finalizeCb(finalizeData->env, finalizeData->nativeData, finalizeData->finalizeHint);
     delete finalizeData;
 }
@@ -234,7 +233,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_external_string_latin1(napi_env
         finalizeData->finalizeCb = finalize_callback;
         finalizeData->nativeData = str;
         finalizeData->finalizeHint = finalize_hint;
-        Memory::gcRegisterFinalizer(strRef, NapiExternalStringFinalizer, finalizeData);
+        env->napiEnv->registerEnvFinalizer(strRef, NapiExternalStringFinalizer, finalizeData);
     }
     return napi_ok;
 }
@@ -256,7 +255,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_external_string_utf16(napi_env 
         finalizeData->finalizeCb = finalize_callback;
         finalizeData->nativeData = str;
         finalizeData->finalizeHint = finalize_hint;
-        Memory::gcRegisterFinalizer(strRef, NapiExternalStringFinalizer, finalizeData);
+        env->napiEnv->registerEnvFinalizer(strRef, NapiExternalStringFinalizer, finalizeData);
     }
     return napi_ok;
 }
@@ -272,7 +271,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_all_property_names(napi_env env, napi_
         return SetLastError(env, napi_object_expected);
     }
     ObjectRef* obj = val_object->asObject();
-    ExecutionStateRef* state = env->executionState;
 
     // Walking own properties and following the prototype chain can each
     // invoke a Proxy trap (ownKeys/getOwnPropertyDescriptor/getPrototypeOf),
@@ -289,7 +287,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_all_property_names(napi_env env, napi_
     // properties (reading straight through to the underlying, empty `{}`
     // target) instead of propagating the ownKeys trap's exception.
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ObjectRef* obj, napi_key_collection_mode key_mode, napi_key_filter key_filter, napi_key_conversion key_conversion) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, napi_key_collection_mode key_mode, napi_key_filter key_filter, napi_key_conversion key_conversion) -> ValueRef* {
             bool skipStrings = (key_filter & napi_key_skip_strings) != 0;
             bool skipSymbols = (key_filter & napi_key_skip_symbols) != 0;
             unsigned attributeFilter = key_filter & (napi_key_writable | napi_key_enumerable | napi_key_configurable);
@@ -390,21 +388,10 @@ ESCARGOT_NAPI_EXPORT napi_status napi_add_finalizer(napi_env env, napi_value js_
     // deliberately NOT obj->setExtraData(...) - see this file's
     // AddFinalizerData comment: napi_add_finalizer must not conflict with a
     // napi_wrap already (or later) placed on the same object.
-    Memory::gcRegisterFinalizer(obj, NapiAddFinalizerFinalizer, finalizeData);
+    env->napiEnv->registerEnvFinalizer(obj, NapiAddFinalizerFinalizer, finalizeData);
 
     if (result != nullptr) {
-        // a weak napi_ref to the object, same as napi_wrap's `result` -
-        // reuses NapiFunctions.cpp's own RegisterWeakRefFinalizerIfNeeded
-        // (rather than duplicating it with a second, distinct finalizer
-        // callback) precisely so this ref behaves identically to any other
-        // napi_ref under napi_reference_ref/napi_delete_reference, both of
-        // which look specifically for NapiWeakRefFinalizer via
-        // Memory::gcUnregisterFinalizer to manage it.
-        napi_ref__* ref = new napi_ref__();
-        ref->value = obj;
-        ref->refcount = 0;
-        RegisterWeakRefFinalizerIfNeeded(env, ref);
-        *result = ref;
+        return napi_create_reference(env, js_object, 0, result);
     }
     return napi_ok;
 }
@@ -415,15 +402,13 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_object_with_properties(napi_env
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ExecutionStateRef* state = env->executionState;
-
     // setPrototype (only reached when `prototype` is non-NULL - a genuine
     // napi_value, itself possibly the JS `null` value, not merely "argument
     // omitted") can invoke a Proxy's setPrototypeOf trap and throw, so the
     // whole thing is sandboxed the same way napi_call_function is
     // (NapiFunctions.cpp).
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, napi_value prototypeNapi, const napi_value* names, const napi_value* values, size_t property_count) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, napi_value prototypeNapi, const napi_value* names, const napi_value* values, size_t property_count) -> ValueRef* {
             ObjectRef* obj = ObjectRef::create(state);
             if (prototypeNapi != nullptr) {
                 obj->setPrototype(state, FromNapi(prototypeNapi));
@@ -459,16 +444,22 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_sharedarraybuffer(napi_env env,
         return SetLastError(env, napi_invalid_arg);
     }
 
-    ExecutionStateRef* state = env->executionState;
-
     // SharedArrayBufferObjectRef::create allocates the SharedDataBlock backing
     // store itself (unlike ArrayBufferObjectRef::create + allocateBuffer).
-    SharedArrayBufferObjectRef* buf = SharedArrayBufferObjectRef::create(state, byte_length);
-
-    if (data != nullptr) {
-        *data = buf->rawBuffer();
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, size_t byteLength, void** data) -> ValueRef* {
+            SharedArrayBufferObjectRef* buffer = SharedArrayBufferObjectRef::create(state, byteLength);
+            if (data != nullptr) {
+                *data = buffer->rawBuffer();
+            }
+            return buffer;
+        },
+        byte_length, data);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
     }
-    *result = ToNapi(buf);
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
@@ -480,12 +471,11 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_set_prototype(napi_env env, napi_value
     }
     ObjectRef* obj = val_object->asObject();
     ValueRef* proto = FromNapi(prototype);
-    ExecutionStateRef* state = env->executionState;
 
     // ObjectRef::setPrototype can invoke a Proxy's setPrototypeOf trap and
     // throw - same rationale as node_api_create_object_with_properties above.
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* proto) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* proto) -> ValueRef* {
             obj->setPrototype(state, proto);
             return ValueRef::createUndefined();
         },

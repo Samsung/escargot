@@ -22,8 +22,38 @@
 #include "ArrayObject.h"
 #include "Context.h"
 #include "KeyedCollectionHashIndex.h"
+#include "ThreadLocal.h"
+
+#include <gc/gc_mark.h>
 
 namespace Escargot {
+
+GC_ms_entry* WeakMapObject::markEphemerons(GC_ms_entry* markStackTop, GC_ms_entry* markStackLimit, void* data)
+{
+    WeakMapObject* self = static_cast<WeakMapObject*>(data);
+    if (!isMarkedHeapObject(self)) {
+        return markStackTop;
+    }
+
+    // m_storage preserves insertion order. Processing it forwards lets a
+    // marked value expose the next key of a deep ephemeron chain during this
+    // pass instead of rescanning the complete map once per chain link.
+    for (WeakMapObjectDataItem* item : self->m_storage) {
+        PointerValue* key = item->key.unwrap();
+        if (key != nullptr && isMarkedHeapObject(key) && item->data.isStoredInHeap()) {
+            void* value = reinterpret_cast<void*>(item->data.payload());
+            markStackTop = GC_MARK_AND_PUSH(value, markStackTop, markStackLimit, reinterpret_cast<void**>(&item->data));
+        }
+    }
+    return markStackTop;
+}
+
+void WeakMapObject::removeEphemeronListener(PointerValue* object, void*)
+{
+    if (ThreadLocal::isInited()) {
+        ThreadLocal::gcEventListenerSet().removeMarkStackEmptyListener(markEphemerons, object);
+    }
+}
 
 WeakMapObject::WeakMapObject(ExecutionState& state)
     : WeakMapObject(state, state.context()->globalObject()->weakMapPrototype())
@@ -33,23 +63,15 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
 WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
 {
+    ThreadLocal::gcEventListenerSet().addMarkStackEmptyListener(markEphemerons, this);
+    addFinalizer(removeEphemeronListener, nullptr);
 }
 
 void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
 {
-#ifdef NDEBUG
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word objBitmap[GC_BITMAP_SIZE(WeakMapObjectDataItem)] = { 0 };
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(WeakMapObjectDataItem, data));
-        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(WeakMapObjectDataItem));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
-    return CustomAllocator<WeakMapObjectDataItem>().allocate(1);
-#endif
+    // Both slots participate in disappearing-link/ephemeron processing and
+    // must not be scanned unconditionally by the normal collector.
+    return GC_MALLOC_ATOMIC(size);
 }
 
 void* WeakMapObject::operator new(size_t size)

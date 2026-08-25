@@ -38,13 +38,8 @@ static ValueRef* NapiCallbackTrampoline(ExecutionStateRef* state, ValueRef* this
     CallbackData* callbackData = reinterpret_cast<CallbackData*>(callee->extraData());
     napi_env env = callbackData->env;
 
-    ExecutionStateRef* previousState = env->executionState;
-    env->executionState = state;
-
     napi_callback_info__ cbinfo{ argc, argv, thisValue, callbackData->data, nullptr };
     napi_value result = callbackData->callback(env, reinterpret_cast<napi_callback_info>(&cbinfo));
-
-    env->executionState = previousState;
 
     if (env->pendingException.hasValue()) {
         ValueRef* exceptionValue = env->pendingException.value();
@@ -71,13 +66,8 @@ static ValueRef* NapiClassConstructorTrampoline(ExecutionStateRef* state, ValueR
     CallbackData* callbackData = reinterpret_cast<CallbackData*>(callee->extraData());
     napi_env env = callbackData->env;
 
-    ExecutionStateRef* previousState = env->executionState;
-    env->executionState = state;
-
     napi_callback_info__ cbinfo{ argc, argv, thisValue, callbackData->data, newTarget.hasValue() ? OptionalRef<ValueRef>(newTarget.value()) : nullptr };
     napi_value result = callbackData->callback(env, reinterpret_cast<napi_callback_info>(&cbinfo));
-
-    env->executionState = previousState;
 
     if (env->pendingException.hasValue()) {
         ValueRef* exceptionValue = env->pendingException.value();
@@ -105,15 +95,11 @@ struct WrapFinalizeData {
 static void NapiWrapFinalizer(void* self, void* data)
 {
     WrapFinalizeData* wrapData = reinterpret_cast<WrapFinalizeData*>(data);
-    // the object is being collected, so its napi_remove_wrap lookup entry
-    // would otherwise dangle once this same address is reused later
-    wrapData->env->napiEnv->takeWrapFinalizerData(reinterpret_cast<ObjectRef*>(self));
-    // force any other still-weak napi_ref to this same object to already
-    // read as cleared before this finalizer runs - see
-    // NapiEnv::clearWeakRefTargets's own comment (NapiEnv.h) for why this
-    // can't just be left to NapiWeakRefFinalizer/Escargot's own
-    // registration-ordered GC finalizer list.
-    wrapData->env->napiEnv->clearWeakRefTargets(self);
+    // Disappearing links are cleared before finalizers run, so remove the
+    // registry entry by this stable native identity instead of by `self`.
+    wrapData->env->napiEnv->takeWrapFinalizerDataByData(data);
+    // PersistentRefHolder's disappearing links are cleared before any
+    // finalizer runs, so weak napi_ref handles already observe nullptr here.
     // see NapiEnv::isInGCUnsafeFinalizer's own comment (NapiEnv.h): this
     // finalize_cb only ever received a node_api_basic_env (even though it's
     // stored here as a full napi_env for convenience), so it must not call
@@ -121,9 +107,11 @@ static void NapiWrapFinalizer(void* self, void* data)
     // test_finalizer/test_fatal_finalize.js's finalizerWithFailedJSCallback,
     // which deliberately casts basic_env back to napi_env and calls
     // napi_create_object to check exactly this is caught.
-    wrapData->env->napiEnv->setInGCUnsafeFinalizer(true);
-    wrapData->finalizeCb(wrapData->env, wrapData->nativeObject, wrapData->finalizeHint);
-    wrapData->env->napiEnv->setInGCUnsafeFinalizer(false);
+    if (wrapData->finalizeCb != nullptr) {
+        wrapData->env->napiEnv->setInGCUnsafeFinalizer(true);
+        wrapData->finalizeCb(wrapData->env, wrapData->nativeObject, wrapData->finalizeHint);
+        wrapData->env->napiEnv->setInGCUnsafeFinalizer(false);
+    }
 
     if (wrapData->env->pendingException.hasValue()) {
         ValueRef* fatalErr = wrapData->env->pendingException.value();
@@ -166,49 +154,6 @@ void RunEnvCleanupWrapFinalizers(NapiEnv* napiEnv)
         // actually becomes garbage.
         Memory::gcUnregisterFinalizer(obj, NapiWrapFinalizer, wrapData);
         NapiWrapFinalizer(obj, wrapDataRaw);
-    }
-}
-
-// clears a weak napi_ref's target once it is collected, so
-// napi_get_reference_value stops returning a dangling pointer. `ref` itself
-// is a plain (non-GC) heap allocation; see napi_delete_reference's own
-// comment for why the actual `delete ref` for a still-weakFinalizerRegistered
-// ref is deferred to here (via ref->pendingDelete) instead of happening
-// synchronously there.
-static void NapiWeakRefFinalizer(void* self, void* data)
-{
-    napi_ref__* ref = reinterpret_cast<napi_ref__*>(data);
-    if (ref->pendingDelete) {
-        delete ref;
-        return;
-    }
-    ref->value = nullptr;
-}
-
-// idempotent: safe to call whenever `ref` is (or becomes) weak, regardless of
-// whether NapiWeakRefFinalizer is already registered for it
-void RegisterWeakRefFinalizerIfNeeded(napi_env env, napi_ref__* ref)
-{
-    if (!ref->weakFinalizerRegistered && ref->value.hasValue() && ref->value.value()->isStoredInHeap()) {
-        Memory::gcRegisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
-        ref->weakFinalizerRegistered = true;
-        // see NapiEnv::trackWeakRefTarget's own comment (NapiEnv.h): tracked
-        // independently of the GC finalizer list itself, so a
-        // napi_wrap/napi_add_finalizer finalizer on the same object can
-        // force this ref's value cleared up front, ahead of Escargot's own
-        // (registration-ordered, not phase-ordered) finalizer invocation.
-        env->napiEnv->trackWeakRefTarget(reinterpret_cast<void*>(ref->value.value()), ref);
-    }
-}
-
-// idempotent counterpart of RegisterWeakRefFinalizerIfNeeded; call before
-// `ref` stops being weak (napi_reference_ref) or is deleted (napi_delete_reference)
-static void UnregisterWeakRefFinalizerIfNeeded(napi_env env, napi_ref__* ref)
-{
-    if (ref->weakFinalizerRegistered && ref->value.hasValue()) {
-        env->napiEnv->untrackWeakRefTarget(reinterpret_cast<void*>(ref->value.value()), ref);
-        Memory::gcUnregisterFinalizer(ref->value.value(), NapiWeakRefFinalizer, ref);
-        ref->weakFinalizerRegistered = false;
     }
 }
 
@@ -319,7 +264,15 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_object(napi_env env, napi_value* re
         napi_fatal_error(nullptr, 0, "Finalizer is calling a function that may affect GC state.", NAPI_AUTO_LENGTH);
     }
 
-    *result = ToNapi(ObjectRef::create(env->executionState));
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state) -> ValueRef* {
+            return ObjectRef::create(state);
+        });
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
@@ -368,7 +321,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_valu
     ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
     ValueRef* propertyValue = FromNapi(value);
-    ExecutionStateRef* state = env->executionState;
 
     // ObjectRef::set can invoke a user setter (or a Proxy `set` trap), either
     // of which may throw a raw C++ exception - this was previously left
@@ -380,7 +332,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_valu
     // napi_pending_exception (found via test_object/test_exceptions.js, whose
     // Proxy's `set` trap always throws).
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ObjectRef* obj, StringRef* name, ValueRef* value) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, StringRef* name, ValueRef* value) -> ValueRef* {
             obj->set(state, name, value);
             return ValueRef::createUndefined();
         },
@@ -395,7 +347,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_valu
 
 ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value recv, napi_value func, size_t argc, const napi_value* argv, napi_value* result)
 {
-    ExecutionStateRef* state = env->executionState;
     ValueRef* fn = FromNapi(func);
     ValueRef* thisArg = FromNapi(recv);
 
@@ -411,7 +362,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value rec
     // breaks. Evaluator::execute's ExecutionStateRef* overload runs the call
     // in a nested SandBox that catches it for us.
     Evaluator::EvaluatorResult callResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
             return fn->call(state, thisArg, argc, argv);
         },
         fn, thisArg, argc, args.data());
@@ -481,7 +432,16 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_uint32(napi_env env, napi_value 
     if (!v->isNumber()) {
         return SetLastError(env, napi_number_expected);
     }
-    *result = v->toUint32(env->executionState);
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
+            return ValueRef::create(value->toUint32(state));
+        },
+        v);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = static_cast<uint32_t>(evalResult.result->asNumber());
     return napi_ok;
 }
 
@@ -506,8 +466,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_function(napi_env env, const char* 
         // not just the returned napi_status.
         return SetLastError(env, napi_invalid_arg);
     }
-
-    ExecutionStateRef* state = env->executionState;
     ContextRef* context = env->context();
 
     size_t nameLen = (utf8name == nullptr) ? 0 : ((length == NAPI_AUTO_LENGTH) ? strlen(utf8name) : length);
@@ -553,10 +511,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_function(napi_env env, const char* 
 // shared by napi_define_properties (applies to the target object itself) and
 // napi_define_class (applies to the constructor's .prototype, or to the
 // constructor itself for napi_static members)
-static void ApplyPropertyDescriptor(napi_env env, ObjectRef* target, const napi_property_descriptor& p)
+static void ApplyPropertyDescriptor(ExecutionStateRef* state, napi_env env, ObjectRef* target, const napi_property_descriptor& p)
 {
-    ExecutionStateRef* state = env->executionState;
-
     ValueRef* propertyName = p.utf8name ? static_cast<ValueRef*>(StringRef::createFromUTF8(p.utf8name, strlen(p.utf8name))) : FromNapi(p.name);
     size_t nameLength = p.utf8name ? strlen(p.utf8name) : NAPI_AUTO_LENGTH;
 
@@ -604,26 +560,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_properties(napi_env env, napi_value
         return SetLastError(env, napi_object_expected);
     }
     ObjectRef* obj = val_object->asObject();
-    ExecutionStateRef* state = env->executionState;
 
-    // ApplyPropertyDescriptor's own defineDataProperty/defineAccessorProperty
-    // calls can invoke a Proxy's defineProperty trap and throw - previously
-    // unsandboxed here, unlike every other property mutator in this file/
-    // NapiObject.cpp (found via test_object/test_exceptions.js, whose Proxy's
-    // `defineProperty` trap always throws). Note that the lambda below still
-    // calls ApplyPropertyDescriptor(env, ...) - which internally keeps
-    // reading env->executionState, not this lambda's own `state` parameter -
-    // rather than threading `state` through; that's fine (not stale/wrong):
-    // Evaluator::execute's exception-catching sandbox is a plain C++
-    // try/catch around this whole closure invocation, so it catches a throw
-    // regardless of which ExecutionStateRef the throwing call happened to
-    // use, and env->executionState itself is left untouched (so, unlike a
-    // temporary env->executionState swap would be, never at risk of being
-    // left dangling on the object should an exception actually unwind through here).
     Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, napi_env env, ObjectRef* obj, size_t property_count, const napi_property_descriptor* properties) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* obj, size_t property_count, const napi_property_descriptor* properties) -> ValueRef* {
             for (size_t i = 0; i < property_count; i++) {
-                ApplyPropertyDescriptor(env, obj, properties[i]);
+                ApplyPropertyDescriptor(state, env, obj, properties[i]);
             }
             return ValueRef::createUndefined();
         },
@@ -660,8 +601,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_class(napi_env env, const char* utf
     if (property_count > 0 && properties == nullptr) {
         return SetLastError(env, napi_invalid_arg);
     }
-
-    ExecutionStateRef* state = env->executionState;
     ContextRef* context = env->context();
 
     size_t nameLen = (utf8name == nullptr) ? 0 : ((length == NAPI_AUTO_LENGTH) ? strlen(utf8name) : length);
@@ -681,15 +620,23 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_class(napi_env env, const char* utf
     cons->setExtraData(callbackData);
     Memory::gcRegisterFinalizer(cons, NapiFunctionCallbackDataFinalizer, callbackData);
 
-    ObjectRef* proto = cons->getFunctionPrototype(state)->asObject();
-
-    for (size_t i = 0; i < property_count; i++) {
-        const napi_property_descriptor& p = properties[i];
-        ObjectRef* target = (p.attributes & napi_static) ? static_cast<ObjectRef*>(cons) : proto;
-        ApplyPropertyDescriptor(env, target, p);
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, napi_env env, FunctionObjectRef* cons, size_t property_count, const napi_property_descriptor* properties) -> ValueRef* {
+            ObjectRef* proto = cons->getFunctionPrototype(state)->asObject();
+            for (size_t i = 0; i < property_count; i++) {
+                const napi_property_descriptor& p = properties[i];
+                ObjectRef* target = (p.attributes & napi_static) ? static_cast<ObjectRef*>(cons) : proto;
+                ApplyPropertyDescriptor(state, env, target, p);
+            }
+            return cons;
+        },
+        env, cons, property_count, properties);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
     }
 
-    *result = ToNapi(cons);
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
@@ -700,24 +647,23 @@ ESCARGOT_NAPI_EXPORT napi_status napi_wrap(napi_env env, napi_value js_object, v
         return SetLastError(env, napi_object_expected);
     }
     ObjectRef* obj = val_js_object->asObject();
+    if (env->napiEnv->hasWrapFinalizerData(obj)) {
+        return SetLastError(env, napi_invalid_arg);
+    }
     obj->setExtraData(native_object);
 
-    if (finalize_cb != nullptr) {
-        WrapFinalizeData* wrapData = new WrapFinalizeData();
-        wrapData->env = env;
-        wrapData->finalizeCb = finalize_cb;
-        wrapData->nativeObject = native_object;
-        wrapData->finalizeHint = finalize_hint;
-        Memory::gcRegisterFinalizer(obj, NapiWrapFinalizer, wrapData);
-        env->napiEnv->setWrapFinalizerData(obj, wrapData);
-    }
+    WrapFinalizeData* wrapData = new WrapFinalizeData();
+    wrapData->env = env;
+    wrapData->finalizeCb = finalize_cb;
+    wrapData->nativeObject = native_object;
+    wrapData->finalizeHint = finalize_hint;
+    env->napiEnv->setWrapFinalizerData(obj, wrapData);
+    // Register even without a user callback: the internal finalizer removes
+    // the weak registry entry and frees wrapData when the object dies.
+    Memory::gcRegisterFinalizer(obj, NapiWrapFinalizer, wrapData);
 
     if (result != nullptr) {
-        napi_ref__* ref = new napi_ref__();
-        ref->value = obj;
-        ref->refcount = 0;
-        RegisterWeakRefFinalizerIfNeeded(env, ref);
-        *result = ref;
+        return napi_create_reference(env, js_object, 0, result);
     }
     return napi_ok;
 }
@@ -758,17 +704,10 @@ ESCARGOT_NAPI_EXPORT napi_status napi_remove_wrap(napi_env env, napi_value js_ob
 ESCARGOT_NAPI_EXPORT napi_status napi_create_reference(napi_env env, napi_value value, uint32_t initial_refcount, napi_ref* result)
 {
     napi_ref__* ref = new napi_ref__();
-    ref->value = FromNapi(value);
+    ref->value.reset(FromNapi(value));
     ref->refcount = initial_refcount;
-    for (uint32_t i = 0; i < initial_refcount; i++) {
-        env->napiEnv->persistentValueRefMap()->add(ref->value.value());
-    }
-    // weak (refcount == 0) refs are not rooted by the map above, so track
-    // collection of the target directly; RegisterWeakRefFinalizerIfNeeded
-    // skips non-heap values (undefined/number/boolean/...) on its own, since
-    // those can never be collected
     if (initial_refcount == 0) {
-        RegisterWeakRefFinalizerIfNeeded(env, ref);
+        ref->value.setWeak();
     }
     *result = ref;
     return napi_ok;
@@ -776,68 +715,23 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_reference(napi_env env, napi_value 
 
 ESCARGOT_NAPI_EXPORT napi_status napi_delete_reference(node_api_basic_env env, napi_ref ref)
 {
-    if (ref->value.hasValue()) {
-        for (uint32_t i = 0; i < ref->refcount; i++) {
-            env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
-        }
-    }
-
-    if (ref->weakFinalizerRegistered) {
-        // Do NOT free `ref` here (and don't bother with
-        // UnregisterWeakRefFinalizerIfNeeded's Memory::gcUnregisterFinalizer
-        // call either, for the same reason): NapiWeakRefFinalizer may
-        // already be irrevocably armed for the target's *current* GC pass.
-        // Boehm's per-object finalizer list, once a collection decides to
-        // finalize an object, is a fixed snapshot taken up front -
-        // unregistering from *within* another finalizer callback for that
-        // same object (as this reentrant call does when
-        // napi_delete_reference is invoked, directly or indirectly, from
-        // inside a napi_wrap/napi_add_finalizer finalizer sharing the same
-        // target - test_reference/test.js's validateDeleteBeforeFinalize) is
-        // a silent no-op against Boehm, not a real removal, with no way to
-        // detect that from here. Freeing `ref` immediately would then leave
-        // that still-armed callback writing into freed memory once it runs
-        // later in the very same sweep - a real, previously-crashing (heap
-        // corruption: "malloc(): unaligned tcache chunk detected")
-        // use-after-free. Instead, mark it and let NapiWeakRefFinalizer
-        // itself perform the actual `delete ref` whenever it does end up
-        // running (immediately afterward, in the reentrant case above; at
-        // the target's own eventual collection, in the ordinary case) - see
-        // its updated definition. This does mean a `ref` deleted this way
-        // isn't reclaimed until its target is next collected (which may
-        // never happen before process exit, if the target itself outlives
-        // this NapiEnv) - an acceptable, bounded leak for this PoC.
-        if (ref->value.hasValue()) {
-            env->napiEnv->untrackWeakRefTarget(reinterpret_cast<void*>(ref->value.value()), ref);
-        }
-        ref->pendingDelete = true;
-        return napi_ok;
-    }
-
     delete ref;
     return napi_ok;
 }
 
-// napi_reference_ref/napi_reference_unref can move `ref` between weak
-// (refcount == 0) and strong (refcount > 0) any number of times over its
-// life. Each call adds/removes exactly one PersistentValueRefMap rooting
-// unit, same as napi_create_reference's initial add() loop - so ref->refcount
-// stays equal to how many add() calls this ref has contributed for its
-// value, which is what napi_delete_reference's own remove() loop assumes.
-// Only the 0<->non-zero crossing also flips the weak-staleness finalizer.
+// napi_reference_ref/napi_reference_unref move the holder itself between a
+// strong uncollectable root and a disappearing-link-backed weak root only on
+// the 0<->non-zero transition. The numeric refcount remains independent.
 ESCARGOT_NAPI_EXPORT napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result)
 {
-    if (ref->refcount == 0 && !ref->value.hasValue()) {
-        // weak ref whose target is already gone - nothing to strengthen
-        return SetLastError(env, napi_generic_failure);
+    if (ref->refcount == 0) {
+        if (ref->value.get() == nullptr) {
+            return SetLastError(env, napi_generic_failure);
+        }
+        ref->value.clearWeak();
     }
 
-    bool wasWeak = (ref->refcount == 0);
     ref->refcount++;
-    env->napiEnv->persistentValueRefMap()->add(ref->value.value());
-    if (wasWeak) {
-        UnregisterWeakRefFinalizerIfNeeded(env, ref);
-    }
     if (result != nullptr) {
         *result = ref->refcount;
     }
@@ -851,11 +745,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_reference_unref(napi_env env, napi_ref ref
     }
 
     ref->refcount--;
-    if (ref->value.hasValue()) {
-        env->napiEnv->persistentValueRefMap()->remove(ref->value.value());
-    }
     if (ref->refcount == 0) {
-        RegisterWeakRefFinalizerIfNeeded(env, ref);
+        ref->value.setWeak();
     }
     if (result != nullptr) {
         *result = ref->refcount;
@@ -865,9 +756,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_reference_unref(napi_env env, napi_ref ref
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref ref, napi_value* result)
 {
-    // a weak (refcount == 0) ref's value is cleared by NapiWeakRefFinalizer
-    // once its target is collected, so this no longer dangles
-    *result = ref->value.hasValue() ? ToNapi(ref->value.value()) : nullptr;
+    *result = ToNapi(ref->value.get());
     return napi_ok;
 }
 
@@ -932,8 +821,6 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_new_target(napi_env env, napi_callback
 
 ESCARGOT_NAPI_EXPORT napi_status napi_new_instance(napi_env env, napi_value constructor, size_t argc, const napi_value* argv, napi_value* result)
 {
-    ExecutionStateRef* state = env->executionState;
-
     std::vector<ValueRef*> args(argc);
     for (size_t i = 0; i < argc; i++) {
         args[i] = FromNapi(argv[i]);
@@ -950,7 +837,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_new_instance(napi_env env, napi_value cons
     // boundary (found via test_exception/test.js's constructReturnException/
     // constructAllowException, which do exactly that).
     Evaluator::EvaluatorResult constructResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* ctor, size_t argc, ValueRef** argv) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* ctor, size_t argc, ValueRef** argv) -> ValueRef* {
             return ctor->construct(state, argc, argv);
         },
         FromNapi(constructor), argc, args.data());
@@ -1032,13 +919,21 @@ ESCARGOT_NAPI_EXPORT napi_status napi_throw(napi_env env, napi_value error)
 
 ESCARGOT_NAPI_EXPORT napi_status napi_throw_error(napi_env env, const char* code, const char* msg)
 {
-    ExecutionStateRef* state = env->executionState;
     StringRef* message = StringRef::createFromUTF8(msg, strlen(msg));
-    ErrorObjectRef* error = ErrorObjectRef::create(state, ErrorObjectRef::Code::None, message);
-    if (code) {
-        error->set(state, StringRef::createFromASCII("code"), StringRef::createFromUTF8(code, strlen(code)));
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, StringRef* message, const char* code) -> ValueRef* {
+            ErrorObjectRef* error = ErrorObjectRef::create(state, ErrorObjectRef::Code::None, message);
+            if (code != nullptr) {
+                error->set(state, StringRef::createFromASCII("code"), StringRef::createFromUTF8(code, strlen(code)));
+            }
+            return error;
+        },
+        message, code);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
     }
-    env->pendingException = error;
+    env->pendingException = evalResult.result;
     return napi_ok;
 }
 
