@@ -148,6 +148,64 @@ private:
     }
 };
 
+// A single-set, N-way cache using CLOCK (second-chance) eviction: a linear
+// scan of all N slots, no hashing/indexing into the array. Preferred over
+// LRU/move-to-front for key spaces with recurring round-robin access
+// patterns (measured behavior for the RegExp compilation cache), where
+// move-to-front reorders the array on every hit even though the working set
+// never changes; CLOCK leaves slot positions fixed on a hit (only sets a
+// used bit) and touches ordering solely on the rare eviction path.
+template <typename KeyT, typename ValueT, size_t WaysT>
+class ClockCache {
+public:
+    void clear()
+    {
+        for (size_t i = 0; i < WaysT; i++) {
+            m_slots[i] = Slot();
+        }
+        m_clockHand = 0;
+    }
+
+    ALWAYS_INLINE Optional<ValueT> lookup(const KeyT& key)
+    {
+        for (size_t i = 0; i < WaysT; i++) {
+            Slot& slot = m_slots[i];
+            if (slot.m_valid && slot.m_key == key) {
+                slot.m_used = true;
+                return slot.m_value;
+            }
+        }
+        return Optional<ValueT>();
+    }
+
+    ALWAYS_INLINE void insert(const KeyT& key, ValueT value)
+    {
+        // Standard CLOCK/second-chance sweep: give every used slot one free pass
+        // (clearing its bit), then evict the first slot whose bit was already
+        // clear. Guaranteed to terminate within two full sweeps since a
+        // just-cleared slot can't be cleared again on this call.
+        while (m_slots[m_clockHand].m_used) {
+            m_slots[m_clockHand].m_used = false;
+            m_clockHand = (m_clockHand + 1) % WaysT;
+        }
+        m_slots[m_clockHand].m_key = key;
+        m_slots[m_clockHand].m_value = value;
+        m_slots[m_clockHand].m_valid = true;
+        m_slots[m_clockHand].m_used = true;
+        m_clockHand = (m_clockHand + 1) % WaysT;
+    }
+
+private:
+    struct Slot {
+        KeyT m_key{};
+        ValueT m_value{};
+        bool m_used{ false };
+        bool m_valid{ false };
+    };
+    Slot m_slots[WaysT];
+    size_t m_clockHand{ 0 };
+};
+
 } // namespace Escargot
 
 #endif
