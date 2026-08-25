@@ -1310,10 +1310,9 @@ int DateObject::daysFromTime(time64_t t)
 }
 
 
-// This function expects m_primitiveValue is valid.
-void DateObject::resolveCache(ExecutionState& state)
+void DateObject::resolveLocalTimeInfo(ExecutionState& state, time64_t primitiveValue, DateTimeInfo& out)
 {
-    time64_t t = m_primitiveValue;
+    time64_t t = primitiveValue;
     int realYear = yearFromTime(t);
     int equivalentYear = equivalentYearForDST(realYear);
 
@@ -1330,13 +1329,19 @@ void DateObject::resolveCache(ExecutionState& state)
     dstOffset = ucal_get(cal, UCAL_DST_OFFSET, &status);
 #endif
 
-    m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
-    m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / TimeConstant::MsPerMinute;
+    out.isdst = dstOffset == 0 ? 0 : 1;
+    out.gmtoff = -1 * (stdOffset + dstOffset) / TimeConstant::MsPerMinute;
 
     t += (stdOffset + dstOffset);
     t -= msBetweenYears;
 
-    computeTimeInfoFromEpoch(t, m_cachedLocal);
+    computeTimeInfoFromEpoch(t, out);
+}
+
+// This function expects m_primitiveValue is valid.
+void DateObject::resolveCache(ExecutionState& state)
+{
+    resolveLocalTimeInfo(state, m_primitiveValue, m_cachedLocal);
     m_isCacheDirty = false;
 }
 
@@ -1577,31 +1582,45 @@ int DateObject::getTimezoneOffset(ExecutionState& state)
 }
 
 
-#define DECLARE_DATE_UTC_GETTER(Name)                                                        \
-    int DateObject::getUTC##Name(ExecutionState& state)                                      \
-    {                                                                                        \
-        DateObject* cachedUTC = state.context()->vmInstance()->cachedUTC(state);             \
-        time64_t primitiveValueUTC                                                           \
-            = m_primitiveValue + getTimezoneOffset(state) * TimeConstant::MsPerMinute;       \
-        if (!(cachedUTC->isValid()) || cachedUTC->primitiveValue() != primitiveValueUTC) {   \
-            cachedUTC->setTimeValue(primitiveValueUTC);                                      \
-            if (UNLIKELY(cachedUTC->getTimezoneOffset(state) != getTimezoneOffset(state))) { \
-                primitiveValueUTC = m_primitiveValue                                         \
-                    + cachedUTC->getTimezoneOffset(state) * TimeConstant::MsPerMinute;       \
-                cachedUTC->setTimeValue(primitiveValueUTC);                                  \
-            }                                                                                \
-        }                                                                                    \
-        return cachedUTC->get##Name(state);                                                  \
+// UTC getters reuse the same "shift by timezone offset, resolve as local time" trick as before,
+// but the result is cached as a handful of plain ints on VMInstance instead of a whole DateObject,
+// so there is no live Object kept alive (and reachable via GC-unconditional marking) forever.
+#define DECLARE_DATE_UTC_GETTER(Name, Field)                                                    \
+    int DateObject::getUTC##Name(ExecutionState& state)                                         \
+    {                                                                                           \
+        auto& cache = state.context()->vmInstance()->cachedUTCDateTimeInfo();                   \
+        time64_t primitiveValueUTC                                                              \
+            = m_primitiveValue + getTimezoneOffset(state) * TimeConstant::MsPerMinute;          \
+        if (!cache.valid || cache.primitiveValueUTC != primitiveValueUTC) {                     \
+            DateTimeInfo info;                                                                  \
+            resolveLocalTimeInfo(state, primitiveValueUTC, info);                               \
+            if (UNLIKELY(info.gmtoff != getTimezoneOffset(state))) {                            \
+                primitiveValueUTC = m_primitiveValue + info.gmtoff * TimeConstant::MsPerMinute; \
+                resolveLocalTimeInfo(state, primitiveValueUTC, info);                           \
+            }                                                                                   \
+            cache.primitiveValueUTC = primitiveValueUTC;                                        \
+            cache.year = info.year;                                                             \
+            cache.month = info.month;                                                           \
+            cache.mday = info.mday;                                                             \
+            cache.hour = info.hour;                                                             \
+            cache.min = info.min;                                                               \
+            cache.sec = info.sec;                                                               \
+            cache.millisec = info.millisec;                                                     \
+            cache.wday = info.wday;                                                             \
+            cache.gmtoff = info.gmtoff;                                                         \
+            cache.valid = true;                                                                 \
+        }                                                                                       \
+        return cache.Field;                                                                     \
     }
 
-DECLARE_DATE_UTC_GETTER(Date);
-DECLARE_DATE_UTC_GETTER(Day);
-DECLARE_DATE_UTC_GETTER(FullYear);
-DECLARE_DATE_UTC_GETTER(Hours);
-DECLARE_DATE_UTC_GETTER(Milliseconds);
-DECLARE_DATE_UTC_GETTER(Minutes);
-DECLARE_DATE_UTC_GETTER(Month);
-DECLARE_DATE_UTC_GETTER(Seconds);
+DECLARE_DATE_UTC_GETTER(Date, mday);
+DECLARE_DATE_UTC_GETTER(Day, wday);
+DECLARE_DATE_UTC_GETTER(FullYear, year);
+DECLARE_DATE_UTC_GETTER(Hours, hour);
+DECLARE_DATE_UTC_GETTER(Milliseconds, millisec);
+DECLARE_DATE_UTC_GETTER(Minutes, min);
+DECLARE_DATE_UTC_GETTER(Month, month);
+DECLARE_DATE_UTC_GETTER(Seconds, sec);
 
 #if defined(ENABLE_TEMPORAL)
 TemporalInstantObject* DateObject::toTemporalInstant(ExecutionState& state)

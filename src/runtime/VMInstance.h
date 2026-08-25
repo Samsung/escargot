@@ -184,7 +184,26 @@ public:
         return m_tzname[i];
     }
 
-    DateObject* cachedUTC(ExecutionState& state);
+    // Cache for DateObject's getUTC* accessors. Holds only the resolved int fields for the last
+    // requested UTC time value, not a whole DateObject, so nothing here needs GC tracing.
+    struct CachedUTCDateTimeInfo {
+        int64_t primitiveValueUTC = 0;
+        int year = 0;
+        int month = 0;
+        int mday = 0;
+        int hour = 0;
+        int min = 0;
+        int sec = 0;
+        int millisec = 0;
+        int wday = 0;
+        int gmtoff = 0;
+        bool valid = false;
+    };
+
+    CachedUTCDateTimeInfo& cachedUTCDateTimeInfo()
+    {
+        return m_cachedUTC;
+    }
 
     // object
     // []
@@ -565,7 +584,7 @@ private:
 #endif
     void ensureTzname();
     std::string m_tzname[2];
-    DateObject* m_cachedUTC;
+    CachedUTCDateTimeInfo m_cachedUTC;
 
     // job queue
     JobQueue* m_jobQueue;

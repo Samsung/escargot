@@ -186,6 +186,9 @@ protected:
     bool m_isCacheDirty : 1;
 
     void resolveCache(ExecutionState& state);
+    // Computes local DateTimeInfo for an arbitrary epoch value without needing a DateObject instance.
+    // Used by resolveCache() and by the UTC getters (which cache only the resulting fields, not a whole object).
+    static void resolveLocalTimeInfo(ExecutionState& state, time64_t primitiveValue, DateTimeInfo& out);
     static time64_t parseStringToDate(ExecutionState& state, String* istr);
     static time64_t parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset);
 
