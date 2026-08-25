@@ -211,25 +211,34 @@ ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
         SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN OFF)
     ENDIF()
 ELSEIF (ESCARGOT_HOST STREQUAL "ios")
-    # ESCARGOT_HOST=ios targets only the iOS Simulator today (arm64,
-    # matching an Apple Silicon `macos-latest` GitHub Actions runner) -- no
-    # device/physical-hardware code signing, no iphoneos SDK. iPadOS ships
-    # the same "iOS" SDK/platform identifier and arm64 sysroot/triple as
-    # iPhone at the CMake/toolchain level (Apple does not build a separate
-    # iPadOS SDK), so this one host value covers both; there is no separate
-    # "ipados" host.
+    # ESCARGOT_HOST=ios targets arm64 iOS, either SDK:
+    #   -DCMAKE_OSX_SYSROOT=iphonesimulator -> iOS Simulator build (what the
+    #     build-test-on-ios-simulator-arm64 CI job builds *and runs*, so it
+    #     is the configuration with actual runtime coverage)
+    #   -DCMAKE_OSX_SYSROOT=iphoneos        -> real-device build (built and
+    #     Mach-O-verified by the build-on-ios-device-arm64 CI job, but never
+    #     executed anywhere in CI -- running a device binary needs signed,
+    #     provisioned hardware. The two SDKs share one set of headers/API
+    #     availability annotations and differ only in sysroot + target
+    #     triple, which is why this is a sysroot switch and not a separate
+    #     port; see README.md's "iOS" section for what the embedder still
+    #     has to do -- app bundle, code signing, sandboxed paths.)
+    # iPadOS ships the same "iOS" SDK/platform identifier and arm64
+    # sysroot/triple as iPhone at the CMake/toolchain level (Apple does not
+    # build a separate iPadOS SDK), so this one host value covers both;
+    # there is no separate "ipados" host.
     #
     # Unlike the android branch above (which relies on the caller passing
     # the NDK's own -DCMAKE_TOOLCHAIN_FILE=.../android.toolchain.cmake to
     # set up CMAKE_SYSTEM_NAME/sysroot/target-triple before this file ever
     # runs), Apple's CMake generators have first-class iOS cross-compilation
     # support built in via plain cache variables: the caller passes
-    # -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator
+    # -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator|iphoneos
     # -DCMAKE_OSX_ARCHITECTURES=arm64 [-DCMAKE_OSX_DEPLOYMENT_TARGET=<ver>]
     # at the *initial* `cmake -B...` invocation (see README.md's "iOS"
-    # section and the build-test-on-ios-simulator-arm64 CI job) -- CMake's
-    # own Clang compiler module then derives the right
-    # "-target arm64-apple-ios<ver>-simulator -isysroot <SDK>" flags for
+    # section and the two ios CI jobs) -- CMake's own Clang compiler module
+    # then derives the right
+    # "-target arm64-apple-ios<ver>[-simulator] -isysroot <SDK>" flags for
     # every compile/link step automatically. This branch, like every other
     # host branch here, only adds Escargot's own engine-specific flags on
     # top; it cannot retroactively fix up the cross-compilation setup at
@@ -238,18 +247,31 @@ ELSEIF (ESCARGOT_HOST STREQUAL "ios")
     # ever INCLUDEd), hence the FATAL_ERRORs below instead of trying to set
     # CMAKE_SYSTEM_NAME/CMAKE_OSX_SYSROOT here.
     IF (NOT ESCARGOT_ARCH STREQUAL "aarch64")
-        MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported (ESCARGOT_HOST=ios currently only targets the arm64 iOS Simulator, matching an Apple Silicon build host)")
+        MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported (ESCARGOT_HOST=ios only targets arm64 -- the only architecture both current iOS devices and the iOS Simulator on an Apple Silicon build host use)")
     ENDIF()
     IF (NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios requires -DCMAKE_SYSTEM_NAME=iOS to be passed at the initial cmake invocation -- it cannot be set afterward. See README.md's \"iOS\" section.")
     ENDIF()
     # CMake resolves the short SDK name passed at the command line
-    # (-DCMAKE_OSX_SYSROOT=iphonesimulator) into the full SDK path by this
-    # point (e.g. ".../SDKs/iPhoneSimulator18.4.sdk") -- mixed-case, unlike
-    # the lowercase short name -- so match case-insensitively.
+    # (-DCMAKE_OSX_SYSROOT=iphonesimulator|iphoneos) into the full SDK path
+    # by this point (e.g. ".../SDKs/iPhoneSimulator18.4.sdk") -- mixed-case,
+    # unlike the lowercase short name -- so match case-insensitively.
+    # ESCARGOT_IOS_PLATFORM is what the rest of the build keys off (see
+    # build/VendoredICU.cmake, which needs the matching SDK name and target
+    # triple for its own cross build of ICU).
     STRING (TOLOWER "${CMAKE_OSX_SYSROOT}" ESCARGOT_IOS_SYSROOT_LOWER)
-    IF (NOT ESCARGOT_IOS_SYSROOT_LOWER MATCHES "iphonesimulator")
-        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios only supports the iOS Simulator SDK for now -- pass -DCMAKE_OSX_SYSROOT=iphonesimulator (found: '${CMAKE_OSX_SYSROOT}')")
+    IF (ESCARGOT_IOS_SYSROOT_LOWER MATCHES "iphonesimulator")
+        SET (ESCARGOT_IOS_PLATFORM "simulator")
+    ELSEIF (ESCARGOT_IOS_SYSROOT_LOWER MATCHES "iphoneos")
+        SET (ESCARGOT_IOS_PLATFORM "device")
+        # Not a defect, just scope: nothing in this project has ever run on
+        # physical iOS hardware, and CI can't (a device binary needs signed,
+        # provisioned hardware to execute at all). Say so at configure time
+        # rather than letting the absence of a warning imply device runtime
+        # coverage that doesn't exist.
+        MESSAGE (STATUS "ESCARGOT_HOST=ios: building against the iphoneos (device) SDK -- compile/link-verified only, never executed on physical hardware in this project's CI. Code signing, app-bundle packaging and sandbox-legal file paths are the embedder's responsibility; see README.md's \"iOS\" section.")
+    ELSE()
+        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios needs an iOS SDK -- pass -DCMAKE_OSX_SYSROOT=iphonesimulator (Simulator) or -DCMAKE_OSX_SYSROOT=iphoneos (device) (found: '${CMAKE_OSX_SYSROOT}')")
     ENDIF()
     SET (ESCARGOT_BUILD_64BIT_LARGE ON)
     # recent ICU (see the darwin branch above) and this engine's own vendored

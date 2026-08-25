@@ -218,6 +218,108 @@ jobs:
         sed -i '' "s#var base_dir = '';#var base_dir = '$(pwd)/';#" run.js
         xcrun simctl spawn "$DEVICE_UDID" "$(pwd)/out/release/escargot" "$(pwd)/run.js"
 
+  # Cross-compiles for real iOS *devices* (the iphoneos SDK, arm64) --
+  # build-and-verify only, deliberately no run step: executing an iphoneos
+  # binary needs signed, provisioned physical hardware, which no GitHub
+  # runner has. Runtime coverage for the iOS host comes from
+  # build-test-on-ios-simulator-arm64 above; the two SDKs share one set of
+  # headers and API-availability annotations and differ only in
+  # sysroot + target triple (see build/target.cmake's ios branch), so what
+  # this job adds on top is exactly the part that *can* differ: that the
+  # device sysroot/triple flows correctly through the engine build AND
+  # through build/VendoredICU.cmake's two-pass ICU cross build, and that the
+  # resulting Mach-O really is tagged for the device platform rather than
+  # silently falling back to the simulator or the host.
+  # Two legs, matching the two ways an app can actually consume the engine
+  # on device: the static libescargot.a (+ the shell, as a compile/link
+  # check of an embedder's main()) and the shared libescargot.dylib an app
+  # would embed in its bundle's Frameworks/ directory.
+  build-on-ios-device-arm64:
+    runs-on: macos-latest
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    # No test/octane here (nothing is executed in this job), unlike the
+    # simulator job above -- GCutil for the engine, icu for the vendored ICU
+    # cross build.
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --recursive -- third_party/GCutil third_party/icu && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
+    - name: Install Packages
+      run: |
+        brew update
+        brew install ninja
+    - name: Build arm64 Release (iphoneos device SDK, static + vendored ICU)
+      env:
+        BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DENABLE_SHELL=ON -GNinja
+      run: |
+        # fail fast with a clear message if Xcode (not just the CLT) isn't
+        # selected -- build/VendoredICU.cmake needs the iphoneos SDK
+        xcrun --sdk iphoneos --show-sdk-path
+        cmake -H. -Bout/release/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
+        ninja -Cout/release/
+    - name: Verify the binaries target the iOS device platform
+      run: |
+        # LC_BUILD_VERSION's platform is the one field that distinguishes a
+        # device build from a simulator (IOSSIMULATOR) or host (MACOS) one --
+        # everything else about the two iOS builds looks identical.
+        for f in out/release/escargot out/release/libescargot.a; do
+          lipo -info "$f"
+          lipo -info "$f" | grep -q arm64 || { echo "$f is not arm64" >&2; exit 1; }
+        done
+        vtool -show-build out/release/escargot | tee /tmp/vtool_device.txt
+        if ! grep -Eq '^[[:space:]]*platform[[:space:]]+IOS[[:space:]]*$' /tmp/vtool_device.txt; then
+          echo "escargot is not built for the iOS device platform (expected 'platform IOS'):" >&2
+          cat /tmp/vtool_device.txt >&2
+          exit 1
+        fi
+    - name: Verify ICU is statically linked (no libicu*.dylib pulled in)
+      run: |
+        if otool -L out/release/escargot | grep -qi icu; then
+          echo "escargot binary still depends on a shared libicu -- static link didn't take:" >&2
+          otool -L out/release/escargot >&2
+          exit 1
+        fi
+    - name: Build arm64 Release (iphoneos device SDK, shared library)
+      env:
+        # ICU off on purpose: the vendored ICU cross build is a ~10-minute
+        # two-pass autoconf build already fully covered by the static leg
+        # above (same SDK, same triple, same archives), and nothing about it
+        # changes when the *engine* is built as a dylib instead of an
+        # archive. What this leg is actually checking is the shared-library
+        # link itself on the device SDK -- which is also the configuration
+        # that would catch an ICU-less iOS build regressing.
+        BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DESCARGOT_BUILD_SHARED_LIBS=ON -DESCARGOT_LIBICU_SUPPORT=OFF -DENABLE_SHELL=ON -GNinja
+      run: |
+        cmake -H. -Bout/release_shared/ -DCMAKE_BUILD_TYPE=Release $BUILD_OPTIONS
+        ninja -Cout/release_shared/
+    - name: Verify the shared library targets the iOS device platform
+      run: |
+        lipo -info out/release_shared/libescargot.dylib
+        lipo -info out/release_shared/libescargot.dylib | grep -q arm64 || { echo "libescargot.dylib is not arm64" >&2; exit 1; }
+        vtool -show-build out/release_shared/libescargot.dylib | tee /tmp/vtool_device_shared.txt
+        if ! grep -Eq '^[[:space:]]*platform[[:space:]]+IOS[[:space:]]*$' /tmp/vtool_device_shared.txt; then
+          echo "libescargot.dylib is not built for the iOS device platform (expected 'platform IOS'):" >&2
+          cat /tmp/vtool_device_shared.txt >&2
+          exit 1
+        fi
+        # An app embeds this dylib under its bundle's Frameworks/ directory,
+        # which only works if the install name is @rpath-relative (CMake's
+        # MACOSX_RPATH default) rather than an absolute build-tree path.
+        otool -D out/release_shared/libescargot.dylib
+        otool -D out/release_shared/libescargot.dylib | grep -q '@rpath/' || {
+          echo "libescargot.dylib install name is not @rpath-relative -- it cannot be embedded in an app bundle as built:" >&2
+          otool -D out/release_shared/libescargot.dylib >&2
+          exit 1
+        }
+
   # -DESCARGOT_TEST_ABI=<cpu-abi>,<device-abi> (build/android/escargot/
   # build.gradle) restricts each matrix leg's native build to its own tested
   # emulator ABI paired with the real-device ABI in the same word size

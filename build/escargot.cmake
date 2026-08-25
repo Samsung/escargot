@@ -340,6 +340,10 @@ IF(ESCARGOT_ENABLE_SHELL)
     # instead of out/.../escargot otherwise) -- this is a plain CLI tool run
     # via `xcrun simctl spawn`, not an app users launch from a home screen,
     # so keep it a bare executable at the plain path CI/tooling expect.
+    # Same for the iphoneos (device) SDK: the shell is a compile/link check
+    # and an embedding example there, not something shipped to a home
+    # screen -- an app that actually embeds Escargot on device builds its
+    # own bundle around libescargot, it doesn't ship this target.
     SET_TARGET_PROPERTIES(escargot_shell PROPERTIES MACOSX_BUNDLE OFF)
     # Avoid output name clash with Android library directory 'escargot'
     IF (NOT ESCARGOT_HOST STREQUAL "android")
