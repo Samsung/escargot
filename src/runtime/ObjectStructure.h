@@ -521,4 +521,12 @@ struct equal_to<Escargot::ObjectStructureTransitionMapItem> {
     }
 };
 } // namespace std
+
+namespace tsl {
+namespace detail_robin_hash {
+template <>
+struct should_never_store_hash<Escargot::ObjectStructure*> : std::false_type {
+};
+} // namespace detail_robin_hash
+} // namespace tsl
 #endif

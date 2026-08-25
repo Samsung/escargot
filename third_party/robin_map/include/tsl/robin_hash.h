@@ -117,11 +117,50 @@ static_assert(std::numeric_limits<slz_size_type>::max() >= std::numeric_limits<s
 
 using truncated_hash_type = std::uint32_t;
 
+template <typename T>
+struct extract_key_type {
+    using type = T;
+};
+
+template <typename K, typename V>
+struct extract_key_type<std::pair<K, V>> {
+    using type = K;
+};
+
+template <typename K, typename V>
+struct extract_key_type<std::pair<const K, V>> {
+    using type = K;
+};
+
+template <typename... Ts>
+struct robin_make_void {
+    using type = void;
+};
+template <typename... Ts>
+using robin_void_t = typename robin_make_void<Ts...>::type;
+
+template <typename T, typename = void>
+struct is_gc_safe_hash : std::false_type {};
+
+template <typename T>
+struct is_gc_safe_hash<T, robin_void_t<decltype(T::is_gc_safe_hash)>>
+    : std::integral_constant<bool, T::is_gc_safe_hash> {};
+
+template <typename T, typename = void>
+struct should_never_store_hash : std::false_type {};
+
+template <typename T>
+struct should_never_store_hash<T*> : std::true_type {};
+
+template <typename T>
+struct should_never_store_hash<T, robin_void_t<decltype(T::should_never_store_hash)>>
+    : std::integral_constant<bool, T::should_never_store_hash> {};
+
 /**
  * Helper class that stores a truncated hash if StoreHash is true and nothing
  * otherwise.
  */
-template <bool StoreHash>
+template <bool StoreHash, bool ShiftHashToOdd = true>
 class bucket_entry_hash {
 public:
     bool bucket_hash_equal(std::size_t /*hash*/) const noexcept { return true; }
@@ -133,7 +172,30 @@ protected:
 };
 
 template <>
-class bucket_entry_hash<true> {
+class bucket_entry_hash<true, true> {
+public:
+    bool bucket_hash_equal(std::size_t hash) const noexcept
+    {
+        return m_hash == ((truncated_hash_type(hash) << 1) | 1);
+    }
+
+    truncated_hash_type truncated_hash() const noexcept
+    {
+        return m_hash >> 1;
+    }
+
+protected:
+    void set_hash(truncated_hash_type hash) noexcept
+    {
+        m_hash = (truncated_hash_type(hash) << 1) | 1;
+    }
+
+private:
+    truncated_hash_type m_hash;
+};
+
+template <>
+class bucket_entry_hash<true, false> {
 public:
     bool bucket_hash_equal(std::size_t hash) const noexcept
     {
@@ -171,8 +233,8 @@ private:
  *   (which would not be possible with 64 bits of the hash).
  */
 template <typename ValueType, bool StoreHash>
-class bucket_entry : public bucket_entry_hash<StoreHash> {
-    using bucket_hash = bucket_entry_hash<StoreHash>;
+class bucket_entry : public bucket_entry_hash<StoreHash, !is_gc_safe_hash<typename extract_key_type<ValueType>::type>::value> {
+    using bucket_hash = bucket_entry_hash<StoreHash, !is_gc_safe_hash<typename extract_key_type<ValueType>::type>::value>;
 
 public:
     using value_type = ValueType;
@@ -412,9 +474,10 @@ private:
    * parameter or store the hash because it doesn't cost us anything in size and
    * can be used to speed up rehash.
    */
-    static constexpr bool STORE_HASH = StoreHash || ((sizeof(tsl::detail_robin_hash::bucket_entry<value_type, true>) == sizeof(tsl::detail_robin_hash::bucket_entry<value_type, false>)) && (sizeof(std::size_t) == sizeof(truncated_hash_type) || is_power_of_two_policy<GrowthPolicy>::value) &&
+    static constexpr bool STORE_HASH = (StoreHash || ((sizeof(tsl::detail_robin_hash::bucket_entry<value_type, true>) == sizeof(tsl::detail_robin_hash::bucket_entry<value_type, false>)) && (sizeof(std::size_t) == sizeof(truncated_hash_type) || is_power_of_two_policy<GrowthPolicy>::value) &&
                                                      // Don't store the hash for primitive types with default hash.
-                                                     (!std::is_arithmetic<key_type>::value || !std::is_same<Hash, std::hash<key_type>>::value));
+                                                     (!std::is_arithmetic<key_type>::value || !std::is_same<Hash, std::hash<key_type>>::value))) &&
+                                       !should_never_store_hash<key_type>::value;
 
     /**
    * Only use the stored hash on lookup if we are explicitly asked. We are not
@@ -431,10 +494,30 @@ private:
    */
     static bool USE_STORED_HASH_ON_REHASH(size_type bucket_count)
     {
-        if (STORE_HASH && sizeof(std::size_t) == sizeof(truncated_hash_type)) {
+        if (!STORE_HASH) {
+            TSL_RH_UNUSED(bucket_count);
+            return false;
+        }
+
+        /*
+         * A hash shifted to an odd value loses its most significant bit. It
+         * can only be reused with a power-of-two growth policy whose mask does
+         * not observe that bit. In particular, it must never be reused by a
+         * modulo growth policy, even when size_t is 32 bits.
+         */
+        if (!is_gc_safe_hash<key_type>::value) {
+            if (is_power_of_two_policy<GrowthPolicy>::value) {
+                return bucket_count == 0 || (bucket_count - 1) <= (std::numeric_limits<truncated_hash_type>::max() >> 1);
+            }
+
+            TSL_RH_UNUSED(bucket_count);
+            return false;
+        }
+
+        if (sizeof(std::size_t) == sizeof(truncated_hash_type)) {
             TSL_RH_UNUSED(bucket_count);
             return true;
-        } else if (STORE_HASH && is_power_of_two_policy<GrowthPolicy>::value) {
+        } else if (is_power_of_two_policy<GrowthPolicy>::value) {
             return bucket_count == 0 || (bucket_count - 1) <= std::numeric_limits<truncated_hash_type>::max();
         } else {
             TSL_RH_UNUSED(bucket_count);
