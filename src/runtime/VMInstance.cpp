@@ -184,7 +184,6 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
 #if defined(ENABLE_INTL)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlAvailableLocales));
@@ -384,7 +383,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #ifdef ENABLE_ICU
     , m_calendar(nullptr)
 #endif
-    , m_cachedUTC(nullptr)
     , m_jobQueue(nullptr)
 #if defined(ENABLE_CODE_CACHE)
     , m_codeCache(nullptr)
@@ -686,16 +684,6 @@ void VMInstance::ensureTzname()
 #endif
 }
 #endif
-
-DateObject* VMInstance::cachedUTC(ExecutionState& state)
-{
-    if (m_cachedUTC == nullptr) {
-        DateObject* obj = new DateObject(state);
-        obj->setPrototype(state, Value(Value::Null));
-        m_cachedUTC = obj;
-    }
-    return m_cachedUTC;
-}
 
 void VMInstance::addObjectStructureToRootSet(ObjectStructure* structure)
 {
