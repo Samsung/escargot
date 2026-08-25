@@ -228,8 +228,6 @@ TEST(NapiRuntime, MakeCallbackCallsFunctionAndDrainsMicrotask)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // `f` returns 42 and, as a side effect, queues a microtask (a
             // resolved Promise's .then reaction) that stashes a value on the
             // global object - proving (once observed right after
@@ -324,8 +322,6 @@ TEST(NapiRuntime, BufferFromArrayBufferViewsCorrectBytes)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             void* abData = nullptr;
             napi_value ab = nullptr;
             if (napi_create_arraybuffer(env, 16, &abData, &ab) != napi_ok) {
@@ -456,8 +452,6 @@ TEST(NapiRuntime, HostingAndPumpingAPIsWorkCorrectly)
     // Run N-API code within the required Escargot execution state/boundary
     Evaluator::execute(
         env->napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // Run simple script to verify environment is active and running
             napi_value script = nullptr;
             EXPECT_EQ(napi_create_string_utf8(env, "1 + 1", NAPI_AUTO_LENGTH, &script), napi_ok);

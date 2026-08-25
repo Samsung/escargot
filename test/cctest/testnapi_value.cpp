@@ -46,8 +46,6 @@ TEST(Napi, ValueSingletonsAndVersion)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value nullValue = nullptr;
             EXPECT_EQ(napi_get_null(env, &nullValue), napi_ok);
             EXPECT_TRUE(FromNapi(nullValue)->isNull());
@@ -70,8 +68,6 @@ TEST(Napi, ValueNumberRoundTrips)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // napi_create_int64 / napi_get_value_int64 round trip, plus the
             // clamp-to-int64-range and non-finite-maps-to-0 special cases
             // napi_get_value_int64 documents.
@@ -149,8 +145,6 @@ TEST(Napi, ValueStrings)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // napi_create_string_latin1 / napi_get_value_string_latin1 round
             // trip, including a byte (0xE9, "e with acute") outside ASCII.
             const unsigned char latin1Bytes[] = { 'H', 'i', 0xE9 };
@@ -248,8 +242,6 @@ TEST(Napi, ValueCoercions)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             // napi_coerce_to_bool.
             napi_value zero = ToNapi(ValueRef::create(0));
             napi_value boolResult = nullptr;
@@ -316,8 +308,6 @@ TEST(Napi, ValueStrictEquals)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value one = ToNapi(ValueRef::create(1));
             napi_value oneAgain = ToNapi(ValueRef::create(1.0));
             napi_value two = ToNapi(ValueRef::create(2));

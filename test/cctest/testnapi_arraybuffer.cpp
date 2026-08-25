@@ -41,8 +41,6 @@ TEST(Napi, ArrayBuffer)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             void* data = nullptr;
             napi_value buf = nullptr;
             napi_status status = napi_create_arraybuffer(env, 16, &data, &buf);
@@ -105,8 +103,6 @@ TEST(Napi, TypedArray)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             void* data = nullptr;
             napi_value buf = nullptr;
             napi_create_arraybuffer(env, 16, &data, &buf);
@@ -150,8 +146,6 @@ TEST(Napi, DataView)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             void* data = nullptr;
             napi_value buf = nullptr;
             napi_create_arraybuffer(env, 16, &data, &buf);
@@ -202,8 +196,6 @@ TEST(Napi, External)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, int* payload) -> ValueRef* {
-            env->executionState = state;
-
             napi_value ext = nullptr;
             napi_status status = napi_create_external(env, payload, nullptr, nullptr, &ext);
             if (status != napi_ok) {
@@ -229,6 +221,53 @@ TEST(Napi, External)
     EXPECT_TRUE(result.result->asBoolean());
 }
 
+
+static void CountEnvTeardownFinalizer(node_api_basic_env env, void* data, void* hint)
+{
+    int* count = hint != nullptr ? static_cast<int*>(hint) : static_cast<int*>(data);
+    (*count)++;
+}
+
+TEST(Napi, FinalizersRunBeforeEnvBecomesInvalid)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+
+    int addFinalizerCount = 0;
+    int externalObjectCount = 0;
+    int externalBufferCount = 0;
+    int externalPayload = 42;
+    uint8_t externalBytes[8] = { 0 };
+
+    Evaluator::EvaluatorResult result = Evaluator::execute(
+        napiEnv->context(), [](ExecutionStateRef* state, napi_env env, int* addCount, int* externalCount, int* payload, int* bufferCount, uint8_t* bytes) -> ValueRef* {
+            ObjectRef* target = ObjectRef::create(state);
+            napi_add_finalizer(env, ToNapi(target), addCount, CountEnvTeardownFinalizer, nullptr, nullptr);
+
+            napi_value external = nullptr;
+            napi_create_external(env, payload, CountEnvTeardownFinalizer, externalCount, &external);
+
+            napi_value externalBuffer = nullptr;
+            napi_create_external_arraybuffer(env, bytes, 8, CountEnvTeardownFinalizer, bufferCount, &externalBuffer);
+
+            // Keep every target reachable from the context global. Ordinary GC
+            // cannot finalize them; NapiEnv teardown must do so while env is valid.
+            ObjectRef* global = state->context()->globalObject();
+            global->set(state, StringRef::createFromASCII("__napiAddFinalizerTarget"), target);
+            global->set(state, StringRef::createFromASCII("__napiExternalTarget"), FromNapi(external));
+            global->set(state, StringRef::createFromASCII("__napiExternalBufferTarget"), FromNapi(externalBuffer));
+            return ValueRef::createUndefined();
+        },
+        napiEnv->env(), &addFinalizerCount, &externalObjectCount, &externalPayload, &externalBufferCount, externalBytes);
+    ASSERT_TRUE(result.isSuccessful());
+
+    delete napiEnv;
+
+    EXPECT_EQ(addFinalizerCount, 1);
+    EXPECT_EQ(externalObjectCount, 1);
+    EXPECT_EQ(externalBufferCount, 1);
+}
+
 TEST(Napi, TypeTag)
 {
     NapiEnv::globalInit();
@@ -236,8 +275,6 @@ TEST(Napi, TypeTag)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* obj = ObjectRef::create(state);
             napi_value objValue = ToNapi(obj);
 
@@ -292,8 +329,6 @@ TEST(Napi, Buffer)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             void* data = nullptr;
             napi_value buf = nullptr;
             napi_status status = napi_create_buffer(env, 4, &data, &buf);

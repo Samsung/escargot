@@ -266,6 +266,68 @@ TEST(NapiAsyncWork, AsyncWorkNullArgGuards)
 }
 
 // ---------------------------------------------------------------------------
+
+struct DeleteFromCompleteData {
+    napi_async_work work = nullptr;
+    napi_status deleteStatus = napi_generic_failure;
+    std::atomic<bool> completeRan{ false };
+};
+
+static void NoopAsyncExecute(napi_env env, void* data)
+{
+}
+
+static void DeleteFromComplete(napi_env env, napi_status status, void* data)
+{
+    DeleteFromCompleteData* state = reinterpret_cast<DeleteFromCompleteData*>(data);
+    state->deleteStatus = napi_delete_async_work(env, state->work);
+    state->completeRan.store(true);
+}
+
+TEST(NapiAsyncWork, CompleteCallbackCanDeleteItsWork)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+    napi_env env = napiEnv->env();
+
+    DeleteFromCompleteData state;
+    ASSERT_EQ(napi_create_async_work(env, nullptr, nullptr, NoopAsyncExecute, DeleteFromComplete, &state, &state.work), napi_ok);
+    ASSERT_EQ(napi_queue_async_work(env, state.work), napi_ok);
+    ASSERT_TRUE(DrainUntil(napiEnv, [&state]() { return state.completeRan.load(); }));
+    EXPECT_EQ(state.deleteStatus, napi_ok);
+
+    delete napiEnv;
+}
+
+static std::atomic<bool> g_teardownWorkCompleteRan{ false };
+
+static void SlowTeardownExecute(napi_env env, void* data)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+}
+
+static void TeardownWorkComplete(napi_env env, napi_status status, void* data)
+{
+    g_teardownWorkCompleteRan.store(true);
+}
+
+TEST(NapiAsyncWork, EnvTeardownWaitsForQueuedWork)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+    napi_env env = napiEnv->env();
+
+    g_teardownWorkCompleteRan = false;
+    napi_async_work work = nullptr;
+    ASSERT_EQ(napi_create_async_work(env, nullptr, nullptr, SlowTeardownExecute, TeardownWorkComplete, nullptr, &work), napi_ok);
+    ASSERT_EQ(napi_queue_async_work(env, work), napi_ok);
+
+    // No explicit drain or delete: NapiEnv teardown must cancel/wait for the
+    // request, deliver complete while env is valid, then reclaim the handle.
+    delete napiEnv;
+    EXPECT_TRUE(g_teardownWorkCompleteRan.load());
+}
+
 // napi_threadsafe_function shared helpers
 // ---------------------------------------------------------------------------
 
@@ -278,7 +340,6 @@ static napi_value CreateArrayPusherFunction(NapiEnv* napiEnv, const char* global
     napi_value result = nullptr;
     Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, const char* globalArrayName, napi_value* outFunc) -> ValueRef* {
-            env->executionState = state;
             std::string src = std::string("(function(){ globalThis.") + globalArrayName + " = []; return function(x){ globalThis." + globalArrayName + ".push(x); }; })()";
             ScriptRef* script = state->context()->scriptParser()->initializeScript(StringRef::createFromUTF8(src.data(), src.size()), StringRef::createFromASCII("testnapi_asyncwork"), false).fetchScriptThrowsExceptionIfParseError(state);
             ValueRef* fn = script->execute(state);
@@ -293,7 +354,6 @@ static void ReadArrayLengthAndSum(NapiEnv* napiEnv, const char* globalArrayName,
 {
     Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, const char* globalArrayName, uint32_t* outLen, double* outSum) -> ValueRef* {
-            env->executionState = state;
             napi_value global = nullptr;
             napi_get_global(env, &global);
             napi_value arr = nullptr;
@@ -315,17 +375,14 @@ static void ReadArrayLengthAndSum(NapiEnv* napiEnv, const char* globalArrayName,
         napiEnv->env(), globalArrayName, outLen, outSum);
 }
 
-// Standalone array-length read, wrapped in its own Evaluator::execute (same
-// reason as ReadArrayLengthAndSum above: env->executionState is only valid
-// nested inside an active call, and is NOT still valid just because some
-// earlier, already-returned Evaluator::execute call happened to set it) -
-// for use directly inside a DrainUntil predicate.
+// Standalone array-length read with its own scoped Evaluator::execute, for
+// use directly inside a DrainUntil predicate where there is no active
+// ExecutionStateRef.
 static uint32_t GetArrayLength(NapiEnv* napiEnv, const char* globalArrayName)
 {
     uint32_t len = 0;
     Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, const char* globalArrayName, uint32_t* outLen) -> ValueRef* {
-            env->executionState = state;
             napi_value global = nullptr;
             napi_get_global(env, &global);
             napi_value arr = nullptr;
@@ -603,7 +660,6 @@ TEST(NapiAsyncWork, TsfnDefaultCallJsCbInvokesFuncWithNoArgs)
     napi_value fn = nullptr;
     Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, napi_value* outFn) -> ValueRef* {
-            env->executionState = state;
             napi_create_function(env, "counting", NAPI_AUTO_LENGTH, CountingNativeFunction, nullptr, outFn);
             return ValueRef::createUndefined();
         },
@@ -658,6 +714,26 @@ TEST(NapiAsyncWork, TsfnGetContextAndRefUnref)
 }
 
 // ---------------------------------------------------------------------------
+TEST(NapiAsyncWork, UnreleasedTsfnFinalizesDuringEnvTeardown)
+{
+    NapiEnv::globalInit();
+    NapiEnv* napiEnv = NapiEnv::create();
+    napi_env env = napiEnv->env();
+
+    napi_value jsFunc = CreateArrayPusherFunction(napiEnv, "__tsfnEnvTeardownResults");
+    ASSERT_NE(jsFunc, nullptr);
+
+    g_tsfnFinalizeRan = false;
+    napi_threadsafe_function tsfn = nullptr;
+    ASSERT_EQ(napi_create_threadsafe_function(env, jsFunc, nullptr, nullptr, 0, 1, nullptr, RecordThreadFinalize, nullptr, PushIntCallJs, &tsfn), napi_ok);
+    ASSERT_EQ(napi_unref_threadsafe_function(env, tsfn), napi_ok);
+
+    // Deliberately do not release the TSFN. NapiEnv teardown must drive the
+    // normal TSFN close path, including the user's finalizer and native delete.
+    delete napiEnv;
+    EXPECT_TRUE(g_tsfnFinalizeRan.load());
+}
+
 // NULL-arg guards (threadsafe function)
 // ---------------------------------------------------------------------------
 

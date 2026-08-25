@@ -64,14 +64,13 @@
 //    NapiEnv::drainPendingJobs() - the after-work callback of a queued
 //    uv_work_t for async_work, and a napi_threadsafe_function's own
 //    uv_async_t callback for threadsafe functions), wrapped in its own
-//    Evaluator::execute (not env->executionState, which is only valid nested
-//    inside an existing napi call) - same top-level-entry pattern used by
-//    test/cctest/testnapi_runtime.cpp's own MakeCallback/
-//    BufferFromArrayBuffer tests and by ~NapiEnv()'s own teardown Evaluator
-//    call: neither callback is nested inside any other napi_* call's own
-//    ExecutionStateRef, so each must create its own SandBox to safely call
-//    back into JS (call_js_cb, or the default napi_call_function below, may
-//    throw a raw C++ exception on an uncaught JS exception).
+//    Evaluator::execute using the env's ContextRef - the same top-level-entry
+//    pattern used by test/cctest/testnapi_runtime.cpp's MakeCallback/
+//    BufferFromArrayBuffer tests and by ~NapiEnv() teardown. Neither callback
+//    is nested inside another active ExecutionStateRef, so each creates its
+//    own SandBox to safely call back into JS (call_js_cb, or the default
+//    napi_call_function below, may throw a raw C++ exception on an uncaught
+//    JS exception).
 //  - Ordering between "push a call onto a threadsafe function's queue" and
 //    "the last release setting `closing`" is made safe purely by both
 //    happening under the same napi_threadsafe_function__::mutex: whichever
@@ -176,12 +175,10 @@ void InvokeThreadsafeFunctionCall(napi_threadsafe_function func, void* data)
 {
     napi_env env = func->env;
     ContextRef* ctx = env->context();
-    // Evaluator::execute (not env->executionState, which is only valid
-    // nested inside an existing napi call) - see this file's header comment.
+    // Establish a scoped execution boundary from the env's ContextRef; see
+    // this file's header comment.
     Evaluator::execute(
         ctx, [](ExecutionStateRef* state, napi_threadsafe_function func, napi_env env, void* data) -> ValueRef* {
-            env->executionState = state;
-
             napi_value jsFunc = nullptr;
             if (func->funcRef != nullptr) {
                 napi_get_reference_value(env, func->funcRef, &jsFunc);
@@ -213,6 +210,7 @@ void InvokeThreadsafeFunctionCall(napi_threadsafe_function func, void* data)
 void TearDownThreadsafeFunction(napi_threadsafe_function func)
 {
     napi_env env = func->env;
+    env->napiEnv->untrackThreadsafeFunction(func);
     if (func->funcRef != nullptr) {
         napi_delete_reference(env, func->funcRef);
         func->funcRef = nullptr;
@@ -320,28 +318,83 @@ void AfterWork(uv_work_t* req, int status)
         std::lock_guard<std::mutex> lock(work->mutex);
         bool cancelled = (status == UV_ECANCELED) || (work->state == napi_async_work__::State::Cancelled);
         napiStatus = cancelled ? napi_cancelled : napi_ok;
+        // Mark complete before invoking the callback so the callback may
+        // legally call napi_delete_async_work as its final operation.
+        work->state = napi_async_work__::State::Completed;
     }
 
-    // `complete` (unlike `execute`) has full napi_env access (napi_value/
-    // GC-heap-creating calls included) - it needs a valid
-    // env->executionState to do that, same reason
-    // InvokeThreadsafeFunctionCall above wraps its own call_js_cb invocation
-    // in Evaluator::execute rather than calling straight through.
+    // `complete` (unlike `execute`) has full napi_env access, including
+    // napi_value/GC-heap-creating calls. Establish a scoped evaluator boundary
+    // from the env's ContextRef, as InvokeThreadsafeFunctionCall does above.
     napi_env env = work->env;
     ContextRef* ctx = env->context();
     Evaluator::execute(
         ctx, [](ExecutionStateRef* state, napi_async_work work, napi_status status) -> ValueRef* {
-            work->env->executionState = state;
             work->complete(work->env, status, work->data);
             return ValueRef::createUndefined();
         },
         work, napiStatus);
-
-    std::lock_guard<std::mutex> lock(work->mutex);
-    work->state = napi_async_work__::State::Completed;
 }
 
 } // namespace
+
+void AbortEnvThreadsafeFunctions(NapiEnv* napiEnv)
+{
+    std::vector<napi_threadsafe_function> functions = napiEnv->snapshotThreadsafeFunctions();
+    for (napi_threadsafe_function func : functions) {
+        {
+            std::lock_guard<std::mutex> lock(func->mutex);
+            if (func->tornDown) {
+                continue;
+            }
+            func->closing = true;
+            func->threadCount = 0;
+            if (!func->refd) {
+                func->refd = true;
+                uv_ref(reinterpret_cast<uv_handle_t*>(&func->async));
+            }
+        }
+        func->cv.notify_all();
+        uv_async_send(&func->async);
+
+        while (!napiEnv->snapshotThreadsafeFunctions().empty()) {
+            uv_run(napiEnv->uvLoop(), UV_RUN_ONCE);
+        }
+    }
+}
+
+void DrainEnvAsyncWorks(NapiEnv* napiEnv)
+{
+    napi_env env = napiEnv->env();
+
+    for (napi_async_work work : napiEnv->snapshotAsyncWorks()) {
+        napi_cancel_async_work(env, work);
+    }
+
+    for (;;) {
+        bool hasPendingWork = false;
+        for (napi_async_work work : napiEnv->snapshotAsyncWorks()) {
+            std::lock_guard<std::mutex> lock(work->mutex);
+            if (work->queued && work->state != napi_async_work__::State::Completed) {
+                hasPendingWork = true;
+                break;
+            }
+        }
+        if (!hasPendingWork) {
+            break;
+        }
+        // A queued uv_work_t keeps the loop alive. UV_RUN_ONCE waits for the
+        // worker/after-work callback instead of spinning and destroying env
+        // while a worker still owns work->req.
+        uv_run(napiEnv->uvLoop(), UV_RUN_ONCE);
+    }
+
+    for (napi_async_work work : napiEnv->snapshotAsyncWorks()) {
+        napi_status status = napi_delete_async_work(env, work);
+        RELEASE_ASSERT(status == napi_ok);
+    }
+    RELEASE_ASSERT(napiEnv->snapshotAsyncWorks().empty());
+}
 
 extern "C" {
 
@@ -364,6 +417,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_async_work(napi_env env, napi_value
     work->execute = execute;
     work->complete = complete;
     work->data = data;
+    env->napiEnv->trackAsyncWork(work);
     *result = work;
     return napi_ok;
 }
@@ -433,11 +487,10 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_async_work(napi_env env, napi_async
 
     {
         std::lock_guard<std::mutex> lock(work->mutex);
-        // Safe to delete only once this work item's own `complete` has
-        // actually finished running (state Completed, matching real
-        // Node-API's contract that napi_delete_async_work runs after
-        // `complete` returns - typically called as the last thing `complete`
-        // itself does), or if it was never queued at all. Anything else
+        // AfterWork marks the request Completed before entering the complete
+        // callback, so deleting it as the callback.s last operation is safe:
+        // AfterWork never touches the request again afterward. An unqueued
+        // request is also safe to delete. Anything else
         // (Running, or Idle-but-queued/Cancelled-but-not-yet-run) means
         // libuv's thread pool may still touch `work->req` later - freeing it
         // now would be a use-after-free once ExecuteWork/AfterWork gets
@@ -448,6 +501,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_async_work(napi_env env, napi_async
         }
     }
 
+    env->napiEnv->untrackAsyncWork(work);
     delete work;
     return napi_ok;
 }
@@ -499,6 +553,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_threadsafe_function(napi_env env, n
         return SetLastError(env, napi_generic_failure);
     }
 
+    env->napiEnv->trackThreadsafeFunction(tsfn);
     *result = tsfn;
     return napi_ok;
 }

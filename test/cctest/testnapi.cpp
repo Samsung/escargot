@@ -51,8 +51,6 @@ TEST(Napi, TwoFunctionArguments)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
 
@@ -104,8 +102,6 @@ TEST(Napi, Callbacks)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
@@ -150,8 +146,6 @@ TEST(Napi, CallbackRecv)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
@@ -197,8 +191,6 @@ TEST(Napi, ObjectFactory)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ValueRef* factory = FromNapi(returnedExports);
@@ -241,8 +233,6 @@ TEST(Napi, FunctionFactory)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ValueRef* factory = FromNapi(returnedExports);
@@ -276,8 +266,6 @@ TEST(Napi, ObjectWrap)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();
@@ -391,7 +379,6 @@ TEST(Napi, FactoryWrap)
 
     Evaluator::EvaluatorResult r1 = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule, ObjectRef** exportsOut) -> ValueRef* {
-            env->executionState = state;
             ObjectRef* exportsObj = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exportsObj));
             *exportsOut = FromNapi(returnedExports)->asObject();
@@ -414,7 +401,6 @@ TEST(Napi, FactoryWrap)
         // stack frame keeps referencing it once this call returns.
         Evaluator::EvaluatorResult r2 = Evaluator::execute(
             napiEnv->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* exports, int base) -> ValueRef* {
-                env->executionState = state;
                 ValueRef* createObject = exports->get(state, StringRef::createFromASCII("createObject"));
                 ValueRef* args[1] = { ValueRef::create(base) };
                 ValueRef* obj = createObject->call(state, ValueRef::createUndefined(), 1, args);
@@ -453,7 +439,6 @@ TEST(Napi, FactoryWrap)
 
         Evaluator::EvaluatorResult r3 = Evaluator::execute(
             napiEnv->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* exports, int expectedCount) -> ValueRef* {
-                env->executionState = state;
                 ValueRef* finalizeCount = exports->get(state, StringRef::createFromASCII("finalizeCount"));
                 EXPECT_EQ(finalizeCount->asNumber(), expectedCount);
                 return ValueRef::createUndefined();
@@ -482,7 +467,6 @@ TEST(Napi, WeakReferenceStaleAfterGC)
     // returns (same "own call frame" discipline as Napi.FactoryWrap above).
     Evaluator::EvaluatorResult r1 = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, napi_ref* refOut) -> ValueRef* {
-            env->executionState = state;
             ObjectRef* obj = ObjectRef::create(state);
             napi_create_reference(env, ToNapi(obj), 0, refOut);
             return ValueRef::createUndefined();
@@ -542,7 +526,6 @@ TEST(Napi, RemoveWrapSuppressesFinalizer)
     // returns (same "own call frame" discipline as Napi.FactoryWrap above).
     Evaluator::EvaluatorResult r1 = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
             ObjectRef* obj = ObjectRef::create(state);
             napi_wrap(env, ToNapi(obj), nullptr, RemoveWrapFinalizeCallback, nullptr, nullptr);
 
@@ -589,7 +572,6 @@ TEST(Napi, ReferenceRefUnref)
     // returns (same "own call frame" discipline as Napi.FactoryWrap above).
     Evaluator::EvaluatorResult r1 = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, napi_ref* refOut) -> ValueRef* {
-            env->executionState = state;
             ObjectRef* obj = ObjectRef::create(state);
             napi_create_reference(env, ToNapi(obj), 1, refOut);
             return ValueRef::createUndefined();
@@ -749,8 +731,6 @@ TEST(Napi, CallFunctionReportsExceptionAsPendingStatus)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             AtomicStringRef* throwName = AtomicStringRef::create(state->context(), "throwRangeError", strlen("throwRangeError"));
             FunctionObjectRef* throwFn = FunctionObjectRef::create(state, FunctionObjectRef::NativeFunctionInfo(throwName, ThrowRangeError, 0, true, false));
 
@@ -805,8 +785,6 @@ TEST(Napi, HandleScope)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, NapiRegisterModuleFn registerModule) -> ValueRef* {
-            env->executionState = state;
-
             ObjectRef* exports = ObjectRef::create(state);
             napi_value returnedExports = registerModule(env, ToNapi(exports));
             ObjectRef* exportsResult = FromNapi(returnedExports)->asObject();

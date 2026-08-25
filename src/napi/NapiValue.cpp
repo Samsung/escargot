@@ -193,7 +193,17 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_int32(napi_env env, napi_value v
     if (!v->isNumber()) {
         return SetLastError(env, napi_number_expected);
     }
-    *result = v->toInt32(env->executionState);
+
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
+            return ValueRef::create(value->toInt32(state));
+        },
+        v);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = static_cast<int32_t>(evalResult.result->asNumber());
     return napi_ok;
 }
 
@@ -219,8 +229,17 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_int64(napi_env env, napi_value v
     }
 
     // ToInteger on an already-numeric value never runs user code / throws,
-    // so this can be called directly without Evaluator::execute wrapping
-    double truncated = v->toInteger(env->executionState);
+    // but it still requires a call-scoped ExecutionStateRef.
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
+            return ValueRef::create(value->toInteger(state));
+        },
+        v);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    double truncated = evalResult.result->asNumber();
     if (truncated >= 9223372036854775808.0) { // 2^63, first double >= INT64_MAX+1
         *result = INT64_MAX;
     } else if (truncated < -9223372036854775808.0) { // -2^63 == INT64_MIN exactly
@@ -370,22 +389,30 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_bool(napi_env env, napi_value va
     SetLastError(env, napi_ok);
 
     // ToBoolean never runs user code / never throws, unlike its
-    // to_number/to_object/to_string siblings below, so this can be called
-    // directly without Evaluator::execute wrapping
-    *result = ToNapi(ValueRef::create(FromNapi(value)->toBoolean(env->executionState)));
+    // to_number/to_object/to_string siblings below, but it still requires a
+    // call-scoped ExecutionStateRef.
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
+            return ValueRef::create(value->toBoolean(state));
+        },
+        FromNapi(value));
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 
 ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_number(napi_env env, napi_value value, napi_value* result)
 {
-    ExecutionStateRef* state = env->executionState;
     ValueRef* v = FromNapi(value);
 
     // ToNumber can invoke a user-defined valueOf/Symbol.toPrimitive/toString,
     // or throw (e.g. for a Symbol) - must not let that C++ exception cross
     // this function's own stack frame (see napi_call_function above)
     Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return ValueRef::create(v->toNumber(state));
         },
         v);
@@ -407,15 +434,13 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_object(napi_env env, napi_value 
         return SetLastError(env, napi_invalid_arg);
     }
     SetLastError(env, napi_ok);
-
-    ExecutionStateRef* state = env->executionState;
     ValueRef* v = FromNapi(value);
 
     // ToObject throws for null/undefined, so this needs the same
     // exception-catching wrapper as the other coercions here even though it
     // never runs arbitrary user code itself
     Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return v->toObject(state);
         },
         v);
@@ -437,14 +462,12 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_string(napi_env env, napi_value 
         return SetLastError(env, napi_invalid_arg);
     }
     SetLastError(env, napi_ok);
-
-    ExecutionStateRef* state = env->executionState;
     ValueRef* v = FromNapi(value);
 
     // ToString can invoke a user-defined toString/Symbol.toPrimitive, or
     // throw (e.g. for a Symbol) - same reasoning as napi_coerce_to_number
     Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
-        state, [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
+        env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return v->toString(state);
         },
         v);
@@ -465,8 +488,17 @@ ESCARGOT_NAPI_EXPORT napi_status napi_strict_equals(napi_env env, napi_value lhs
     }
 
     // === never runs user code / never throws, so this can be called
-    // directly without Evaluator::execute wrapping
-    *result = FromNapi(lhs)->equalsTo(env->executionState, FromNapi(rhs));
+    // without exception concerns, but it still needs scoped state.
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, ValueRef* lhs, ValueRef* rhs) -> ValueRef* {
+            return ValueRef::create(lhs->equalsTo(state, rhs));
+        },
+        FromNapi(lhs), FromNapi(rhs));
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = evalResult.result->asBoolean();
     return napi_ok;
 }
 

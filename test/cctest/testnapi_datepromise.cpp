@@ -41,8 +41,6 @@ TEST(Napi, Date)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             const double milliseconds = 1700000000123.0;
 
             napi_value date = nullptr;
@@ -114,8 +112,6 @@ TEST(Napi, Promise)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value notAPromise = ToNapi(ValueRef::create(42));
             bool notAPromiseIsPromise = true;
             napi_is_promise(env, notAPromise, &notAPromiseIsPromise);
@@ -187,8 +183,6 @@ TEST(Napi, PromiseReject)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_deferred deferred = nullptr;
             napi_value promise = nullptr;
             napi_status status = napi_create_promise(env, &deferred, &promise);
@@ -234,8 +228,6 @@ TEST(Napi, RunScript)
 
     Evaluator::EvaluatorResult result = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env) -> ValueRef* {
-            env->executionState = state;
-
             napi_value script = ToNapi(StringRef::createFromASCII("1 + 2"));
             napi_value scriptResult = nullptr;
             napi_status status = napi_run_script(env, script, &scriptResult);

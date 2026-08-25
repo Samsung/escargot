@@ -110,7 +110,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_bigint_words(napi_env env, int sign
     // than a bare napi_invalid_arg status.
     static const size_t kMaxBigIntWords = 1 << 20;
     if (word_count > kMaxBigIntWords) {
-        env->pendingException = ErrorObjectRef::create(env->executionState, ErrorObjectRef::RangeError, StringRef::createFromASCII("Maximum BigInt size exceeded"));
+        napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
         return SetLastError(env, napi_pending_exception);
     }
 
@@ -146,7 +146,21 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_bigint_words(napi_env env, int sign
 
     StringRef* hexString = StringRef::createFromASCII(hex.data(), hex.length());
     BigIntRef* magnitude = BigIntRef::create(hexString, 16);
-    *result = ToNapi((sign_bit != 0) ? magnitude->negativeValue(env->executionState) : magnitude);
+    if (sign_bit == 0) {
+        *result = ToNapi(magnitude);
+        return napi_ok;
+    }
+
+    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+        env->context(), [](ExecutionStateRef* state, BigIntRef* magnitude) -> ValueRef* {
+            return magnitude->negativeValue(state);
+        },
+        magnitude);
+    napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
+    if (status != napi_ok) {
+        return status;
+    }
+    *result = ToNapi(evalResult.result);
     return napi_ok;
 }
 

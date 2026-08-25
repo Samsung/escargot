@@ -78,6 +78,11 @@ protected:
             , callback(callback)
         {
         }
+
+        void* operator new(size_t size)
+        {
+            return GC_MALLOC_ATOMIC(size);
+        }
     };
 
     TightVector<ObserverVectorItem*, GCUtil::gc_malloc_allocator<ObserverVectorItem*>> m_observerItems;

@@ -81,6 +81,16 @@ inline napi_status SetLastError(napi_env env, napi_status status)
     return status;
 }
 
+inline napi_status SetPendingExceptionFromEvaluatorResult(napi_env env, Evaluator::EvaluatorResult& result)
+{
+    if (result.isSuccessful()) {
+        return napi_ok;
+    }
+
+    env->pendingException = result.error.value();
+    return SetLastError(env, napi_pending_exception);
+}
+
 #define CHECK_ENV(env)               \
     do {                             \
         if ((env) == nullptr)        \
@@ -122,45 +132,18 @@ struct napi_callback_info__ {
     Escargot::OptionalRef<Escargot::ValueRef> newTarget; // present only for a `new`-invoked constructor call
 };
 
-// the opaque type node_api.h forward-declares for napi_create_reference et al.
-// `value` is a raw GC pointer, not itself rooted by this struct; refcount > 0
-// means it has been added to the env's PersistentValueRefMap that many times
-// (which is what actually roots it), matching napi_ref's own weak(0)/strong(>0)
-// semantics - napi_reference_ref/napi_reference_unref (NapiFunctions.cpp) can
-// move a ref between the two any number of times over its life. A weak ref's
-// `value` is cleared to empty once its target is collected, via a finalizer
-// registered on the target (NapiWeakRefFinalizer in NapiFunctions.cpp) - see
-// napi_create_reference/napi_wrap/napi_delete_reference/napi_reference_unref.
-// `weakFinalizerRegistered` tracks whether that finalizer is currently
-// registered, so the weak<->strong transitions above don't register it twice
-// (which the underlying finalizer list does not itself deduplicate).
+// The opaque type node_api.h forward-declares for napi_create_reference.
+// The holder is a normal persistent root while refcount > 0 and a BDWGC
+// disappearing-link-backed weak root while refcount == 0. This keeps the
+// handle's storage and lifetime in one place instead of relying on a raw
+// pointer plus an independently ordered GC finalizer.
 struct napi_ref__ {
-    Escargot::OptionalRef<Escargot::ValueRef> value;
-    uint32_t refcount;
-    bool weakFinalizerRegistered = false;
-    // set by napi_delete_reference (NapiFunctions.cpp) instead of freeing
-    // `this` immediately, whenever weakFinalizerRegistered is true at that
-    // point: NapiWeakRefFinalizer may already be irrevocably armed for this
-    // same GC pass (see napi_delete_reference's own comment for the full
-    // reentrancy hazard - napi_wrap+napi_create_reference on the same
-    // target, test_reference/test.js's validateDeleteBeforeFinalize), so the
-    // actual `delete this` is instead deferred to whenever
-    // NapiWeakRefFinalizer does end up running for this ref.
-    bool pendingDelete = false;
+    Escargot::PersistentRefHolder<Escargot::ValueRef> value;
+    uint32_t refcount = 0;
 };
 
 namespace Escargot {
 namespace Napi {
-
-// Defined (non-static) in NapiFunctions.cpp, alongside NapiWeakRefFinalizer/
-// UnregisterWeakRefFinalizerIfNeeded/napi_wrap's identical usage - declared
-// here so napi_add_finalizer (NapiExtras.cpp) can register a weak napi_ref
-// exactly the same way napi_wrap's does, instead of duplicating this with a
-// second, incompatible finalizer callback pointer (which would silently
-// break a later napi_reference_ref/napi_delete_reference on that same ref:
-// both specifically Memory::gcUnregisterFinalizer() against this one
-// NapiWeakRefFinalizer callback to find it).
-void RegisterWeakRefFinalizerIfNeeded(napi_env env, napi_ref__* ref);
 
 // Defined (non-static) in NapiFunctions.cpp, alongside napi_wrap/
 // NapiWrapFinalizer, whose registry (NapiEnv::m_wrapFinalizerData) this walks
@@ -168,6 +151,8 @@ void RegisterWeakRefFinalizerIfNeeded(napi_env env, napi_ref__* ref);
 // NapiEnv::~NapiEnv() (NapiEnv.cpp) to implement real Node-API environment-
 // teardown finalization semantics (test_general/testEnvCleanup.js).
 void RunEnvCleanupWrapFinalizers(NapiEnv* napiEnv);
+void AbortEnvThreadsafeFunctions(NapiEnv* napiEnv);
+void DrainEnvAsyncWorks(NapiEnv* napiEnv);
 
 // Defined (non-static) in NapiRuntime.cpp, alongside napi_module_register -
 // this PoC has no module loader to actually invoke a registered module's
@@ -218,14 +203,14 @@ struct napi_callback_scope__ {
 // the opaque type node_api.h forward-declares for napi_async_init/
 // napi_async_destroy/napi_make_callback/napi_open_callback_scope
 // (NapiRuntime.cpp). This PoC has no async_hooks integration to route
-// through, so an async context is just inert bookkeeping: it remembers the
-// two resource values napi_async_init was given, in case a future
+// through, so an async context is just inert bookkeeping: it persistently
+// roots the two resource values napi_async_init was given, in case a future
 // async_hooks implementation wants them, and exists solely so
 // napi_async_init/napi_async_destroy have something to allocate/free that
 // satisfies the API's opaque-handle contract.
 struct napi_async_context__ {
-    Escargot::OptionalRef<Escargot::ValueRef> resource;
-    Escargot::OptionalRef<Escargot::ValueRef> resourceName;
+    Escargot::Napi::PersistentOptionalRef<Escargot::ValueRef> resource;
+    Escargot::Napi::PersistentOptionalRef<Escargot::ValueRef> resourceName;
 };
 
 // the opaque type node_api.h forward-declares for napi_add_async_cleanup_hook/
@@ -240,19 +225,6 @@ struct napi_async_cleanup_hook_handle__ {
     napi_async_cleanup_hook hook;
     void* arg;
 };
-
-// out-of-line (needs napi_ref__ complete, unlike NapiEnv::trackWeakRefTarget/
-// untrackWeakRefTarget - see the declaration's own comment, NapiEnv.h).
-inline void Escargot::Napi::NapiEnv::clearWeakRefTargets(void* target)
-{
-    if (m_weakRefTargets.count(target) == 0) {
-        return;
-    }
-    for (void* refVoid : m_weakRefTargets[target]) {
-        reinterpret_cast<napi_ref__*>(refVoid)->value = nullptr;
-    }
-    m_weakRefTargets.erase(target);
-}
 
 #endif
 #endif // ENABLE_NAPI

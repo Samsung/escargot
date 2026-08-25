@@ -120,8 +120,6 @@ TEST(NapiMemoryDemo, CompressibleStringRSS)
     napi_ref arrayRef = nullptr;
     Evaluator::EvaluatorResult buildResult = Evaluator::execute(
         napiEnv->context(), [](ExecutionStateRef* state, napi_env env, size_t stringCount, size_t stringBytes, napi_ref* arrayRefOut) -> ValueRef* {
-            env->executionState = state;
-
             // A real addon parsing/holding a batch of document-sized strings
             // would build exactly this shape: an array (or any other
             // container) rooted for the life of the addon, populated purely

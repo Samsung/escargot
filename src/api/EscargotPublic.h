@@ -262,9 +262,11 @@ protected:
 
     void destoryHolderSpace()
     {
-        if (m_holder) {
-            Memory::gcFree(m_holder);
+        if (!m_holder) {
+            return;
         }
+        clearWeak();
+        Memory::gcFree(m_holder);
         m_holder = nullptr;
     }
 
@@ -286,7 +288,9 @@ public:
 
     PersistentRefHolder(T* ptr)
     {
-        initHolderSpace(ptr);
+        if (ptr) {
+            initHolderSpace(ptr);
+        }
     }
 
     PersistentRefHolder(PersistentRefHolder<T>&& src)
@@ -297,9 +301,11 @@ public:
 
     const PersistentRefHolder<T>& operator=(PersistentRefHolder<T>&& src)
     {
-        m_holder = src.m_holder;
-        src.m_holder = nullptr;
-
+        if (this != &src) {
+            destoryHolderSpace();
+            m_holder = src.m_holder;
+            src.m_holder = nullptr;
+        }
         return *this;
     }
 
@@ -311,6 +317,9 @@ public:
         if (!ptr) {
             destoryHolderSpace();
             return;
+        }
+        if (m_holder && isWeak()) {
+            clearWeak();
         }
         if (m_holder == nullptr) {
             initHolderSpace(ptr);

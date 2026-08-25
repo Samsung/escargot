@@ -3032,6 +3032,36 @@ TEST(WeakPtr, WeakMap)
     instance.release();
 }
 
+
+TEST(WeakPtr, WeakMapValueDoesNotRetainKey)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    PersistentRefHolder<WeakMapObjectRef> weakMap;
+    PersistentRefHolder<ObjectRef> weakKey;
+
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<WeakMapObjectRef>* weakMap, PersistentRefHolder<ObjectRef>* weakKey) -> ValueRef* {
+        WeakMapObjectRef* map = WeakMapObjectRef::create(state);
+        ObjectRef* key = ObjectRef::create(state);
+        ObjectRef* value = ObjectRef::create(state);
+        value->set(state, StringRef::createFromASCII("key"), key);
+        map->set(state, key, value);
+        weakMap->reset(map);
+        weakKey->reset(key);
+        weakKey->setWeak();
+        return ValueRef::createUndefined(); }, &weakMap, &weakKey);
+
+    Evaluator::execute(context.get(), [](ExecutionStateRef*, StringRef*) -> ValueRef* { return ValueRef::createUndefined(); }, StringRef::createFromASCII("clear stack"));
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    for (size_t i = 0; i < 5; i++) {
+        Memory::gc();
+    }
+
+    EXPECT_EQ(weakKey.get(), nullptr);
+}
+
 static void finalizerTester(void* obj, void* data)
 {
     (*((size_t*)data))++;
