@@ -24,6 +24,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/PrototypeObject.h"
+#include "runtime/SetAssociativeCache.h"
 
 
 namespace JSC {
@@ -61,6 +62,17 @@ public:
     };
 
     struct RegExpCacheKey {
+        RegExpCacheKey()
+            : m_body(nullptr)
+            , m_ignoreCase(false)
+            , m_multiline(false)
+            , m_dotAll(false)
+            , m_unicode(false)
+            , m_unicodeSets(false)
+            , m_sticky(false)
+        {
+        }
+
         RegExpCacheKey(String* body, Option option)
             : m_body(body)
             , m_ignoreCase(option & RegExpObject::Option::IgnoreCase)
@@ -201,8 +213,6 @@ private:
     void setOption(const Option& option);
     void internalInit(ExecutionState& state, String* source, Option option = None);
 
-    static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
-
     // has source, option...
     static bool hasOwnRegExpProperty(ExecutionState& state, Object* obj);
 
@@ -247,12 +257,6 @@ private:
     String* m_string;
 };
 
-typedef HashMap<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,
-                std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
-                GCUtil::gc_malloc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry>>>
-    RegExpCacheMap;
-
-
 class RegExpPrototypeObject : public PrototypeObject {
 public:
     explicit RegExpPrototypeObject(ExecutionState& state)
@@ -294,5 +298,44 @@ struct equal_to<Escargot::RegExpObject::RegExpCacheKey> {
     }
 };
 } // namespace std
+
+namespace Escargot {
+
+// Cache entries are heap-allocated and referenced from the map by pointer (rather than stored
+// inline) so their addresses stay stable across HashMap rehashes -- the MRU slots below hold onto
+// those addresses across calls.
+typedef HashMap<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry*,
+                std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
+                GCUtil::gc_malloc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry*>>>
+    RegExpCacheMapData;
+class RegExpCacheMap : private RegExpCacheMapData {
+public:
+    RegExpObject::RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const RegExpObject::Option& option);
+    size_t size() const
+    {
+        return RegExpCacheMapData::size();
+    }
+    void clear();
+
+private:
+    // Fast path for the last MRUCacheSize distinct (source, option) keys, checked before the
+    // hashmap lookup. Size tuned empirically against a real access trace (an Octane run): hits
+    // are heavily front-loaded (most land in the first couple of slots), so scan cost stays low
+    // regardless of size, while widening from the previous size meaningfully raised the hit rate
+    // and, because misses became much rarer, lowered total wasted scan work despite scanning more
+    // slots per miss. Returns diminished well before this size doubled again -- re-measure if a
+    // different workload suggests otherwise.
+    //
+    // Eviction uses CLOCK (second-chance), not move-to-front: the same trace showed recurring
+    // small rotation cycles (e.g. a stable set of ~4 keys accessed round-robin) which defeat
+    // move-to-front -- every hit still reorders the array even though the working set never
+    // changes. CLOCK leaves slot positions fixed on a hit (just sets a used bit), so a hit never
+    // moves data; only eviction (a hashmap-fallback path, rare by construction) scans slots and
+    // sweeps used bits to pick a victim.
+    static const size_t MRUCacheSize = 16;
+
+    ClockCache<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry*, MRUCacheSize> m_mruCache;
+};
+} // namespace Escargot
 
 #endif

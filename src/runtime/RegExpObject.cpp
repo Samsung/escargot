@@ -167,7 +167,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapePattern(state, m_source);
 
-    auto& entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
+    auto& entry = state.context()->regexpCache()->getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {
         m_source = previousSource;
         setOptionValueForGC(previousOptions);
@@ -285,12 +285,25 @@ void RegExpObject::setOption(const Option& option)
     setOptionValueForGC(option);
 }
 
-RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option)
+void RegExpCacheMap::clear()
 {
-    auto cache = state.context()->regexpCache();
-    auto it = cache->find(RegExpCacheKey(source, option));
-    if (it != cache->end()) {
-        return it.value();
+    m_mruCache.clear();
+    RegExpCacheMapData::clear();
+}
+
+RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const RegExpObject::Option& option)
+{
+    RegExpObject::RegExpCacheKey key(source, option);
+
+    auto hit = m_mruCache.lookup(key);
+    if (hit) {
+        return *hit.value();
+    }
+
+    RegExpObject::RegExpCacheEntry* entry;
+    auto it = RegExpCacheMapData::find(key);
+    if (it != end()) {
+        entry = it.value();
     } else {
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
@@ -301,10 +314,18 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got too complicated RegExp pattern to process");
         }
-        auto iter = cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first;
-        return iter.value();
+        // RegExpCacheEntry must live in GC-scanned memory: it holds the only long-lived
+        // references to YarrPattern/BytecodePattern, which are themselves GC-collectible
+        // (atomic, finalized) types. A plain (non-GC) allocation here would be invisible to
+        // Boehm's scan, letting the collector reclaim/finalize them out from under the cache.
+        entry = new (GC) RegExpObject::RegExpCacheEntry(yarrError, yarrPattern);
+        insert(std::make_pair(key, entry));
     }
+
+    m_mruCache.insert(key, entry);
+    return *entry;
 }
+
 
 bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
@@ -323,7 +344,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     m_lastExecutedString = str;
 
     if (!m_bytecodePattern) {
-        RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, option());
+        RegExpCacheEntry& entry = state.context()->regexpCache()->getCacheEntryAndCompileIfNeeded(state, m_source, option());
         if (entry.m_yarrError) {
             matchResult.m_subPatternNum = 0;
             return false;
