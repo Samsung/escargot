@@ -27,33 +27,34 @@
 #     binary as a separate CI/deploy step (selected via `dumpbin
 #     /dependents`, mirroring the ldd/otool-based ICU-copy step already used
 #     for Linux/macOS release deploys), not handled here at configure time.
-#   - ios (iOS Simulator, arm64 only -- see build/target.cmake's ios branch):
-#     there is no system/pkg-config ICU on iOS at all, so this is the ONLY
-#     supported ICU path for ESCARGOT_HOST=ios (see build/config.cmake's
-#     FATAL_ERRORs enforcing "vendored or off, nothing else"). ICU has no
-#     native "iOS" autoconf target, so this does the standard two-pass cross
-#     build documented in ICU's User Guide ("Building ICU4C" -- cross
-#     compiling section, `--with-cross-build`) and used by community iOS ICU
-#     recipes (e.g. zhm/icu-ios, the older ICU-for-iOS blog recipes):
+#   - ios (arm64 only, either the iphonesimulator or the iphoneos SDK -- see
+#     build/target.cmake's ios branch, which resolves that choice into
+#     ESCARGOT_IOS_PLATFORM): there is no system/pkg-config ICU on iOS at
+#     all, so this is the ONLY supported ICU path for ESCARGOT_HOST=ios (see
+#     build/config.cmake's FATAL_ERRORs enforcing "vendored or off, nothing
+#     else"). ICU has no native "iOS" autoconf target, so this does the
+#     standard two-pass cross build documented in ICU's User Guide
+#     ("Building ICU4C" -- cross compiling section, `--with-cross-build`)
+#     and used by community iOS ICU recipes (e.g. zhm/icu-ios, the older
+#     ICU-for-iOS blog recipes):
 #       1. Build ICU's own tools (genrb, genbrk, gencfu, ...) for the BUILD
 #          machine (native macOS, via `runConfigureICU MacOSX`) -- a cross
 #          build's data-generation step at `make` time shells out to these
-#          host tool binaries directly; there is no way to execute an
-#          iphonesimulator binary as part of the build graph other than on
-#          the simulator itself, which ICU's build system has no support
-#          for.
+#          host tool binaries directly; an iOS-targeted binary (device or
+#          simulator) can't be executed as part of the build graph, and
+#          ICU's build system has no support for doing so.
 #       2. Cross-compile the real, target ICU with `configure
 #          --with-cross-build=<pass-1 build dir>` (this reuses pass 1's host
 #          tool binaries for data generation instead of building/running its
-#          own), with CC/CFLAGS/LDFLAGS pointed at the iphonesimulator SDK
-#          sysroot (`xcrun --sdk iphonesimulator --show-sdk-path`) and an
-#          explicit `-target arm64-apple-ios<ver>-simulator` triple (the
-#          modern clang-driver equivalent of the older
-#          `-arch arm64 -mios-simulator-version-min=<ver>` flag pair; ICU's
-#          own configure.ac has no iOS-specific branches at all -- this
-#          triple/sysroot pair is the entire mechanism that makes the
-#          resulting object files/archives target the simulator instead of
-#          the host).
+#          own), with CC/CFLAGS/LDFLAGS pointed at the selected SDK's
+#          sysroot (`xcrun --sdk iphonesimulator|iphoneos --show-sdk-path`)
+#          and an explicit `-target arm64-apple-ios<ver>[-simulator]` triple
+#          (the modern clang-driver equivalent of the older
+#          `-arch arm64 -mios-simulator-version-min=<ver>` /
+#          `-miphoneos-version-min=<ver>` flag pairs; ICU's own configure.ac
+#          has no iOS-specific branches at all -- this triple/sysroot pair
+#          is the entire mechanism that makes the resulting object
+#          files/archives target iOS instead of the host).
 #     `--host=aarch64-apple-darwin` on the pass-2 configure line only tells
 #     autoconf "this is a cross build" (skips AC_RUN_IFELSE checks that
 #     would need target-side execution, and gates the --with-cross-build
@@ -257,33 +258,52 @@ ELSEIF (ESCARGOT_HOST STREQUAL "ios")
         MESSAGE (FATAL_ERROR "third_party/icu submodule is not checked out -- run: git submodule update --init third_party/icu")
     ENDIF()
 
+    # Simulator vs. device: the two differ only in which SDK sysroot ICU is
+    # compiled against and whether the target triple carries the
+    # "-simulator" environment suffix (build/target.cmake's ios branch
+    # resolved which one the caller asked for into ESCARGOT_IOS_PLATFORM).
+    # Everything else below -- the two-pass cross build, the host tools, the
+    # data filter, the static link -- is identical for both.
+    IF (ESCARGOT_IOS_PLATFORM STREQUAL "device")
+        SET (VENDORED_ICU_IOS_SDK_NAME "iphoneos")
+    ELSE()
+        SET (VENDORED_ICU_IOS_SDK_NAME "iphonesimulator")
+    ENDIF()
+
     FIND_PROGRAM (VENDORED_ICU_XCRUN xcrun)
     IF (NOT VENDORED_ICU_XCRUN)
-        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios needs Xcode's xcrun on PATH to locate the iphonesimulator SDK")
+        MESSAGE (FATAL_ERROR "ESCARGOT_HOST=ios needs Xcode's xcrun on PATH to locate the ${VENDORED_ICU_IOS_SDK_NAME} SDK")
     ENDIF()
 
     EXECUTE_PROCESS (
-        COMMAND ${VENDORED_ICU_XCRUN} --sdk iphonesimulator --show-sdk-path
-        OUTPUT_VARIABLE VENDORED_ICU_IOS_SIM_SDKROOT
+        COMMAND ${VENDORED_ICU_XCRUN} --sdk ${VENDORED_ICU_IOS_SDK_NAME} --show-sdk-path
+        OUTPUT_VARIABLE VENDORED_ICU_IOS_SDKROOT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         RESULT_VARIABLE VENDORED_ICU_XCRUN_RESULT
     )
-    IF (NOT VENDORED_ICU_XCRUN_RESULT EQUAL 0 OR NOT VENDORED_ICU_IOS_SIM_SDKROOT)
-        MESSAGE (FATAL_ERROR "`xcrun --sdk iphonesimulator --show-sdk-path` failed -- is the full Xcode.app (not just the Command Line Tools) installed and selected via xcode-select?")
+    IF (NOT VENDORED_ICU_XCRUN_RESULT EQUAL 0 OR NOT VENDORED_ICU_IOS_SDKROOT)
+        MESSAGE (FATAL_ERROR "`xcrun --sdk ${VENDORED_ICU_IOS_SDK_NAME} --show-sdk-path` failed -- is the full Xcode.app (not just the Command Line Tools) installed and selected via xcode-select?")
     ENDIF()
 
     # Same deployment target the rest of this project's own sources are
     # being built against (see build/target.cmake's ios branch, which
     # requires the caller to have passed -DCMAKE_OSX_DEPLOYMENT_TARGET=...
     # up front) -- keeping ICU's own min-iOS-version flag in sync avoids a
-    # "object file built for newer iOS Simulator version" link warning/error
-    # when linking these static archives into the escargot binary.
+    # "object file built for newer iOS [Simulator] version" link
+    # warning/error when linking these static archives into the escargot
+    # binary.
     IF (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
         SET (VENDORED_ICU_IOS_MIN_VERSION "13.0")
     ELSE()
         SET (VENDORED_ICU_IOS_MIN_VERSION ${CMAKE_OSX_DEPLOYMENT_TARGET})
     ENDIF()
-    SET (VENDORED_ICU_IOS_SIM_TARGET_FLAG "arm64-apple-ios${VENDORED_ICU_IOS_MIN_VERSION}-simulator")
+    IF (ESCARGOT_IOS_PLATFORM STREQUAL "device")
+        # No environment suffix -- "arm64-apple-ios<ver>" *is* the device
+        # triple; "-simulator" is what distinguishes the simulator variant.
+        SET (VENDORED_ICU_IOS_TARGET_FLAG "arm64-apple-ios${VENDORED_ICU_IOS_MIN_VERSION}")
+    ELSE()
+        SET (VENDORED_ICU_IOS_TARGET_FLAG "arm64-apple-ios${VENDORED_ICU_IOS_MIN_VERSION}-simulator")
+    ENDIF()
 
     INCLUDE (ExternalProject)
     INCLUDE (ProcessorCount)
@@ -300,8 +320,8 @@ ELSEIF (ESCARGOT_HOST STREQUAL "ios")
 
     # --- Pass 1: host tools (genrb, genbrk, ...), built natively for the
     # macOS build machine. Deliberately ignores this project's own
-    # CMAKE_C_COMPILER/CMAKE_OSX_SYSROOT (which target the iOS Simulator
-    # once ESCARGOT_HOST=ios is configured, see build/target.cmake) --
+    # CMAKE_C_COMPILER/CMAKE_OSX_SYSROOT (which target iOS once
+    # ESCARGOT_HOST=ios is configured, see build/target.cmake) --
     # `xcrun --sdk macosx clang` is used explicitly instead so this pass
     # always builds for the host regardless of the outer project's own
     # cross-compilation setup.
@@ -320,9 +340,10 @@ ELSEIF (ESCARGOT_HOST STREQUAL "ios")
         LOG_OUTPUT_ON_FAILURE TRUE
     )
 
-    # --- Pass 2: the real target build, cross-compiled for the iOS
-    # Simulator (arm64) using pass 1's host tools (via --with-cross-build)
-    # to generate its data. --disable-tools is required here (NOT in pass
+    # --- Pass 2: the real target build, cross-compiled for iOS (arm64,
+    # ${VENDORED_ICU_IOS_SDK_NAME} SDK) using pass 1's host tools (via
+    # --with-cross-build) to generate its data. --disable-tools is required
+    # here (NOT in pass
     # 1, which must build tools normally so they exist to be referenced) --
     # without it, ICU's top-level `make` unconditionally still compiles
     # tools/pkgdata (configure.ac's TOOLS conditional has no
@@ -338,7 +359,7 @@ ELSEIF (ESCARGOT_HOST STREQUAL "ios")
         UPDATE_COMMAND ""
         BUILD_IN_SOURCE FALSE
         DEPENDS vendored-icu-host-build
-        CONFIGURE_COMMAND bash -c "CC='xcrun --sdk iphonesimulator clang' CXX='xcrun --sdk iphonesimulator clang++' CFLAGS='-target ${VENDORED_ICU_IOS_SIM_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SIM_SDKROOT}' CXXFLAGS='-target ${VENDORED_ICU_IOS_SIM_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SIM_SDKROOT} -std=c++17' LDFLAGS='-target ${VENDORED_ICU_IOS_SIM_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SIM_SDKROOT} -Wl,-dead_strip' ${VENDORED_ICU_SOURCE_DIR}/configure --host=aarch64-apple-darwin --enable-static --disable-shared --disable-tests --disable-samples --disable-tools --with-data-packaging=static --with-cross-build=${VENDORED_ICU_HOST_BUILD_DIR} --prefix=${VENDORED_ICU_INSTALL_DIR}"
+        CONFIGURE_COMMAND bash -c "CC='xcrun --sdk ${VENDORED_ICU_IOS_SDK_NAME} clang' CXX='xcrun --sdk ${VENDORED_ICU_IOS_SDK_NAME} clang++' CFLAGS='-target ${VENDORED_ICU_IOS_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SDKROOT}' CXXFLAGS='-target ${VENDORED_ICU_IOS_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SDKROOT} -std=c++17' LDFLAGS='-target ${VENDORED_ICU_IOS_TARGET_FLAG} -isysroot ${VENDORED_ICU_IOS_SDKROOT} -Wl,-dead_strip' ${VENDORED_ICU_SOURCE_DIR}/configure --host=aarch64-apple-darwin --enable-static --disable-shared --disable-tests --disable-samples --disable-tools --with-data-packaging=static --with-cross-build=${VENDORED_ICU_HOST_BUILD_DIR} --prefix=${VENDORED_ICU_INSTALL_DIR}"
         BUILD_COMMAND ${CMAKE_COMMAND} -E env
             "ICU_DATA_FILTER_FILE=${VENDORED_ICU_DATA_FILTER_FILE}"
             make -j${VENDORED_ICU_NPROC}

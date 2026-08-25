@@ -23,6 +23,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 * [Building](#Building-)
   * [Linux](#Linux)
   * [macOS](#macOS)
+  * [iOS](#iOS)
   * [Android](#Android)
   * [Windows](#Windows)
   * [Bare-metal / RTOS](#Bare-metal--RTOS)
@@ -38,7 +39,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 |-|-|
 | **Linux(Ubuntu)** | x86/x64/arm/aarch64/riscv64 |
 | macOS | x64/aarch64 |
-| iOS (Simulator only) | aarch64 |
+| iOS / iPadOS | aarch64 (Simulator + device) |
 | Windows | Win32/x64 |
 | Android | x86/x64/arm/aarch64 |
 | Tizen | arm (build-only) |
@@ -63,30 +64,30 @@ The following build options are supported when generating build rules using cmak
 | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | Enable thread local storage access optimization (pthread_key) | ON/OFF | ON when THREADING is ON and host is Android, otherwise OFF |
 | -DESCARGOT_TEMPORAL | Enable Temporal support (requires ICU) | ON/OFF | ON when LIBICU is ON, otherwise OFF |
 | -DESCARGOT_SHADOWREALM | Enable ShadowRealm support | ON/OFF | OFF |
-| **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
-| **EXPORT_ALL** | Export all symbols instead of the default curated public API | -DESCARGOT_EXPORT_ALL | ON/OFF | OFF |
-| **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
-| **DEBUGGER** | Enable Debug server | -DESCARGOT_DEBUGGER | ON/OFF | OFF |
-| **NAPI** | Enable Node-API (N-API) support and C-style hosting APIs | -DESCARGOT_NAPI | ON/OFF | OFF |
+| -DESCARGOT_SMALL_CONFIG | Enable aggressive memory optimizations for tiny devices | ON/OFF | OFF |
+| -DESCARGOT_EXPORT_ALL | Export all symbols instead of the default curated public API | ON/OFF | OFF |
+| -DESCARGOT_TEST | Enable additional features used only for testing | ON/OFF | OFF |
+| -DESCARGOT_DEBUGGER | Enable Debug server | ON/OFF | OFF |
+| -DESCARGOT_NAPI | Enable Node-API (N-API) support and C-style hosting APIs | ON/OFF | OFF |
 
 <details>
 <summary>Advanced / developer-only options (profiling, sanitizers, internal knobs)</summary>
 
-| **Option** | **Description** | **Flag** | **Value** | **Default** |
+| **Flag** | **Description** | **Value** | **Default** |
 |-|-|-|-|-|
-| **ESCARGOT_ASAN** | Build with AddressSanitizer | -DESCARGOT_ASAN | ON/OFF | OFF |
-| **ESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | -DESCARGOT_COVERAGE | ON/OFF | OFF |
-| **ESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | -DESCARGOT_DEPLOY | ON/OFF | OFF |
-| **ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
-| **ESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | -DESCARGOT_LIBICU_SUPPORT_VENDORED | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
-| **ESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | -DESCARGOT_USE_EXTENDED_API | ON/OFF | ON when NAPI is ON, otherwise OFF |
-| **ESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | -DESCARGOT_USE_CUSTOM_LOGGING | ON/OFF | OFF |
-| **ESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | -DESCARGOT_TCO_DEBUG | ON/OFF | OFF |
-| **ESCARGOT_PROFILE_BDWGC** | Enable bdwgc (Boehm GC) profiling | -DESCARGOT_PROFILE_BDWGC | ON/OFF | OFF |
-| **ESCARGOT_MEM_STATS** | Enable memory usage statistics | -DESCARGOT_MEM_STATS | ON/OFF | OFF |
-| **ESCARGOT_VALGRIND** | Build with Valgrind annotations | -DESCARGOT_VALGRIND | ON/OFF | OFF |
-| **ESCARGOT_GOOGLE_PERF** | Build with gperftools (Google Performance Tools) profiling | -DESCARGOT_GOOGLE_PERF | ON/OFF | OFF |
-| **ESCARGOT_BUILD_64BIT_FORCE_LARGE** | On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression | -DESCARGOT_BUILD_64BIT_FORCE_LARGE | ON/OFF | ON |
+| **-DESCARGOT_ASAN** | Build with AddressSanitizer | ON/OFF | OFF |
+| **-DESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | ON/OFF | OFF |
+| **-DESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | ON/OFF | OFF |
+| **-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
+| **-DESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
+| **-DESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | ON/OFF | ON when NAPI is ON, otherwise OFF |
+| **-DESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | ON/OFF | OFF |
+| **-DESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | ON/OFF | OFF |
+| **-DESCARGOT_PROFILE_BDWGC** | Enable bdwgc (Boehm GC) profiling |  ON/OFF | OFF |
+| **-DESCARGOT_MEM_STATS** | Enable memory usage statistics | ON/OFF | OFF |
+| **-DESCARGOT_VALGRIND** | Build with Valgrind annotations | ON/OFF | OFF |
+| **-DESCARGOT_GOOGLE_PERF** | Build with gperftools (Google Performance Tools) profiling | ON/OFF | OFF |
+| **-DESCARGOT_BUILD_64BIT_FORCE_LARGE** | On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression | ON/OFF | ON |
 
 </details>
 
@@ -238,21 +239,32 @@ of the above.
 
 ### iOS
 
-`ESCARGOT_HOST=ios` cross-compiles Escargot from a macOS host to the **iOS
-Simulator** only (arm64, matching an Apple Silicon build machine) -- there is
-no device/physical-hardware support (no code signing, no `iphoneos` SDK) and
-no separate "ipados" host: Apple ships one SDK/platform identifier ("iOS")
-and one arm64 sysroot/triple for both iPhone and iPad at the CMake/toolchain
-level.
+`ESCARGOT_HOST=ios` cross-compiles Escargot from a macOS host to arm64 iOS.
+Which of Apple's two iOS SDKs is targeted is selected with
+`-DCMAKE_OSX_SYSROOT`:
+
+| `-DCMAKE_OSX_SYSROOT=` | Target | Status |
+|-|-|-|
+| `iphonesimulator` | iOS Simulator (arm64, i.e. an Apple Silicon build machine) | Built **and run** in CI (`build-test-on-ios-simulator-arm64`, which runs Octane) |
+| `iphoneos` | Real iPhone/iPad hardware (arm64) | Built and Mach-O-verified in CI (`build-on-ios-device-arm64`), **never executed on physical hardware by this project** -- see the caveats below |
+
+There is no separate "ipados" host: Apple ships one SDK/platform identifier
+("iOS") and one arm64 sysroot/triple for both iPhone and iPad at the
+CMake/toolchain level. arm64 is the only supported architecture (armv7
+devices predate every supported deployment target, and an x86_64 simulator
+would mean an Intel build machine).
 
 Prerequisites: a full Xcode install (not just the Command Line Tools --
-`xcrun --sdk iphonesimulator --show-sdk-path` must succeed) and `ninja`.
+`xcrun --sdk iphonesimulator --show-sdk-path`, or `--sdk iphoneos` for a
+device build, must succeed) and `ninja`.
 
 ICU on iOS has exactly two supported configurations: vendored (the default;
 see "Vendored ICU" below) or off entirely (`-DESCARGOT_LIBICU_SUPPORT=OFF`).
 There is no system/pkg-config ICU dev package available on iOS, and
 dlopen-loading an arbitrary library is unavailable there too, so both of
 those other ICU paths are rejected with a `FATAL_ERROR` at configure time.
+
+#### iOS Simulator
 
 ```sh
 git submodule update --init third_party/GCutil third_party/icu # update submodules (+ vendored ICU source)
@@ -310,6 +322,76 @@ See the `build-test-on-ios-simulator-arm64` CI job
 (`.github/workflows/es-actions.yml`) for a full working example, including
 running the Octane benchmark this way.
 
+#### iOS device (`iphoneos`)
+
+Same build, different sysroot -- the two SDKs share one set of headers and
+API-availability annotations and differ only in sysroot and target triple
+(`arm64-apple-ios<ver>` vs `arm64-apple-ios<ver>-simulator`), which the
+vendored ICU cross build picks up too:
+
+```sh
+git submodule update --init third_party/GCutil third_party/icu
+
+# static libescargot.a (+ the escargot shell binary)
+cmake -B out-device -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphoneos \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout-device
+
+# or a shared libescargot.dylib to embed in an app bundle's Frameworks/
+cmake -B out-device-shared -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphoneos \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DESCARGOT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout-device-shared
+```
+
+⚠️ **Read this before shipping a device build.** Escargot's own CI builds
+this configuration and verifies the resulting Mach-O really is tagged for
+the iOS *device* platform (`vtool -show-build` -> `platform IOS`), that it
+is arm64, that ICU ended up statically linked, and that the dylib's install
+name is `@rpath`-relative -- but nothing in this project has ever *executed*
+Escargot on physical iOS hardware. The runtime coverage for the iOS host
+comes from the Simulator job. Treat the device build as "expected to work,
+build-verified, unproven at runtime", and please file an issue if it isn't.
+
+What the build gives you, and what stays your responsibility:
+
+- **The `escargot` shell binary is a compile/link check, not a deliverable.**
+  A stock (non-jailbroken) device cannot launch a bare CLI executable at
+  all. On device you link `libescargot.a` (or embed `libescargot.dylib`)
+  into your own app target and drive the engine through
+  [`src/api/EscargotPublic.h`](src/api/EscargotPublic.h) or the Node-API
+  layer ([`docs/n-api.md`](docs/n-api.md)) from your app's code.
+- **Code signing, provisioning and bundle packaging are yours.** This build
+  emits plain unsigned Mach-O artifacts; Xcode (or `codesign` with a real
+  identity + a provisioning profile that covers the device) is what makes
+  them runnable. A shared `libescargot.dylib` has to be embedded under the
+  app bundle's `Frameworks/` and signed along with the app.
+- **No JIT, so no entitlement problems.** Escargot is a pure interpreter --
+  it never maps writable-executable memory, so it needs neither the
+  `dynamic-codesigning` entitlement (which Apple grants no third-party app)
+  nor any JIT-related workaround. This is the reason an ordinary App Store
+  app can embed it in the first place.
+- **All file paths must be inside the app sandbox.** Anything the embedder
+  hands the engine has to be a container-relative path -- most notably
+  `VMInstanceRef::create(locale, timezone, baseCacheDir)`'s `baseCacheDir`
+  when built with `-DESCARGOT_CODE_CACHE=ON`, which must point at a
+  writable directory in your container (e.g. Caches), not a hardcoded
+  `/tmp`.
+- **Deployment target.** `-DCMAKE_OSX_DEPLOYMENT_TARGET` is forwarded to the
+  vendored ICU cross build as well, so both halves agree on the minimum iOS
+  version; raise it as your app needs.
+
+See the `build-on-ios-device-arm64` CI job
+(`.github/workflows/es-actions.yml`) for the exact commands and
+verification steps.
+
 ### Vendored ICU
 
 By default, Escargot loads ICU from wherever the target OS/dev environment
@@ -347,17 +429,19 @@ own build system does too:
   `genbrk`, ...) natively for the macOS build machine
   (`runConfigureICU MacOSX`), then cross-compile the real target ICU
   (`configure --with-cross-build=<pass-1 build dir>`) with `CC`/`CFLAGS`/
-  `LDFLAGS` pointed at the iphonesimulator SDK sysroot and an explicit
-  `-target arm64-apple-ios<ver>-simulator` triple, reusing pass 1's tools to
-  generate its (filtered, per `build/icu-filters/escargot.json`) data. The
-  result is linked statically -- no separate ICU data file, no runtime ICU
-  dependency at all.
+  `LDFLAGS` pointed at the selected iOS SDK's sysroot (`iphonesimulator` or
+  `iphoneos`, following this build's own `-DCMAKE_OSX_SYSROOT`) and a
+  matching explicit `-target arm64-apple-ios<ver>[-simulator]` triple,
+  reusing pass 1's tools to generate its (filtered, per
+  `build/icu-filters/escargot.json`) data. The result is linked statically
+  -- no separate ICU data file, no runtime ICU dependency at all.
 
 See `build/VendoredICU.cmake` for the implementation and
 `.github/workflows/es-actions.yml`'s `build-test-on-vendored-icu-linux`/
-`build-on-macos`/`build-on-macos-arm64`/`build-test-on-ios-simulator-arm64`
-jobs for full end-to-end examples (build, verify static linking via
-`ldd`/`otool -L`, run tests, and for iOS run the Octane benchmark).
+`build-on-macos`/`build-on-macos-arm64`/`build-test-on-ios-simulator-arm64`/
+`build-on-ios-device-arm64` jobs for full end-to-end examples (build, verify
+static linking via `ldd`/`otool -L`, run tests, and for the iOS Simulator
+run the Octane benchmark).
 
 ## Debugger
 
