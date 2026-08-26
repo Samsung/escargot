@@ -82,32 +82,52 @@ void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, G
     *to = NULL;
 }
 
+// NOTE
+// a block that is not marked when this runs traces nothing at all.
+//
+// this kind is registered with mark-unconditionally (see initializeCustomAllocators),
+// so the collector runs this procedure for every block that has not been reclaimed yet,
+// blocks that are already garbage included -- GC_push_unconditionally pushes them
+// without setting their mark bit, so that the disclaim callback of a dying block can
+// still look at its referents. a block that is genuinely reachable, on the other hand,
+// is always marked before it is pushed (PUSH_CONTENTS sets the mark bit and only then
+// pushes, and that holds for the conservative stack scan too, which is what keeps a
+// block alive during a pruning cycle). so the mark bit is exactly the "is this block
+// still in use" test here, and a live block still traces all three fields.
+//
+// tracing anything from a dying block is what turns a dead island into a permanent
+// leak, because every referent below can lead back to this very block:
+//   - m_codeBlock is the owner, and the owner traces m_byteCodeBlock right back.
+//   - m_stringLiteralData holds source literals, which are usually StringViews of the
+//     script source; the underlying source string may be a CompressibleString or a
+//     ReloadableString, and both of those keep a VMInstance* -- from there the mark
+//     phase reaches every Context, Script and InterpretedCodeBlock, and from the owning
+//     CodeBlock this block again.
+//   - m_otherLiteralData holds BigInts, ObjectStructures and inline cache data, none of
+//     which reaches a VMInstance today, but the same rule is applied: a garbage block
+//     pushes nothing.
+// once such a loop closes, the dying block ends up marked and survives the collection,
+// and the next collection pushes it unconditionally again and repeats the whole thing.
+// the block, its owner and the entire VMInstance island hanging off it are then alive
+// for the rest of the process -- dropping a Context or a Script leaks its whole object
+// graph instead of collecting it.
+//
+// as a consequence the disclaim callback must treat all of this as weak references, see
+// ByteCodeBlock::clearByteCodeBlock(): it only uses the cached VMInstance back pointer
+// and the non-GC buffers, and re-checks the owner before touching it.
 int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr)
 {
     ByteCodeBlock* current = (ByteCodeBlock*)ptr;
     arr[0].from = (GC_word*)&current->m_stringLiteralData;
-    arr[0].to = (GC_word*)current->m_stringLiteralData.data();
     arr[1].from = (GC_word*)&current->m_otherLiteralData;
-    arr[1].to = (GC_word*)current->m_otherLiteralData.data();
-    // NOTE
-    // the owner reference is traced only while this block itself is reachable.
-    //
-    // this kind is registered with mark-unconditionally (see initializeCustomAllocators),
-    // which means the collector also runs this procedure for blocks that are already
-    // garbage (GC_push_unconditionally), so that the disclaim callback of a dying block
-    // can still look at its referents. tracing m_codeBlock in that case resurrects the
-    // owner CodeBlock, the resurrected CodeBlock traces m_byteCodeBlock right back to
-    // this block (outside of a pruning cycle), and the pair keeps each other -- plus
-    // everything the CodeBlock reaches: Script, Context, VMInstance and thus the whole
-    // heap -- alive forever. that is the leak this condition prevents.
-    //
-    // a genuinely reachable block is pushed twice: once unconditionally (mark bit clear)
-    // and once through the object graph, where PUSH_CONTENTS sets the mark bit before
-    // pushing. so the owner reference is still traced for every block that is in use;
-    // only dying blocks let go of it. as a consequence the disclaim callback must treat
-    // m_codeBlock as a weak reference, see ByteCodeBlock::clearByteCodeBlock().
     arr[2].from = (GC_word*)&current->m_codeBlock;
-    arr[2].to = isMarkedHeapObject(current) ? (GC_word*)current->m_codeBlock : nullptr;
+    if (isMarkedHeapObject(current)) {
+        arr[0].to = (GC_word*)current->m_stringLiteralData.data();
+        arr[1].to = (GC_word*)current->m_otherLiteralData.data();
+        arr[2].to = (GC_word*)current->m_codeBlock;
+    } else {
+        arr[0].to = arr[1].to = arr[2].to = nullptr;
+    }
     return 0;
 }
 
@@ -121,25 +141,42 @@ int getValidValueInByteCodeBlock(void* ptr, GC_mark_custom_result* arr)
 // tracing the observer list there resurrects the observing ArrayBuffer, which marks this
 // store right back, and the pair -- plus the observer's prototype chain, its realm's
 // GlobalObject, Context and VMInstance, i.e. the whole heap -- can never be collected.
-// so the list is traced only while the store itself is reachable; the disclaim callbacks
-// (clearNonSharedBackingStore()/clearSharedBackingStore()) never look at it.
+// so the list is traced only while the store itself is reachable, and the same rule is
+// applied to every other field below: a store that is only visited by the unconditional
+// push is garbage and pushes nothing at all.
 //
 // the observer entries are already registered as disappearing links, so a live store
 // whose observer died gets its entry cleared instead of dangling.
 int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
 {
     NonSharedBackingStore* current = (NonSharedBackingStore*)ptr;
+    const bool isMarked = isMarkedHeapObject(current);
     arr[0].from = (GC_word*)&current->m_observerItems;
-    arr[0].to = isMarkedHeapObject(current) ? (GC_word*)current->m_observerItems.data() : nullptr;
-    // unlike the observer list this one is traced unconditionally: the disclaim callback
-    // hands m_deleterData to the deleter, so it has to stay valid for a dying store too.
-    // it is opaque embedder data with no reference back here, so it forms no cycle
+    arr[0].to = isMarked ? (GC_word*)current->m_observerItems.data() : nullptr;
+    // m_deleterData is gated the same way, even though the disclaim callback does hand it
+    // to the deleter (see clearNonSharedBackingStore()): a dying store traces nothing.
+    //
+    // keeping it alive from here is exactly what mark-unconditionally is for, but the cost
+    // is unbounded. deleter data that leads back to this store -- the owning
+    // ArrayBufferObject through m_backingStore, or a Context/VMInstance that reaches it --
+    // makes the dying store mark itself, so it survives the collection, is pushed
+    // unconditionally again in the next one, and neither it nor the island behind it is
+    // ever collected. that is a permanent leak the engine has no way to detect, and here a
+    // leak is worse than a crash: keeping GC allocated deleter data alive is the embedder's
+    // job instead, see the note on BackingStoreRef::createNonSharedBackingStore().
+    //
+    // the common case does not change at all: deleter data that is not GC allocated (e.g.
+    // the plain new/delete struct the N-API external ArrayBuffer support passes) is not a
+    // heap address, so it was never retained by this push either. for a resizable store the
+    // union holds m_maxByteLength and the deleter is passed nullptr, so nothing is traced.
+    //
+    // note that the mark-unconditionally registration still earns its keep even though
+    // nothing is traced from a dead store: it also puts this kind into the eager sweep that
+    // runs before marking (GC_reclaim_unconditionally_marked()), which is what gets the
+    // deleter called -- and the native buffer released -- in the collection that kills the
+    // store, rather than whenever the heap block is next needed for allocation.
     arr[1].from = (GC_word*)&current->m_deleterData;
-    if (!current->m_isResizable) {
-        arr[1].to = (GC_word*)current->m_deleterData;
-    } else {
-        arr[1].to = nullptr;
-    }
+    arr[1].to = (isMarked && !current->m_isResizable) ? (GC_word*)current->m_deleterData : nullptr;
     return 0;
 }
 

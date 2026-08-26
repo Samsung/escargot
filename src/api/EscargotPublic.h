@@ -1870,6 +1870,68 @@ public:
     // create default NonSharedBackingStore allocated by platform allocator
     static BackingStoreRef* createDefaultNonSharedBackingStore(size_t byteLength);
     // create customized NonSharedBackingStore allocated by other allocator
+    //
+    // `callbackData` is handed back to `callback` when the backing store is collected.
+    //
+    // The engine does NOT keep `callbackData` alive. It is not traced from the backing store,
+    // because a store that is being collected must not mark anything: deleter data that leads
+    // back to the store (its ArrayBuffer, or the Context/VMInstance behind it) would make the
+    // dying store mark itself alive again on every collection, and neither it nor anything it
+    // reaches could ever be freed -- an undetectable, permanent leak.
+    //
+    // So if `callbackData` is a GC allocated pointer, keeping it alive at least as long as the
+    // backing store is the caller's responsibility. Getting that wrong gives `callback` a
+    // dangling pointer, i.e. a crash, not a leak. In order of preference:
+    //
+    //  1. Pass data that is not GC allocated at all -- a malloc'd or plain new'd struct, or an
+    //     index into a table of your own. Nothing can dangle and nothing can point back.
+    //  2. Need a JS object in the callback? Put a PersistentRefHolder<ObjectRef> (or whichever
+    //     Ref type) inside that non-GC struct and call setWeak() on it. A weak holder creates
+    //     no reference back to this store, and get() returns nullptr once the target dies, so
+    //     the callback just has to null-check instead of guessing.
+    //  3. A strong holder works too, but then it is yours to reason about: it must not
+    //     (transitively) reference this backing store or its ArrayBuffer, or nothing in that
+    //     cycle is ever collected. Do NOT destroy or reset the holder from inside `callback`
+    //     either -- holder teardown allocates and takes the allocator lock, which `callback`
+    //     already holds. Hand the pointer to a list of your own and clean it up later, from
+    //     ordinary code.
+    //  4. If the cleanup genuinely needs live GC objects, this deleter is the wrong hook:
+    //     attach a finalizer to the ArrayBuffer object instead
+    //     (Memory::gcRegisterFinalizer(ObjectRef*, ...)), which runs with its referents intact.
+    //
+    // Sketch of 2., the shape to copy when a GC pointer has to travel with the deleter data.
+    // Note that reading the holder is fine inside `callback` (get() just loads a word), while
+    // destroying it is not -- so the struct is deleted later, not from the callback:
+    //
+    //     struct MyDeleterData {                        // plain new/delete, not GC allocated
+    //         PersistentRefHolder<ObjectRef> owner;
+    //         int nativeHandle;
+    //     };
+    //     static std::vector<MyDeleterData*> s_pending; // drained by ordinary code
+    //
+    //     auto* d = new MyDeleterData{ PersistentRefHolder<ObjectRef>(owner), handle };
+    //     d->owner.setWeak();                           // weak: no strong root, no cycle
+    //
+    //     BackingStoreRef::createNonSharedBackingStore(buffer, byteLength,
+    //         [](void* data, size_t length, void* deleterData) {
+    //             auto* d = static_cast<MyDeleterData*>(deleterData);
+    //             closeNativeHandle(d->nativeHandle);   // native work only
+    //             free(data);
+    //             s_pending.push_back(d);               // ~PersistentRefHolder() calls into
+    //         },                                        // the GC, so not here
+    //         d);
+    //
+    //     // later, from ordinary code -- no allocator lock held:
+    //     for (auto* d : s_pending) {
+    //         if (ObjectRef* owner = d->owner.get()) { /* target outlived the buffer */ }
+    //         delete d;                                 // releases the holder
+    //     }
+    //     s_pending.clear();
+    //
+    // `callback` runs from inside the collector with the allocator lock held. It must not
+    // allocate GC memory, execute JavaScript, or touch GC objects: any of them, including the
+    // ArrayBuffer this store belonged to, may already have been collected in the same cycle,
+    // and embedder code has no way to test for that.
     static BackingStoreRef* createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
 
     // Note) SharedBackingStore is allocated for each worker(thread) and its internal data block is actually shared among workers.
