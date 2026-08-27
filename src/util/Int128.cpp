@@ -38,7 +38,8 @@ CheckedInt128 checkedCastDoubleToInt128(double n)
     static constexpr uint64_t absMask = signMask - uint64_t{ 1 };
 
     // Break n into sign, exponent, significand parts.
-    const uint64_t bits = *reinterpret_cast<uint64_t*>(&n);
+    uint64_t bits;
+    std::memcpy(&bits, &n, sizeof(double));
     const uint64_t nAbs = bits & absMask;
     const int sign = bits & signMask ? -1 : 1;
     const int exponent = (nAbs >> significandBits) - exponentBias;

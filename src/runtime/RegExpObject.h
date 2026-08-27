@@ -49,7 +49,7 @@ class RegExpObject : public DerivedObject {
     void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:
-    enum Option ENSURE_ENUM_UNSIGNED {
+    enum Option : unsigned int {
         None = 0 << 0,
         HasIndices = 1 << 0,
         Global = 1 << 1,

@@ -519,18 +519,44 @@ void customEscargotErrorLogger(const char* format, ...);
 #define COMPILE_ASSERT(exp, name) static_assert((exp), #name)
 #endif
 
-#define RELEASE_ASSERT(assertion)                                                  \
-    do {                                                                           \
-        if (!(assertion)) {                                                        \
-            ESCARGOT_LOG_ERROR("RELEASE_ASSERT at %s (%d)\n", __FILE__, __LINE__); \
-            abort();                                                               \
-        }                                                                          \
-    } while (0);
-#define RELEASE_ASSERT_NOT_REACHED()                                                       \
-    do {                                                                                   \
-        ESCARGOT_LOG_ERROR("RELEASE_ASSERT_NOT_REACHED at %s (%d)\n", __FILE__, __LINE__); \
-        abort();                                                                           \
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define ESCARGOT_UNREACHABLE() __builtin_unreachable()
+#elif defined(COMPILER_MSVC)
+#define ESCARGOT_UNREACHABLE() __assume(0)
+#else
+#define ESCARGOT_UNREACHABLE() \
+    do {                       \
     } while (0)
+#endif
+
+#if defined(ESCARGOT_SMALL_CONFIG)
+#define RELEASE_ASSERT(assertion)     \
+    do {                              \
+        if (UNLIKELY(!(assertion))) { \
+            abort();                  \
+        }                             \
+    } while (0);
+#define RELEASE_ASSERT_NOT_REACHED() \
+    do {                             \
+        abort();                     \
+        ESCARGOT_UNREACHABLE();      \
+    } while (0)
+#else
+extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertFailureAndAbort(const char* file, int line);
+extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertNotReachedAndAbort(const char* file, int line);
+
+#define RELEASE_ASSERT(assertion)                                   \
+    do {                                                            \
+        if (UNLIKELY(!(assertion))) {                               \
+            reportReleaseAssertFailureAndAbort(__FILE__, __LINE__); \
+        }                                                           \
+    } while (0);
+#define RELEASE_ASSERT_NOT_REACHED()                               \
+    do {                                                           \
+        reportReleaseAssertNotReachedAndAbort(__FILE__, __LINE__); \
+        ESCARGOT_UNREACHABLE();                                    \
+    } while (0)
+#endif
 
 #if !defined(WARN_UNUSED_RETURN) && (defined(COMPILER_GCC) || defined(COMPILER_CLANG))
 #define WARN_UNUSED_RETURN __attribute__((__warn_unused_result__))

@@ -169,3 +169,17 @@ void customEscargotErrorLogger(const char* format, ...)
 }
 #endif
 } // namespace Escargot
+
+#if !defined(ESCARGOT_SMALL_CONFIG)
+extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertFailureAndAbort(const char* file, int line)
+{
+    ESCARGOT_LOG_ERROR("RELEASE_ASSERT at %s (%d)\n", file, line);
+    abort();
+}
+
+extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertNotReachedAndAbort(const char* file, int line)
+{
+    ESCARGOT_LOG_ERROR("RELEASE_ASSERT_NOT_REACHED at %s (%d)\n", file, line);
+    abort();
+}
+#endif

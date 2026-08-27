@@ -451,7 +451,7 @@ namespace large_int {
         }
 
         static uint128_t div(uint128_t dividend_, uint128_t divisor_) {
-            if (!divisor_) return {!!dividend_ / !!divisor_}; // raise signal SIGFPE
+            if (!divisor_) return {(dividend_ ? 1 : 0) / (divisor_ ? 1 : 0)}; // raise signal SIGFPE
             uint128_t quot_(0);
             slow_div_(dividend_, divisor_, quot_);
             return quot_;
@@ -464,7 +464,7 @@ namespace large_int {
         }
 
         static uint128_t mod(uint128_t dividend_, uint128_t divisor_) {
-            if (!divisor_) return {!!dividend_ % !!divisor_}; // raise signal SIGFPE
+            if (!divisor_) return {(dividend_ ? 1 : 0) % (divisor_ ? 1 : 0)}; // raise signal SIGFPE
             uint128_t quot_(0);
             return slow_div_(dividend_, divisor_, quot_);
         }
