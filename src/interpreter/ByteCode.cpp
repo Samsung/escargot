@@ -271,6 +271,67 @@ void ByteCodeBlock::fillLOCData(Context* context, ByteCodeLOCData* locData)
     locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
 }
 
+static inline void encodeULEB128(uint32_t value, std::vector<uint8_t>& dst)
+{
+    do {
+        uint8_t byte = value & 0x7F;
+        value >>= 7;
+        if (value != 0) {
+            byte |= 0x80;
+        }
+        dst.push_back(byte);
+    } while (value != 0);
+}
+
+static inline void encodeSLEB128(int32_t value, std::vector<uint8_t>& dst)
+{
+    bool more = true;
+    do {
+        uint8_t byte = value & 0x7F;
+        value >>= 7;
+        if ((value == 0 && (byte & 0x40) == 0) || (value == -1 && (byte & 0x40) != 0)) {
+            more = false;
+        } else {
+            byte |= 0x80;
+        }
+        dst.push_back(byte);
+    } while (more);
+}
+
+static inline uint32_t decodeULEB128(const uint8_t*& ptr)
+{
+    uint32_t result = 0;
+    uint32_t shift = 0;
+    while (true) {
+        uint8_t byte = *ptr++;
+        result |= (byte & 0x7F) << shift;
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+        shift += 7;
+    }
+    return result;
+}
+
+static inline int32_t decodeSLEB128(const uint8_t*& ptr)
+{
+    int32_t result = 0;
+    uint32_t shift = 0;
+    uint8_t byte;
+    while (true) {
+        byte = *ptr++;
+        result |= (byte & 0x7F) << shift;
+        shift += 7;
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+    }
+    if ((shift < 32) && (byte & 0x40)) {
+        result |= static_cast<int32_t>(~0U << shift);
+    }
+    return result;
+}
+
 ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData*)
 {
     if (codePosition == SIZE_MAX) {
@@ -278,28 +339,71 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
 
     if (!m_locData) {
-        m_locData = new ByteCodeLOCData();
-        fillLOCData(c, m_locData.value());
+        ByteCodeLOCData tempLocData;
+        fillLOCData(c, &tempLocData);
+
+        std::sort(tempLocData.begin(), tempLocData.end(), [](const std::pair<size_t, size_t>& a, const std::pair<size_t, size_t>& b) {
+            return a.first < b.first;
+        });
+
+        std::vector<uint8_t>* compressed = new std::vector<uint8_t>();
+        size_t lastBytecode = 0;
+        size_t lastSource = 0;
+        for (size_t i = 0; i < tempLocData.size(); i++) {
+            size_t curBytecode = tempLocData[i].first;
+            size_t curSource = tempLocData[i].second;
+
+            if (curBytecode == SIZE_MAX || curSource == SIZE_MAX) {
+                encodeULEB128(0xFFFFFFFF, *compressed);
+                continue;
+            }
+
+            size_t diffBytecode = curBytecode - lastBytecode;
+            int32_t diffSource = static_cast<int32_t>(curSource) - static_cast<int32_t>(lastSource);
+
+            encodeULEB128(static_cast<uint32_t>(diffBytecode), *compressed);
+            encodeSLEB128(diffSource, *compressed);
+
+            lastBytecode = curBytecode;
+            lastSource = curSource;
+        }
+        m_locData = compressed;
     }
 
     size_t index = SIZE_MAX;
-    auto it = std::lower_bound(m_locData->begin(), m_locData->end(), codePosition,
-                               [](const std::pair<size_t, size_t>& entry, size_t pos) {
-                                   return entry.first < pos;
-                               });
+    size_t curBytecode = 0;
+    size_t curSource = 0;
+    size_t bestSource = SIZE_MAX;
 
-    if (it != m_locData->end()) {
-        if (it->first == codePosition) {
-            index = it->second;
-        } else if (it != m_locData->begin()) {
-            index = (it - 1)->second;
+    const uint8_t* ptr = m_locData.value()->data();
+    const uint8_t* end = ptr + m_locData.value()->size();
+
+    while (ptr < end) {
+        uint32_t deltaBytecode = decodeULEB128(ptr);
+        if (deltaBytecode == 0xFFFFFFFF) {
+            continue;
         }
-    } else if (!m_locData->empty()) {
-        index = m_locData->back().second;
+        int32_t deltaSource = decodeSLEB128(ptr);
+
+        curBytecode += deltaBytecode;
+        curSource += deltaSource;
+
+        if (curBytecode == codePosition) {
+            index = curSource;
+            break;
+        } else if (curBytecode < codePosition) {
+            bestSource = curSource;
+        } else {
+            index = bestSource;
+            break;
+        }
+    }
+    if (index == SIZE_MAX && bestSource != SIZE_MAX) {
+        index = bestSource;
     }
 
     if (index == SIZE_MAX) {
-        if (m_locData->empty()) {
+        if (m_locData.value()->empty()) {
             index = cb->functionStart().index;
         } else {
             return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
