@@ -122,6 +122,19 @@ SET (ESCARGOT_CORE_SRC_LIST
 # Keep shared Escargot builds self-contained by default. Embedders that need
 # GCutil across a shared-library boundary must opt in explicitly.
 SET (GCUTIL_BUILD_SHARED_LIBS ${ESCARGOT_BUILD_GC_SHARED_LIBS})
+# ...with one exception: gc-lib is linked PUBLIC into ${ESCARGOT_TARGET} (see
+# ESCARGOT_LIBRARIES below), so with a shared Escargot and a static collector
+# every consumer of libescargot links its own copy of gc-lib on top of the one
+# already inside libescargot. GCutil is built with GC_THREAD_ISOLATE, where the
+# heap and every GC global (GC_arrays, GC_obj_kinds, the free lists) are
+# thread-local *per module*, so the two copies never see each other's GC_init():
+# one module ends up marking against an all-zero GC_obj_kinds on the very thread
+# that just initialized the other. There must be exactly one collector in a
+# process, so a shared Escargot implies a shared collector.
+IF (ESCARGOT_BUILD_SHARED_LIBS AND NOT GCUTIL_BUILD_SHARED_LIBS)
+    MESSAGE (STATUS "Escargot is built as a shared library: building GCutil as a shared library too (a static collector would be duplicated into every consumer)")
+    SET (GCUTIL_BUILD_SHARED_LIBS ON)
+ENDIF()
 SET (GCUTIL_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} ${PROFILER_FLAGS})
 # Append, don't overwrite: a bare-metal port may have already pre-set this as
 # a CACHE variable before add_subdirectory()ing this whole project (e.g.
