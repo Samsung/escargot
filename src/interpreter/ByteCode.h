@@ -3593,6 +3593,11 @@ typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>, VectorDefaultComputeRe
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef HashMap<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
 
+struct ByteCodeLOCDelta {
+    uint16_t deltaBytecode;
+    int16_t deltaSource;
+};
+
 template <typename T>
 struct is_safe_instruction {
     static constexpr bool value = std::is_same<T, Move>::value || std::is_same<T, LoadLiteral>::value || std::is_same<T, End>::value || std::is_same<T, SetExecutionStateInStrictMode>::value || std::is_same<T, CloseLexicalEnvironment>::value || std::is_same<T, FillOpcodeTable>::value;
@@ -3759,7 +3764,7 @@ public:
     // bytecode, and once it is gone isFinalized() stops us from touching it.
     // empty only for the stack allocated block used while generating bytecode
     Optional<VMInstance*> m_vm;
-    Optional<ByteCodeLOCData*> m_locData;
+    Optional<std::vector<uint8_t>*> m_locData;
 };
 } // namespace Escargot
 
