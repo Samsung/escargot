@@ -3593,6 +3593,11 @@ typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>, VectorDefaultComputeRe
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef HashMap<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
 
+template <typename T>
+struct is_safe_instruction {
+    static constexpr bool value = std::is_same<T, Move>::value || std::is_same<T, LoadLiteral>::value || std::is_same<T, End>::value || std::is_same<T, SetExecutionStateInStrictMode>::value || std::is_same<T, CloseLexicalEnvironment>::value || std::is_same<T, FillOpcodeTable>::value;
+};
+
 class ByteCodeBlock : public gc {
 public:
     explicit ByteCodeBlock();
@@ -3626,7 +3631,9 @@ public:
         size_t start = m_code.size();
 
         if (UNLIKELY(!!context->m_locData)) {
-            context->m_locData->push_back(std::make_pair(start, idx));
+            if (!is_safe_instruction<CodeType>::value && !std::is_base_of<Jump, CodeType>::value) {
+                context->m_locData->push_back(std::make_pair(start, idx));
+            }
         }
 
 #if !defined(NDEBUG) && defined(ESCARGOT_DEBUGGER)
@@ -3752,6 +3759,7 @@ public:
     // bytecode, and once it is gone isFinalized() stops us from touching it.
     // empty only for the stack allocated block used while generating bytecode
     Optional<VMInstance*> m_vm;
+    Optional<ByteCodeLOCData*> m_locData;
 };
 } // namespace Escargot
 
