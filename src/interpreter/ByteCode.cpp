@@ -108,6 +108,7 @@ ByteCodeBlock::ByteCodeBlock()
     , m_requiredTotalRegisterNumber(0)
     , m_codeBlock(nullptr)
     , m_vm(nullptr)
+    , m_locData(nullptr)
 {
     // This constructor is used to allocate a ByteCodeBlock on the stack
 }
@@ -181,6 +182,11 @@ void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
         const size_t accountedByteCodeSize = self->m_isAccounted ? self->m_code.size() : 0;
         ASSERT(vm->compiledByteCodeSize() >= accountedByteCodeSize);
         vm->compiledByteCodeSize() -= accountedByteCodeSize;
+    }
+
+    if (self->m_locData) {
+        delete self->m_locData.value();
+        self->m_locData.reset();
     }
 
     self->m_code.clear();
@@ -265,26 +271,38 @@ void ByteCodeBlock::fillLOCData(Context* context, ByteCodeLOCData* locData)
     locData->push_back(std::make_pair(SIZE_MAX, SIZE_MAX));
 }
 
-ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData)
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData*)
 {
-    ASSERT(!!locData);
-
     if (codePosition == SIZE_MAX) {
         return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
     }
 
-    if (!locData->size()) {
-        fillLOCData(c, locData);
+    if (!m_locData) {
+        m_locData = new ByteCodeLOCData();
+        fillLOCData(c, m_locData.value());
     }
 
     size_t index = SIZE_MAX;
-    for (size_t i = 0; i < locData->size(); i++) {
-        if ((*locData)[i].first == codePosition) {
-            index = (*locData)[i].second;
-            if (index == SIZE_MAX) {
-                return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-            }
-            break;
+    auto it = std::lower_bound(m_locData->begin(), m_locData->end(), codePosition,
+                               [](const std::pair<size_t, size_t>& entry, size_t pos) {
+                                   return entry.first < pos;
+                               });
+
+    if (it != m_locData->end()) {
+        if (it->first == codePosition) {
+            index = it->second;
+        } else if (it != m_locData->begin()) {
+            index = (it - 1)->second;
+        }
+    } else if (!m_locData->empty()) {
+        index = m_locData->back().second;
+    }
+
+    if (index == SIZE_MAX) {
+        if (m_locData->empty()) {
+            index = cb->functionStart().index;
+        } else {
+            return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
         }
     }
 
