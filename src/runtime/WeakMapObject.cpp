@@ -35,6 +35,15 @@ GC_ms_entry* WeakMapObject::markEphemerons(GC_ms_entry* markStackTop, GC_ms_entr
         return markStackTop;
     }
 
+    // GC_MARK_AND_PUSH reads the plausible heap bounds straight out of GCutil's
+    // thread-local globals, which cannot be imported across a shared-library
+    // boundary on Windows. Fetch them through the getter instead -- once for the
+    // whole loop, since a heap section can only be added outside marking (this
+    // is what GCutil's own marking loops do with them as well).
+    void* leastHeapAddr;
+    void* greatestHeapAddr;
+    GC_get_plausible_heap_bounds(&leastHeapAddr, &greatestHeapAddr);
+
     // m_storage preserves insertion order. Processing it forwards lets a
     // marked value expose the next key of a deep ephemeron chain during this
     // pass instead of rescanning the complete map once per chain link.
@@ -42,7 +51,8 @@ GC_ms_entry* WeakMapObject::markEphemerons(GC_ms_entry* markStackTop, GC_ms_entr
         PointerValue* key = item->key.unwrap();
         if (key != nullptr && isMarkedHeapObject(key) && item->data.isStoredInHeap()) {
             void* value = reinterpret_cast<void*>(item->data.payload());
-            markStackTop = GC_MARK_AND_PUSH(value, markStackTop, markStackLimit, reinterpret_cast<void**>(&item->data));
+            markStackTop = GC_MARK_AND_PUSH_BOUNDED(value, markStackTop, markStackLimit, reinterpret_cast<void**>(&item->data),
+                                                    leastHeapAddr, greatestHeapAddr);
         }
     }
     return markStackTop;

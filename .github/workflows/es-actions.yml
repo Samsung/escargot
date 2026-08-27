@@ -891,10 +891,14 @@ jobs:
     # split across jobs via artifact upload/download, walrus.dll has to be
     # carried across explicitly too, or escargot.exe fails to start.
     #
+    # gc-lib.dll: ESCARGOT_BUILD_SHARED_LIBS=ON above now forces GCutil to
+    # build shared too (see build/escargot.cmake) -- escargot.dll links
+    # against it, so it needs the same explicit carrying as walrus.dll above.
+    #
     # upload-artifact strips the common leading directory of the listed
-    # paths, so this lands as escargot.exe/escargot.dll/walrus.dll at the
-    # artifact root regardless of which subdirectory the generator actually
-    # wrote them to -- test262/octane-on-windows-x86 below need no
+    # paths, so this lands as escargot.exe/escargot.dll/walrus.dll/gc-lib.dll
+    # at the artifact root regardless of which subdirectory the generator
+    # actually wrote them to -- test262/octane-on-windows-x86 below need no
     # generator-specific handling.
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
@@ -904,6 +908,7 @@ jobs:
           out/escargot.exe
           out/escargot.dll
           out/walrus.dll
+          out/gc-lib.dll
           out/icu*.dll
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
@@ -983,7 +988,7 @@ jobs:
         for /f "tokens=1" %%f in ('dumpbin /dependents out\Release\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\%%f" out\Release\ >nul
       shell: cmd
     # See build-on-windows-x86's identical comment above its upload step for
-    # why walrus.dll has to be carried across explicitly.
+    # why walrus.dll/gc-lib.dll have to be carried across explicitly.
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
@@ -992,6 +997,7 @@ jobs:
           out/Release/escargot.exe
           out/Release/escargot.dll
           out/Release/walrus.dll
+          out/Release/gc-lib.dll
           out/Release/icu*.dll
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
@@ -1075,7 +1081,9 @@ jobs:
       shell: cmd
     # wasm is OFF on this leg (see the job comment above), so walrus.dll
     # never gets built and escargot.exe has no runtime dependency on it
-    # either -- unlike build-on-windows-x86/x64's artifact.
+    # either -- unlike build-on-windows-x86/x64's artifact. gc-lib.dll is
+    # still needed though -- see build-on-windows-x86's identical comment
+    # above its upload step.
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
@@ -1083,6 +1091,7 @@ jobs:
         path: |
           out/escargot.exe
           out/escargot.dll
+          out/gc-lib.dll
           out/icu*.dll
     # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
     # to install tmate through (ENOENT), so no debug-shell step on this leg.
