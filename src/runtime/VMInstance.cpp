@@ -31,6 +31,7 @@
 #include "runtime/ReloadableString.h"
 #include "intl/Intl.h"
 #include "interpreter/ByteCode.h"
+#include "heap/CustomAllocator.h"
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
 #endif
@@ -245,6 +246,10 @@ void vmMarkStartCallback(void* data)
         // MARK_START can be fired multiple times in one incremental cycle (each stopped-mark
         // attempt), so the flag guards against re-entering
         self->m_isPruningCompiledByteCodes = true;
+        if (ThreadLocal::pruningCompiledByteCodesVMCount() == 0) {
+            setInterpretedCodeBlockDescriptorToProc();
+        }
+        ThreadLocal::pruningCompiledByteCodesVMCount()++;
     }
 #endif
 }
@@ -273,6 +278,10 @@ void vmReclaimEndCallback(void* data)
         // compiledByteCodeSize() through the disclaim callback (this kind is swept
         // eagerly since it is registered with mark-unconditionally)
         self->m_isPruningCompiledByteCodes = false;
+        ThreadLocal::pruningCompiledByteCodesVMCount()--;
+        if (ThreadLocal::pruningCompiledByteCodesVMCount() == 0) {
+            setInterpretedCodeBlockDescriptorToTyped();
+        }
     }
 
     /*
@@ -309,7 +318,13 @@ VMInstance::~VMInstance()
 
     // the mark procedure may still read this flag through CodeBlocks
     // which outlive this VMInstance
-    m_isPruningCompiledByteCodes = false;
+    if (m_isPruningCompiledByteCodes) {
+        m_isPruningCompiledByteCodes = false;
+        // we cannot modify gc-decsriptor here since there is no guarantee this timing is safe
+        ThreadLocal::pruningCompiledByteCodesVMCount()--;
+    } else {
+        m_isPruningCompiledByteCodes = false;
+    }
 
     // remove gc event callback
     if (ThreadLocal::isInited()) {

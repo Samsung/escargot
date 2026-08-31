@@ -171,6 +171,7 @@ class ThreadLocal {
 #endif
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
+    static MAY_THREAD_LOCAL int g_pruningCompiledByteCodesVMCount;
 
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS) || defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
     static ALWAYS_INLINE char* tlsBaseAddress()
@@ -321,6 +322,11 @@ public:
     {
         ASSERT(inited && !!g_gcEventListenerSet);
         return *g_gcEventListenerSet;
+    }
+
+    static ALWAYS_INLINE int& pruningCompiledByteCodesVMCount()
+    {
+        return g_pruningCompiledByteCodesVMCount;
     }
 
     static ASTAllocator* astAllocator()

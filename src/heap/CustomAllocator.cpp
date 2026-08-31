@@ -36,6 +36,8 @@
 namespace Escargot {
 
 static MAY_THREAD_LOCAL int s_gcKinds[HeapObjectKind::NumberOfKind];
+static MAY_THREAD_LOCAL GC_word s_interpreCodeBlockProcDescriptor[2];
+static MAY_THREAD_LOCAL GC_word s_interpreCodeBlockTypedDescriptor[2];
 
 template <GC_get_next_pointer_proc proc>
 GC_ms_entry* markAndPushCustomIterable(GC_word* addr,
@@ -216,7 +218,7 @@ void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word**
 static ByteCodeBlock* byteCodeBlockToTrace(InterpretedCodeBlock* codeBlock)
 {
     ByteCodeBlock* block = codeBlock->byteCodeBlock();
-    if (block && codeBlock->parent() && codeBlock->context()->vmInstance()->isPruningCompiledByteCodes()) {
+    if (block && codeBlock->parent() && ThreadLocal::pruningCompiledByteCodesVMCount() > 0 && codeBlock->context()->vmInstance()->isPruningCompiledByteCodes()) {
         // a bytecode pruning cycle is in progress: do not trace the ByteCodeBlock reference
         // so that blocks reachable only through it are collected at the end of this cycle.
         // blocks in use are kept alive by the conservative stack scan, and dying blocks
@@ -380,13 +382,48 @@ void initializeCustomAllocators()
                                                                          TRUE);
 #endif
 
+#ifdef GC_DEBUG
+    const size_t headerWords = GC_get_debug_header_size() / sizeof(GC_word);
+#else
+    const size_t headerWords = 0;
+#endif
+
+    s_interpreCodeBlockProcDescriptor[0] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0);
+    {
+        // add + 1 for headerwords w/debug mode
+        GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlock) + 1] = { 0 };
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
+        s_interpreCodeBlockTypedDescriptor[0] = GC_make_descriptor(objBitmap, headerWords + GC_WORD_LEN(InterpretedCodeBlock));
+    }
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
-                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
+                                                                      s_interpreCodeBlockTypedDescriptor[0],
                                                                       FALSE,
                                                                       TRUE);
 
+    s_interpreCodeBlockProcDescriptor[1] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0);
+    {
+        // add + 1 for headerwords w/debug mode
+        GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData) + 1] = { 0 };
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
+        s_interpreCodeBlockTypedDescriptor[1] = GC_make_descriptor(objBitmap, headerWords + GC_WORD_LEN(InterpretedCodeBlockWithRareData));
+    }
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind] = GC_new_kind(GC_new_free_list(),
-                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0),
+                                                                                  s_interpreCodeBlockTypedDescriptor[1],
                                                                                   FALSE,
                                                                                   TRUE);
 
@@ -579,5 +616,15 @@ WeakMapObject::WeakMapObjectDataItem* CustomAllocator<WeakMapObject::WeakMapObje
     return (WeakMapObject::WeakMapObjectDataItem*)GC_GENERIC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem), kind);
 }
 #endif
+
+void setInterpretedCodeBlockDescriptorToProc()
+{
+    GC_change_kind_descriptor_inner(&s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind], &s_interpreCodeBlockProcDescriptor[0], 2);
+}
+
+void setInterpretedCodeBlockDescriptorToTyped()
+{
+    GC_change_kind_descriptor_inner(&s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind], &s_interpreCodeBlockTypedDescriptor[0], 2);
+}
 
 } // namespace Escargot

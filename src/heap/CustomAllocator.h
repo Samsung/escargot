@@ -70,6 +70,8 @@ enum HeapObjectKind : unsigned {
 };
 
 void initializeCustomAllocators();
+void setInterpretedCodeBlockDescriptorToProc();
+void setInterpretedCodeBlockDescriptorToTyped();
 
 // Tests whether `ptr` is a heap object that survived the most recent collection.
 //

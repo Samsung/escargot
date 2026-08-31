@@ -107,6 +107,7 @@ MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
 MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
 #endif
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
+MAY_THREAD_LOCAL int ThreadLocal::g_pruningCompiledByteCodesVMCount = 0;
 
 #if defined(ENABLE_THREADING)
 class GlobalDeleteChecker {
