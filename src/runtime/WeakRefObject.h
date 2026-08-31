@@ -26,7 +26,7 @@ namespace Escargot {
 
 class WeakRefObject : public DerivedObject {
 #if !defined(NDEBUG)
-    friend int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInWeakRefObject(void* ptr, GC_mark_pair* arr);
 #endif
 public:
     explicit WeakRefObject(ExecutionState& state, PointerValue* target);

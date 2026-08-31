@@ -30,7 +30,7 @@ class FinalizationRegistryObject : public DerivedObject {
 public:
     struct FinalizationRegistryObjectItem : public gc {
 #if !defined(NDEBUG)
-        friend int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_result* arr);
+        friend int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_pair* arr);
 #endif
         PointerValue* weakRefTarget; // weak reference (should have a valid address)
         EncodedValue heldValue;

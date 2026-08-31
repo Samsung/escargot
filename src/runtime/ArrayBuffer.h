@@ -41,7 +41,7 @@ enum class TypedArrayType : unsigned {
 };
 
 class ArrayBuffer : public DerivedObject, public BufferAddressObserverManager<ArrayBuffer> {
-    friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_pair* arr);
 
 public:
     static const uint64_t maxArrayBufferSize = 210000000;

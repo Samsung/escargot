@@ -60,12 +60,6 @@ enum HeapObjectKind : unsigned {
     ArrayObjectKind,
     InterpretedCodeBlockKind,
     InterpretedCodeBlockWithRareDataKind,
-#if !defined(NDEBUG)
-    ArrayBufferObjectKind,
-    WeakRefObjectKind,
-    FinalizationRegistryObjectItemKind,
-    WeakMapObjectDataItemKind,
-#endif
     NumberOfKind,
 };
 

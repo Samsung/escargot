@@ -163,7 +163,6 @@ void ArrayBufferObject::detachArrayBuffer()
 
 void* ArrayBufferObject::operator new(size_t size)
 {
-#ifdef NDEBUG
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -175,9 +174,6 @@ void* ArrayBufferObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
-    return CustomAllocator<ArrayBufferObject>().allocate(1);
-#endif
 }
 
 Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)

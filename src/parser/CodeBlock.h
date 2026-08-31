@@ -116,7 +116,7 @@ protected:
 };
 
 class NativeCodeBlock : public CodeBlock {
-    friend int getValidValueInNativeCodeBlock(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInNativeCodeBlock(void* ptr, GC_mark_pair* arr);
 
 public:
     void* operator new(size_t size);
@@ -206,7 +206,8 @@ typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<Interpret
 
 class InterpretedCodeBlock : public CodeBlock {
     friend class ScriptParser;
-    friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_pair* arr);
+    friend void initializeCustomAllocators();
 #if defined(ENABLE_CODE_CACHE)
     friend class CodeCache;
     friend class CodeCacheWriter;
@@ -1120,7 +1121,8 @@ protected:
 
 class InterpretedCodeBlockWithRareData : public InterpretedCodeBlock {
     friend class InterpretedCodeBlock;
-    friend int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_pair* arr);
+    friend void initializeCustomAllocators();
 
 public:
     void* operator new(size_t size);

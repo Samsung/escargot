@@ -40,7 +40,6 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, PointerValue*
 
 void* WeakRefObject::operator new(size_t size)
 {
-#ifdef NDEBUG
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -50,9 +49,6 @@ void* WeakRefObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
-    return CustomAllocator<WeakRefObject>().allocate(1);
-#endif
 }
 
 bool WeakRefObject::deleteOperation(ExecutionState& state)
