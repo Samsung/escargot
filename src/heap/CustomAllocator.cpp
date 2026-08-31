@@ -191,22 +191,6 @@ int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr)
 }
 #endif
 
-void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
-{
-    GetObjectInlineCacheData* current = (GetObjectInlineCacheData*)ptr;
-    *next_ptr = (GC_word*)((size_t)ptr + sizeof(GetObjectInlineCacheData));
-    *from = (GC_word*)&current->m_cachedhiddenClassChain;
-    *to = (GC_word*)current->m_cachedhiddenClassChain;
-}
-
-void getNextValidInSetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
-{
-    SetObjectInlineCacheData* current = (SetObjectInlineCacheData*)ptr;
-    *next_ptr = (GC_word*)((size_t)ptr + sizeof(SetObjectInlineCacheData));
-    *from = (GC_word*)&current->m_cachedHiddenClassChainData;
-    *to = (GC_word*)current->m_cachedHiddenClassChainData;
-}
-
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
@@ -389,16 +373,6 @@ void initializeCustomAllocators()
     GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::SharedBackingStoreKind], SharedBackingStore::clearSharedBackingStore, 1);
 #endif
 
-    s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
-                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInGetObjectInlineCacheDataVector>), 0),
-                                                                                FALSE,
-                                                                                TRUE);
-
-    s_gcKinds[HeapObjectKind::SetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
-                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInSetObjectInlineCacheDataVector>), 0),
-                                                                                FALSE,
-                                                                                TRUE);
-
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInEncodedSmallValueVector>), 0),
@@ -518,45 +492,6 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
     return (SharedBackingStore*)GC_GENERIC_MALLOC(sizeof(SharedBackingStore), kind);
 }
 #endif
-
-template <>
-GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (Value*)GC_MALLOC(sizeof(GetObjectInlineCacheData) * GC_n);
-    // typed calloc test
-    /*
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheData)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheData, m_cachedhiddenClassChain));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheData));
-        typeInited = true;
-    }
-    return (GetObjectInlineCacheData*)GC_CALLOC_EXPLICITLY_TYPED(GC_n, sizeof(GetObjectInlineCacheData), descr);
-    */
-    int kind = s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind];
-    size_t size = sizeof(GetObjectInlineCacheData) * GC_n;
-
-    GetObjectInlineCacheData* ret;
-    ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
-    return ret;
-}
-
-template <>
-SetObjectInlineCacheData* CustomAllocator<SetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
-{
-    // Un-comment this to use default allocator
-    // return (Value*)GC_MALLOC(sizeof(SetObjectInlineCacheData) * GC_n);
-    // typed calloc test
-    int kind = s_gcKinds[HeapObjectKind::SetObjectInlineCacheDataVectorKind];
-    size_t size = sizeof(SetObjectInlineCacheData) * GC_n;
-
-    SetObjectInlineCacheData* ret;
-    ret = (SetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
-    return ret;
-}
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 template <>

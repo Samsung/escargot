@@ -54,8 +54,6 @@ enum HeapObjectKind : unsigned {
 #if defined(ENABLE_THREADING)
     SharedBackingStoreKind,
 #endif
-    GetObjectInlineCacheDataVectorKind,
-    SetObjectInlineCacheDataVectorKind,
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     EncodedSmallValueVectorKind,
 #endif

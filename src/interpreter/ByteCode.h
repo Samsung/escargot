@@ -1422,6 +1422,7 @@ struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
     {
         m_cachedhiddenClassChain = nullptr;
+        m_alwaysOne = 1;
         m_cachedhiddenClassChainLength = 0;
         m_isPlainDataProperty = false;
         m_cachedIndex = 0;
@@ -1433,14 +1434,15 @@ struct GetObjectInlineCacheData {
     static constexpr size_t MaxCacheCount = 24;
 
     ObjectStructure** m_cachedhiddenClassChain;
-    bool m_isPlainDataProperty : 1;
-    // 15bits of storage is enough
-    // inlineCacheProtoTraverseMaxCount is so small
-    uint16_t m_cachedhiddenClassChainLength : 15;
-    uint16_t m_cachedIndex : 16;
+    uint32_t m_alwaysOne : 1;
+    uint32_t m_isPlainDataProperty : 1;
+    // 14bits of storage is enough (max value 16383)
+    // inlineCacheProtoTraverseMaxCount (depth cap) is only 12
+    uint32_t m_cachedhiddenClassChainLength : 14;
+    uint32_t m_cachedIndex : 16;
 };
 
-typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
+typedef Vector<GetObjectInlineCacheData, GCUtil::gc_malloc_allocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCacheComplexCaseData {
     GetObjectInlineCacheComplexCaseData(ObjectStructurePropertyName propertyName)
@@ -1556,6 +1558,7 @@ struct SetObjectInlineCacheData {
     SetObjectInlineCacheData()
     {
         m_cachedHiddenClass = nullptr;
+        m_alwaysOne = 1;
         m_cachedIndex = m_cachedhiddenClassChainLength = 0;
         m_isPlainDataProperty = true;
     }
@@ -1574,14 +1577,15 @@ struct SetObjectInlineCacheData {
     // case (this is always the "own property write" case, never a brand-new-property
     // transition), but the write must go through Object::setOwnPropertyThrowsExceptionWhenStrictMode
     // (which dispatches correctly by kind) instead of the direct m_values[] write.
-    bool m_isPlainDataProperty : 1;
-    // 15bits of storage is enough
-    // inlineCacheProtoTraverseMaxCount is so small
-    uint16_t m_cachedhiddenClassChainLength : 15;
-    uint16_t m_cachedIndex : 16;
+    uint32_t m_alwaysOne : 1;
+    uint32_t m_isPlainDataProperty : 1;
+    // 14bits of storage is enough (max value 16383)
+    // inlineCacheProtoTraverseMaxCount (depth cap) is only 12
+    uint32_t m_cachedhiddenClassChainLength : 14;
+    uint32_t m_cachedIndex : 16;
 };
 
-typedef Vector<SetObjectInlineCacheData, CustomAllocator<SetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> SetObjectInlineCacheDataVector;
+typedef Vector<SetObjectInlineCacheData, GCUtil::gc_malloc_allocator<SetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> SetObjectInlineCacheDataVector;
 
 struct SetObjectInlineCache {
     SetObjectInlineCache()
