@@ -262,6 +262,7 @@ void vmReclaimEndCallback(void* data)
         return;
     }
 
+    ThreadLocal::gcEpoch() = GC_get_gc_no();
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     auto currentTick = fastTickCount();
     if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
@@ -273,6 +274,9 @@ void vmReclaimEndCallback(void* data)
 #endif
 
     if (self->m_isPruningCompiledByteCodes) {
+        size_t remainingSize = self->compiledByteCodeSize();
+        size_t newLimit = std::max((size_t)SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX, remainingSize + SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX);
+        self->setMaxCompiledByteCodeSize(newLimit);
         // the pruning cycle started at MARK_START is finished.
         // dead ByteCodeBlocks already subtracted their registered size from
         // compiledByteCodeSize() through the disclaim callback (this kind is swept

@@ -500,6 +500,31 @@ public:
         m_byteCodeBlock = block;
     }
 
+    uint32_t pruningCount() const
+    {
+        return m_pruningCount;
+    }
+
+    void incrementPruningCount()
+    {
+        m_pruningCount++;
+    }
+
+    uint32_t survivalCount() const
+    {
+        return m_survivalCount;
+    }
+
+    void incrementSurvivalCount()
+    {
+        m_survivalCount++;
+    }
+
+    void resetSurvivalCount()
+    {
+        m_survivalCount = 0;
+    }
+
     InterpretedCodeBlock* parent()
     {
         return m_parent;
@@ -1005,6 +1030,9 @@ protected:
 
     LexicalBlockIndex m_functionBodyBlockIndex : 16;
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
+
+    uint16_t m_pruningCount : 16;
+    uint16_t m_survivalCount : 16;
 
     bool m_isFunctionNameUsedBySelf : 1;
     bool m_isFunctionNameSaveOnHeap : 1;

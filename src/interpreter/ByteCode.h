@@ -3733,6 +3733,16 @@ public:
         return m_needsExtendedExecutionState;
     }
 
+    uint32_t survivalCount() const
+    {
+        return m_survivalCount;
+    }
+
+    void incrementSurvivalCount()
+    {
+        m_survivalCount++;
+    }
+
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData);
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLOCData(Context* c, ByteCodeLOCData* locData);
@@ -3746,6 +3756,9 @@ public:
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"
     ByteCodeRegisterIndex m_requiredTotalRegisterNumber : REGISTER_INDEX_IN_BIT;
+
+    size_t m_lastUsedGcEpoch;
+    uint32_t m_survivalCount;
 
     ByteCodeBlockData m_code;
     ByteCodeNumeralLiteralData m_numeralLiteralData;

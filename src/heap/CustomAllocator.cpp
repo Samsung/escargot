@@ -321,10 +321,52 @@ GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
 }
 #endif
 
+template <typename T>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi)
+{
+    return (v < lo) ? lo : (hi < v) ? hi
+                                    : v;
+}
+
 static ByteCodeBlock* byteCodeBlockToTrace(InterpretedCodeBlock* codeBlock)
 {
     ByteCodeBlock* block = codeBlock->byteCodeBlock();
     if (block && codeBlock->parent() && ThreadLocal::pruningCompiledByteCodesVMCount() > 0 && codeBlock->context()->vmInstance()->isPruningCompiledByteCodes()) {
+        if (!codeBlock->context()->vmInstance()->inIdleMode()) {
+            size_t bytecodeSize = block->currentCodeSize();
+            uint32_t pruningCount = codeBlock->pruningCount();
+            uint32_t survivalCount = codeBlock->survivalCount();
+            size_t currentEpoch = ThreadLocal::gcEpoch();
+            size_t age = currentEpoch - block->m_lastUsedGcEpoch;
+            size_t longLiveAge = 128;
+            size_t allowedAge;
+
+            if (pruningCount >= 1 || survivalCount >= 5) {
+                if (bytecodeSize < 4096) {
+                    allowedAge = longLiveAge;
+                } else {
+                    size_t largeBonus = pruningCount * 16 + survivalCount * 2;
+                    size_t largePenalty = bytecodeSize / 1024;
+                    allowedAge = (largeBonus > largePenalty) ? std::max((size_t)3, largeBonus - largePenalty) : 3;
+                }
+            } else {
+                size_t baseAge = SCRIPT_FUNCTION_OBJECT_BYTECODE_PRUNING_AGE;
+                size_t survivalBonus = survivalCount * 2;
+                size_t sizePenalty = bytecodeSize / 2048;
+                size_t totalBase = baseAge + survivalBonus;
+
+                allowedAge = (totalBase > sizePenalty) ? (totalBase - sizePenalty) : 1;
+            }
+
+            allowedAge = clamp(allowedAge, (size_t)1, longLiveAge);
+
+            if (age <= allowedAge) {
+                if (age == 0) {
+                    codeBlock->incrementSurvivalCount();
+                }
+                return block;
+            }
+        }
         // a bytecode pruning cycle is in progress: do not trace the ByteCodeBlock reference
         // so that blocks reachable only through it are collected at the end of this cycle.
         // blocks in use are kept alive by the conservative stack scan, and dying blocks
