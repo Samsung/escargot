@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ArrayBufferObject : public ArrayBuffer {
     friend void initializeCustomAllocators();
-    friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_pair* arr);
 
 public:
     explicit ArrayBufferObject(ExecutionState& state);

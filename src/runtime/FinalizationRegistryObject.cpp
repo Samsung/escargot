@@ -168,7 +168,6 @@ void FinalizationRegistryObject::cleanupSome(ExecutionState& state, Optional<Obj
 
 void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(size_t size)
 {
-#ifdef NDEBUG
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -179,9 +178,6 @@ void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(s
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
-    return CustomAllocator<FinalizationRegistryObjectItem>().allocate(1);
-#endif
 }
 
 void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)

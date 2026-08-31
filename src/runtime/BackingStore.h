@@ -109,9 +109,9 @@ protected:
 using BackingStoreDeleterCallback = void (*)(void* data, size_t length, void* deleterData);
 
 class BackingStore : public gc, public BufferAddressObserverManager<BackingStore> {
-    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_pair* arr);
 #if defined(ENABLE_THREADING)
-    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_pair* arr);
 #endif
 
 public:
@@ -168,7 +168,7 @@ protected:
 
 class NonSharedBackingStore : public BackingStore {
     friend class BackingStore;
-    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_pair* arr);
 
 public:
     virtual bool isShared() const override
@@ -325,7 +325,7 @@ private:
 
 class SharedBackingStore : public BackingStore {
     friend class BackingStore;
-    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_custom_result* arr);
+    friend int getValidValueInSharedBackingStore(void* ptr, GC_mark_pair* arr);
 
 public:
     virtual bool isShared() const override
