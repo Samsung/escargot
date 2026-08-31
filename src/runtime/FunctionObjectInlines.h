@@ -108,6 +108,7 @@ public:
         bool isStrict = codeBlock->isStrict();
         const size_t registerFileSize = blk->m_requiredTotalRegisterNumber;
         const size_t generalRegisterSize = blk->m_requiredOperandRegisterNumber;
+        blk->m_lastUsedGcEpoch = ThreadLocal::gcEpoch();
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;

@@ -72,6 +72,7 @@ size_t ThreadLocal::g_stackLimitTlsOffset;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 size_t ThreadLocal::g_emptyStringTlsOffset;
 #endif
+size_t ThreadLocal::g_gcEpochTlsOffset;
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
 ptrdiff_t ThreadLocal::g_stackLimitKeyOffset;
@@ -81,6 +82,8 @@ pthread_key_t ThreadLocal::g_stackLimitKey;
 ptrdiff_t ThreadLocal::g_emptyStringKeyOffset;
 pthread_key_t ThreadLocal::g_emptyStringKey;
 #endif
+ptrdiff_t ThreadLocal::g_gcEpochKeyOffset;
+pthread_key_t ThreadLocal::g_gcEpochKey;
 #endif
 
 #if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -108,6 +111,7 @@ MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
 #endif
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
 MAY_THREAD_LOCAL int ThreadLocal::g_pruningCompiledByteCodesVMCount = 0;
+MAY_THREAD_LOCAL size_t ThreadLocal::g_gcEpoch = 0;
 
 #if defined(ENABLE_THREADING)
 class GlobalDeleteChecker {
@@ -535,6 +539,7 @@ void ThreadLocal::initializeTlsKeySlotOffsets()
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     g_emptyStringKeyOffset = createAndProbeTlsKey(&g_emptyStringKey, baseAddr);
 #endif
+    g_gcEpochKeyOffset = createAndProbeTlsKey(&g_gcEpochKey, baseAddr);
 }
 #endif
 
@@ -595,6 +600,14 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     }
 #endif
 
+    if (!g_gcEpochTlsOffset) {
+        g_gcEpochTlsOffset = reinterpret_cast<char*>(&g_gcEpoch) - tlsBase;
+    } else {
+        // runtime check
+        size_t newDistance = reinterpret_cast<char*>(&g_gcEpoch) - tlsBase;
+        ESCARGOT_RELEASE_ASSERT(newDistance == g_gcEpochTlsOffset);
+    }
+
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
     // GC_init() (through Heap::initialize() above) probes the very same way for
     // its own key, so the allocator is usable here -- but the offsets are still
@@ -610,6 +623,8 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_emptyStringKey, baseAddr, g_emptyStringKeyOffset));
     *reinterpret_cast<String***>(baseAddr + g_emptyStringKeyOffset) = &g_emptyStringInstance;
 #endif
+    ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_gcEpochKey, baseAddr, g_gcEpochKeyOffset));
+    *reinterpret_cast<size_t**>(baseAddr + g_gcEpochKeyOffset) = &g_gcEpoch;
 #endif
 
     // g_stackLimit
@@ -696,6 +711,9 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     // g_customData
     g_customData = Global::platform()->allocateThreadLocalCustomData();
 
+    // g_gcEpoch
+    g_gcEpoch = GC_get_gc_no();
+
     inited = true;
 }
 
@@ -755,6 +773,9 @@ void ThreadLocal::finalize()
     // g_bumpPointerAllocator
     delete g_bumpPointerAllocator;
     g_bumpPointerAllocator = nullptr;
+
+    // g_gcEpoch
+    g_gcEpoch = 0;
 
     inited = false;
 }

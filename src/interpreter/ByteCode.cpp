@@ -106,6 +106,8 @@ ByteCodeBlock::ByteCodeBlock()
     , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
+    , m_lastUsedGcEpoch(ThreadLocal::gcEpoch())
+    , m_survivalCount(0)
     , m_codeBlock(nullptr)
     , m_vm(nullptr)
     , m_locData(nullptr)
@@ -175,6 +177,8 @@ void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
             // even be our CodeBlock any more (see touchableOwnerCodeBlockOf), so only
             // clear the field if it really still points at us
             if (codeBlock->byteCodeBlock() == self) {
+                codeBlock->incrementPruningCount();
+                codeBlock->resetSurvivalCount();
                 codeBlock->setByteCodeBlock(nullptr);
             }
         }
@@ -217,6 +221,8 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     , m_isAccounted(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
+    , m_lastUsedGcEpoch(ThreadLocal::gcEpoch())
+    , m_survivalCount(0)
     , m_codeBlock(codeBlock)
     , m_vm(codeBlock->context()->vmInstance())
 {

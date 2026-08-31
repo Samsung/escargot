@@ -135,6 +135,7 @@ class ThreadLocal {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     static size_t g_emptyStringTlsOffset;
 #endif
+    static size_t g_gcEpochTlsOffset;
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
     // signed: on glibc TLS_DTV_AT_TP targets (arm, aarch64, riscv) the key slot
@@ -148,6 +149,8 @@ class ThreadLocal {
     static ptrdiff_t g_emptyStringKeyOffset;
     static pthread_key_t g_emptyStringKey;
 #endif
+    static ptrdiff_t g_gcEpochKeyOffset;
+    static pthread_key_t g_gcEpochKey;
     static void initializeTlsKeySlotOffsets();
 #endif
 
@@ -172,6 +175,7 @@ class ThreadLocal {
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
     static MAY_THREAD_LOCAL int g_pruningCompiledByteCodesVMCount;
+    static MAY_THREAD_LOCAL size_t g_gcEpoch;
 
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS) || defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
     static ALWAYS_INLINE char* tlsBaseAddress()
@@ -327,6 +331,21 @@ public:
     static ALWAYS_INLINE int& pruningCompiledByteCodesVMCount()
     {
         return g_pruningCompiledByteCodesVMCount;
+    }
+
+    static ALWAYS_INLINE size_t& gcEpoch()
+    {
+        ASSERT(inited);
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+        ASSERT(g_gcEpoch == *reinterpret_cast<size_t*>(tlsValueAddress(g_gcEpochTlsOffset)));
+        return *reinterpret_cast<size_t*>(tlsValueAddress(g_gcEpochTlsOffset));
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+        auto base = tlsBaseAddress();
+        size_t** ptr = reinterpret_cast<size_t**>(base + g_gcEpochKeyOffset);
+        return **ptr;
+#else
+        return g_gcEpoch;
+#endif
     }
 
     static ASTAllocator* astAllocator()
