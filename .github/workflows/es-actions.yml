@@ -653,7 +653,9 @@ jobs:
           ready_file="$(mktemp "$RUNNER_TEMP/performance-host-lock.XXXXXX")"
           rm -f "$ready_file"
           install -d -m 700 "$lock_dir"
-          RUNNER_TRACKING_ID="" flock -s "$lock_file" bash -c 'printf acquired > "$1"; exec sleep infinity' bash "$ready_file" &
+          # Keep the lock FD in this process, then exec sleep so $! remains
+          # the lock holder's PID and the release step can reliably kill it.
+          RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep infinity' bash "$lock_file" "$ready_file" &
           lock_pid=$!
           for _ in $(seq 1 600); do
             test -s "$ready_file" && break
@@ -2061,7 +2063,9 @@ jobs:
         ready_file="$(mktemp "$RUNNER_TEMP/performance-host-lock.XXXXXX")"
         rm -f "$ready_file"
         install -d -m 700 "$lock_dir"
-        RUNNER_TRACKING_ID="" flock -s "$lock_file" bash -c 'printf acquired > "$1"; exec sleep infinity' bash "$ready_file" &
+        # Keep the lock FD in this process, then exec sleep so $! remains
+        # the lock holder's PID and the release step can reliably kill it.
+        RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep infinity' bash "$lock_file" "$ready_file" &
         lock_pid=$!
         for _ in $(seq 1 600); do
           test -s "$ready_file" && break
