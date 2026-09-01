@@ -642,6 +642,27 @@ jobs:
       ANDROID_ROOT: /system
       ANDROID_I18N_ROOT: /apex/com.android.i18n
     steps:
+      # The ARM runner services share one physical host. Normal jobs retain a
+      # shared lock so that they may overlap each other, while a performance
+      # job takes this same file exclusively for an idle-host measurement.
+      - name: Acquire shared performance-host lock
+        shell: bash
+        run: |
+          lock_dir="$HOME/.cache/escargot-locks"
+          lock_file="$lock_dir/performance-host.lock"
+          ready_file="$(mktemp "$RUNNER_TEMP/performance-host-lock.XXXXXX")"
+          rm -f "$ready_file"
+          install -d -m 700 "$lock_dir"
+          RUNNER_TRACKING_ID="" flock -s "$lock_file" bash -c 'printf acquired > "$1"; exec sleep infinity' bash "$ready_file" &
+          lock_pid=$!
+          for _ in $(seq 1 600); do
+            test -s "$ready_file" && break
+            kill -0 "$lock_pid" 2>/dev/null || exit 1
+            sleep 0.1
+          done
+          test -s "$ready_file"
+          printf 'PERFORMANCE_HOST_LOCK_PID=%s\n' "$lock_pid" >> "$GITHUB_ENV"
+          printf 'PERFORMANCE_HOST_LOCK_READY_FILE=%s\n' "$ready_file" >> "$GITHUB_ENV"
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -725,6 +746,14 @@ jobs:
           ../../tools/test/test-data-runner/test-data-runner --shell ../../android_binaries/escargot-shell --test test262 --test-data test262_data/ 2> /dev/null | tee ../../test262-result.log
           cd ../..
           grep -q ': Passed$' test262-result.log
+
+      - name: Release shared performance-host lock
+        if: always()
+        shell: bash
+        run: |
+          kill "$PERFORMANCE_HOST_LOCK_PID" 2>/dev/null || true
+          wait "$PERFORMANCE_HOST_LOCK_PID" 2>/dev/null || true
+          rm -f "$PERFORMANCE_HOST_LOCK_READY_FILE"
 
   build-test-tizen:
     runs-on: ubuntu-24.04
@@ -2022,6 +2051,26 @@ jobs:
         compiler: [gcc, clang]
     timeout-minutes: 60
     steps:
+    # See android-baremetal-test262: shared holders may run concurrently;
+    # a benchmark job takes this same file exclusively.
+    - name: Acquire shared performance-host lock
+      shell: bash
+      run: |
+        lock_dir="$HOME/.cache/escargot-locks"
+        lock_file="$lock_dir/performance-host.lock"
+        ready_file="$(mktemp "$RUNNER_TEMP/performance-host-lock.XXXXXX")"
+        rm -f "$ready_file"
+        install -d -m 700 "$lock_dir"
+        RUNNER_TRACKING_ID="" flock -s "$lock_file" bash -c 'printf acquired > "$1"; exec sleep infinity' bash "$ready_file" &
+        lock_pid=$!
+        for _ in $(seq 1 600); do
+          test -s "$ready_file" && break
+          kill -0 "$lock_pid" 2>/dev/null || exit 1
+          sleep 0.1
+        done
+        test -s "$ready_file"
+        printf 'PERFORMANCE_HOST_LOCK_PID=%s\n' "$lock_pid" >> "$GITHUB_ENV"
+        printf 'PERFORMANCE_HOST_LOCK_READY_FILE=%s\n' "$ready_file" >> "$GITHUB_ENV"
     - uses: Wandalen/wretry.action@v3
       with:
         action: actions/checkout@v5
@@ -2120,6 +2169,13 @@ jobs:
           -v "${{ github.workspace }}:/work" -w /work \
           arm32v7/ubuntu:24.04 \
           chown -R "$(id -u):$(id -g)" /work 2>/dev/null || true
+    - name: Release shared performance-host lock
+      if: always()
+      shell: bash
+      run: |
+        kill "$PERFORMANCE_HOST_LOCK_PID" 2>/dev/null || true
+        wait "$PERFORMANCE_HOST_LOCK_PID" 2>/dev/null || true
+        rm -f "$PERFORMANCE_HOST_LOCK_READY_FILE"
 
   # Moved off the self-hosted arm64 pool (2026-08-23): unlike
   # build-test-on-self-hosted-arm32-docker (needs AArch32 hardware execution
@@ -2890,4 +2946,3 @@ jobs:
 
         echo "NuttX/QEMU sample: boot + exception-suite + SunSpider 1.0.2 all passed ($marker_count marker lines)."
       timeout-minutes: 60
-
