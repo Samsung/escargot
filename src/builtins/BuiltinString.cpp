@@ -929,7 +929,7 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
 static String* stringToLocaleConvertCase(ExecutionState& state, String* str, String* locale, bool isUpper)
 {
     int32_t len = str->length();
-    char16_t* src = ALLOCA(len * 2, char16_t);
+    char16_t* src = ALLOCA_ATOMIC(len * 2, char16_t);
     if (str->has8BitContent()) {
         const LChar* buf = str->characters8();
         for (int32_t i = 0; i < len; i++) {
@@ -941,7 +941,7 @@ static String* stringToLocaleConvertCase(ExecutionState& state, String* str, Str
 
     UErrorCode status = U_ZERO_ERROR;
     int32_t dest_length = len * 3;
-    char16_t* dest = ALLOCA(dest_length * 2, char16_t);
+    char16_t* dest = ALLOCA_ATOMIC(dest_length * 2, char16_t);
     if (isUpper) {
         dest_length = u_strToUpper(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
     } else {
@@ -963,7 +963,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         LChar* dest;
         Latin1StringData newStr;
         if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
-            dest = ALLOCA(len, LChar);
+            dest = ALLOCA_ATOMIC(len, LChar);
         } else {
             newStr.resizeWithUninitializedValues(len);
             dest = newStr.data();
