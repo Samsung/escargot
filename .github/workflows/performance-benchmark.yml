@@ -29,7 +29,8 @@ jobs:
         set -euo pipefail
         lock_dir="$HOME/.cache/escargot-locks"
         install -d -m 700 "$lock_dir"
-        flock -x "$lock_dir/performance-host.lock" bash -euo pipefail -s <<'LOCKED'
+        # Never wait forever if a runner is lost while holding the lock.
+        flock -x -w 3600 "$lock_dir/performance-host.lock" bash -euo pipefail -s <<'LOCKED'
           report="$GITHUB_WORKSPACE/performance-report"
           build="$GITHUB_WORKSPACE/out/performance-release"
           mkdir -p "$report/logs"
