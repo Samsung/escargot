@@ -241,11 +241,11 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
     size_t elemSize = TypedArrayHelper::elementSize(type);
     revalidateAtomicAccess(state, buffer, indexedPosition, elemSize);
 
-    uint8_t* expectedBytes = ALLOCA(8, uint8_t);
+    uint8_t* expectedBytes = ALLOCA_ATOMIC(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, expected, expectedBytes);
     uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* replacementBytes = ALLOCA(8, uint8_t);
+    uint8_t* replacementBytes = ALLOCA_ATOMIC(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
     switch (type) {
     case TypedArrayType::Int8:
@@ -290,7 +290,7 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
         }
     }
     if (isByteListEqual) {
-        uint8_t* replacementBytes = ALLOCA(8, uint8_t);
+        uint8_t* replacementBytes = ALLOCA_ATOMIC(8, uint8_t);
         TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
         memcpy(rawStart, replacementBytes, elemSize);
     }

@@ -191,7 +191,7 @@ String* IntlPluralRulesObject::resolvePlural(ExecutionState& state, double numbe
     }
 
     int32_t len = uplrules_selectFormatted(m_icuPluralRules, formattedNumber.get(), nullptr, 0, &status);
-    UChar* buf = ALLOCA((len + 1) * sizeof(UChar), UChar);
+    UChar* buf = ALLOCA_ATOMIC((len + 1) * sizeof(UChar), UChar);
     status = U_ZERO_ERROR;
     uplrules_selectFormatted(m_icuPluralRules, formattedNumber.get(), buf, len + 1, &status);
     ASSERT(U_SUCCESS(status));
@@ -226,7 +226,7 @@ String* IntlPluralRulesObject::resolvePluralRange(ExecutionState& state, double 
     }
 
     int32_t len = uplrules_selectForRange(m_icuPluralRules, uresult.get(), nullptr, 0, &status);
-    UChar* buf = ALLOCA((len + 1) * sizeof(UChar), UChar);
+    UChar* buf = ALLOCA_ATOMIC((len + 1) * sizeof(UChar), UChar);
     status = U_ZERO_ERROR;
     uplrules_selectForRange(m_icuPluralRules, uresult.get(), buf, len + 1, &status);
     ASSERT(U_SUCCESS(status));

@@ -292,12 +292,12 @@ public:
             }
             ASSERT(length);
             if (LIKELY(is8Bit)) {
-                LChar* buffer = ALLOCA(sizeof(LChar) * (length + 1), LChar);
+                LChar* buffer = ALLOCA_ATOMIC(sizeof(LChar) * (length + 1), LChar);
                 getData(buffer, length);
                 buffer[length] = '\0';
                 str = new Latin1String(buffer, length);
             } else {
-                UChar* buffer = ALLOCA(sizeof(UChar) * (length + 1), UChar);
+                UChar* buffer = ALLOCA_ATOMIC(sizeof(UChar) * (length + 1), UChar);
                 getData(buffer, length);
                 buffer[length] = '\0';
                 str = new UTF16String(buffer, length);

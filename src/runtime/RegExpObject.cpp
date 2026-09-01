@@ -375,7 +375,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
     unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), m_bytecodePattern->m_offsetsSize);
-    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * outputBufLength, unsigned int);
+    unsigned* outputBuf = ALLOCA_ATOMIC(sizeof(unsigned) * outputBufLength, unsigned int);
     outputBuf[1] = start;
     do {
         start = outputBuf[1];
