@@ -2,7 +2,9 @@ name: Performance Benchmark
 
 # Only merged work reaches master; fork PRs never run on this self-hosted runner.
 on:
-  push:
+  workflow_run:
+    workflows: ["ES-Actions"]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
 
@@ -15,9 +17,11 @@ permissions:
 
 jobs:
   benchmark-arm64:
-    if: github.repository == 'Samsung/escargot'
+    if: github.repository == 'Samsung/escargot' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: [self-hosted, linux, arm64, test]
     timeout-minutes: 180
+    env:
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     permissions:
       contents: write
       pages: write
@@ -25,6 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
       with:
+        ref: ${{ env.TARGET_SHA }}
         submodules: recursive
 
     - uses: actions/configure-pages@v5
@@ -43,6 +48,9 @@ jobs:
           cmake -S "$GITHUB_WORKSPACE" -B "$build" -GNinja -DCMAKE_BUILD_TYPE=Release -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DENABLE_SHELL=ON
           ninja -C "$build"
           engine="$build/escargot"
+          # Web Tooling Benchmark defaults to 20 samples per sub-benchmark.
+          # Reduce it before npm ci so postinstall bundles the one-sample suite.
+          sed -i 's/minSamples: 20/minSamples: 1/' "$GITHUB_WORKSPACE/test/web-tooling-benchmark/src/suite.js"
           (cd "$GITHUB_WORKSPACE/test/web-tooling-benchmark" && npm ci)
           measure() {
             name="$1"; dir="$2"; script="$3"
@@ -80,14 +88,14 @@ jobs:
 
     - uses: actions/upload-artifact@v6
       with:
-        name: performance-report-${{ github.sha }}
+        name: performance-report-${{ env.TARGET_SHA }}
         path: performance-report/
 
     - name: Publish history and dashboard
       shell: bash
       env:
-        REVISION: ${{ github.sha }}
-        REVISION_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        REVISION: ${{ env.TARGET_SHA }}
+        REVISION_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ env.TARGET_SHA }}
       run: |
         set -euo pipefail
         site="$RUNNER_TEMP/escargot-performance-pages"
