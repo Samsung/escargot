@@ -236,57 +236,57 @@ public:
     public:
         InputStream(const CharType* input, size_t length, unsigned start, bool decodeSurrogatePairs)
             : input(input)
-            , pos(start)
-            , length(length)
+            , current(input + start)
+            , inputEnd(input + length)
             , decodeSurrogatePairs(decodeSurrogatePairs)
         {
         }
 
         void next()
         {
-            ++pos;
+            ++current;
         }
 
         void rewind(unsigned amount)
         {
-            ASSERT(pos >= amount);
-            pos -= amount;
+            ASSERT(static_cast<size_t>(current - input) >= amount);
+            current -= amount;
         }
 
         char32_t read()
         {
-            ASSERT(pos < length);
-            if (pos < length)
-                return input[pos];
+            ASSERT(current < inputEnd);
+            if (current < inputEnd)
+                return *current;
             return errorCodePoint;
         }
 
         char32_t readChecked(unsigned negativePositionOffest)
         {
-            RELEASE_ASSERT(pos >= negativePositionOffest);
-            unsigned p = pos - negativePositionOffest;
-            ASSERT(p < length);
-            auto result = input[p];
-            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= negativePositionOffest);
+            const CharType* p = current - negativePositionOffest;
+            ASSERT(p < inputEnd);
+            auto result = *p;
+            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < inputEnd && U16_IS_TRAIL(p[1])) {
                 if (atEnd())
                     return errorCodePoint;
                 next();
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
-            } else if (decodeSurrogatePairs && p > 0 && U16_IS_TRAIL(result) && U16_IS_LEAD(input[p - 1]))
+                return U16_GET_SUPPLEMENTARY(result, p[1]);
+            } else if (decodeSurrogatePairs && p > input && U16_IS_TRAIL(result) && U16_IS_LEAD(p[-1]))
                 return errorCodePoint;
             return result;
         }
 
         char32_t readCheckedDontAdvance(unsigned negativePositionOffest)
         {
-            RELEASE_ASSERT(pos >= negativePositionOffest);
-            unsigned p = pos - negativePositionOffest;
-            ASSERT(p < length);
-            auto result = input[p];
-            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= negativePositionOffest);
+            const CharType* p = current - negativePositionOffest;
+            ASSERT(p < inputEnd);
+            auto result = *p;
+            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < inputEnd && U16_IS_TRAIL(p[1])) {
                 if (atEnd())
                     return errorCodePoint;
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
+                return U16_GET_SUPPLEMENTARY(result, p[1]);
             }
             return result;
         }
@@ -295,41 +295,41 @@ public:
         // We don't want any side effects like the next() in readChecked() above.
         char32_t readForCharacterDump(unsigned negativePositionOffest)
         {
-            RELEASE_ASSERT(pos >= negativePositionOffest);
-            unsigned p = pos - negativePositionOffest;
-            ASSERT(p < length);
-            auto result = input[p];
-            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= negativePositionOffest);
+            const CharType* p = current - negativePositionOffest;
+            ASSERT(p < inputEnd);
+            auto result = *p;
+            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < inputEnd && U16_IS_TRAIL(p[1])) {
                 if (atEnd())
                     return errorCodePoint;
-                return U16_GET_SUPPLEMENTARY(result, input[p + 1]);
+                return U16_GET_SUPPLEMENTARY(result, p[1]);
             }
             return result;
         }
-        
+
         char32_t tryReadBackward(unsigned negativePositionOffest)
         {
-            if (pos < negativePositionOffest)
+            if (static_cast<size_t>(current - input) < negativePositionOffest)
                 return errorCodePoint;
-            unsigned p = pos - negativePositionOffest;
-            ASSERT(p < length);
-            auto result = input[p];
-            if (U16_IS_TRAIL(result) && decodeSurrogatePairs && p > 0 && U16_IS_LEAD(input[p - 1])) {
+            const CharType* p = current - negativePositionOffest;
+            ASSERT(p < inputEnd);
+            auto result = *p;
+            if (U16_IS_TRAIL(result) && decodeSurrogatePairs && p > input && U16_IS_LEAD(p[-1])) {
                 rewind(1);
-                return U16_GET_SUPPLEMENTARY(input[p - 1], result);
+                return U16_GET_SUPPLEMENTARY(p[-1], result);
             }
             return result;
         }
 
         char32_t readSurrogatePairChecked(unsigned negativePositionOffset)
         {
-            RELEASE_ASSERT(pos >= negativePositionOffset);
-            unsigned p = pos - negativePositionOffset;
-            ASSERT(p < length);
-            if (p + 1 >= length)
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= negativePositionOffset);
+            const CharType* p = current - negativePositionOffset;
+            ASSERT(p < inputEnd);
+            if (p + 1 >= inputEnd)
                 return errorCodePoint;
-            auto first = input[p];
-            auto second = input[p + 1];
+            auto first = *p;
+            auto second = p[1];
             if (U16_IS_LEAD(first) && U16_IS_TRAIL(second))
                 return U16_GET_SUPPLEMENTARY(first, second);
             return errorCodePoint;
@@ -337,12 +337,13 @@ public:
 
         char32_t reread(unsigned from)
         {
-            ASSERT(from < length);
-            auto result = input[from];
-            if (decodeSurrogatePairs && from + 1 < length) {
-                if (U16_IS_LEAD(result) && U16_IS_TRAIL(input[from + 1]))
-                    return U16_GET_SUPPLEMENTARY(result, input[from + 1]);
-                if (U16_IS_TRAIL(result) && U16_IS_LEAD(input[from + 1]))
+            const CharType* p = input + from;
+            ASSERT(p < inputEnd);
+            auto result = *p;
+            if (decodeSurrogatePairs && p + 1 < inputEnd) {
+                if (U16_IS_LEAD(result) && U16_IS_TRAIL(p[1]))
+                    return U16_GET_SUPPLEMENTARY(result, p[1]);
+                if (U16_IS_TRAIL(result) && U16_IS_LEAD(p[1]))
                     return errorCodePoint;
             }
             return result;
@@ -350,41 +351,41 @@ public:
 
         char32_t prev()
         {
-            ASSERT(!(pos > length));
-            if (pos && length)
-                return input[pos - 1];
+            ASSERT(!(current > inputEnd));
+            if (current != input && inputEnd != input)
+                return current[-1];
             return errorCodePoint;
         }
 
         unsigned getPos()
         {
-            return pos;
+            return static_cast<unsigned>(current - input);
         }
 
         void setPos(unsigned p)
         {
-            pos = p;
+            current = input + p;
         }
 
         bool atStart()
         {
-            return pos == 0;
+            return current == input;
         }
 
         bool atEnd()
         {
-            return pos == length;
+            return current == inputEnd;
         }
 
         unsigned end()
         {
-            return length;
+            return static_cast<unsigned>(inputEnd - input);
         }
 
         bool checkInput(unsigned count)
         {
-            if (((pos + count) <= length) && ((pos + count) >= pos)) {
-                pos += count;
+            if (((current + count) <= inputEnd) && ((current + count) >= current)) {
+                current += count;
                 return true;
             }
             return false;
@@ -392,37 +393,37 @@ public:
 
         void uncheckInput(unsigned count)
         {
-            RELEASE_ASSERT(pos >= count);
-            pos -= count;
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= count);
+            current -= count;
         }
 
         bool tryUncheckInput(unsigned count)
         {
-            if (count > pos)
+            if (count > static_cast<size_t>(current - input))
                 return false;
-            pos -= count;
+            current -= count;
             return true;
         }
 
         bool atStart(unsigned negativePositionOffset)
         {
-            return pos == negativePositionOffset;
+            return static_cast<unsigned>(current - input) == negativePositionOffset;
         }
 
         bool atEnd(unsigned negativePositionOffest)
         {
-            RELEASE_ASSERT(pos >= negativePositionOffest);
-            return (pos - negativePositionOffest) == length;
+            RELEASE_ASSERT(static_cast<size_t>(current - input) >= negativePositionOffest);
+            return (current - negativePositionOffest) == inputEnd;
         }
 
         bool isAvailableInput(unsigned offset)
         {
-            return (((pos + offset) <= length) && ((pos + offset) >= pos));
+            return (((current + offset) <= inputEnd) && ((current + offset) >= current));
         }
 
         bool isValidNegativeInputOffset(unsigned offset)
         {
-            return (pos >= offset) && ((pos - offset) < length);
+            return (static_cast<size_t>(current - input) >= offset) && ((current - offset) < inputEnd);
         }
 
         void dump(PrintStream& out) const
@@ -431,8 +432,8 @@ public:
 
     private:
         const CharType* input;
-        unsigned pos;
-        unsigned length;
+        const CharType* current;
+        const CharType* inputEnd;
         bool decodeSurrogatePairs;
     };
 
