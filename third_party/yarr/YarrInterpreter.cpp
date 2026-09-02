@@ -384,7 +384,7 @@ public:
 
         bool checkInput(unsigned count)
         {
-            if (((current + count) <= inputEnd) && ((current + count) >= current)) {
+            if (LIKELY(count <= static_cast<size_t>(inputEnd - current))) {
                 current += count;
                 return true;
             }
@@ -418,7 +418,7 @@ public:
 
         bool isAvailableInput(unsigned offset)
         {
-            return (((current + offset) <= inputEnd) && ((current + offset) >= current));
+            return offset <= static_cast<size_t>(inputEnd - current);
         }
 
         bool isValidNegativeInputOffset(unsigned offset)
