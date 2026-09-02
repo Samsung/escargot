@@ -193,6 +193,109 @@ static Value parseJSON(ExecutionState& state, const CharType* data, size_t lengt
     return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
 }
 
+using JSONValue = rapidjson::GenericValue<rapidjson::UTF16<char16_t>>;
+using JSONSourceMap = std::unordered_map<const JSONValue*, String*>;
+
+class JSONSourceCollector {
+public:
+    JSONSourceCollector(ExecutionState& state, String* text)
+        : m_state(state)
+        , m_text(text)
+        , m_data(text->toUTF16StringData().data(), text->length())
+    {
+    }
+
+    JSONSourceMap collect(const JSONValue& value)
+    {
+        collectValue(value);
+        return std::move(m_sources);
+    }
+
+private:
+    void skipWhitespace()
+    {
+        while (m_position < m_data.size() && (m_data[m_position] == u' ' || m_data[m_position] == u'\t' || m_data[m_position] == u'\n' || m_data[m_position] == u'\r')) {
+            m_position++;
+        }
+    }
+
+    void skipString()
+    {
+        ASSERT(m_data[m_position] == u'"');
+        m_position++;
+        while (m_position < m_data.size()) {
+            char16_t c = m_data[m_position++];
+            if (c == u'\\') {
+                ASSERT(m_position < m_data.size());
+                if (m_data[m_position++] == u'u') {
+                    m_position += 4;
+                }
+            } else if (c == u'"') {
+                return;
+            }
+        }
+        ASSERT_NOT_REACHED();
+    }
+
+    void collectValue(const JSONValue& value)
+    {
+        skipWhitespace();
+        if (value.IsObject()) {
+            ASSERT(m_data[m_position] == u'{');
+            m_position++;
+            for (auto member = value.MemberBegin(); member != value.MemberEnd(); ++member) {
+                skipWhitespace();
+                skipString();
+                skipWhitespace();
+                ASSERT(m_data[m_position] == u':');
+                m_position++;
+                collectValue(member->value);
+                skipWhitespace();
+                if (member + 1 != value.MemberEnd()) {
+                    ASSERT(m_data[m_position] == u',');
+                    m_position++;
+                }
+            }
+            skipWhitespace();
+            ASSERT(m_data[m_position] == u'}');
+            m_position++;
+            return;
+        }
+        if (value.IsArray()) {
+            ASSERT(m_data[m_position] == u'[');
+            m_position++;
+            for (rapidjson::SizeType i = 0; i < value.Size(); ++i) {
+                collectValue(value[i]);
+                skipWhitespace();
+                if (i + 1 != value.Size()) {
+                    ASSERT(m_data[m_position] == u',');
+                    m_position++;
+                }
+            }
+            skipWhitespace();
+            ASSERT(m_data[m_position] == u']');
+            m_position++;
+            return;
+        }
+
+        size_t start = m_position;
+        if (m_data[m_position] == u'"') {
+            skipString();
+        } else {
+            while (m_position < m_data.size() && m_data[m_position] != u' ' && m_data[m_position] != u'\t' && m_data[m_position] != u'\n' && m_data[m_position] != u'\r' && m_data[m_position] != u',' && m_data[m_position] != u']' && m_data[m_position] != u'}') {
+                m_position++;
+            }
+        }
+        m_sources.emplace(&value, m_text->substring(start, m_position, &m_state));
+    }
+
+    ExecutionState& m_state;
+    String* m_text;
+    std::u16string m_data;
+    size_t m_position { 0 };
+    JSONSourceMap m_sources;
+};
+
 static void codePointTo4digitString(int codepoint, std::basic_string<char16_t>& ss)
 {
     ss.push_back(u'\\');
@@ -239,6 +342,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
     // 4
     if (reviver.isCallable()) {
         Object* root = new Object(state);
+        JSONSourceMap sourceMap = JSONSourceCollector(state, JText).collect(parseResult);
         root->markThisObjectDontNeedStructureTransitionTable();
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString()), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&, const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>&)> Walk;
@@ -328,11 +432,9 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                 }
             } else {
                 Value sourceValue;
-                if (val.equalsToByTheSameValueAlgorithm(state, parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, source))) {
-                    rapidjson::StringBuffer buffer;
-                    rapidjson::Writer<rapidjson::StringBuffer, rapidjson::UTF16<char16_t>> writer(buffer);
-                    source.Accept(writer);
-                    sourceValue = String::fromUTF8(buffer.GetString(), buffer.GetSize());
+                auto sourceIt = sourceMap.find(&source);
+                if (sourceIt != sourceMap.end() && val.equalsToByTheSameValueAlgorithm(state, parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, source))) {
+                    sourceValue = sourceIt->second;
                 }
                 context->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().source),
                                            ObjectPropertyDescriptor(sourceValue, ObjectPropertyDescriptor::AllPresent));
