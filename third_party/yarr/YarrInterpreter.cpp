@@ -86,7 +86,7 @@ public:
             return roundedSize;
         }
 
-        int term { 0 };
+        ByteTerm* term { nullptr };
         unsigned matchBegin;
         unsigned matchEnd;
 #if ASSERT_ENABLED
@@ -1681,7 +1681,7 @@ public:
 #define dataLogLnIf(...)
 #define MATCH_NEXT() { ++context->term; goto matchAgain; }
 #define BACKTRACK() { --context->term; goto backtrack; }
-#define currentTerm() (disjunction->terms[context->term])
+#define currentTerm() (*context->term)
 
 #define DUMP_TERM()
 #define DUMP_EXTRA(...)
@@ -1702,10 +1702,10 @@ public:
             BACKTRACK();
 
         context->matchBegin = input.getPos();
-        context->term = 0;
+        context->term = disjunction->terms.data();
 
     matchAgain:
-        ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
+        ASSERT(context->term < disjunction->terms.data() + disjunction->terms.size());
 
         DUMP_TERM();
 
@@ -2003,7 +2003,7 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
 
     backtrack:
-        ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
+        ASSERT(context->term < disjunction->terms.data() + disjunction->terms.size());
 
         DUMP_TERM();
 
