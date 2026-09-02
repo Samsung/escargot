@@ -60,9 +60,25 @@ jobs:
           (cd "$GITHUB_WORKSPACE/test/web-tooling-benchmark" && npm ci)
           measure() {
             name="$1"; dir="$2"; script="$3"
-            (cd "$dir" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" /usr/bin/time -f "%M" -o "$report/$name.rss-kb" "$engine" "$script") >"$report/logs/$name.log" 2>&1
+            rss_file="$report/$name.rss-kb"
+            : > "$rss_file"
+            # GNU time reports only a process's peak RSS. Sample VmRSS while
+            # it runs so the dashboard can report both average and maximum.
+            (cd "$dir" && exec env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$engine" "$script") >"$report/logs/$name.log" 2>&1 &
+            pid="$!"
+            while kill -0 "$pid" 2>/dev/null; do
+              awk '/^VmRSS:/{print $2}' "/proc/$pid/status" 2>/dev/null >> "$rss_file" || true
+              sleep 0.05
+            done
+            if ! wait "$pid"; then
+              return 1
+            fi
+            if [ ! -s "$rss_file" ]; then
+              echo "Could not collect RSS samples for $name" >&2
+              return 1
+            fi
           }
-          # Warm-up is intentionally excluded from the reported samples.
+          # Warm-up is intentionally excluded from the reported measurements.
           measure octane-warmup "$GITHUB_WORKSPACE/test/octane" run.js
           measure web-tooling-warmup "$GITHUB_WORKSPACE/test/web-tooling-benchmark" dist/cli.js
           for n in 1; do
@@ -79,8 +95,9 @@ jobs:
                   match = re.search(pattern, log)
                   if not match: raise SystemExit(f"Could not parse {prefix} run {n}")
                   score.append(float(match.group(1)))
-                  rss.append(int((report / f"{prefix}-{n}.rss-kb").read_text().strip()))
+                  rss.extend(int(value) for value in (report / f"{prefix}-{n}.rss-kb").read_text().split())
                   output.append(log)
+              if not rss: raise SystemExit(f"Could not collect RSS samples for {prefix}")
               return {"score": round(statistics.mean(score), 2), "samples": score,
                 "average_rss_kb": round(statistics.mean(rss)), "maximum_rss_kb": max(rss),
                 "rss_samples_kb": rss, "output": output}
@@ -117,18 +134,27 @@ jobs:
         touch "$site/.nojekyll"
         cp performance-report/measurements.json "$site/performance/raw/$REVISION.json"
         python3 - "$site/performance/data/history.json" performance-report/measurements.json <<'PY'
-        import json, os, pathlib, sys
+        import datetime, json, os, pathlib, sys
         history_file, source_file = map(pathlib.Path, sys.argv[1:])
         history = json.loads(history_file.read_text()) if history_file.exists() else []
         item = json.loads(source_file.read_text())
-        item.update({"sha": os.environ["REVISION"], "short_sha": os.environ["REVISION"][:7], "revision_url": os.environ["REVISION_URL"]})
-        history = [x for x in history if x["sha"] != item["sha"]] + [item]
+        item.update({"sha": os.environ["REVISION"], "short_sha": os.environ["REVISION"][:7], "revision_url": os.environ["REVISION_URL"], "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")})
+        # Earlier entries reported GNU time's peak RSS as both average and
+        # maximum. Drop them; only sampled-RSS entries are comparable.
+        history = [x for x in history if x.get("measured_at") and x["sha"] != item["sha"]] + [item]
         history_file.write_text(json.dumps(history[-200:], indent=2) + "\n")
         PY
         python3 - "$site/index.html" README.md <<'PY'
         import sys, subprocess, pathlib, re, urllib.parse
         html_file, readme_file = map(pathlib.Path, sys.argv[1:3])
-        readme_html = subprocess.check_output(["npx", "--yes", "marked"], input=readme_file.read_bytes()).decode("utf-8")
+        # Keep the release and license badges on the Pages landing page, but
+        # omit CI, Coverity, and Codecov status badges.
+        hidden_badges = ("Actions Status", "Coverity Scan Build Status", "codecov")
+        readme_markdown = "\n".join(
+            line for line in readme_file.read_text().splitlines()
+            if not any(badge in line for badge in hidden_badges)
+        )
+        readme_html = subprocess.check_output(["npx", "--yes", "marked"], input=readme_markdown.encode()).decode("utf-8")
         readme_html = re.sub(r'^\s*<h1>Escargot</h1>', '', readme_html, count=1)
 
         def rewrite_links(html):
@@ -200,7 +226,7 @@ jobs:
         <style>body{margin:0;background:#0b1220;color:#e5edf8;font:15px system-ui}main{max-width:1100px;margin:auto;padding:32px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}.card{background:#17243a;border:1px solid #304664;border-radius:14px;padding:16px}canvas{width:100%;height:220px}table{width:100%;border-collapse:collapse;margin-top:28px}td,th{padding:9px;border-bottom:1px solid #304664;text-align:right}td:first-child,th:first-child{text-align:left}a{color:#7dd3fc}details{text-align:left;white-space:pre-wrap}code{font-size:11px}</style>
         <main>
           <h1>Escargot performance</h1>
-          <p>master only. One measured run per benchmark; warm-up is excluded. RSS is maximum resident set size.</p>
+          <p>master only. One measured run per benchmark; warm-up is excluded. RSS is sampled every 50 ms while the benchmark runs.</p>
           <div class="grid">
             <section class="card"><h2>Octane Score</h2><canvas id="octane_score"></canvas></section>
             <section class="card"><h2>Web Tooling Score</h2><canvas id="web_score"></canvas></section>
@@ -214,6 +240,7 @@ jobs:
               <thead>
                 <tr>
                   <th>Commit</th>
+                  <th>Measured (UTC)</th>
                   <th>Octane Score</th>
                   <th>Web Tooling Score</th>
                   <th>Octane Avg RSS</th>
@@ -262,7 +289,7 @@ jobs:
             x.fillText(hi.toFixed(2),p,16);
             x.fillText(lo.toFixed(2),p,h-10)
           });
-          rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.octane_avg(x).toFixed(1)+" MiB</td><td>"+v.octane_max(x).toFixed(1)+" MiB</td><td>"+v.web_avg(x).toFixed(1)+" MiB</td><td>"+v.web_max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")
+          rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+(x.measured_at ? new Date(x.measured_at).toISOString().replace("T"," ").replace(".000Z","Z") : "—")+"</td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.octane_avg(x).toFixed(1)+" MiB</td><td>"+v.octane_max(x).toFixed(1)+" MiB</td><td>"+v.web_avg(x).toFixed(1)+" MiB</td><td>"+v.web_max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")
         })
         </script>
         HTML
