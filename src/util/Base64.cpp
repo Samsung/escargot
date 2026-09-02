@@ -330,15 +330,40 @@ template <typename T>
 static std::tuple<FromBase64ShouldThrowError, size_t, size_t, std::vector<uint8_t>> fromBase64Impl(T* src, size_t srcLength, Optional<uint8_t*> dst, size_t dstLength, Alphabet alphabet, LastChunkHandling lastChunkHandling)
 {
     if (dst) {
-        auto result = simdutf::base64_to_binary_safe(src, srcLength, (char*)dst.value(), dstLength,
+        // FromBase64 stops once maxLength bytes have been produced. In
+        // particular, an empty output must not inspect its input, and a full
+        // three-byte chunk makes following garbage irrelevant.
+        if (!dstLength) {
+            return std::make_tuple(FromBase64ShouldThrowError::No, 0, 0, std::vector<uint8_t>());
+        }
+
+        size_t decodeLength = srcLength;
+        if (dstLength % 3 == 0) {
+            size_t completeChunks = 0;
+            size_t chunkLength = 0;
+            for (size_t i = 0; i < srcLength; i++) {
+                if (isASCIIWhitespace(src[i])) {
+                    continue;
+                }
+                if (++chunkLength == 4) {
+                    chunkLength = 0;
+                    if (++completeChunks == dstLength / 3) {
+                        decodeLength = i + 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        auto result = simdutf::base64_to_binary_safe(src, decodeLength, (char*)dst.value(), dstLength,
                                                      toSIMDUTFDecodeOptions(alphabet), toSIMDUTFLastChunkHandling(lastChunkHandling), true);
         switch (result.error) {
         case simdutf::error_code::SUCCESS: {
             size_t read;
             if (lastChunkHandling == LastChunkHandling::StopBeforePartial) {
-                read = fixSIMDUTFStopBeforePartialReadLength(src, srcLength, result.count);
+                read = fixSIMDUTFStopBeforePartialReadLength(src, decodeLength, result.count);
             } else {
-                read = srcLength;
+                read = decodeLength;
             }
             return std::make_tuple(FromBase64ShouldThrowError::No, read, dstLength, std::vector<uint8_t>());
         }
