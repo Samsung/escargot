@@ -2022,6 +2022,20 @@ public:
             if (offset > 0)
                 MATCH_NEXT();
 
+            // We have wrapped back to the first alternative, so the body failed at this
+            // start offset. Alternatives flagged onceThrough are anchored by a
+            // non-multiline ^ (optimizeBOL() has appended unanchored copies of the rest),
+            // so they cannot match at any later offset - skip over all of them. If the
+            // body is entirely onceThrough there is nothing left to retry.
+            while (currentTerm().alternative.onceThrough) {
+                int onceThroughNext = currentTerm().alternative.next;
+                if (onceThroughNext <= 0) {
+                    DUMP_EXTRA("- Return NoMatch\n");
+                    return JSRegExpResult::NoMatch;
+                }
+                context->term += onceThroughNext;
+            }
+
             if (input.atEnd() || pattern->sticky()) {
                 DUMP_EXTRA("- Return NoMatch\n");
                 return JSRegExpResult::NoMatch;
@@ -2030,9 +2044,6 @@ public:
             input.next();
 
             context->matchBegin = input.getPos();
-
-            if (currentTerm().alternative.onceThrough)
-                context->term += currentTerm().alternative.next;
 
             MATCH_NEXT();
         }
