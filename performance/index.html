@@ -1,4 +1,69 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot performance</title>
 <style>body{margin:0;background:#0b1220;color:#e5edf8;font:15px system-ui}main{max-width:1100px;margin:auto;padding:32px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}.card{background:#17243a;border:1px solid #304664;border-radius:14px;padding:16px}canvas{width:100%;height:220px}table{width:100%;border-collapse:collapse;margin-top:28px}td,th{padding:9px;border-bottom:1px solid #304664;text-align:right}td:first-child,th:first-child{text-align:left}a{color:#7dd3fc}details{text-align:left;white-space:pre-wrap}code{font-size:11px}</style>
-<main><h1>Escargot performance</h1><p>master only. One measured run per benchmark; warm-up is excluded. RSS is maximum resident set size.</p><div class="grid"><section class="card"><h2>Octane</h2><canvas id="octane"></canvas></section><section class="card"><h2>Web Tooling</h2><canvas id="web"></canvas></section><section class="card"><h2>Average RSS (MiB)</h2><canvas id="avg"></canvas></section><section class="card"><h2>Maximum RSS (MiB)</h2><canvas id="max"></canvas></section></div><table><thead><tr><th>Commit</th><th>Octane</th><th>Web Tooling</th><th>Avg RSS</th><th>Max RSS</th><th>Printed output</th></tr></thead><tbody id="rows"></tbody></table></main>
-<script>fetch("data/history.json").then(r=>r.json()).then(d=>{let m=x=>x/1024,v={octane:x=>x.octane.score,web:x=>x.web_tooling.score,avg:x=>m((x.octane.average_rss_kb+x.web_tooling.average_rss_kb)/2),max:x=>m(Math.max(x.octane.maximum_rss_kb,x.web_tooling.maximum_rss_kb))};Object.entries(v).forEach(([id,f])=>{let a=d.map(f),c=document.querySelector("#"+id),x=c.getContext("2d"),w=c.width=c.clientWidth*devicePixelRatio,h=c.height=c.clientHeight*devicePixelRatio,p=30,lo=Math.min(...a),hi=Math.max(...a),r=hi-lo||1;x.strokeStyle="#38bdf8";x.lineWidth=2;x.beginPath();a.forEach((n,i)=>{let X=p+i*(w-2*p)/Math.max(1,a.length-1),Y=h-p-(n-lo)*(h-2*p)/r;i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();x.fillStyle="#e5edf8";x.fillText(hi.toFixed(2),p,16);x.fillText(lo.toFixed(2),p,h-10)});rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.avg(x).toFixed(1)+" MiB</td><td>"+v.max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")})</script>
+<main>
+  <h1>Escargot performance</h1>
+  <p>master only. One measured run per benchmark; warm-up is excluded. RSS is maximum resident set size.</p>
+  <div class="grid">
+    <section class="card"><h2>Octane Score</h2><canvas id="octane_score"></canvas></section>
+    <section class="card"><h2>Web Tooling Score</h2><canvas id="web_score"></canvas></section>
+    <section class="card"><h2>Octane Avg RSS (MiB)</h2><canvas id="octane_avg"></canvas></section>
+    <section class="card"><h2>Octane Max RSS (MiB)</h2><canvas id="octane_max"></canvas></section>
+    <section class="card"><h2>Web Tooling Avg RSS (MiB)</h2><canvas id="web_avg"></canvas></section>
+    <section class="card"><h2>Web Tooling Max RSS (MiB)</h2><canvas id="web_max"></canvas></section>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Commit</th>
+          <th>Octane Score</th>
+          <th>Web Tooling Score</th>
+          <th>Octane Avg RSS</th>
+          <th>Octane Max RSS</th>
+          <th>Web Tooling Avg RSS</th>
+          <th>Web Tooling Max RSS</th>
+          <th>Printed output</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+fetch("data/history.json").then(r=>r.json()).then(d=>{
+  let m=x=>x/1024,
+  v={
+    octane_score:x=>x.octane.score,
+    web_score:x=>x.web_tooling.score,
+    octane_avg:x=>m(x.octane.average_rss_kb),
+    octane_max:x=>m(x.octane.maximum_rss_kb),
+    web_avg:x=>m(x.web_tooling.average_rss_kb),
+    web_max:x=>m(x.web_tooling.maximum_rss_kb)
+  },
+  colors={
+    octane_score:"#38bdf8",
+    web_score:"#38bdf8",
+    octane_avg:"#4ade80",
+    octane_max:"#22c55e",
+    web_avg:"#fbbf24",
+    web_max:"#f59e0b"
+  };
+  Object.entries(v).forEach(([id,f])=>{
+    let a=d.map(f),c=document.querySelector("#"+id),x=c.getContext("2d"),
+    w=c.width=c.clientWidth*devicePixelRatio,h=c.height=c.clientHeight*devicePixelRatio,p=30,
+    lo=Math.min(...a),hi=Math.max(...a),r=hi-lo||1;
+    x.strokeStyle=colors[id]||"#38bdf8";
+    x.lineWidth=2;
+    x.beginPath();
+    a.forEach((n,i)=>{
+      let X=p+i*(w-2*p)/Math.max(1,a.length-1),Y=h-p-(n-lo)*(h-2*p)/r;
+      i?x.lineTo(X,Y):x.moveTo(X,Y)
+    });
+    x.stroke();
+    x.fillStyle="#e5edf8";
+    x.fillText(hi.toFixed(2),p,16);
+    x.fillText(lo.toFixed(2),p,h-10)
+  });
+  rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.octane_avg(x).toFixed(1)+" MiB</td><td>"+v.octane_max(x).toFixed(1)+" MiB</td><td>"+v.web_avg(x).toFixed(1)+" MiB</td><td>"+v.web_max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")
+})
+</script>

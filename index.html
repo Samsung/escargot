@@ -1,3 +1,653 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot</title>
-<style>body{margin:0;background:#0b1220;color:#e5edf8;font:16px system-ui}main{max-width:800px;margin:12vh auto;padding:32px}.mark{color:#7dd3fc;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h1{font-size:48px;margin:.15em 0}.lead{font-size:20px;line-height:1.6;color:#b9c7da}.links{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}a{background:#17243a;border:1px solid #304664;border-radius:10px;padding:12px 16px;color:#7dd3fc;text-decoration:none}a:hover{background:#213451}</style>
-<main><div class="mark">Samsung Open Source</div><h1>Escargot</h1><p class="lead">A lightweight JavaScript engine written in C++.</p><div class="links"><a href="https://github.com/Samsung/escargot">GitHub repository</a><a href="performance/">Performance dashboard</a></div></main>
+<style>
+  body{margin:0;background:#0b1220;color:#e5edf8;font:16px/1.6 system-ui;line-height:1.6}
+  main{max-width:900px;margin:8vh auto;padding:32px}
+  .mark{color:#7dd3fc;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .hero{margin-bottom:48px}
+  h1{font-size:48px;margin:.15em 0}
+  .lead{font-size:20px;line-height:1.6;color:#b9c7da}
+  .links{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+  a{color:#7dd3fc;text-decoration:none}
+  .links a{background:#17243a;border:1px solid #304664;border-radius:10px;padding:12px 16px;color:#7dd3fc;text-decoration:none}
+  .links a:hover{background:#213451}
+  .readme {margin-top:64px;border-top:1px solid #304664;padding-top:48px}
+  .readme h1, .readme h2, .readme h3, .readme h4, .readme h5, .readme h6 {color:#7dd3fc;margin-top:1.5em;margin-bottom:0.5em}
+  .readme h1 {font-size:32px;border-bottom:1px solid #304664;padding-bottom:8px}
+  .readme h2 {font-size:24px;border-bottom:1px solid #22344e;padding-bottom:6px}
+  .readme h3 {font-size:20px}
+  .readme p {margin:1em 0}
+  .readme a {color:#38bdf8;text-decoration:underline}
+  .readme a:hover {color:#7dd3fc}
+  .readme pre {background:#17243a;border:1px solid #304664;border-radius:8px;padding:16px;overflow-x:auto;font-family:monospace}
+  .readme code {font-family:monospace;background:#17243a;padding:2px 6px;border-radius:4px;font-size:0.9em}
+  .readme pre code {background:none;padding:0;border-radius:0;font-size:1em}
+  .readme table {width:100%;border-collapse:collapse;margin:24px 0}
+  .readme th, .readme td {border:1px solid #304664;padding:10px;text-align:left}
+  .readme th {background:#17243a;color:#7dd3fc}
+  .readme blockquote {border-left:4px solid #7dd3fc;margin:0;padding-left:16px;color:#b9c7da}
+  .readme ul, .readme ol {padding-left:24px}
+  .readme li {margin-bottom:8px}
+  .readme img {max-width:100%;height:auto}
+</style>
+<main>
+  <div class="hero">
+    <div class="mark">Samsung Open Source</div>
+    <h1>Escargot</h1>
+    <p class="lead">A lightweight JavaScript engine written in C++.</p>
+    <div class="links">
+      <a href="https://github.com/Samsung/escargot">GitHub repository</a>
+      <a href="performance/">Performance dashboard</a>
+    </div>
+  </div>
+  <div class="readme">
+    
+<p><a href="https://github.com/Samsung/escargot/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-LGPL%20v2.1-blue.svg" alt="License"></a>
+<a href="https://github.com/Samsung/escargot/releases"><img src="https://img.shields.io/github/v/release/Samsung/escargot" alt="GitHub release (latestSemVer)"></a>
+<a href="https://github.com/Samsung/escargot/actions/workflows/es-actions.yml"><img src="https://github.com/Samsung/escargot/workflows/ES-Actions/badge.svg" alt="Actions Status"></a>
+<a href="https://scan.coverity.com/projects/samsung-escargot"><img src="https://scan.coverity.com/projects/21647/badge.svg" alt="Coverity Scan Build Status"></a>
+<a href="https://codecov.io/gh/Samsung/escargot"><img src="https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8" alt="codecov"></a></p>
+<p>Escargot is a lightweight JavaScript engine developed by <a href="https://github.com/Samsung">Samsung</a>, designed specifically for resource-constrained environments. It is optimized for performance and low memory usage, making it ideal for use in embedded systems, IoT devices, and other applications where resources are limited.</p>
+<p>Key features of Escargot include:</p>
+<ul>
+<li><strong>ECMAScript Compliance</strong>: Escargot supports a significant portion of the latest ECMAScript version (<a href="https://262.ecma-international.org/16.0/">ECMAScript 2025</a>), ensuring compatibility with modern JavaScript standards while maintaining a lightweight footprint.</li>
+<li><strong>Node-API (N-API) Compliance</strong>: Escargot provides a 100% compliant Node-API (N-API) layer supporting ABI stability versions up to v10. This allows developers to load pre-compiled Node.js C++ addons directly and embed the engine using standard C-style hosting APIs. See <a href="https://github.com/Samsung/escargot/blob/master/docs/n-api.md"><code>docs/n-api.md</code></a> for details and a complete embedding example.</li>
+<li><strong>Memory Efficiency</strong>: The engine is designed with memory constraints in mind, making it suitable for devices with limited RAM and storage.</li>
+<li><strong>Performance Optimization</strong>: Escargot implements various optimization techniques to ensure fast execution of JavaScript code, even on low-power devices.</li>
+<li><strong>Extensibility</strong>: The engine can be customized and extended to meet the specific needs of different applications, providing flexibility for developers.</li>
+</ul>
+<p>Escargot is an open-source project that allows developers to contribute to its development or use it in their own projects, while also powering several services in Samsung products. The engine&#39;s design prioritizes simplicity and efficiency, making it an excellent choice for developers working in embedded or resource-limited environments.</p>
+<h2>Contents 📋</h2>
+<ul>
+<li><a href="#Building-">Building</a><ul>
+<li><a href="#Linux">Linux</a></li>
+<li><a href="#macOS">macOS</a></li>
+<li><a href="#iOS">iOS</a></li>
+<li><a href="#Android">Android</a></li>
+<li><a href="#Windows">Windows</a></li>
+<li><a href="#Bare-metal--RTOS">Bare-metal / RTOS</a></li>
+</ul>
+</li>
+<li><a href="#Testing-">Testing</a></li>
+<li><a href="#Contributing-">Contributing</a></li>
+<li><a href="#Research-Papers-">Research Papers</a></li>
+<li><a href="#License-">License</a></li>
+</ul>
+<h2>Building 🛠️</h2>
+<h3>Supported Platforms and Architectures</h3>
+<table>
+<thead>
+<tr>
+<th><strong>OS</strong></th>
+<th><strong>Architecture</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Linux(Ubuntu)</strong></td>
+<td>x86/x64/arm/aarch64/riscv64</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td>x64/aarch64</td>
+</tr>
+<tr>
+<td>iOS / iPadOS</td>
+<td>aarch64 (Simulator + device)</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>Win32/x64</td>
+</tr>
+<tr>
+<td>Android</td>
+<td>x86/x64/arm/aarch64</td>
+</tr>
+<tr>
+<td>Tizen</td>
+<td>arm (build-only)</td>
+</tr>
+<tr>
+<td>Bare-metal / RTOS</td>
+<td>arm (Cortex-M, via FreeRTOS/NuttX samples)</td>
+</tr>
+</tbody></table>
+<h3>Build Options</h3>
+<p>The following build options are supported when generating build rules using cmake.</p>
+<table>
+<thead>
+<tr>
+<th><strong>Flag</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Value</strong></th>
+<th><strong>Default</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>-DESCARGOT_BUILD_SHARED_LIBS</td>
+<td>Build shared library</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_BUILD_GC_SHARED_LIBS</td>
+<td>Build GCutil as a shared library</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DENABLE_SHELL</td>
+<td>Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL)</td>
+<td>ON/OFF</td>
+<td>ON, except OFF when ESCARGOT_NAPI is ON</td>
+</tr>
+<tr>
+<td>-DESCARGOT_BUILD_CCTEST</td>
+<td>Build the C++ tests</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_LIBICU_SUPPORT</td>
+<td>Include libicu library</td>
+<td>ON/OFF</td>
+<td>ON, except OFF on bare-metal</td>
+</tr>
+<tr>
+<td>-DESCARGOT_WASM</td>
+<td>Enable WebAssembly support</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_CODE_CACHE</td>
+<td>Enable code cache</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_TCO</td>
+<td>Enable tail call optimization</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_THREADING</td>
+<td>Enable threading features (e.g. Atomics, SharedArrayBuffer)</td>
+<td>ON/OFF</td>
+<td>ON, except OFF on bare-metal</td>
+</tr>
+<tr>
+<td>-DESCARGOT_TLS_ACCESS_BY_ADDRESS</td>
+<td>Enable thread local storage access optimization (offset)</td>
+<td>ON/OFF</td>
+<td>OFF everywhere (safety-first; opt in manually on stable glibc-style targets)</td>
+</tr>
+<tr>
+<td>-DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY</td>
+<td>Enable thread local storage access optimization (pthread_key)</td>
+<td>ON/OFF</td>
+<td>ON when THREADING is ON and host is Android, otherwise OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_TEMPORAL</td>
+<td>Enable Temporal support (requires ICU)</td>
+<td>ON/OFF</td>
+<td>ON when LIBICU is ON, otherwise OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_SHADOWREALM</td>
+<td>Enable ShadowRealm support</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_SMALL_CONFIG</td>
+<td>Enable aggressive memory optimizations for tiny devices</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_EXPORT_ALL</td>
+<td>Export all symbols instead of the default curated public API</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_TEST</td>
+<td>Enable additional features used only for testing</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_DEBUGGER</td>
+<td>Enable Debug server</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>-DESCARGOT_NAPI</td>
+<td>Enable Node-API (N-API) support and C-style hosting APIs</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+</tbody></table>
+<details>
+<summary>Advanced / developer-only options (profiling, sanitizers, internal knobs)</summary><p>| <strong>Flag</strong> | <strong>Description</strong> | <strong>Value</strong> | <strong>Default</strong> |
+|-|-|-|-|-|
+| <strong>-DESCARGOT_ASAN</strong> | Build with AddressSanitizer | ON/OFF | OFF |
+| <strong>-DESCARGOT_COVERAGE</strong> | Build with gcov/Codecov instrumentation | ON/OFF | OFF |
+| <strong>-DESCARGOT_DEPLOY</strong> | Build for deployment (set up RPATH for a bundled ICU) | ON/OFF | OFF |
+| <strong>-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN</strong> | Load libicu at runtime via dlopen() instead of linking directly | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn&#39;t work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
+| <strong>-DESCARGOT_LIBICU_SUPPORT_VENDORED</strong> | Build/ship Escargot&#39;s own ICU instead of relying on a system-provided one (see &quot;Vendored ICU&quot; below) | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
+| <strong>-DESCARGOT_USE_EXTENDED_API</strong> | Enable the extended C++ API (FunctionTemplateRef, etc.) | ON/OFF | ON when NAPI is ON, otherwise OFF |
+| <strong>-DESCARGOT_USE_CUSTOM_LOGGING</strong> | Use a custom logging backend instead of the host&#39;s native log (e.g. dlog on Tizen) | ON/OFF | OFF |
+| <strong>-DESCARGOT_TCO_DEBUG</strong> | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | ON/OFF | OFF |
+| <strong>-DESCARGOT_PROFILE_BDWGC</strong> | Enable bdwgc (Boehm GC) profiling |  ON/OFF | OFF |
+| <strong>-DESCARGOT_MEM_STATS</strong> | Enable memory usage statistics | ON/OFF | OFF |
+| <strong>-DESCARGOT_VALGRIND</strong> | Build with Valgrind annotations | ON/OFF | OFF |
+| <strong>-DESCARGOT_GOOGLE_PERF</strong> | Build with gperftools (Google Performance Tools) profiling | ON/OFF | OFF |
+| <strong>-DESCARGOT_BUILD_64BIT_FORCE_LARGE</strong> | On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression | ON/OFF | ON |</p>
+</details><h3>Linux</h3>
+<p>General build prerequisites:</p>
+<pre><code class="language-sh">sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build pkg-config
+</code></pre>
+<p>Prerequisites for x86-64-to-x86 compilation:</p>
+<pre><code class="language-sh">sudo apt-get install gcc-multilib g++-multilib
+sudo apt-get install libicu-dev:i386
+</code></pre>
+<p>Build Escargot:</p>
+<pre><code class="language-sh">git submodule update --init third_party # update submodules
+cmake -DENABLE_SHELL=ON -GNinja
+ninja
+</code></pre>
+<blockquote>
+<p>CMake 4.0+ removed support for <code>cmake_minimum_required(VERSION &lt; 3.5)</code> and will
+hard-error on some vendored third-party dependencies (e.g. <code>third_party/wasm/wabt</code>)
+that still declare an older minimum. If your <code>cmake --version</code> is 4.0 or newer, add
+<code>-DCMAKE_POLICY_VERSION_MINIMUM=3.5</code> to the <code>cmake</code> command above.</p>
+</blockquote>
+<h3>macOS</h3>
+<p>General build prerequisites:</p>
+<pre><code class="language-sh">brew install autoconf automake cmake libtool ninja pkg-config
+</code></pre>
+<p>Build Escargot:</p>
+<pre><code class="language-sh">git submodule update --init third_party # update submodules
+cmake -DENABLE_SHELL=ON -GNinja
+ninja
+</code></pre>
+<p>ICU is vendored by default on macOS (see &quot;Vendored ICU&quot; below) -- it&#39;s built
+from the <code>third_party/icu</code> submodule above and linked statically, so no
+Homebrew <code>icu4c</code>/<code>pkg-config</code> setup is needed for the default path. To opt
+back into a Homebrew/system-provided ICU instead:</p>
+<pre><code class="language-sh">brew install icu4c
+
+# add icu path to pkg_config_path (x64)
+export PKG_CONFIG_PATH=&quot;/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH&quot;
+# add icu path to pkg_config_path (arm64)
+export PKG_CONFIG_PATH=&quot;/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH&quot;
+
+cmake -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DENABLE_SHELL=ON -GNinja
+ninja
+</code></pre>
+<blockquote>
+<p>Same CMake 4.0+ note as the Linux section above applies here too --
+add <code>-DCMAKE_POLICY_VERSION_MINIMUM=3.5</code> if needed.</p>
+</blockquote>
+<h3>Android</h3>
+<p>Build prerequisites on Ubuntu:</p>
+<pre><code class="language-sh">sudo apt install openjdk-17-jdk # require java 17
+</code></pre>
+<p>Build Escargot using gradle:</p>
+<pre><code class="language-sh">git submodule update --init third_party # update submodules
+export ANDROID_SDK_ROOT=.... # set your android SDK root first
+cd build/android/
+./gradlew bundleReleaseAar # build escargot AAR
+./gradlew bundleHostJar # bundle jar for host
+./gradlew javadocJar # create java doc
+./gradlew sourcesJar # create sources jar
+
+./gradlew assembleDebug # build debug test shell
+./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
+./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
+</code></pre>
+<h3>Bare-metal / RTOS</h3>
+<p>Escargot runs on bare-metal and RTOS targets with no OS underneath
+(no pthreads, no <code>mmap</code>, no filesystem). Specifying a bare-metal/RTOS target via <code>CMAKE_SYSTEM_NAME</code> (such as <code>Generic</code>, <code>NuttX</code>, <code>FreeRTOS</code>) automatically
+configures the engine side of this (<code>-DOS_BAREMETAL=1</code> and friends,
+ICU/threading defaulted off):</p>
+<pre><code class="language-sh">cmake -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm ... /path/to/escargot
+</code></pre>
+<p>A full port additionally needs its own small CMake project for BDWGC
+(<code>third_party/GCutil</code>) and a <code>PlatformRef</code> implementation providing the
+RTOS&#39;s task stack bounds and tick source. See
+<a href="https://github.com/Samsung/escargot/blob/master/docs/porting/RTOS_PORTING_GUIDE.md"><code>docs/porting/RTOS_PORTING_GUIDE.md</code></a>
+for the full checklist and code contract, and
+<a href="https://github.com/Samsung/escargot/blob/master/samples/rtos/freertos"><code>samples/rtos/freertos/</code></a> for a complete, working
+in-tree sample (FreeRTOS / Cortex-M55, QEMU <code>mps3-an547</code>) — cross-compiled
+and boot-tested under QEMU by the <code>RTOS-FreeRTOS</code> CI job
+(<code>.github/workflows/rtos-freertos.yml</code>) whenever engine or sample sources
+change.</p>
+<p>A second reference port, NuttX / Cortex-M55 (same QEMU target), is also
+in-tree: <a href="https://github.com/Samsung/escargot/blob/master/samples/rtos/nuttx"><code>samples/rtos/nuttx/</code></a> has the escargot NSH
+app (<code>interpreters-escargot/</code>, meant to be dropped into your own
+NuttX+apps checkout&#39;s <code>apps/interpreters/</code>) and the out-of-tree CMake
+project that builds the engine for it (<code>escargot-lib-cmake/</code>). Unlike
+FreeRTOS-Kernel, NuttX itself isn&#39;t vendored as a submodule here (a NuttX
+app fundamentally needs a full NuttX+apps source tree, not a standalone
+library dependency) — CI-verified instead by the <code>RTOS-NuttX</code> job
+(<code>.github/workflows/rtos-nuttx.yml</code>), which checks out NuttX + its <code>apps</code>
+monorepo at pinned commits (cached across runs) and boot-tests the same
+way. Both ports&#39; shared contract and checklist are in
+<a href="https://github.com/Samsung/escargot/blob/master/docs/porting/RTOS_PORTING_GUIDE.md"><code>docs/porting/RTOS_PORTING_GUIDE.md</code></a>.</p>
+<h3>Windows</h3>
+<p>Install VS2022 with cmake and ninja.
+Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Prompt for VS 2022 ]</p>
+<p>ICU is vendored by default on Windows (see &quot;Vendored ICU&quot; below) via
+<a href="https://github.com/microsoft/vcpkg">vcpkg</a> -- install it first and pass its
+installed-tree path as <code>ICU_ROOT</code>:</p>
+<pre><code class="language-sh">git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git
+call vcpkg\bootstrap-vcpkg.bat
+vcpkg\vcpkg.exe install icu --triplet=x64-windows # or x86-windows / arm64-windows
+
+git submodule update --init third_party # update submodules
+
+CMake -G &quot;Visual Studio 17 2022&quot; -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING=&quot;10.0&quot;  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DICU_ROOT=vcpkg\installed\x64-windows -Bout -DENABLE_SHELL=ON
+# ICU_ROOT above points at a vcpkg-installed ICU; drop it (and pass
+# -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF) to use the OS-provided ICU instead.
+cd out
+msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
+</code></pre>
+<p>After building, copy the ICU DLLs the binary actually depends on (<code>dumpbin /dependents out\escargot.exe | findstr /i icu</code>) from
+<code>vcpkg\installed\x64-windows\bin\</code> next to <code>escargot.exe</code> -- see the
+<code>build-on-windows-x86-x64</code>/<code>build-windows</code> CI jobs for the exact commands.
+Pass <code>-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF</code> to fall back to the
+OS-provided ICU (Windows 10 1703+&#39;s built-in <code>icu.lib</code>) instead and skip all
+of the above.</p>
+<h3>iOS</h3>
+<p><code>ESCARGOT_HOST=ios</code> cross-compiles Escargot from a macOS host to arm64 iOS.
+Which of Apple&#39;s two iOS SDKs is targeted is selected with
+<code>-DCMAKE_OSX_SYSROOT</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>-DCMAKE_OSX_SYSROOT=</code></th>
+<th>Target</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>iphonesimulator</code></td>
+<td>iOS Simulator (arm64, i.e. an Apple Silicon build machine)</td>
+<td>Built <strong>and run</strong> in CI (<code>build-test-on-ios-simulator-arm64</code>, which runs Octane)</td>
+</tr>
+<tr>
+<td><code>iphoneos</code></td>
+<td>Real iPhone/iPad hardware (arm64)</td>
+<td>Built and Mach-O-verified in CI (<code>build-on-ios-device-arm64</code>), <strong>never executed on physical hardware by this project</strong> -- see the caveats below</td>
+</tr>
+</tbody></table>
+<p>There is no separate &quot;ipados&quot; host: Apple ships one SDK/platform identifier
+(&quot;iOS&quot;) and one arm64 sysroot/triple for both iPhone and iPad at the
+CMake/toolchain level. arm64 is the only supported architecture (armv7
+devices predate every supported deployment target, and an x86_64 simulator
+would mean an Intel build machine).</p>
+<p>Prerequisites: a full Xcode install (not just the Command Line Tools --
+<code>xcrun --sdk iphonesimulator --show-sdk-path</code>, or <code>--sdk iphoneos</code> for a
+device build, must succeed) and <code>ninja</code>.</p>
+<p>ICU on iOS has exactly two supported configurations: vendored (the default;
+see &quot;Vendored ICU&quot; below) or off entirely (<code>-DESCARGOT_LIBICU_SUPPORT=OFF</code>).
+There is no system/pkg-config ICU dev package available on iOS, and
+dlopen-loading an arbitrary library is unavailable there too, so both of
+those other ICU paths are rejected with a <code>FATAL_ERROR</code> at configure time.</p>
+<h4>iOS Simulator</h4>
+<pre><code class="language-sh">git submodule update --init third_party/GCutil third_party/icu # update submodules (+ vendored ICU source)
+
+cmake -B out -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphonesimulator \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout
+</code></pre>
+<p>The resulting <code>out/escargot</code> is an arm64 Mach-O binary linked against the
+iphonesimulator SDK, and running it takes two steps -- neither of them
+optional, both confirmed against real-world reports of the same two
+failures (not guessed):</p>
+<ol>
+<li><strong>Ad-hoc code-sign it.</strong> macOS on Apple Silicon enforces code signing on
+<em>every</em> arm64 executable, including plain command-line tools -- the
+linker only emits a minimal &quot;linker-signed&quot; signature by default, which
+recent macOS versions reject outright (<code>Killed: 9</code>) even though nothing
+else about the binary is wrong:<pre><code class="language-sh">codesign --sign - --force out/escargot   # ad-hoc signature, no identity/provisioning needed
+</code></pre>
+</li>
+<li><strong>Run it inside a booted simulator device via <code>simctl spawn</code>,</strong> not by
+invoking it bare from Terminal. A simulator-platform Mach-O binary still
+needs <code>DYLD_ROOT_PATH</code> pointed at a <em>booted</em> simulator runtime&#39;s root
+(not the Xcode SDK path used at build time) or it fails at dyld startup
+with <code>dyld: attempt to run simulator program outside simulator (DYLD_ROOT_PATH not set)</code> -- <code>xcrun simctl spawn</code> sets this up for you
+(and everything else the simulator runtime environment needs), so it&#39;s
+the robust way to do this rather than hand-deriving that runtime-root
+path yourself:<pre><code class="language-sh">xcrun simctl list devices available   # pick any pre-provisioned iOS (not watchOS/tvOS) device&#39;s UDID
+xcrun simctl boot &lt;device-udid&gt;
+xcrun simctl spawn &lt;device-udid&gt; &quot;$(pwd)/out/escargot&quot; run.js   # simctl spawn needs an absolute path
+</code></pre>
+</li>
+</ol>
+<p>A GitHub Actions <code>macos-latest</code> runner already has Xcode-provisioned
+simulator devices available (no extra download), so both steps above are
+CI-safe as-is. Manually exporting <code>DYLD_ROOT_PATH=&lt;a booted device&#39;s CoreSimulator runtime root&gt;</code> and invoking <code>out/escargot</code> directly (bypassing
+<code>simctl spawn</code> entirely) is also technically possible -- it&#39;s the lower-level
+mechanism <code>simctl spawn</code> itself relies on internally -- but that runtime-root
+path lives under <code>/Library/Developer/CoreSimulator/...</code>, resolved
+per-runtime/per-Xcode-version rather than being a fixed, easy-to-derive
+path (unlike the build-time SDK path from <code>xcrun --sdk iphonesimulator --show-sdk-path</code>), so <code>simctl spawn</code> is the supported, non-fragile way to do
+this and what the CI job below actually uses.</p>
+<p>See the <code>build-test-on-ios-simulator-arm64</code> CI job
+(<code>.github/workflows/es-actions.yml</code>) for a full working example, including
+running the Octane benchmark this way.</p>
+<h4>iOS device (<code>iphoneos</code>)</h4>
+<p>Same build, different sysroot -- the two SDKs share one set of headers and
+API-availability annotations and differ only in sysroot and target triple
+(<code>arm64-apple-ios&lt;ver&gt;</code> vs <code>arm64-apple-ios&lt;ver&gt;-simulator</code>), which the
+vendored ICU cross build picks up too:</p>
+<pre><code class="language-sh">git submodule update --init third_party/GCutil third_party/icu
+
+# static libescargot.a (+ the escargot shell binary)
+cmake -B out-device -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphoneos \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout-device
+
+# or a shared libescargot.dylib to embed in an app bundle&#39;s Frameworks/
+cmake -B out-device-shared -GNinja \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT=iphoneos \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DESCARGOT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+ninja -Cout-device-shared
+</code></pre>
+<p>⚠️ <strong>Read this before shipping a device build.</strong> Escargot&#39;s own CI builds
+this configuration and verifies the resulting Mach-O really is tagged for
+the iOS <em>device</em> platform (<code>vtool -show-build</code> -&gt; <code>platform IOS</code>), that it
+is arm64, that ICU ended up statically linked, and that the dylib&#39;s install
+name is <code>@rpath</code>-relative -- but nothing in this project has ever <em>executed</em>
+Escargot on physical iOS hardware. The runtime coverage for the iOS host
+comes from the Simulator job. Treat the device build as &quot;expected to work,
+build-verified, unproven at runtime&quot;, and please file an issue if it isn&#39;t.</p>
+<p>What the build gives you, and what stays your responsibility:</p>
+<ul>
+<li><strong>The <code>escargot</code> shell binary is a compile/link check, not a deliverable.</strong>
+A stock (non-jailbroken) device cannot launch a bare CLI executable at
+all. On device you link <code>libescargot.a</code> (or embed <code>libescargot.dylib</code>)
+into your own app target and drive the engine through
+<a href="https://github.com/Samsung/escargot/blob/master/src/api/EscargotPublic.h"><code>src/api/EscargotPublic.h</code></a> or the Node-API
+layer (<a href="https://github.com/Samsung/escargot/blob/master/docs/n-api.md"><code>docs/n-api.md</code></a>) from your app&#39;s code.</li>
+<li><strong>Code signing, provisioning and bundle packaging are yours.</strong> This build
+emits plain unsigned Mach-O artifacts; Xcode (or <code>codesign</code> with a real
+identity + a provisioning profile that covers the device) is what makes
+them runnable. A shared <code>libescargot.dylib</code> has to be embedded under the
+app bundle&#39;s <code>Frameworks/</code> and signed along with the app.</li>
+<li><strong>No JIT, so no entitlement problems.</strong> Escargot is a pure interpreter --
+it never maps writable-executable memory, so it needs neither the
+<code>dynamic-codesigning</code> entitlement (which Apple grants no third-party app)
+nor any JIT-related workaround. This is the reason an ordinary App Store
+app can embed it in the first place.</li>
+<li><strong>All file paths must be inside the app sandbox.</strong> Anything the embedder
+hands the engine has to be a container-relative path -- most notably
+<code>VMInstanceRef::create(locale, timezone, baseCacheDir)</code>&#39;s <code>baseCacheDir</code>
+when built with <code>-DESCARGOT_CODE_CACHE=ON</code>, which must point at a
+writable directory in your container (e.g. Caches), not a hardcoded
+<code>/tmp</code>.</li>
+<li><strong>Deployment target.</strong> <code>-DCMAKE_OSX_DEPLOYMENT_TARGET</code> is forwarded to the
+vendored ICU cross build as well, so both halves agree on the minimum iOS
+version; raise it as your app needs.</li>
+</ul>
+<p>See the <code>build-on-ios-device-arm64</code> CI job
+(<code>.github/workflows/es-actions.yml</code>) for the exact commands and
+verification steps.</p>
+<h3>Vendored ICU</h3>
+<p>By default, Escargot loads ICU from wherever the target OS/dev environment
+already provides it (system package on linux/Android, Homebrew on macOS,
+OS-built-in on Windows) -- except on iOS, which has no system ICU at all.
+<code>-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON</code> (the windows, macOS and iOS default
+-- and, on iOS, the only supported ICU option, see the &quot;iOS&quot; section above;
+opt-in on linux) makes Escargot bring/build its own ICU instead -- useful for
+targets with no usable system ICU, or to pin an exact ICU version/build
+independent of the host. The actual mechanism differs per host, since ICU&#39;s
+own build system does too:</p>
+<ul>
+<li><strong>linux</strong> and <strong>macOS</strong>: both build the <code>third_party/icu</code> submodule
+(pinned to tag <code>release-78.1</code>, matching this repo&#39;s CI pin) from source --
+via <code>runConfigureICU Linux/gcc</code>/<code>MacOSX</code> respectively -- with its data
+trimmed via <code>build/icu-filters/escargot.json</code> to just what
+<code>third_party/runtime_icu_binder/RuntimeICUBinder.h</code>&#39;s call surface uses,
+and links the result statically -- no separate ICU data file, no runtime
+ICU dependency at all. (The macOS static archives are just as mutually
+referential as the linux ones, but don&#39;t need linux&#39;s
+<code>-Wl,--start-group</code>/<code>--end-group</code> treatment -- Apple&#39;s <code>ld64</code> doesn&#39;t
+understand that GNU ld syntax, and doesn&#39;t need an equivalent either since
+it resolves undefined symbols across all archives on the command line
+regardless of order.)</li>
+<li><strong>windows</strong>: ICU&#39;s own Windows build only ships <code>common</code>/<code>i18n</code> as DLLs (no
+static <code>.lib</code> variant), so this locates an ICU installed via
+<a href="https://github.com/microsoft/vcpkg">vcpkg</a> (<code>-DICU_ROOT=&lt;vcpkg&gt;/installed/&lt;triplet&gt;</code>)
+and links against its import libs; the matching DLLs (selected via
+<code>dumpbin /dependents</code>, not a blanket copy) need to ship next to
+<code>escargot.exe</code>/<code>escargot.dll</code> -- see the Windows build instructions above
+and the <code>build-on-windows-x86-x64</code>/<code>build-windows</code> CI jobs.</li>
+<li><strong>ios</strong>: ICU has no native &quot;iOS&quot; autoconf target, so this does the
+standard two-pass cross build from ICU&#39;s User Guide&#39;s cross-compilation
+section (<code>--with-cross-build</code>): first build ICU&#39;s own tools (<code>genrb</code>,
+<code>genbrk</code>, ...) natively for the macOS build machine
+(<code>runConfigureICU MacOSX</code>), then cross-compile the real target ICU
+(<code>configure --with-cross-build=&lt;pass-1 build dir&gt;</code>) with <code>CC</code>/<code>CFLAGS</code>/
+<code>LDFLAGS</code> pointed at the selected iOS SDK&#39;s sysroot (<code>iphonesimulator</code> or
+<code>iphoneos</code>, following this build&#39;s own <code>-DCMAKE_OSX_SYSROOT</code>) and a
+matching explicit <code>-target arm64-apple-ios&lt;ver&gt;[-simulator]</code> triple,
+reusing pass 1&#39;s tools to generate its (filtered, per
+<code>build/icu-filters/escargot.json</code>) data. The result is linked statically
+-- no separate ICU data file, no runtime ICU dependency at all.</li>
+</ul>
+<p>See <code>build/VendoredICU.cmake</code> for the implementation and
+<code>.github/workflows/es-actions.yml</code>&#39;s <code>build-test-on-vendored-icu-linux</code>/
+<code>build-on-macos</code>/<code>build-on-macos-arm64</code>/<code>build-test-on-ios-simulator-arm64</code>/
+<code>build-on-ios-device-arm64</code> jobs for full end-to-end examples (build, verify
+static linking via <code>ldd</code>/<code>otool -L</code>, run tests, and for the iOS Simulator
+run the Octane benchmark).</p>
+<h2>Debugger</h2>
+<p>Make sure Escargot is built with the <code>-DESCARGOT_DEBUGGER=1</code> flag (off by default) enabled;
+then start Escargot with the <code>--start-debug-server</code> option.</p>
+<h3>Connect using a debugger client</h3>
+<ul>
+<li>Escargot python debugger<ul>
+<li>run <code>./tools/debugger/debugger.py</code>; It will automatically connect to a debug server on the default port <code>6501</code></li>
+<li>run <code>./tools/debugger/debugger.py --help</code> for a list of options</li>
+</ul>
+</li>
+<li><a href="https://github.com/Samsung/escargot-vscode-extension/?tab=readme-ov-file#how-to-use">Visual Studio Code extension</a></li>
+<li>Chrome Devtools <code>⚠️ Early in development ⚠️</code><ul>
+<li>Initial setup:<ul>
+<li>Navigate to <a href="chrome://inspect">chrome://inspect</a></li>
+<li>Make sure <em>Discover network targets</em> is enabled; click configure</li>
+<li>Add <code>localhost:6501</code> as a target; click Done</li>
+</ul>
+</li>
+<li>Usage:<ul>
+<li>The started debug server will be listed in the <em>Remote Target</em> list (If it is not, the page may need to be reloaded using the browser reload button)</li>
+<li>Click <code>inspect</code></li>
+<li>A new window with the Chrome Devtools debugger UI will open</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2>Testing ✅</h2>
+<p>Escargot supports various benchmark sets, which can be run using the <a href="https://github.com/Samsung/escargot/blob/master/tools/run-tests.py">tools/run-tests.py</a> script.</p>
+<p>Prerequisites:</p>
+<pre><code class="language-sh"># Python 3 only -- the v8/spidermonkey/test262 runners are pure python3, no python2 needed.
+sudo apt-get install python3
+sudo apt-get install python3-chardet  # or: pip install chardet -- required by the test262 runner
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>flag</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SunSpider 1.0.2</td>
+<td><code>sunspider</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/chromium/octane.git">Octane 2.0</a></td>
+<td><code>octane</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/tc39/test262.git">test262</a></td>
+<td><code>test262</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/v8/web-tooling-benchmark">Web Tooling Benchmark</a></td>
+<td><code>web-tooling-benchmark</code></td>
+</tr>
+<tr>
+<td>SpiderMonkey (vendor-made)</td>
+<td><code>spidermonkey</code></td>
+</tr>
+<tr>
+<td>ChakraCore (vendor-made)</td>
+<td><code>chakracore</code></td>
+</tr>
+<tr>
+<td>V8 (vendor-made)</td>
+<td><code>v8</code></td>
+</tr>
+</tbody></table>
+<p>Run each benchmark separately or all together as shown below:</p>
+<pre><code class="language-sh">tools/run-tests.py --engine=./out/linux/x64/release/escargot web-tooling-benchmark
+tools/run-tests.py --engine=./out/linux/x64/release/escargot spidermonkey test262 v8
+</code></pre>
+<h2>Contributing 💡</h2>
+<p>Escargot welcomes contributions from developers in any form, wheter it&#39;s code, documentation, bug reports, or suggestions. By contributing to the project, you agree to license your contributions under the <a href="https://github.com/Samsung/escargot/blob/master/LICENSE">LGPL-2.1</a> license.</p>
+<h4>❗ Vulnerability Reporting</h4>
+<p>⚠️ If you identify any vulnerabilities, please report them through the <a href="https://github.com/Samsung/escargot/issues">Issues page</a>. <em>Reports sent via other channels may not be considered or may be processed with delays</em>. Please note that our project assumes the execution of valid JavaScript source code only. Handling of invalid source code is not within the main scope of this project and might not be addressed.</p>
+<h2>Research Papers 📝</h2>
+<ul>
+<li><p><a href="https://doi.org/10.1002/spe.3186">Dynamic code compression for JavaScript engine</a><br>Software: Practice and Experience Vol. 53 (5), pp. 1196-1217, 2023</p>
+</li>
+<li><p><a href="https://doi.org/10.1109/ACCESS.2024.3441750">Tail Call Optimization Tailored for Native Stack Utilization in JavaScript Runtimes</a><br>IEEE Access Vol. 12, pp. 111801-111817, 2024</p>
+</li>
+</ul>
+<h2>License 📜</h2>
+<p>Escargot is open-source software primarily licensed under <a href="https://github.com/Samsung/escargot/blob/master/LICENSE">LGPL-2.1</a>, with some components covered by other licenses. Complete license and copyright information can be found in the source code.</p>
+
+
+  </div>
+</main>
+</html>

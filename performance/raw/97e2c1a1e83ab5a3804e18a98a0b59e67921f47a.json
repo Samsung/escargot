@@ -1,0 +1,30 @@
+{
+  "octane": {
+    "score": 1930.0,
+    "samples": [
+      1930.0
+    ],
+    "average_rss_kb": 178620,
+    "maximum_rss_kb": 178620,
+    "rss_samples_kb": [
+      178620
+    ],
+    "output": [
+      "Richards: 1058\nDeltaBlue: 952\nCrypto: 1195\nRayTrace: 1384\nEarleyBoyer: 1574\nRegExp: 229\nSplay: 1033\nSplayLatency: 1894\nNavierStokes: 1464\nPdfJS: 3668\nMandreel: 755\nMandreelLatency: 4721\nGameboy: 5838\nCodeLoad: 13663\nBox2D: 3566\nzlib: 1545\nTypescript: 7198\n----\nScore (version 9): 1930\n"
+    ]
+  },
+  "web_tooling": {
+    "score": 0.53,
+    "samples": [
+      0.53
+    ],
+    "average_rss_kb": 281740,
+    "maximum_rss_kb": 281740,
+    "rss_samples_kb": [
+      281740
+    ],
+    "output": [
+      "Running Web Tooling Benchmark v0.5.3\u2026\n-------------------------------------\n         acorn:  0.67 runs/s\n         babel:  0.97 runs/s\n  babel-minify:  1.11 runs/s\n       babylon:  0.65 runs/s\n         buble:  0.60 runs/s\n          chai:  0.86 runs/s\n  coffeescript:  0.40 runs/s\n        espree:  0.40 runs/s\n       esprima:  0.49 runs/s\n        jshint:  0.55 runs/s\n         lebab:  0.67 runs/s\n       postcss:  0.54 runs/s\n       prepack:  0.97 runs/s\n      prettier:  0.16 runs/s\n    source-map:  0.52 runs/s\n        terser:  0.51 runs/s\n    typescript:  0.66 runs/s\n     uglify-js:  0.12 runs/s\n-------------------------------------\nGeometric mean:  0.53 runs/s\n"
+    ]
+  }
+}
