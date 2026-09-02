@@ -655,7 +655,14 @@ jobs:
           install -d -m 700 "$lock_dir"
           # Keep the lock FD in this process, then exec sleep so $! remains
           # the lock holder's PID and the release step can reliably kill it.
-          RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep infinity' bash "$lock_file" "$ready_file" &
+          # Bound the hold too: RUNNER_TRACKING_ID="" opts this detached
+          # process out of the runner's own orphan cleanup, so if the
+          # runner service is restarted mid-job (rather than the job
+          # itself being cancelled), nothing else will ever kill it and
+          # it would wedge the exclusive performance-benchmark lock
+          # forever instead of just until this lease expires.
+          lease_seconds=14400 # 4h, comfortably above this lock's real hold times
+          RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" &
           lock_pid=$!
           for _ in $(seq 1 600); do
             test -s "$ready_file" && break
@@ -2065,7 +2072,14 @@ jobs:
         install -d -m 700 "$lock_dir"
         # Keep the lock FD in this process, then exec sleep so $! remains
         # the lock holder's PID and the release step can reliably kill it.
-        RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep infinity' bash "$lock_file" "$ready_file" &
+        # Bound the hold too: RUNNER_TRACKING_ID="" opts this detached
+        # process out of the runner's own orphan cleanup, so if the
+        # runner service is restarted mid-job (rather than the job
+        # itself being cancelled), nothing else will ever kill it and
+        # it would wedge the exclusive performance-benchmark lock
+        # forever instead of just until this lease expires.
+        lease_seconds=14400 # 4h, comfortably above this lock's real hold times
+        RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" &
         lock_pid=$!
         for _ in $(seq 1 600); do
           test -s "$ready_file" && break

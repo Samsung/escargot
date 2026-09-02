@@ -45,6 +45,12 @@ jobs:
           report="$GITHUB_WORKSPACE/performance-report"
           build="$GITHUB_WORKSPACE/out/performance-release"
           mkdir -p "$report/logs"
+          icu_dir="/usr/icu78-64"
+          if [ -d "$icu_dir" ]; then
+            export LDFLAGS="-L$icu_dir/lib/ -Wl,-rpath=$icu_dir/lib/"
+            export PKG_CONFIG_PATH="$icu_dir/lib/pkgconfig/"
+            export LD_LIBRARY_PATH="$icu_dir/lib/"
+          fi
           cmake -S "$GITHUB_WORKSPACE" -B "$build" -GNinja -DCMAKE_BUILD_TYPE=Release -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DENABLE_SHELL=ON
           ninja -C "$build"
           engine="$build/escargot"
@@ -54,7 +60,7 @@ jobs:
           (cd "$GITHUB_WORKSPACE/test/web-tooling-benchmark" && npm ci)
           measure() {
             name="$1"; dir="$2"; script="$3"
-            (cd "$dir" && /usr/bin/time -f "%M" -o "$report/$name.rss-kb" "$engine" "$script") >"$report/logs/$name.log" 2>&1
+            (cd "$dir" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" /usr/bin/time -f "%M" -o "$report/$name.rss-kb" "$engine" "$script") >"$report/logs/$name.log" 2>&1
           }
           # Warm-up is intentionally excluded from the reported samples.
           measure octane-warmup "$GITHUB_WORKSPACE/test/octane" run.js
@@ -119,16 +125,146 @@ jobs:
         history = [x for x in history if x["sha"] != item["sha"]] + [item]
         history_file.write_text(json.dumps(history[-200:], indent=2) + "\n")
         PY
-        cat > "$site/index.html" <<'HTML'
-        <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot</title>
-        <style>body{margin:0;background:#0b1220;color:#e5edf8;font:16px system-ui}main{max-width:800px;margin:12vh auto;padding:32px}.mark{color:#7dd3fc;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h1{font-size:48px;margin:.15em 0}.lead{font-size:20px;line-height:1.6;color:#b9c7da}.links{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}a{background:#17243a;border:1px solid #304664;border-radius:10px;padding:12px 16px;color:#7dd3fc;text-decoration:none}a:hover{background:#213451}</style>
-        <main><div class="mark">Samsung Open Source</div><h1>Escargot</h1><p class="lead">A lightweight JavaScript engine written in C++.</p><div class="links"><a href="https://github.com/Samsung/escargot">GitHub repository</a><a href="performance/">Performance dashboard</a></div></main>
-        HTML
+        python3 - "$site/index.html" README.md <<'PY'
+        import sys, subprocess, pathlib, re, urllib.parse
+        html_file, readme_file = map(pathlib.Path, sys.argv[1:3])
+        readme_html = subprocess.check_output(["npx", "--yes", "marked"], input=readme_file.read_bytes()).decode("utf-8")
+        readme_html = re.sub(r'^\s*<h1>Escargot</h1>', '', readme_html, count=1)
+
+        def rewrite_links(html):
+            def replacer(match):
+                attr = match.group(1)
+                quote = match.group(2)
+                url = match.group(3)
+                parsed = urllib.parse.urlparse(url)
+                if parsed.scheme or url.startswith('#'):
+                    return f'{attr}={quote}{url}{quote}'
+                clean_url = url.lstrip('./')
+                return f'{attr}={quote}https://github.com/Samsung/escargot/blob/master/{clean_url}{quote}'
+            pattern = r'(href|src)=(["\'])(.*?)\2'
+            return re.sub(pattern, replacer, html)
+
+        processed_html = rewrite_links(readme_html)
+
+        template = f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot</title>
+        <style>
+          body{{margin:0;background:#0b1220;color:#e5edf8;font:16px/1.6 system-ui;line-height:1.6}}
+          main{{max-width:900px;margin:8vh auto;padding:32px}}
+          .mark{{color:#7dd3fc;font-weight:700;letter-spacing:.08em;text-transform:uppercase}}
+          .hero{{margin-bottom:48px}}
+          h1{{font-size:48px;margin:.15em 0}}
+          .lead{{font-size:20px;line-height:1.6;color:#b9c7da}}
+          .links{{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}}
+          a{{color:#7dd3fc;text-decoration:none}}
+          .links a{{background:#17243a;border:1px solid #304664;border-radius:10px;padding:12px 16px;color:#7dd3fc;text-decoration:none}}
+          .links a:hover{{background:#213451}}
+          .readme {{margin-top:64px;border-top:1px solid #304664;padding-top:48px}}
+          .readme h1, .readme h2, .readme h3, .readme h4, .readme h5, .readme h6 {{color:#7dd3fc;margin-top:1.5em;margin-bottom:0.5em}}
+          .readme h1 {{font-size:32px;border-bottom:1px solid #304664;padding-bottom:8px}}
+          .readme h2 {{font-size:24px;border-bottom:1px solid #22344e;padding-bottom:6px}}
+          .readme h3 {{font-size:20px}}
+          .readme p {{margin:1em 0}}
+          .readme a {{color:#38bdf8;text-decoration:underline}}
+          .readme a:hover {{color:#7dd3fc}}
+          .readme pre {{background:#17243a;border:1px solid #304664;border-radius:8px;padding:16px;overflow-x:auto;font-family:monospace}}
+          .readme code {{font-family:monospace;background:#17243a;padding:2px 6px;border-radius:4px;font-size:0.9em}}
+          .readme pre code {{background:none;padding:0;border-radius:0;font-size:1em}}
+          .readme table {{width:100%;border-collapse:collapse;margin:24px 0}}
+          .readme th, .readme td {{border:1px solid #304664;padding:10px;text-align:left}}
+          .readme th {{background:#17243a;color:#7dd3fc}}
+          .readme blockquote {{border-left:4px solid #7dd3fc;margin:0;padding-left:16px;color:#b9c7da}}
+          .readme ul, .readme ol {{padding-left:24px}}
+          .readme li {{margin-bottom:8px}}
+          .readme img {{max-width:100%;height:auto}}
+        </style>
+        <main>
+          <div class="hero">
+            <div class="mark">Samsung Open Source</div>
+            <h1>Escargot</h1>
+            <p class="lead">A lightweight JavaScript engine written in C++.</p>
+            <div class="links">
+              <a href="https://github.com/Samsung/escargot">GitHub repository</a>
+              <a href="performance/">Performance dashboard</a>
+            </div>
+          </div>
+          <div class="readme">
+            {processed_html}
+          </div>
+        </main>
+        </html>
+        """
+        html_file.write_text(template, encoding="utf-8")
+        PY
         cat > "$site/performance/index.html" <<'HTML'
         <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot performance</title>
         <style>body{margin:0;background:#0b1220;color:#e5edf8;font:15px system-ui}main{max-width:1100px;margin:auto;padding:32px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}.card{background:#17243a;border:1px solid #304664;border-radius:14px;padding:16px}canvas{width:100%;height:220px}table{width:100%;border-collapse:collapse;margin-top:28px}td,th{padding:9px;border-bottom:1px solid #304664;text-align:right}td:first-child,th:first-child{text-align:left}a{color:#7dd3fc}details{text-align:left;white-space:pre-wrap}code{font-size:11px}</style>
-        <main><h1>Escargot performance</h1><p>master only. One measured run per benchmark; warm-up is excluded. RSS is maximum resident set size.</p><div class="grid"><section class="card"><h2>Octane</h2><canvas id="octane"></canvas></section><section class="card"><h2>Web Tooling</h2><canvas id="web"></canvas></section><section class="card"><h2>Average RSS (MiB)</h2><canvas id="avg"></canvas></section><section class="card"><h2>Maximum RSS (MiB)</h2><canvas id="max"></canvas></section></div><table><thead><tr><th>Commit</th><th>Octane</th><th>Web Tooling</th><th>Avg RSS</th><th>Max RSS</th><th>Printed output</th></tr></thead><tbody id="rows"></tbody></table></main>
-        <script>fetch("data/history.json").then(r=>r.json()).then(d=>{let m=x=>x/1024,v={octane:x=>x.octane.score,web:x=>x.web_tooling.score,avg:x=>m((x.octane.average_rss_kb+x.web_tooling.average_rss_kb)/2),max:x=>m(Math.max(x.octane.maximum_rss_kb,x.web_tooling.maximum_rss_kb))};Object.entries(v).forEach(([id,f])=>{let a=d.map(f),c=document.querySelector("#"+id),x=c.getContext("2d"),w=c.width=c.clientWidth*devicePixelRatio,h=c.height=c.clientHeight*devicePixelRatio,p=30,lo=Math.min(...a),hi=Math.max(...a),r=hi-lo||1;x.strokeStyle="#38bdf8";x.lineWidth=2;x.beginPath();a.forEach((n,i)=>{let X=p+i*(w-2*p)/Math.max(1,a.length-1),Y=h-p-(n-lo)*(h-2*p)/r;i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();x.fillStyle="#e5edf8";x.fillText(hi.toFixed(2),p,16);x.fillText(lo.toFixed(2),p,h-10)});rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.avg(x).toFixed(1)+" MiB</td><td>"+v.max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")})</script>
+        <main>
+          <h1>Escargot performance</h1>
+          <p>master only. One measured run per benchmark; warm-up is excluded. RSS is maximum resident set size.</p>
+          <div class="grid">
+            <section class="card"><h2>Octane Score</h2><canvas id="octane_score"></canvas></section>
+            <section class="card"><h2>Web Tooling Score</h2><canvas id="web_score"></canvas></section>
+            <section class="card"><h2>Octane Avg RSS (MiB)</h2><canvas id="octane_avg"></canvas></section>
+            <section class="card"><h2>Octane Max RSS (MiB)</h2><canvas id="octane_max"></canvas></section>
+            <section class="card"><h2>Web Tooling Avg RSS (MiB)</h2><canvas id="web_avg"></canvas></section>
+            <section class="card"><h2>Web Tooling Max RSS (MiB)</h2><canvas id="web_max"></canvas></section>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Commit</th>
+                  <th>Octane Score</th>
+                  <th>Web Tooling Score</th>
+                  <th>Octane Avg RSS</th>
+                  <th>Octane Max RSS</th>
+                  <th>Web Tooling Avg RSS</th>
+                  <th>Web Tooling Max RSS</th>
+                  <th>Printed output</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </main>
+        <script>
+        fetch("data/history.json").then(r=>r.json()).then(d=>{
+          let m=x=>x/1024,
+          v={
+            octane_score:x=>x.octane.score,
+            web_score:x=>x.web_tooling.score,
+            octane_avg:x=>m(x.octane.average_rss_kb),
+            octane_max:x=>m(x.octane.maximum_rss_kb),
+            web_avg:x=>m(x.web_tooling.average_rss_kb),
+            web_max:x=>m(x.web_tooling.maximum_rss_kb)
+          },
+          colors={
+            octane_score:"#38bdf8",
+            web_score:"#38bdf8",
+            octane_avg:"#4ade80",
+            octane_max:"#22c55e",
+            web_avg:"#fbbf24",
+            web_max:"#f59e0b"
+          };
+          Object.entries(v).forEach(([id,f])=>{
+            let a=d.map(f),c=document.querySelector("#"+id),x=c.getContext("2d"),
+            w=c.width=c.clientWidth*devicePixelRatio,h=c.height=c.clientHeight*devicePixelRatio,p=30,
+            lo=Math.min(...a),hi=Math.max(...a),r=hi-lo||1;
+            x.strokeStyle=colors[id]||"#38bdf8";
+            x.lineWidth=2;
+            x.beginPath();
+            a.forEach((n,i)=>{
+              let X=p+i*(w-2*p)/Math.max(1,a.length-1),Y=h-p-(n-lo)*(h-2*p)/r;
+              i?x.lineTo(X,Y):x.moveTo(X,Y)
+            });
+            x.stroke();
+            x.fillStyle="#e5edf8";
+            x.fillText(hi.toFixed(2),p,16);
+            x.fillText(lo.toFixed(2),p,h-10)
+          });
+          rows.innerHTML=d.slice().reverse().map(x=>"<tr><td><a href='"+x.revision_url+"'>"+x.short_sha+"</a></td><td>"+x.octane.score+"</td><td>"+x.web_tooling.score+"</td><td>"+v.octane_avg(x).toFixed(1)+" MiB</td><td>"+v.octane_max(x).toFixed(1)+" MiB</td><td>"+v.web_avg(x).toFixed(1)+" MiB</td><td>"+v.web_max(x).toFixed(1)+" MiB</td><td><details><summary>logs</summary><code>"+[...x.octane.output,...x.web_tooling.output].join("\n\n")+"</code></details></td></tr>").join("")
+        })
+        </script>
         HTML
         cd "$site"
         git config user.name "github-actions[bot]"
