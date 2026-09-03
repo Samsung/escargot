@@ -522,7 +522,10 @@ jobs:
           git submodule init test/vendortest
           git submodule init third_party/GCutil
           git submodule init third_party/walrus
-          git submodule update
+          git submodule update --checkout --force
+          expected=$(git ls-tree HEAD test/test262 | awk '{print $3}')
+          test "$(git -C test/test262 rev-parse HEAD)" = "$expected"
+          git -C test/test262 diff --quiet
           cd third_party/walrus && git submodule init && git submodule update && cd -
 
       - name: Set up JDK 17
@@ -1164,7 +1167,7 @@ jobs:
       shell: bash
       run: |
         for i in 1 2 3; do
-          git submodule update --init --recursive -- test/test262 && break
+          git submodule update --init --checkout --force --recursive -- test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1232,7 +1235,7 @@ jobs:
       shell: bash
       run: |
         for i in 1 2 3; do
-          git submodule update --init --recursive -- test/test262 && break
+          git submodule update --init --checkout --force --recursive -- test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1290,7 +1293,7 @@ jobs:
       shell: bash
       run: |
         for i in 1 2 3; do
-          git submodule update --init --recursive -- test/test262 && break
+          git submodule update --init --checkout --force --recursive -- test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1546,7 +1549,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- test/vendortest test/test262 && break
+          git submodule update --init --checkout --force -- test/vendortest test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1609,7 +1612,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil third_party/icu test/test262 && break
+          git submodule update --init --checkout --force -- third_party/GCutil third_party/icu test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1734,7 +1737,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- test/octane test/vendortest test/web-tooling-benchmark test/test262 && break
+          git submodule update --init --checkout --force -- test/octane test/vendortest test/web-tooling-benchmark test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1882,10 +1885,15 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/test262 test/kangax && break
+          git submodule update --init --checkout --force -- third_party/GCutil test/test262 test/kangax && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
+        expected=$(git ls-tree HEAD test/test262 | awk '{print $3}')
+        actual=$(git -C test/test262 rev-parse HEAD)
+        test "$actual" = "$expected"
+        git -C test/test262 diff --quiet
+        git -C test/test262 diff --cached --quiet
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
@@ -1940,7 +1948,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/test262 && break
+          git submodule update --init --checkout --force -- third_party/GCutil test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -1999,7 +2007,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/test262 && break
+          git submodule update --init --checkout --force -- third_party/GCutil test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -2100,7 +2108,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/vendortest test/octane test/test262 && break
+          git submodule update --init --checkout --force -- third_party/GCutil test/vendortest test/octane test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
@@ -2223,7 +2231,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil test/vendortest test/octane test/test262 && break
+          git submodule update --init --checkout --force -- third_party/GCutil test/vendortest test/octane test/test262 && break
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
