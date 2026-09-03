@@ -72,6 +72,10 @@
   # This test-cases always fails in ES6 Well-known symbol replace
   'regress/regress-2437': [SKIP],
 
+  # Expects legacy ICU canonicalization of IANA timezone links. ECMA-402
+  'regress/regress-crbug-487322': [SKIP],
+  'regress/regress-crbug-364374': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],

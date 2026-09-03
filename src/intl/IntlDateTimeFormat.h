@@ -155,7 +155,7 @@ public:
     bool allOptionsUndefined();
 
 protected:
-    std::tuple<double, LocalResourcePointer<UDateFormat>> icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime);
+    std::tuple<double, LocalResourcePointer<UDateFormat>, bool> icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime);
     static String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder);
     struct DateTimeFormatOtherHelperResult {
         Optional<UDateFormat*> icuDateFormat;
@@ -166,7 +166,7 @@ protected:
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
     void initICUIntervalFormatIfNecessary(ExecutionState& state);
     std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointer<UCalendar>, LocalResourcePointer<UDateIntervalFormat>> prepareFormatRangeArguments(ExecutionState& state, Value startDateInput, Value endDateInput);
-    UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x);
+    UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x, bool isPlainTemporal = false);
 
     bool m_wasThereNoFormatOption;
 
@@ -187,6 +187,7 @@ protected:
     EncodedValue m_dayPeriodInput;
     EncodedValue m_hour;
     EncodedValue m_hourCycle;
+    EncodedValue m_temporalHourCycle;
     EncodedValue m_minute;
     EncodedValue m_second;
     EncodedValue m_timeZoneName;

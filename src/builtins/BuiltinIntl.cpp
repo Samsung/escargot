@@ -174,6 +174,32 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
         options = argv[1];
     }
 
+    // ChainDateTimeFormat is a normative-optional ECMA-402 feature. When
+    // called as a function with a DateTimeFormat-prototype receiver, attach a
+    // freshly initialized formatter under this realm's private fallback Symbol.
+    if (!newTarget.hasValue() && thisValue.isObject()) {
+        Object* dateTimeFormatPrototype = state.context()->globalObject()->intlDateTimeFormatPrototype();
+        Value prototype = thisValue;
+        bool hasDateTimeFormatPrototype = false;
+        while (prototype.isObject()) {
+            prototype = prototype.asObject()->getPrototype(state);
+            if (prototype.isObject() && prototype.asObject() == dateTimeFormatPrototype) {
+                hasDateTimeFormatPrototype = true;
+                break;
+            }
+        }
+
+        if (hasDateTimeFormatPrototype) {
+            Object* dateTimeFormat = new IntlDateTimeFormatObject(state, locales, options);
+            Symbol* fallbackSymbol = state.context()->globalObject()->intlLegacyConstructedSymbol();
+            thisValue.asObject()->defineOwnPropertyThrowsException(
+                state, ObjectPropertyName(state, Value(fallbackSymbol)),
+                ObjectPropertyDescriptor(Value(dateTimeFormat),
+                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+            return thisValue;
+        }
+    }
+
     // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
     Object* newTargetVariable;
     if (!newTarget.hasValue()) {
@@ -188,6 +214,24 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
     });
     Object* dateTimeFormat = new IntlDateTimeFormatObject(state, proto, locales, options);
     return dateTimeFormat;
+}
+
+static IntlDateTimeFormatObject* unwrapDateTimeFormat(ExecutionState& state, Value thisValue)
+{
+    if (thisValue.isObject() && thisValue.asObject()->isIntlDateTimeFormatObject()) {
+        return thisValue.asObject()->asIntlDateTimeFormatObject();
+    }
+
+    if (thisValue.isObject()) {
+        Symbol* fallbackSymbol = state.context()->globalObject()->intlLegacyConstructedSymbol();
+        Value fallback = thisValue.asObject()->get(state, ObjectPropertyName(state, Value(fallbackSymbol))).value(state, thisValue.asObject());
+        if (fallback.isObject() && fallback.asObject()->isIntlDateTimeFormatObject()) {
+            return fallback.asObject()->asIntlDateTimeFormatObject();
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    return nullptr;
 }
 
 static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -275,10 +319,7 @@ static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* re
 
 static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
-    }
-    IntlDateTimeFormatObject* intlDateTimeFormatObject = thisValue.asObject()->asIntlDateTimeFormatObject();
+    IntlDateTimeFormatObject* intlDateTimeFormatObject = unwrapDateTimeFormat(state, thisValue);
     Object* result = new Object(state);
 
 #define SET_RESULT(name)                                                                                                                                                         \

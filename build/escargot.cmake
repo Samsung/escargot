@@ -306,7 +306,10 @@ ADD_CUSTOM_COMMAND(
     OUTPUT ${UNICODE_PROPERTY_TABLES_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
     COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${UNICODE_PROPERTY_TABLES_HEADER}
-    DEPENDS ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py
+    DEPENDS
+        ${PROJECT_SOURCE_DIR}/tools/code_generators/generateYarrUnicodePropertyTables.py
+        ${PROJECT_SOURCE_DIR}/tools/unicode_data/emoji-sequences.txt
+        ${PROJECT_SOURCE_DIR}/tools/unicode_data/emoji-zwj-sequences.txt
     COMMENT "Generating UnicodePatternTables.h"
 )
 
@@ -314,8 +317,10 @@ ADD_CUSTOM_COMMAND(
     OUTPUT ${SIMPLE_CASE_FOLDING_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/escargot_generated/yarr/
     COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py ${PROJECT_SOURCE_DIR}/tools/unicode_data ${SIMPLE_CASE_FOLDING_HEADER}
-    DEPENDS ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py
-    ${UNICODE_PROPERTY_TABLES_HEADER}
+    DEPENDS
+        ${PROJECT_SOURCE_DIR}/tools/code_generators/generateSimpleCaseFoldingTable.py
+        ${PROJECT_SOURCE_DIR}/tools/unicode_data/CaseFolding.txt
+        ${UNICODE_PROPERTY_TABLES_HEADER}
     COMMENT "Generating SimpleCaseFoldingTable.h"
 )
 
