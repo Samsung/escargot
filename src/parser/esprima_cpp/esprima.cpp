@@ -696,6 +696,17 @@ public:
         return this->context->inFunctionBody || this->sourceType == SourceType::Module || this->lexicalBlockIndex != 0;
     }
 
+    bool isUsingOfForHead()
+    {
+        ASSERT(this->matchKeyword(UsingKeyword));
+        ScanState state = this->scanner->saveState();
+        this->collectComments();
+        ALLOC_TOKEN(next);
+        this->scanner->lex(next);
+        this->scanner->restoreState(state);
+        return next->type == Token::IdentifierToken && next->equalsToKeywordNoEscape(OfKeyword);
+    }
+
     ALWAYS_INLINE void collectComments()
     {
         this->scanner->scanComments();
@@ -4062,6 +4073,9 @@ public:
         idNode = this->parsePattern(builder, params, options.kind, true);
         leftSideType = idNode->type();
         isIdentifier = (leftSideType == Identifier);
+        if (options.kind == UsingKeyword && !isIdentifier) {
+            this->throwError("Using declarations require binding identifiers");
+        }
         if (isIdentifier) {
             name = idNode->asIdentifier()->name();
         }
@@ -4093,6 +4107,9 @@ public:
             if (!initNode) {
                 this->throwError("Missing initializer in const identifier '%s' declaration", name.string());
             }
+        }
+        if (options.kind == UsingKeyword && !options.inFor && !initNode) {
+            this->throwError("Missing initializer in using declaration");
         }
 
         return this->finalize(node, builder.createVariableDeclaratorNode(options.kind, idNode, initNode));
@@ -4334,7 +4351,7 @@ public:
                     init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->expect(SemiColon);
                 }
-            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword) || this->matchKeyword(UsingKeyword) || (matchAwaitUsing = this->matchAwaitUsing())) {
+            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword) || (this->matchKeyword(UsingKeyword) && !this->isUsingOfForHead()) || (matchAwaitUsing = this->matchAwaitUsing())) {
                 Marker letContstMarker = this->lastMarker;
                 if (matchAwaitUsing) {
                     this->nextToken();
@@ -4395,7 +4412,7 @@ public:
                         this->context->allowIn = previousAllowIn;
 
                         if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
-                            if (seenAwait || matchAwaitUsing) {
+                            if (seenAwait || matchAwaitUsing || kind == UsingKeyword) {
                                 this->throwUnexpectedToken(this->lookahead);
                             }
                             left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
@@ -4409,10 +4426,13 @@ public:
                             this->nextToken();
                             type = statementTypeForOf;
                         } else {
-                            if (seenAwait || matchAwaitUsing) {
+                            if (seenAwait) {
                                 this->throwUnexpectedToken(this->lookahead);
                             }
                             init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
+                            if (matchAwaitUsing) {
+                                init->asVariableDeclaration()->markAwaitUsing();
+                            }
                             this->expect(SemiColon);
                         }
                     }
@@ -4700,6 +4720,20 @@ public:
         while (true) {
             if (this->match(RightBrace) || this->matchKeyword(DefaultKeyword) || this->matchKeyword(CaseKeyword)) {
                 break;
+            }
+            // A UsingDeclaration is permitted in a nested block, but not directly
+            // in a CaseClause or DefaultClause StatementList.
+            bool isUsingDeclaration = this->matchAwaitUsing();
+            if (!isUsingDeclaration && this->matchKeyword(UsingKeyword) && this->canUseUsingAsDeclaration()) {
+                ScanState state = this->scanner->saveState();
+                this->collectComments();
+                ALLOC_TOKEN(next);
+                this->scanner->lex(next);
+                this->scanner->restoreState(state);
+                isUsingDeclaration = next->type == Token::IdentifierToken && next->lineNumber == this->lookahead.lineNumber;
+            }
+            if (isUsingDeclaration) {
+                this->throwUnexpectedToken(this->lookahead);
             }
             consequent->appendChild(this->parseStatementListItem(builder));
         }
@@ -5973,7 +6007,8 @@ public:
 
     template <class ASTBuilder>
     ASTNode parseClassElement(ASTBuilder& builder, ASTNode& constructor, bool hasSuperClass, const AtomicString& className,
-                              size_t& fieldCount, ParserClassPrivateNameVector& privateNames)
+                              size_t& instanceFieldInitSize, size_t& staticFieldInitSize,
+                              ParserClassPrivateNameVector& privateNames)
     {
         ALLOC_TOKEN(token);
         *token = this->lookahead;
@@ -6115,9 +6150,16 @@ public:
         }
 
         if (kind == ClassElementNode::Kind::Field) {
-            fieldCount++;
             if (builder.isPropertyKeyStartsWith(keyNode, 0x200C) || builder.isPropertyKeyStartsWith(keyNode, 0x200D)) {
                 this->throwError(Messages::InvalidClassElementName);
+            }
+        }
+
+        if (kind == ClassElementNode::Kind::Field || isPrivate) {
+            if (isStatic) {
+                staticFieldInitSize++;
+            } else {
+                instanceFieldInitSize++;
             }
         }
 
@@ -6335,7 +6377,8 @@ public:
         ASTNodeList body;
         ASTNode constructor = nullptr;
 
-        size_t fieldCount = 0;
+        size_t instanceFieldInitSize = 0;
+        size_t staticFieldInitSize = 0;
         ParserClassPrivateNameVector privateNames;
 
         this->expect(LeftBrace);
@@ -6343,7 +6386,8 @@ public:
             if (this->match(SemiColon)) {
                 this->nextToken();
             } else {
-                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className, fieldCount, privateNames);
+                ASTNode classElement = this->parseClassElement(builder, constructor, hasSuperClass, className,
+                                                               instanceFieldInitSize, staticFieldInitSize, privateNames);
                 if (classElement) {
                     body.append(this->allocator, classElement);
                 }
@@ -6353,7 +6397,7 @@ public:
         endNode.index++; // advancing for '{'
         this->expect(RightBrace);
 
-        if (UNLIKELY(fieldCount > std::numeric_limits<uint16_t>::max())) {
+        if (UNLIKELY(instanceFieldInitSize > std::numeric_limits<uint16_t>::max() || staticFieldInitSize > std::numeric_limits<uint16_t>::max())) {
             this->throwError("too many fields in class", String::emptyString(), String::emptyString(), ErrorCode::RangeError);
         }
 

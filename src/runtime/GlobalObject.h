@@ -386,6 +386,7 @@ class FunctionObject;
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 class IntlDateTimeFormatObject;
+class Symbol;
 
 #if defined(ENABLE_EXTENDED_API)
 // for certain third-party cases, GlobalObject's prototype can be modified
@@ -431,6 +432,8 @@ public:
 #undef DECLARE_BUILTIN_GETTER_FUNC
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Symbol* intlLegacyConstructedSymbol();
+
     // cache for argument-less Date.prototype.toLocale{,Date,Time}String():
     // building an Intl formatter per call dominates those calls otherwise
     enum DefaultDateTimeFormatKind : uint8_t {
@@ -474,6 +477,7 @@ public:
 private:
     Context* m_context;
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    Symbol* m_intlLegacyConstructedSymbol;
     Optional<IntlDateTimeFormatObject*> m_defaultDateTimeFormat[3];
 #endif
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
