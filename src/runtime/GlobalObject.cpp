@@ -62,6 +62,9 @@ GlobalObject::GlobalObject(ExecutionState& state)
     : ImmutablePrototypeObject(state, Object::createBuiltinObjectPrototype(state))
 #endif
     , m_context(state.context())
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    , m_intlLegacyConstructedSymbol(nullptr)
+#endif
 #define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)
 
@@ -73,6 +76,16 @@ GlobalObject::GlobalObject(ExecutionState& state)
 
     Object::setGlobalIntrinsicObject(state);
 }
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+Symbol* GlobalObject::intlLegacyConstructedSymbol()
+{
+    if (!m_intlLegacyConstructedSymbol) {
+        m_intlLegacyConstructedSymbol = new Symbol(String::fromASCII("IntlLegacyConstructedSymbol"));
+    }
+    return m_intlLegacyConstructedSymbol;
+}
+#endif
 
 void GlobalObject::initializeBuiltins(ExecutionState& state)
 {
@@ -1066,6 +1079,9 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_disposableStack->setGlobalIntrinsicObject(state, true);
     m_disposableStackPrototype = new PrototypeObject(state);
     m_disposableStackPrototype->setGlobalIntrinsicObject(state, true);
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor),
+                                                  ObjectPropertyDescriptor(m_disposableStack,
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_disposableStack->setFunctionPrototype(state, m_disposableStackPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(strings->DisposableStack),
@@ -1112,6 +1128,9 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_asyncDisposableStack->setGlobalIntrinsicObject(state, true);
     m_asyncDisposableStackPrototype = new PrototypeObject(state);
     m_asyncDisposableStackPrototype->setGlobalIntrinsicObject(state, true);
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor),
+                                                       ObjectPropertyDescriptor(m_asyncDisposableStack,
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_asyncDisposableStack->setFunctionPrototype(state, m_asyncDisposableStackPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(strings->AsyncDisposableStack),

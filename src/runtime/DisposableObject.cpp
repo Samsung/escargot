@@ -306,6 +306,8 @@ static Value awaitFulfilledFunction(ExecutionState& state, Value thisValue, size
 {
     auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
     auto data = s->internalSlot(0).asPointerValue()->asDisposableResourceRecord();
+    data->m_awaitResumeValueSlot = argv[0];
+    data->m_awaitResumeStateSlot = Value(ExecutionPauser::ResumeState::Normal);
     asyncDisposeResources(state, data);
     return Value();
 }
@@ -314,6 +316,8 @@ static Value awaitRejectedFunction(ExecutionState& state, Value thisValue, size_
 {
     auto s = state.resolveCallee()->asExtendedNativeFunctionObject();
     auto data = s->internalSlot(0).asPointerValue()->asDisposableResourceRecord();
+    data->m_awaitResumeValueSlot = argv[0];
+    data->m_awaitResumeStateSlot = Value(ExecutionPauser::ResumeState::Throw);
     asyncDisposeResources(state, data);
     return Value();
 }
@@ -379,7 +383,7 @@ static void asyncDisposeResources(ExecutionState& state, DisposableResourceRecor
             if (!resultIsError && record.m_isAsyncDisposableResource) {
                 // Set result to Completion(Await(result.[[Value]])).
                 data->m_records.pushBack(record);
-                asyncDisposeAwaitOperation(state, data->m_result, data, 2);
+                asyncDisposeAwaitOperation(state, result, data, 2);
                 return;
                 // Set hasAwaited to true.
             AsyncDisposableAwaitResumeStage2:
