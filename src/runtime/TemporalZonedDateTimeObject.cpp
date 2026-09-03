@@ -495,7 +495,7 @@ ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTimeWi
     // Let dateTime be GetISODateTimeFor(timeZone, ns1).
     auto dateTime = Temporal::getISODateTimeFor(state, timeZone, ns1);
     // Return ? RoundRelativeDuration(difference, ns1, ns2, dateTime, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
-    return Temporal::roundRelativeDuration(state, difference, ns2, Temporal::toPlainDateTime(ns1), timeZone, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
+    return Temporal::roundRelativeDuration(state, difference, ns1, ns2, dateTime, timeZone, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
 }
 
 ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit)

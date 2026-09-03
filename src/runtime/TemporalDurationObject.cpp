@@ -83,19 +83,40 @@ TemporalDurationObject::TemporalDurationObject(ExecutionState& state, Object* pr
     }
     PLAIN_DATETIME_UNITS(DEFINE_SETTER)
 #undef DEFINE_SETTER
+
+    // CreateTemporalDuration validates that all fields have one sign and that
+    // their combined time portion is in the Temporal duration range.
+    if (!m_duration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Duration is out of range");
+    }
 }
 
 TemporalDurationObject::TemporalDurationObject(ExecutionState& state, const ISO8601::Duration& duration)
     : DerivedObject(state, state.context()->globalObject()->temporalDurationPrototype())
     , m_duration(duration)
 {
+    if (!m_duration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Duration is out of range");
+    }
+}
+
+static double int128ToNumber(Int128 value)
+{
+    BigIntData number(value);
+    return number.toDouble();
+}
+
+static Int128 durationFieldToInt128(double value)
+{
+    auto result = checkedCastDoubleToInt128(value);
+    ASSERT(!result.hasOverflowed());
+    return result.value();
 }
 
 ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(ExecutionState& state, ISO8601::InternalDuration internalDuration, ISO8601::DateTimeUnit largestUnit)
 {
     // Let days, hours, minutes, seconds, milliseconds, and microseconds be 0.
-    double days = 0, hours = 0, minutes = 0, seconds = 0;
-    Int128 milliseconds = 0, microseconds = 0;
+    Int128 days = 0, hours = 0, minutes = 0, seconds = 0, milliseconds = 0, microseconds = 0;
 
     // Let sign be TimeDurationSign(internalDuration.[[Time]]).
     // Let nanoseconds be abs(internalDuration.[[Time]]).
@@ -155,14 +176,14 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         nanoseconds = nanoseconds % 1000;
         milliseconds = microseconds / 1000;
         microseconds = microseconds % 1000;
-        seconds = (double)(milliseconds / 1000);
+        seconds = milliseconds / 1000;
         milliseconds = milliseconds % 1000;
-        minutes = std::trunc(seconds / 60);
-        seconds = std::fmod(seconds, 60);
-        hours = std::trunc(minutes / 60);
-        minutes = std::fmod(minutes, 60);
-        days = std::trunc(hours / 24);
-        hours = std::fmod(hours, 24);
+        minutes = seconds / 60;
+        seconds = seconds % 60;
+        hours = minutes / 60;
+        minutes = minutes % 60;
+        days = hours / 24;
+        hours = hours % 24;
     } else if (largestUnit == ISO8601::DateTimeUnit::Hour) {
         // Else if largestUnit is hour, then
         // Set microseconds to floor(nanoseconds / 1000).
@@ -179,12 +200,12 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         nanoseconds = nanoseconds % 1000;
         milliseconds = microseconds / 1000;
         microseconds = microseconds % 1000;
-        seconds = (double)(milliseconds / 1000);
+        seconds = milliseconds / 1000;
         milliseconds = milliseconds % 1000;
-        minutes = std::trunc(seconds / 60);
-        seconds = std::fmod(seconds, 60);
-        hours = std::trunc(minutes / 60);
-        minutes = std::fmod(minutes, 60);
+        minutes = seconds / 60;
+        seconds = seconds % 60;
+        hours = minutes / 60;
+        minutes = minutes % 60;
     } else if (largestUnit == ISO8601::DateTimeUnit::Minute) {
         // Else if largestUnit is minute, then
         // Set microseconds to floor(nanoseconds / 1000).
@@ -199,10 +220,10 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         nanoseconds = nanoseconds % 1000;
         milliseconds = microseconds / 1000;
         microseconds = microseconds % 1000;
-        seconds = (double)(milliseconds / 1000);
+        seconds = milliseconds / 1000;
         milliseconds = milliseconds % 1000;
-        minutes = std::trunc(seconds / 60);
-        seconds = std::fmod(seconds, 60);
+        minutes = seconds / 60;
+        seconds = seconds % 60;
     } else if (largestUnit == ISO8601::DateTimeUnit::Second) {
         // Else if largestUnit is second, then
         // Set microseconds to floor(nanoseconds / 1000).
@@ -215,7 +236,7 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         nanoseconds = nanoseconds % 1000;
         milliseconds = microseconds / 1000;
         microseconds = microseconds % 1000;
-        seconds = (double)(milliseconds / 1000);
+        seconds = milliseconds / 1000;
         milliseconds = milliseconds % 1000;
     } else if (largestUnit == ISO8601::DateTimeUnit::Millisecond) {
         // Else if largestUnit is millisecond, then
@@ -256,27 +277,13 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         if (nanoseconds) {
             nanoseconds *= sign;
         }
-    } else {
-        // remove -0.0
-        if (std::signbit(days) && !days) {
-            days = 0;
-        }
-        if (std::signbit(hours) && !hours) {
-            hours = 0;
-        }
-        if (std::signbit(minutes) && !minutes) {
-            minutes = 0;
-        }
-        if (std::signbit(seconds) && !seconds) {
-            seconds = 0;
-        }
     }
 
     // Return ? CreateTemporalDuration(internalDuration.[[Date]].[[Years]], internalDuration.[[Date]].[[Months]],
     // internalDuration.[[Date]].[[Weeks]], internalDuration.[[Date]].[[Days]] + days × sign,
     // hours × sign, minutes × sign, seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds × sign).
-    auto value = ISO8601::Duration{ internalDuration.dateDuration().years(), internalDuration.dateDuration().months(), internalDuration.dateDuration().weeks(), internalDuration.dateDuration().days() + days * sign, hours, minutes,
-                                    static_cast<double>(seconds), static_cast<double>(milliseconds), static_cast<double>(microseconds), static_cast<double>(nanoseconds) };
+    auto value = ISO8601::Duration{ internalDuration.dateDuration().years(), internalDuration.dateDuration().months(), internalDuration.dateDuration().weeks(), internalDuration.dateDuration().days() + int128ToNumber(days) * sign,
+                                    int128ToNumber(hours), int128ToNumber(minutes), int128ToNumber(seconds), int128ToNumber(milliseconds), int128ToNumber(microseconds), int128ToNumber(nanoseconds) };
 
     if (!value.isValid()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Duration value");
@@ -321,11 +328,12 @@ static void appendInteger(StringBuilder& builder, Int128 value)
 
 String* TemporalDurationObject::temporalDurationToString(ISO8601::Duration duration, Value precision)
 {
-    auto balancedMicroseconds = static_cast<Int128>(static_cast<int64_t>(duration.microseconds())) + static_cast<Int128>(static_cast<int64_t>(std::trunc(duration.nanoseconds() / 1000)));
-    auto balancedNanoseconds = static_cast<Int128>(static_cast<int64_t>(duration.nanoseconds())) % 1000;
-    auto balancedMilliseconds = static_cast<Int128>(static_cast<int64_t>(duration.milliseconds())) + (balancedMicroseconds / 1000);
+    auto durationNanoseconds = durationFieldToInt128(duration.nanoseconds());
+    auto balancedMicroseconds = durationFieldToInt128(duration.microseconds()) + (durationNanoseconds / 1000);
+    auto balancedNanoseconds = durationNanoseconds % 1000;
+    auto balancedMilliseconds = durationFieldToInt128(duration.milliseconds()) + (balancedMicroseconds / 1000);
     balancedMicroseconds = balancedMicroseconds % 1000;
-    auto balancedSeconds = static_cast<Int128>(static_cast<int64_t>(duration.seconds())) + (balancedMilliseconds / 1000);
+    auto balancedSeconds = durationFieldToInt128(duration.seconds()) + (balancedMilliseconds / 1000);
     balancedMilliseconds = balancedMilliseconds % 1000;
 
     StringBuilder builder;
@@ -541,6 +549,9 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
             }
 
+            if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 1 && timeZoneRecord.m_offset && timeZoneRecord.m_offset.value() != timeZoneRecord.m_nameOrOffset.get<1>()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
             if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 0 && timeZoneRecord.m_offset) {
                 auto epoch = ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(std::get<0>(unwrappedResult),
                                                                                           std::get<1>(unwrappedResult) ? std::get<1>(unwrappedResult).value() : ISO8601::PlainTime()))
@@ -595,6 +606,15 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
         if (std::get<1>(unwrappedResult)) {
             time = std::get<1>(unwrappedResult).value();
         }
+    }
+
+    // A Zoned relativeTo is constrained by the representable local ISO date,
+    // before its offset can move the resulting instant back into range.
+    // This is the same CheckISODaysRange boundary used by ZonedDateTime.
+    const bool dateWithinLimits = (isoDate.year() > -271821 || (isoDate.year() == -271821 && (isoDate.month() > 4 || (isoDate.month() == 4 && isoDate.day() >= 20))))
+        && (isoDate.year() < 275760 || (isoDate.year() == 275760 && (isoDate.month() < 9 || (isoDate.month() == 9 && isoDate.day() <= 13))));
+    if (timeZone && !dateWithinLimits) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The value you gave for GetTemporalRelativeToOption is invalid");
     }
 
     // If timeZone is unset, then

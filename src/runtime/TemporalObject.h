@@ -266,7 +266,7 @@ public:
     static TemporalPlainMonthDayObject* toTemporalMonthDay(ExecutionState& state, Value item, Value options);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalzoneddatetime
-    static TemporalZonedDateTimeObject* toTemporalZonedDateTime(ExecutionState& state, Value item, Value options);
+    static TemporalZonedDateTimeObject* toTemporalZonedDateTime(ExecutionState& state, Value item, Value options, bool allowOutOfRangeWallClock = false);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
     static ISO8601::PlainTime toTimeRecordOrMidnight(ExecutionState& state, Value item);
@@ -413,10 +413,10 @@ public:
     static Optional<ISO8601::PlainDate> regulateISODate(double year, double month, double day, TemporalOverflowOption overflow);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
-    static ISO8601::InternalDuration roundRelativeDuration(ExecutionState& state, ISO8601::InternalDuration duration, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, TemporalUnit largestUnit, double increment, TemporalUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+    static ISO8601::InternalDuration roundRelativeDuration(ExecutionState& state, ISO8601::InternalDuration duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, TemporalUnit largestUnit, double increment, TemporalUnit smallestUnit, ISO8601::RoundingMode roundingMode);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-addisodate
-    static ISO8601::PlainDate isoDateAdd(ExecutionState& state, const ISO8601::PlainDate& plainDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
+    static ISO8601::PlainDate isoDateAdd(ExecutionState& state, const ISO8601::PlainDate& plainDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow, bool allowOutOfRange = false);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
     static Int128 getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, ISO8601::PlainDateTime isoDateTime, TemporalDisambiguationOption disambiguation);
@@ -429,7 +429,7 @@ public:
     static bool isoYearMonthWithinLimits(ISO8601::PlainDate plainDate);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-balanceisodate
-    static ISO8601::PlainDate balanceISODate(ExecutionState& state, double year, double month, double day);
+    static ISO8601::PlainDate balanceISODate(ExecutionState& state, double year, double month, double day, bool allowOutOfRange = false);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-adjustdatedurationrecord
     static ISO8601::Duration adjustDateDurationRecord(ExecutionState& state, ISO8601::Duration dateDuration, double days, Optional<double> weeks, Optional<double> months);

@@ -1225,7 +1225,7 @@ static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Valu
 
 static Value builtinTemporalZonedDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Temporal::toTemporalZonedDateTime(state, argv[0], argc > 1 ? argv[1] : Value());
+    return Temporal::toTemporalZonedDateTime(state, argv[0], argc > 1 ? argv[1] : Value(), true);
 }
 
 static Value builtinTemporalZonedDateTimeCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

@@ -875,7 +875,7 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
     if (parseResultYearMonth && timeZone && timeZone.value().m_offset.hasValue() && !calendarID) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
     }
-    if (!result && parseResultYearMonth && calendarID && calendarID.value() != "iso8601") {
+    if (!result && parseResultYearMonth && calendarID && (!Calendar::fromString(calendarID.value()) || !Calendar::fromString(calendarID.value()).value().isISO8601())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO8601 calendar");
     }
 
@@ -1004,7 +1004,7 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
         timeZone = std::get<2>(result.value());
         calendarID = std::get<3>(result.value());
 
-        if (calendarID && calendarID.value() != "iso8601") {
+        if (calendarID && (!Calendar::fromString(calendarID.value()) || !Calendar::fromString(calendarID.value()).value().isISO8601())) {
             testYear = isoDate.year();
         }
 
@@ -1023,7 +1023,7 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
     if (parseResultMonthDay && timeZone && timeZone.value().m_offset.hasValue() && !calendarID) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO Date string");
     }
-    if (!result && parseResultMonthDay && calendarID && calendarID.value() != "iso8601") {
+    if (!result && parseResultMonthDay && calendarID && (!Calendar::fromString(calendarID.value()) || !Calendar::fromString(calendarID.value()).value().isISO8601())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalMonthDay needs ISO8601 calendar");
     }
 
@@ -1203,7 +1203,7 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
     return ns;
 }
 
-TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& state, Value item, Value options)
+TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& state, Value item, Value options, bool allowOutOfRangeWallClock)
 {
     // If options is not present, set options to undefined.
     // Let hasUTCDesignator be false.
@@ -1379,6 +1379,11 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
     if (offsetBehaviour == TemporalOffsetBehaviour::Option) {
         // Set offsetNanoseconds to ! ParseDateTimeUTCOffset(offsetString).
         offsetNanoseconds = ISO8601::parseUTCOffset(offsetString.value(), ISO8601::DateTimeParseOption{}).value();
+    }
+    const bool dateWithinLimits = (isoDate.year() > -271821 || (isoDate.year() == -271821 && (isoDate.month() > 4 || (isoDate.month() == 4 && isoDate.day() >= 20))))
+        && (isoDate.year() < 275760 || (isoDate.year() == 275760 && (isoDate.month() < 9 || (isoDate.month() == 9 && isoDate.day() <= 13))));
+    if ((!allowOutOfRangeWallClock || (offsetOption != TemporalOffsetOption::Use && offsetOption != TemporalOffsetOption::Ignore)) && !dateWithinLimits) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time value");
     }
     // Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone, disambiguation, offsetOption, matchBehaviour).
     auto epochNanoseconds = interpretISODateTimeOffset(state, isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone.value(), hasUTCDesignator, disambiguation, offsetOption, matchBehaviour);
@@ -2259,10 +2264,11 @@ Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value tem
     // Let identifier be ? ParseTemporalCalendarString(temporalCalendarLike).
     // Return ? CanonicalizeCalendar(identifier).
     auto mayCalendar = Calendar::fromString(temporalCalendarLike.asString());
+    auto parseResultTime = ISO8601::parseTime(temporalCalendarLike.asString());
     auto parseResult = ISO8601::parseCalendarDateTime(temporalCalendarLike.asString());
     auto parseResultYearMonth = ISO8601::parseCalendarYearMonth(temporalCalendarLike.asString());
     auto parseResultMonthDay = ISO8601::parseCalendarMonthDay(temporalCalendarLike.asString());
-    if (!mayCalendar && !parseResult && !parseResultYearMonth && !parseResultMonthDay) {
+    if (!mayCalendar && !parseResultTime && !parseResult && !parseResultYearMonth && !parseResultMonthDay) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
     }
 
@@ -2589,6 +2595,13 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             if (!plainDate || !isoYearMonthWithinLimits(plainDate.value())) {
                 isValid = false;
             }
+        } else if (mode == CalendarDateFromFieldsMode::MonthDay) {
+            // For PlainMonthDay, the supplied ISO year is only used to apply
+            // overflow (notably, to determine whether February 29 is valid).
+            // Its result is represented with the ISO reference year 1972.
+            if (month < 1 || month > 12 || fields.day.value() < 1 || fields.day.value() > ISO8601::daysInMonth(fields.year.value(), month)) {
+                isValid = false;
+            }
         } else {
             if (!plainDate || !ISO8601::isDateTimeWithinLimits(plainDate.value().year(), plainDate.value().month(), plainDate.value().day(), 12, 0, 0, 0, 0, 0)) {
                 isValid = false;
@@ -2599,9 +2612,10 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
         }
 
-        isoDateIfExist = ISO8601::PlainDate(fields.year.value(), month, fields.day.value());
+        auto referenceYear = mode == CalendarDateFromFieldsMode::MonthDay ? 1972 : fields.year.value();
+        isoDateIfExist = ISO8601::PlainDate(referenceYear, month, fields.day.value());
 
-        calendar.setYear(state, icuCalendar, fields.year.value());
+        calendar.setYear(state, icuCalendar, referenceYear);
         calendar.setOrdinalMonth(state, icuCalendar, month);
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
 
@@ -2819,17 +2833,17 @@ inline int daysInYear(int year)
     return 365 + ISO8601::isLeapYear(year);
 }
 
-ISO8601::PlainDate Temporal::balanceISODate(ExecutionState& state, double year, double month, double day)
+ISO8601::PlainDate Temporal::balanceISODate(ExecutionState& state, double year, double month, double day, bool allowOutOfRange)
 {
-    auto impl = [](double& year, double& month, double& day) -> bool {
+    auto impl = [&](double& year, double& month, double& day) -> bool {
         ASSERT(month >= 1 && month <= 12);
-        if (!ISO8601::isYearWithinLimits(year))
+        if (!allowOutOfRange && !ISO8601::isYearWithinLimits(year))
             return false;
 
         double daysFrom1970 = day + ISO8601::dateToDaysFrom1970(static_cast<int>(year), static_cast<int>(month - 1), 1) - 1;
 
         double balancedYear = std::floor(daysFrom1970 / 365.2425) + 1970;
-        if (!ISO8601::isYearWithinLimits(balancedYear))
+        if (!allowOutOfRange && !ISO8601::isYearWithinLimits(balancedYear))
             return false;
 
         double daysUntilYear = ISO8601::daysFrom1970ToYear(static_cast<int>(balancedYear));
@@ -3164,6 +3178,25 @@ public:
     }
 };
 
+class NudgeWindow {
+public:
+    double m_r1;
+    double m_r2;
+    ISO8601::Duration m_startDuration;
+    ISO8601::Duration m_endDuration;
+    Int128 m_startEpochNs;
+    Int128 m_endEpochNs;
+    NudgeWindow(double r1, double r2, ISO8601::Duration startDuration, ISO8601::Duration endDuration, Int128 startEpochNs, Int128 endEpochNs)
+        : m_r1(r1)
+        , m_r2(r2)
+        , m_startDuration(startDuration)
+        , m_endDuration(endDuration)
+        , m_startEpochNs(startEpochNs)
+        , m_endEpochNs(endEpochNs)
+    {
+    }
+};
+
 static Int128 add24HourDaysToTimeDuration(ExecutionState& state, Int128 d, double days)
 {
     Int128 daysInNanoseconds = ((Int128)days) * ISO8601::ExactTime::nsPerDay;
@@ -3265,7 +3298,7 @@ static NudgeResult nudgeToDayOrTime(ExecutionState& state, ISO8601::InternalDura
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-addisodate
-ISO8601::PlainDate Temporal::isoDateAdd(ExecutionState& state, const ISO8601::PlainDate& plainDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow)
+ISO8601::PlainDate Temporal::isoDateAdd(ExecutionState& state, const ISO8601::PlainDate& plainDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow, bool allowOutOfRange)
 {
     double years = plainDate.year() + duration.years();
     double months = plainDate.month() + duration.months();
@@ -3277,7 +3310,7 @@ ISO8601::PlainDate Temporal::isoDateAdd(ExecutionState& state, const ISO8601::Pl
     }
     auto d = intermediate1.value().day() + duration.days() + (7 * duration.weeks());
     double yy = intermediate1.value().year(), mm = intermediate1.value().month(), dd = d;
-    auto balancedDate = balanceISODate(state, yy, mm, dd);
+    auto balancedDate = balanceISODate(state, yy, mm, dd, allowOutOfRange);
     yy = balancedDate.year();
     mm = balancedDate.month();
     dd = balancedDate.day();
@@ -3333,8 +3366,8 @@ double applyUnsignedRoundingMode(double x, double r1, double r2, ISO8601::Unsign
     return !cardinality ? r1 : r2;
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
-static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO8601::InternalDuration& duration, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, double increment, TemporalUnit unit, ISO8601::RoundingMode roundingMode)
+// https://tc39.es/proposal-temporal/#sec-temporal-computenudgewindow
+static NudgeWindow computeNudgeWindow(ExecutionState& state, int32_t sign, const ISO8601::InternalDuration& duration, Int128 originEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, double increment, TemporalUnit unit, bool additionalShift)
 {
     double r1 = 0;
     double r2 = 0;
@@ -3344,8 +3377,8 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
     case TemporalUnit::Year: {
         Int128 years = roundNumberToIncrementInt128((Int128)duration.dateDuration().years(),
                                                     (Int128)increment, ISO8601::RoundingMode::Trunc);
-        r1 = (double)years;
-        r2 = (double)years + increment * sign;
+        r1 = (double)years + (additionalShift ? increment * sign : 0);
+        r2 = r1 + increment * sign;
         startDuration = ISO8601::Duration{ r1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
         endDuration = ISO8601::Duration{ r2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
         break;
@@ -3353,8 +3386,8 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
     case TemporalUnit::Month: {
         Int128 months = roundNumberToIncrementInt128((Int128)duration.dateDuration().months(),
                                                      (Int128)increment, ISO8601::RoundingMode::Trunc);
-        r1 = (double)months;
-        r2 = (double)months + increment * sign;
+        r1 = (double)months + (additionalShift ? increment * sign : 0);
+        r2 = r1 + increment * sign;
         startDuration = adjustDateDurationRecord(state, duration.dateDuration(), 0, 0, r1);
         endDuration = adjustDateDurationRecord(state, duration.dateDuration(), 0, 0, r2);
         break;
@@ -3385,43 +3418,102 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
     }
     ASSERT(sign != 1 || (r1 >= 0 && r1 < r2));
     ASSERT(sign != -1 || (r1 <= 0 && r1 > r2));
-    auto start = Temporal::isoDateAdd(state, isoDateTime.plainDate(), startDuration, TemporalOverflowOption::Constrain);
-    auto end = Temporal::isoDateAdd(state, isoDateTime.plainDate(), endDuration, TemporalOverflowOption::Constrain);
-    auto startDateTime = ISO8601::PlainDateTime(start, isoDateTime.plainTime());
+    Int128 startEpochNs;
+    if (startDuration.dateDurationSign() == 0) {
+        startEpochNs = originEpochNs;
+    } else {
+        auto start = Temporal::isoDateAdd(state, isoDateTime.plainDate(), startDuration, TemporalOverflowOption::Constrain, !timeZone && calendar.isISO8601() && increment > 1);
+        auto startDateTime = ISO8601::PlainDateTime(start, isoDateTime.plainTime());
+        startEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, startDateTime, TemporalDisambiguationOption::Compatible);
+    }
+    auto end = Temporal::isoDateAdd(state, isoDateTime.plainDate(), endDuration, TemporalOverflowOption::Constrain, !timeZone && calendar.isISO8601() && increment > 1);
     auto endDateTime = ISO8601::PlainDateTime(end, isoDateTime.plainTime());
-    Int128 startEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, startDateTime, TemporalDisambiguationOption::Compatible);
     Int128 endEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, endDateTime, TemporalDisambiguationOption::Compatible);
-    if (!(sign != 1 || ((startEpochNs <= destEpochNs) && (destEpochNs <= endEpochNs))) || !(sign == 1 || ((endEpochNs <= destEpochNs) && (destEpochNs <= startEpochNs)))) {
+    // Plain date/time operations may round to a duration whose nominal end is
+    // outside the instant range. A ZonedDateTime must not: converting that
+    // end through its time zone is part of its observable range check.
+    if (timeZone && (!ISO8601::isValidEpochNanoseconds(startEpochNs) || !ISO8601::isValidEpochNanoseconds(endEpochNs))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
     }
-    ASSERT(sign != 1 || ((startEpochNs <= destEpochNs) && (destEpochNs <= endEpochNs)));
-    ASSERT(sign == 1 || ((endEpochNs <= destEpochNs) && (destEpochNs <= startEpochNs)));
-    ASSERT(startEpochNs != endEpochNs);
-    // See 18. NOTE
-    Int128 progressNumerator = destEpochNs - startEpochNs;
-    Int128 progressDenominator = endEpochNs - startEpochNs;
-    double total = r1 + (((double)progressNumerator) / ((double)progressDenominator)) * increment * sign;
-    Int128 progress = progressNumerator / progressDenominator;
-    ASSERT(0 <= progress && progress <= 1);
+    return NudgeWindow(r1, r2, startDuration, endDuration, startEpochNs, endEpochNs);
+}
+
+static double divideInt128ToNumber(Int128 numerator, Int128 denominator)
+{
+    BigIntData numeratorBigInt(numerator);
+    BigIntData denominatorBigInt(denominator);
+    return numeratorBigInt.division(denominatorBigInt, 128).toDouble();
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
+static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO8601::InternalDuration& duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, double increment, TemporalUnit unit, ISO8601::RoundingMode roundingMode)
+{
+    auto window = computeNudgeWindow(state, sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, false);
+    bool didExpandCalendarUnit = false;
+    bool destinationInWindow = sign > 0
+        ? window.m_startEpochNs <= destEpochNs && destEpochNs <= window.m_endEpochNs
+        : window.m_endEpochNs <= destEpochNs && destEpochNs <= window.m_startEpochNs;
+    if (!destinationInWindow) {
+        window = computeNudgeWindow(state, sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, true);
+        didExpandCalendarUnit = true;
+        destinationInWindow = sign > 0
+            ? window.m_startEpochNs <= destEpochNs && destEpochNs <= window.m_endEpochNs
+            : window.m_endEpochNs <= destEpochNs && destEpochNs <= window.m_startEpochNs;
+    }
+    if (!destinationInWindow || window.m_startEpochNs == window.m_endEpochNs) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
+    }
+
+    Int128 progressNumerator = destEpochNs - window.m_startEpochNs;
+    Int128 progressDenominator = window.m_endEpochNs - window.m_startEpochNs;
+    Int128 totalNumerator = (Int128)window.m_r1 * progressDenominator + progressNumerator * (Int128)increment * sign;
+    double total = divideInt128ToNumber(totalNumerator, progressDenominator);
+    bool atEnd = progressNumerator == progressDenominator;
     auto isNegative = sign < 0;
-    ISO8601::UnsignedRoundingMode unsignedRoundingMode = getUnsignedRoundingMode(roundingMode, isNegative);
-    double roundedUnit = std::abs(r2);
-    if (progress != 1) {
-        ASSERT(std::abs(r1) <= std::abs(total) && std::abs(total) < std::abs(r2));
-        roundedUnit = applyUnsignedRoundingMode(
-            std::abs(total), std::abs(r1), std::abs(r2), unsignedRoundingMode);
+    auto unsignedRoundingMode = getUnsignedRoundingMode(roundingMode, isNegative);
+    double roundedUnit = std::abs(window.m_r2);
+    if (!atEnd) {
+        ASSERT(std::abs(window.m_r1) <= std::abs(total) && std::abs(total) < std::abs(window.m_r2));
+        roundedUnit = applyUnsignedRoundingMode(std::abs(total), std::abs(window.m_r1), std::abs(window.m_r2), unsignedRoundingMode);
     }
-    bool didExpandCalendarUnit = true;
-    ISO8601::Duration resultDuration = endDuration;
-    Int128 nudgedEpochNs = endEpochNs;
-    if (roundedUnit != std::abs(r2)) {
-        didExpandCalendarUnit = false;
-        resultDuration = startDuration;
-        nudgedEpochNs = startEpochNs;
+    ISO8601::Duration resultDuration = window.m_endDuration;
+    Int128 nudgedEpochNs = window.m_endEpochNs;
+    if (roundedUnit != std::abs(window.m_r2)) {
+        resultDuration = window.m_startDuration;
+        nudgedEpochNs = window.m_startEpochNs;
+    } else {
+        didExpandCalendarUnit = true;
     }
-    ISO8601::InternalDuration resultDurationInternal = ISO8601::InternalDuration::combineDateAndTimeDuration(resultDuration, 0);
-    auto nudgeResult = NudgeResult(resultDurationInternal, nudgedEpochNs, didExpandCalendarUnit);
-    return Nudged(nudgeResult, total);
+    auto resultDurationInternal = ISO8601::InternalDuration::combineDateAndTimeDuration(resultDuration, 0);
+    return Nudged(NudgeResult(resultDurationInternal, nudgedEpochNs, didExpandCalendarUnit), total);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-nudgetozonedtime
+static NudgeResult nudgeToZonedTime(ExecutionState& state, int32_t sign, const ISO8601::InternalDuration& duration, ISO8601::PlainDateTime isoDateTime, TimeZone timeZone, double increment, TemporalUnit unit, ISO8601::RoundingMode roundingMode)
+{
+    auto start = Temporal::isoDateAdd(state, isoDateTime.plainDate(), duration.dateDuration(), TemporalOverflowOption::Constrain);
+    auto startDateTime = ISO8601::PlainDateTime(start, isoDateTime.plainTime());
+    auto end = Temporal::balanceISODate(state, start.year(), start.month(), start.day() + sign);
+    auto endDateTime = ISO8601::PlainDateTime(end, isoDateTime.plainTime());
+    auto startEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, startDateTime, TemporalDisambiguationOption::Compatible);
+    auto endEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, endDateTime, TemporalDisambiguationOption::Compatible);
+    Int128 daySpan = endEpochNs - startEpochNs;
+    Int128 unitLength = ISO8601::lengthInNanoseconds(toDateTimeUnit(unit));
+    Int128 roundedTime = roundNumberToIncrementInt128(duration.time(), unitLength * (Int128)increment, roundingMode);
+    Int128 beyondDaySpan = TemporalDurationObject::addTimeDuration(state, roundedTime, -daySpan);
+    int beyondDaySpanSign = beyondDaySpan < 0 ? -1 : beyondDaySpan > 0 ? 1
+                                                                       : 0;
+    double dayDelta = 0;
+    Int128 nudgedEpochNs;
+    if (beyondDaySpanSign != -sign) {
+        dayDelta = sign;
+        roundedTime = roundNumberToIncrementInt128(beyondDaySpan, unitLength * (Int128)increment, roundingMode);
+        nudgedEpochNs = Temporal::addInstant(state, endEpochNs, roundedTime);
+    } else {
+        nudgedEpochNs = Temporal::addInstant(state, startEpochNs, roundedTime);
+    }
+    auto dateDuration = adjustDateDurationRecord(state, duration.dateDuration(), duration.dateDuration().days() + dayDelta, NullOption, NullOption);
+    return NudgeResult(ISO8601::InternalDuration::combineDateAndTimeDuration(dateDuration, roundedTime), nudgedEpochNs, dayDelta != 0);
 }
 
 static int32_t unitIndexInTable(TemporalUnit unit)
@@ -3522,15 +3614,28 @@ static ISO8601::InternalDuration bubbleRelativeDuration(ExecutionState& state, i
     return duration;
 }
 
-ISO8601::InternalDuration Temporal::roundRelativeDuration(ExecutionState& state, ISO8601::InternalDuration duration, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone,
+ISO8601::InternalDuration Temporal::roundRelativeDuration(ExecutionState& state, ISO8601::InternalDuration duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone,
                                                           Calendar calendar, TemporalUnit largestUnit, double increment, TemporalUnit smallestUnit, ISO8601::RoundingMode roundingMode)
 {
-    bool irregularLengthUnit = smallestUnit <= TemporalUnit::Week;
+    bool irregularLengthUnit = Temporal::isCalendarUnit(toDateTimeUnit(smallestUnit)) || (timeZone && smallestUnit == TemporalUnit::Day);
+    // Zoned date-based rounding needs the adjacent calendar-day boundary, even
+    // when the time remainder itself rounds without changing.  At the instant
+    // range edge that boundary is not representable and must throw.
+    if (timeZone && ISO8601::toDateTimeCategory(toDateTimeUnit(largestUnit)) == ISO8601::DateTimeUnitCategory::Date) {
+        ISO8601::Duration adjacentDay{ 0.0, 0.0, 0.0, duration.sign() < 0 ? -1.0 : 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+        auto adjacentDate = isoDateAdd(state, isoDateTime.plainDate(), adjacentDay, TemporalOverflowOption::Constrain);
+        auto adjacentEpochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(adjacentDate, isoDateTime.plainTime()), TemporalDisambiguationOption::Compatible);
+        if (!ISO8601::isValidEpochNanoseconds(adjacentEpochNs)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
+        }
+    }
     int32_t sign = duration.sign() < 0 ? -1 : 1;
     NudgeResult nudgeResult;
     if (irregularLengthUnit) {
-        Nudged record = nudgeToCalendarUnit(state, sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode);
+        Nudged record = nudgeToCalendarUnit(state, sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode);
         nudgeResult = record.m_nudgeResult;
+    } else if (timeZone) {
+        nudgeResult = nudgeToZonedTime(state, sign, duration, isoDateTime, timeZone.value(), increment, smallestUnit, roundingMode);
     } else {
         // 7
         nudgeResult = nudgeToDayOrTime(state, duration, destEpochNs, largestUnit, increment, smallestUnit, roundingMode);
@@ -3616,7 +3721,7 @@ ISO8601::InternalDuration Temporal::differencePlainDateTimeWithRounding(Executio
     // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
     auto destEpochNs = ISO8601::ExactTime::fromPlainDateTime(isoDateTime2).epochNanoseconds();
     // Return ? RoundRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, unset, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
-    return roundRelativeDuration(state, diff, destEpochNs, isoDateTime1, NullOption, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
+    return roundRelativeDuration(state, diff, originEpochNs, destEpochNs, isoDateTime1, NullOption, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
@@ -3801,7 +3906,7 @@ double Temporal::totalRelativeDuration(ExecutionState& state, const ISO8601::Int
             sign = 1;
         }
         // Let record be ? NudgeToCalendarUnit(sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, trunc).
-        auto record = nudgeToCalendarUnit(state, sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, toTemporalUnit(unit), ISO8601::RoundingMode::Trunc);
+        auto record = nudgeToCalendarUnit(state, sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, 1, toTemporalUnit(unit), ISO8601::RoundingMode::Trunc);
         // Return record.[[Total]].
         return record.m_total;
     }
@@ -3815,43 +3920,42 @@ std::pair<double, Optional<TemporalKind>> Temporal::handleDateTimeValue(Executio
 {
     if (x.isObject()) {
         auto obj = x.asObject();
+        // Plain Temporal values have no time zone. Their ISO fields are
+        // converted through UTC before Intl formatting, regardless of the
+        // DateTimeFormat object's [[TimeZone]].
+        auto plainTimeZone = TimeZone(state.context()->staticStrings().UTC.string());
         auto formatCalendar = Calendar::fromString(format->calendar());
         if (obj->isTemporalPlainDateObject()) {
             auto objCalendar = obj->asTemporalPlainDateObject()->calendarID();
             if (!formatCalendar || (formatCalendar.value() != objCalendar && !objCalendar.isISO8601())) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
             }
-            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
-            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            auto epochNs = getEpochNanosecondsFor(state, plainTimeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
             return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainDate);
         } else if (obj->isTemporalPlainYearMonthObject()) {
             auto objCalendar = obj->asTemporalPlainYearMonthObject()->calendarID();
             if (!formatCalendar || formatCalendar.value() != objCalendar) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
             }
-            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
-            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainYearMonthObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            auto epochNs = getEpochNanosecondsFor(state, plainTimeZone, ISO8601::PlainDateTime(obj->asTemporalPlainYearMonthObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
             return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainYearMonth);
         } else if (obj->isTemporalPlainMonthDayObject()) {
             auto objCalendar = obj->asTemporalPlainMonthDayObject()->calendarID();
             if (!formatCalendar || formatCalendar.value() != objCalendar) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
             }
-            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
-            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainMonthDayObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
+            auto epochNs = getEpochNanosecondsFor(state, plainTimeZone, ISO8601::PlainDateTime(obj->asTemporalPlainMonthDayObject()->computeISODate(state), ISO8601::PlainTime(12, 0, 0, 0, 0, 0)), TemporalDisambiguationOption::Compatible);
             return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainMonthDay);
         } else if (obj->isTemporalPlainTimeObject()) {
             auto plainTime = obj->asTemporalPlainTimeObject()->plainTime();
-            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
-            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(ISO8601::PlainDate(1970, 1, 1), plainTime), TemporalDisambiguationOption::Compatible);
+            auto epochNs = getEpochNanosecondsFor(state, plainTimeZone, ISO8601::PlainDateTime(ISO8601::PlainDate(1970, 1, 1), plainTime), TemporalDisambiguationOption::Compatible);
             return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainTime);
         } else if (obj->isTemporalPlainDateTimeObject()) {
             auto objCalendar = obj->asTemporalPlainDateTimeObject()->calendarID();
             if (!formatCalendar || (formatCalendar.value() != objCalendar && !objCalendar.isISO8601())) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Temporal value");
             }
-            auto timeZone = toTemporalTimezoneIdentifier(state, format->timeZone());
-            auto epochNs = getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateTimeObject()->computeISODate(state), obj->asTemporalPlainDateTimeObject()->plainTime()), TemporalDisambiguationOption::Compatible);
+            auto epochNs = getEpochNanosecondsFor(state, plainTimeZone, ISO8601::PlainDateTime(obj->asTemporalPlainDateTimeObject()->computeISODate(state), obj->asTemporalPlainDateTimeObject()->plainTime()), TemporalDisambiguationOption::Compatible);
             return std::make_pair(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), TemporalKind::PlainDateTime);
         } else if (obj->isTemporalInstantObject()) {
             return std::make_pair(ISO8601::ExactTime(obj->asTemporalInstantObject()->epochNanoseconds()).floorEpochMilliseconds(), TemporalKind::Instant);

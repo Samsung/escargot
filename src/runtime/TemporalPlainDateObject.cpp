@@ -577,9 +577,10 @@ ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(Execution
         // Let isoDateTimeOther be CombineISODateAndTimeRecord(other.[[ISODate]], MidnightTimeRecord()).
         auto isoDateTimeOther = other->computeISODate(state);
         // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        auto originEpochNs = ISO8601::ExactTime::fromPlainDate(isoDateTime).epochNanoseconds();
         auto destEpochNs = ISO8601::ExactTime::fromPlainDate(isoDateTimeOther).epochNanoseconds();
         // Set duration to ? RoundRelativeDuration(duration, originEpochNs, destEpochNs, isoDateTime, unset, temporalDate.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-        duration = Temporal::roundRelativeDuration(state, duration, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendarID(), toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
+        duration = Temporal::roundRelativeDuration(state, duration, originEpochNs, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendarID(), toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
     }
 
     // Let result be ! TemporalDurationFromInternal(duration, day).
