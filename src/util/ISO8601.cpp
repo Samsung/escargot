@@ -574,41 +574,47 @@ Int128 Duration::totalNanoseconds(ISO8601::DateTimeUnit unit) const
     constexpr int64_t milliMultiplier = 1000000ULL;
     constexpr int64_t microMultiplier = 1000ULL;
 
+    auto toInt128 = [](double value) {
+        auto result = checkedCastDoubleToInt128(value);
+        ASSERT(!result.hasOverflowed());
+        return result.value();
+    };
+
     if (unit <= ISO8601::DateTimeUnit::Day) {
-        Int128 s((int64_t)days());
+        Int128 s(toInt128(days()));
         s *= 86400;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Hour) {
-        Int128 s((int64_t)hours());
+        Int128 s(toInt128(hours()));
         s *= 3600;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Minute) {
-        Int128 s((int64_t)minutes());
+        Int128 s(toInt128(minutes()));
         s *= 60;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Second) {
-        Int128 s((int64_t)seconds());
+        Int128 s(toInt128(seconds()));
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Millisecond) {
-        Int128 s((int64_t)milliseconds());
+        Int128 s(toInt128(milliseconds()));
         s *= milliMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Microsecond) {
-        Int128 s((int64_t)microseconds());
+        Int128 s(toInt128(microseconds()));
         s *= microMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Nanosecond) {
-        Int128 s((int64_t)nanoseconds());
+        Int128 s(toInt128(nanoseconds()));
         resultNs += s;
     }
 
@@ -1788,7 +1794,7 @@ Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, RoundingMo
         r1 = quotient - 1;
         r2 = quotient;
     }
-    auto doubleRemainder = std::abs(remainder * 2);
+    auto doubleRemainder = (x - r1 * increment) * 2;
     auto even = r1 % 2;
     if (quotient * increment == x)
         return x;

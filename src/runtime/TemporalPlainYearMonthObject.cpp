@@ -185,6 +185,36 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     auto resolvedOptions = Intl::getOptionsObject(state, options);
     // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Adding to a PlainYearMonth only accepts year and month units.
+    if (duration.weeks() || duration.days() || duration.hours() || duration.minutes() || duration.seconds()
+        || duration.milliseconds() || duration.microseconds() || duration.nanoseconds()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration unit for PlainYearMonth");
+    }
+    // ISO year-month arithmetic does not depend on a reference day, and the
+    // overflow option has no effect. Avoid materializing the following month,
+    // which is not representable when subtracting from +275760-09.
+    if (m_calendarID.isISO8601()) {
+        auto isoDate = computeISODate(state);
+        if (!ISO8601::isDateTimeWithinLimits(isoDate.year(), isoDate.month(), isoDate.day(), 12, 0, 0, 0, 0, 0)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "YearMonth reference date is out of range");
+        }
+
+        double totalMonths = static_cast<double>(isoDate.year()) * 12 + isoDate.month() - 1
+            + duration.years() * 12 + duration.months();
+        double resultYear = std::floor(totalMonths / 12);
+        double resultMonth = totalMonths - resultYear * 12 + 1;
+        if (resultYear < std::numeric_limits<int32_t>::min() || resultYear > std::numeric_limits<int32_t>::max()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
+        }
+        ISO8601::PlainDate result(static_cast<int32_t>(resultYear), static_cast<uint8_t>(resultMonth), 1);
+        if (!Temporal::isoYearMonthWithinLimits(result)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
+        }
+        return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
+                                                result, m_calendarID);
+    }
+    // Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
+    auto durationToAdd = TemporalDurationObject::toDateDurationRecordWithoutTime(state, duration);
     // Let sign be DurationSign(duration).
     auto sign = duration.sign();
     // Let calendar be yearMonth.[[Calendar]].
@@ -230,8 +260,6 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         std::swap(date, intermediateDate);
     }
 
-    // Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
-    auto durationToAdd = TemporalDurationObject::toDateDurationRecordWithoutTime(state, duration);
     // Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
     auto addedDateResult = Temporal::calendarDateAdd(state, calendar, Calendar::computeISODate(state, date.get()), date.get(), durationToAdd, overflow);
     LocalResourcePointer<UCalendar> addedDate(addedDateResult.first,
@@ -251,6 +279,13 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
 {
     // Set other to ? ToTemporalYearMonth(other).
     auto other = Temporal::toTemporalYearMonth(state, otherInput, Value());
+    // Unlike creating a PlainYearMonth, its difference methods use the first
+    // day of each month. That concrete ISO date must be representable.
+    auto thisISODate = computeISODate(state);
+    auto otherISODate = other->computeISODate(state);
+    if (thisISODate != otherISODate && (!ISO8601::isValidEpochNanoseconds(ISO8601::ExactTime::fromPlainDate(thisISODate).epochNanoseconds()) || !ISO8601::isValidEpochNanoseconds(ISO8601::ExactTime::fromPlainDate(otherISODate).epochNanoseconds()))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "PlainYearMonth difference date is out of range");
+    }
     // Let calendar be yearMonth.[[Calendar]].
     auto calendar = calendarID();
     // If CalendarEquals(calendar, other.[[Calendar]]) is false, throw a RangeError exception.
@@ -296,9 +331,10 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
         // Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).
         auto isoDateTimeOther = other->computeISODate(state);
         // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        auto originEpochNs = ISO8601::ExactTime::fromPlainDate(isoDateTime).epochNanoseconds();
         auto destEpochNs = ISO8601::ExactTime::fromPlainDate(isoDateTimeOther).epochNanoseconds();
         // Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, unset, calendar, settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-        duration = Temporal::roundRelativeDuration(state, duration, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendar, toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
+        duration = Temporal::roundRelativeDuration(state, duration, originEpochNs, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendar, toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
     }
     // Let result be ! TemporalDurationFromInternal(duration, day).
     auto result = TemporalDurationObject::temporalDurationFromInternal(state, duration, ISO8601::DateTimeUnit::Day);

@@ -47,6 +47,7 @@ public:
     BigIntData addition(const BigIntData& src) const;
     BigIntData multiply(const int64_t& d) const;
     BigIntData division(const int64_t& d, size_t prec = BF_PREC_MAX) const;
+    BigIntData division(const BigIntData& d, size_t prec = BF_PREC_MAX) const;
     BigIntData remainder(const int64_t& d, size_t prec = BF_PREC_MAX) const;
 
     bool lessThan(BigInt* b) const;

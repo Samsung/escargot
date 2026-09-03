@@ -83,7 +83,7 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     , m_calendarID(calendar)
 {
     if (!ISO8601::isDateTimeWithinLimits(isoDate.year(), isoDate.month(), isoDate.day(),
-                                         plainTime.hour(), plainTime.minute(), plainTime.second(), plainTime.microsecond(), plainTime.microsecond(), plainTime.nanosecond())) {
+                                         plainTime.hour(), plainTime.minute(), plainTime.second(), plainTime.millisecond(), plainTime.microsecond(), plainTime.nanosecond())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time");
     }
 
@@ -163,6 +163,9 @@ String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value optio
     auto precision = Temporal::toSecondsStringPrecisionRecord(state, toDateTimeUnit(smallestUnit), digits);
     // Let result be RoundISODateTime(plainDateTime.[[ISODateTime]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto result = Temporal::roundISODateTime(state, ISO8601::PlainDateTime(computeISODate(state), plainTime()), precision.increment, precision.unit, roundingMode);
+    if (!ISO8601::isoDateTimeWithinLimits(result)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Rounded date-time is out of range");
+    }
     // If ISODateTimeWithinLimits(result) is false, throw a RangeError exception.
     // Return ISODateTimeToString(result, plainDateTime.[[Calendar]], precision.[[Precision]], showCalendar).
     StringBuilder sb;
@@ -285,7 +288,9 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::addDurationToDateTime(
 ISO8601::Duration TemporalPlainDateTimeObject::differenceTemporalPlainDateTime(ExecutionState& state, DifferenceTemporalPlainDateTime operation, Value otherInput, Value options)
 {
     // Set other to ? ToTemporalDateTime(other).
-    auto other = Temporal::toTemporalDateTime(state, otherInput, options);
+    // Options belong to GetDifferenceSettings below. Passing them to
+    // ToTemporalDateTime would observe overflow before the difference options.
+    auto other = Temporal::toTemporalDateTime(state, otherInput, Value());
     // If CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false, throw a RangeError exception.
     if (other->calendarID() != calendarID()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "other calendar is not same");

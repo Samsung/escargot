@@ -194,6 +194,16 @@ BigIntData BigIntData::division(const int64_t& d, size_t prec) const
     return result;
 }
 
+BigIntData BigIntData::division(const BigIntData& d, size_t prec) const
+{
+    BigIntData result;
+    int ret = bf_div(&result.m_data, &m_data, &d.m_data, prec, BF_RNDZ);
+    if (UNLIKELY(ret) && UNLIKELY(ret != BF_ST_INEXACT)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    return result;
+}
+
 BigIntData BigIntData::remainder(const int64_t& d, size_t prec) const
 {
     BigIntData result;
