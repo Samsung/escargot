@@ -308,6 +308,15 @@ static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, Iterator
     return std::make_pair(mapped, false);
 }
 
+static void validateIteratorCallback(ExecutionState& state, Object* iterator, const Value& callback, const char* message)
+{
+    if (!callback.isCallable()) {
+        IteratorRecord* iterated = new IteratorRecord(iterator, Value(), false);
+        IteratorObject::iteratorClose(state, iterated,
+                                      ErrorObject::createBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), message, true), true);
+    }
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.map
 static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -319,9 +328,7 @@ static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t a
     }
     // If IsCallable(mapper) is false, throw a TypeError exception.
     const Value& mapper = argv[0];
-    if (!mapper.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "mapper is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), mapper, "mapper is not callable");
 
     // Let iterated be ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -372,8 +379,7 @@ static Value builtinIteratorAsyncDispose(ExecutionState& state, Value thisValue,
         // Let result be Completion(Call(return, O, « undefined »)).
         Value result;
         try {
-            Value argv[1] = { Value() }; // undefined
-            result = Object::call(state, returnValue, O, 1, argv);
+            result = Object::call(state, returnValue, O, 0, nullptr);
         } catch (const Value& error) {
             // IfAbruptRejectPromise(result, promiseCapability).
             Value arg = error;
@@ -452,9 +458,7 @@ static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_
     }
     // If IsCallable(predicate) is false, throw a TypeError exception.
     const Value& predicate = argv[0];
-    if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), predicate, "predicate is not callable");
 
     // Let iterated be ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -532,9 +536,7 @@ static Value builtinIteratorReduce(ExecutionState& state, Value thisValue, size_
 
     // If IsCallable(reducer) is false, throw a TypeError exception.
     const Value& reducer = argv[0];
-    if (!reducer.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "reducer is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), reducer, "reducer is not callable");
 
     // Let iterated be ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -603,9 +605,7 @@ static Value builtinIteratorFind(ExecutionState& state, Value thisValue, size_t 
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     const Value& predicate = argv[0];
-    if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), predicate, "predicate is not callable");
 
     // Set iterated to ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -656,9 +656,7 @@ static Value builtinIteratorSome(ExecutionState& state, Value thisValue, size_t 
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     const Value& predicate = argv[0];
-    if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), predicate, "predicate is not callable");
 
     // Set iterated to ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -792,9 +790,7 @@ static Value builtinIteratorForEach(ExecutionState& state, Value thisValue, size
 
     // If IsCallable(procedure) is false, throw a TypeError exception.
     const Value& procedure = argv[0];
-    if (!procedure.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "procedure is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), procedure, "procedure is not callable");
 
     // Set iterated to ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
@@ -1051,9 +1047,7 @@ static Value builtinIteratorFlatMap(ExecutionState& state, Value thisValue, size
 
     // If IsCallable(mapper) is false, throw a TypeError exception.
     const Value& mapper = argv[0];
-    if (!mapper.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "mapper is not callable");
-    }
+    validateIteratorCallback(state, O.asObject(), mapper, "mapper is not callable");
 
     // Set iterated to ? GetIteratorDirect(O).
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());

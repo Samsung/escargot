@@ -2756,8 +2756,6 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().at, builtinArrayAt, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().findLast, builtinArrayFindLast, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().findLastIndex, builtinArrayFindLastIndex, 1);
-    m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().fromAsync, builtinArrayFromAsync, 1);
-
     Object* blackList = new Object(state, Object::PrototypeIsNull);
     blackList->markThisObjectDontNeedStructureTransitionTable();
     blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().at), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
