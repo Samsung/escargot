@@ -431,13 +431,6 @@
     <test id="built-ins/Promise/allSettledKeyed/result-property-descriptors"><reason>TODO</reason></test>
     <test id="built-ins/Promise/allSettledKeyed/symbol-keys"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/from/argument-duration-precision-exact-numerical-values"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/round/case-where-relativeto-affects-rounding-mode-half-even"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-time-duration"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/round/rounding-window"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-5"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prototype/total/rounding-window"><reason>TODO</reason></test>
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/copyWithin/immutable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/fill/immutable-buffer"><reason>TODO</reason></test>
