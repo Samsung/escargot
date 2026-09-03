@@ -204,6 +204,8 @@ public:
     };
     static CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored = "");
     static bool isStructurallyValidLanguageTag(const std::string& string);
+    // Test the UTS 35 unicode_language_id production without extensions.
+    static bool isUnicodeLanguageIdentifier(const std::string& string);
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
     static std::string canonicalizeCalendarTag(const std::string& s);

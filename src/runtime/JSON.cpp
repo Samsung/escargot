@@ -292,7 +292,7 @@ private:
     ExecutionState& m_state;
     String* m_text;
     std::u16string m_data;
-    size_t m_position { 0 };
+    size_t m_position{ 0 };
     JSONSourceMap m_sources;
 };
 

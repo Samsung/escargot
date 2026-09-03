@@ -110,6 +110,14 @@ static std::vector<std::string> localeDataDateTimeFormat(String* locale, size_t 
         keyLocaleData = Intl::numberingSystemsForLocale(locale);
         break;
     case indexOfExtensionKeyHc:
+        // ResolveLocale takes the first value as the default. Japanese uses
+        // h11 as its ECMA-402 default 12-hour cycle; all other currently
+        // supported locale data keeps h12 as the first 12-hour alternative.
+        if (locale->toNonGCUTF8StringData() == "ja" || locale->toNonGCUTF8StringData().compare(0, 3, "ja-") == 0) {
+            keyLocaleData.push_back("h11");
+        } else {
+            keyLocaleData.push_back("h12");
+        }
         keyLocaleData.push_back("h12");
         keyLocaleData.push_back("h23");
         keyLocaleData.push_back("h24");
@@ -316,24 +324,10 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
         UTF16StringDataNonGCStd ianaTimeZoneView((char16_t*)ianaTimeZone, ianaTimeZoneLength);
         if (!equalIgnoringASCIICase(timeZoneName, ianaTimeZoneView))
             continue;
-        // Found a match, now canonicalize.
-        // 6.4.2 CanonicalizeTimeZoneName (timeZone) (ECMA-402 2.0)
-        // 1. Let ianaTimeZone be the Zone or Link name of the IANA Time Zone Database such that timeZone, converted to upper case as described in 6.1, is equal to ianaTimeZone, converted to upper case as described in 6.1.
-        // 2. If ianaTimeZone is a Link name, then let ianaTimeZone be the corresponding Zone name as specified in the “backward” file of the IANA Time Zone Database.
-
-        UTF16StringDataNonGCStd buffer;
-        buffer.resize(ianaTimeZoneLength);
-        UBool isSystemID = false;
-        status = U_ZERO_ERROR;
-        auto canonicalLength = ucal_getCanonicalTimeZoneID(ianaTimeZone, ianaTimeZoneLength, (UChar*)buffer.data(), ianaTimeZoneLength, &isSystemID, &status);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            buffer.resize(canonicalLength);
-            isSystemID = false;
-            status = U_ZERO_ERROR;
-            ucal_getCanonicalTimeZoneID(ianaTimeZone, ianaTimeZoneLength, (UChar*)buffer.data(), canonicalLength, &isSystemID, &status);
-        }
-        ASSERT(U_SUCCESS(status));
-        canonical = new UTF16String(buffer.data(), canonicalLength);
+        // ECMA-402 preserves the matching IANA Zone or Link name in
+        // [[TimeZone]]. ICU's canonical-ID API would turn links such as
+        // Asia/Calcutta into Asia/Kolkata, which is observably incorrect.
+        canonical = new UTF16String(ianaTimeZoneView.data(), ianaTimeZoneLength);
     } while (canonical->length() == 0);
     uenum_close(timeZones);
 
@@ -490,6 +484,12 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
     case UDAT_FLEXIBLE_DAY_PERIOD_FIELD:
         return state.context()->staticStrings().lazyDayPeriod().string();
     case UDAT_TIMEZONE_FIELD:
+    case UDAT_TIMEZONE_RFC_FIELD:
+    case UDAT_TIMEZONE_GENERIC_FIELD:
+    case UDAT_TIMEZONE_SPECIAL_FIELD:
+    case UDAT_TIMEZONE_LOCALIZED_GMT_OFFSET_FIELD:
+    case UDAT_TIMEZONE_ISO_FIELD:
+    case UDAT_TIMEZONE_ISO_LOCAL_FIELD:
         return state.context()->staticStrings().lazyTimeZoneName().string();
     case UDAT_FRACTIONAL_SECOND_FIELD:
         return state.context()->staticStrings().lazyFractionalSecond().string();
@@ -547,9 +547,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
-    auto toDateTimeOptionsResult = toDateTimeOptions(state, options, state.context()->staticStrings().lazyAny().string(), state.context()->staticStrings().lazyDate().string());
-    options = toDateTimeOptionsResult.first;
-    m_wasThereNoFormatOption = toDateTimeOptionsResult.second;
+    // CreateDateTimeFormat uses GetOptionsObject; ToDateTimeOptions is only
+    // for Date prototype methods and would observe component properties too
+    // early.
+    options = options.isUndefined() ? Value(new Object(state, Object::PrototypeIsNull)) : options.toObject(state);
     // Let opt be a new Record.
     StringMap opt;
     // Let matcher be ? GetOption(options, "localeMatcher", "string", « "lookup", "best fit" », "best fit").
@@ -608,8 +609,26 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // Let r be ResolveLocale(%DateTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]], localeData).
     StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, intlDateTimeFormatRelevantExtensionKeys, intlDateTimeFormatRelevantExtensionKeysLength, localeDataDateTimeFormat);
 
-    // The resolved locale doesn't include a hc Unicode extension value if the hour12 or hourCycle option is also present.
-    if (!hour12.isUndefined() || !hourCycle.isUndefinedOrNull()) {
+    // An option only suppresses the hc Unicode extension when it overrides a
+    // different requested value. Keep an equal requested extension in the
+    // resolved locale (e.g. `en-u-hc-h23` with { hourCycle: "h23" }).
+    bool removeHourCycleExtension = !hour12.isUndefined();
+    if (!removeHourCycleExtension && !hourCycle.isUndefinedOrNull()) {
+        bool hasMatchingRequestedHourCycle = false;
+        for (auto requestedLocale : requestedLocales) {
+            auto tag = Intl::canonicalizeLanguageTag(requestedLocale.asString()->toNonGCUTF8StringData());
+            for (const auto& extension : tag.unicodeExtension) {
+                if (extension.first == "hc" && extension.second == hourCycle.asString()->toNonGCUTF8StringData()) {
+                    hasMatchingRequestedHourCycle = true;
+                    break;
+                }
+            }
+            if (hasMatchingRequestedHourCycle)
+                break;
+        }
+        removeHourCycleExtension = !hasMatchingRequestedHourCycle;
+    }
+    if (removeHourCycleExtension) {
         auto iter = r.find("locale");
         String* locale = iter->second;
         iter.value() = Intl::canonicalizeLanguageTag(locale->toNonGCUTF8StringData(), "hc").canonicalizedTag.value();
@@ -623,6 +642,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     m_calendar = calendar.asString();
     // Set dateTimeFormat.[[HourCycle]] to r.[[hc]].
     m_hourCycle = r.at("hc");
+    m_temporalHourCycle = m_hourCycle;
+    if (!hour12.isUndefined()) {
+        m_temporalHourCycle = hour12.asBoolean() ? state.context()->staticStrings().lazyH12().string() : state.context()->staticStrings().lazyH23().string();
+    }
     // Set dateTimeFormat.[[NumberingSystem]] to r.[[nu]].
     m_numberingSystem = r.at("nu");
 
@@ -684,6 +707,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     StringBuilder skeletonBuilder;
 
     String* hour = initDateTimeFormatMainHelper(state, opt, options.asObject(), hour12, skeletonBuilder);
+    // A timeZoneName alone does not select fields for a Temporal plain value:
+    // it is removed from the plain-value pattern and the value's normal
+    // date/time defaults must then be applied.
+    m_wasThereNoFormatOption = opt.empty() || (opt.size() == 1 && opt.find("timeZoneName") != opt.end());
     auto dp = opt.at("dayPeriod");
     if (dp->length()) {
         m_dayPeriodInput = dp;
@@ -704,6 +731,18 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     Value timeStyle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyTimeStyle().string(), Intl::StringValue, dateTimeStyleValues, 4, Value());
     // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     m_timeStyle = timeStyle;
+
+    // If no component or style option was supplied, CreateDateTimeFormat
+    // supplies the default date fields. Keep m_wasThereNoFormatOption true:
+    // Temporal formatting uses it to distinguish these implicit Date defaults
+    // from fields explicitly requested by the caller.
+    if (m_wasThereNoFormatOption && dateStyle.isUndefined() && timeStyle.isUndefined()) {
+        String* numeric = state.context()->staticStrings().lazyNumeric().string();
+        opt.insert(std::make_pair("year", numeric));
+        opt.insert(std::make_pair("month", numeric));
+        opt.insert(std::make_pair("day", numeric));
+        skeletonBuilder.appendString("yMd");
+    }
 
     m_dataLocale = String::fromUTF8(dataLocaleWithExtensions.data(), dataLocaleWithExtensions.size());
 
@@ -1013,7 +1052,10 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
     Value hourCycleBefore = hourCycle;
     Value hourCycleAfter = hourCycleBefore;
     // If dateTimeFormat.[[Hour]] is not undefined, then
-    bool hasHourOption = hour->length();
+    // A timeStyle supplies an hour field through its selected pattern even
+    // though no explicit `hour` option was present. It therefore has the
+    // same resolved HourCycle/Hour12 semantics as an explicit hour field.
+    bool hasHourOption = hour->length() || !timeStyle.isUndefined();
     if (hasHourOption) {
         // Let hcDefault be dataLocaleData.[[hourCycle]].
         UTF16StringDataNonGCStd patternBuffer;
@@ -1033,25 +1075,17 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
         if (!hour12.isUndefined()) {
             // If hour12 is true, then
             if (hour12.asBoolean()) {
-                // If hcDefault is "h11" or "h23", then
-                if (hcDefault == "h11" || hcDefault == "h23") {
-                    // Set hc to "h11".
-                    hc = state.context()->staticStrings().lazyH11().string();
-                } else {
-                    // Set hc to "h12".
-                    hc = state.context()->staticStrings().lazyH12().string();
-                }
+                // ECMA-402 locale data uses h11 only for Japanese in the
+                // supported locale set; ICU's default j-hour pattern alone
+                // cannot distinguish this from locales whose requested
+                // 12-hour cycle is h12 (for example fr and it).
+                auto localeName = dataLocale.toString(state)->toNonGCUTF8StringData();
+                hc = localeName == "ja" || localeName.compare(0, 3, "ja-") == 0
+                    ? state.context()->staticStrings().lazyH11().string()
+                    : state.context()->staticStrings().lazyH12().string();
             } else {
-                // Assert: hour12 is false.
-                // If hcDefault is "h11" or "h23", then
-                if (hcDefault == "h11" || hcDefault == "h23") {
-                    // Set hc to "h23".
-                    hc = state.context()->staticStrings().lazyH23().string();
-                } else {
-                    // Else,
-                    // Set hc to "h24".
-                    hc = state.context()->staticStrings().lazyH24().string();
-                }
+                // ECMA-402 uses h23 for hour12: false in every locale.
+                hc = state.context()->staticStrings().lazyH23().string();
             }
         }
 
@@ -1074,12 +1108,8 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
     // Set dateTimeFormat.[[RangePatterns]] to rangePatterns.
     // Return dateTimeFormat.
     Value hc = hourCycleAfter;
-    if (hour12.isUndefined()) {
-        if (!hc.isString() && hourCycleBefore.isString()) {
-            hc = hourCycleBefore.asString();
-        }
-    } else {
-        hc = hour12.toBoolean() ? state.context()->staticStrings().lazyH12().string() : state.context()->staticStrings().lazyH24().string();
+    if (!hc.isString() && hourCycleBefore.isString()) {
+        hc = hourCycleBefore.asString();
     }
     // After generating pattern from skeleton, we need to change h11 vs. h12 and h23 vs. h24 if hourCycle is specified.
     if (!Value(hc).isUndefined()) {
@@ -1097,6 +1127,11 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
 
     status = U_ZERO_ERROR;
     UTF16StringData timeZoneView = timeZone->toUTF16StringData();
+    // Plain Temporal values are formatted as their ISO fields, not as an
+    // instant interpreted in DateTimeFormat object's [[TimeZone]].
+    if (ignoreTimeZone) {
+        timeZoneView = state.context()->staticStrings().UTC.string()->toUTF16StringData();
+    }
     if (auto offset = parseUTCOffsetInMinutes((UTF16String(timeZoneView.data(), timeZoneView.length())).bufferAccessData())) {
         int64_t minutes = offset.value();
         int64_t absMinutes = std::abs(minutes);
@@ -1349,13 +1384,14 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
-std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime)
+std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatObject::icuFormatTemporalHelper(ExecutionState& state, Value value, bool allowZonedDateTime)
 {
     LocalResourcePointer<UDateFormat> newFormatHolder(nullptr, [](UDateFormat* fmt) {
         udat_close(fmt);
     });
 
     double x;
+    bool isPlainTemporal = false;
     if (value.isUndefined()) {
         x = DateObject::currentTime();
     } else {
@@ -1364,10 +1400,18 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
         x = dateTimeValue.first;
 
         if (dateTimeValue.second) {
+            isPlainTemporal = dateTimeValue.second.value() != TemporalKind::Instant && dateTimeValue.second.value() != TemporalKind::ZonedDateTime;
             bool ignoreDay = dateTimeValue.second.value() == TemporalKind::PlainYearMonth;
             bool ignoreYear = dateTimeValue.second.value() == TemporalKind::PlainMonthDay;
             bool ignoreTimeZone = dateTimeValue.second.value() != TemporalKind::ZonedDateTime && dateTimeValue.second.value() != TemporalKind::Instant;
-            if (m_wasThereNoFormatOption && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+            // An era alone does not select date or time fields for a Temporal value.
+            // Temporal supplies the value-kind default fields in that case, retaining the era.
+            bool temporalNeedsDefaultFields = (dateTimeValue.second.value() == TemporalKind::PlainDateTime || dateTimeValue.second.value() == TemporalKind::PlainDate || dateTimeValue.second.value() == TemporalKind::PlainMonthDay || dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainTime || dateTimeValue.second.value() == TemporalKind::Instant)
+                && !m_era.isUndefined()
+                && m_year.isUndefined() && m_month.isUndefined() && m_day.isUndefined() && m_weekday.isUndefined()
+                && m_dayPeriod.isUndefined() && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined()
+                && m_fractionalSecondDigits.isUndefined();
+            if ((m_wasThereNoFormatOption || temporalNeedsDefaultFields) && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
                 StringMap opt;
                 StringBuilder skeletonBuilder;
                 Object* options = new Object(state, Object::PrototypeIsNull);
@@ -1431,7 +1475,7 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 }
 
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
-                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), m_temporalHourCycle, m_temporalHourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_wasThereNoFormatOption && m_year.isUndefined() && m_month.isUndefined() && m_day.isUndefined() && m_weekday.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to YearMonth");
@@ -1441,9 +1485,9 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to MonthDay");
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_wasThereNoFormatOption && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined() && m_fractionalSecondDigits.isUndefined() && m_dayPeriod.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to PlainTime");
-            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_timeStyle.isUndefined() && m_dateStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
-            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_timeStyle.isUndefined() && m_dateStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
                 StringMap opt;
@@ -1461,7 +1505,7 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 newFormatHolder.reset(result.icuDateFormat.value());
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option dateStyle for time formats");
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainDate && m_wasThereNoFormatOption && !m_dateStyle.isUndefined() && !m_timeStyle.isUndefined()) {
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainDate && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
                 StringMap opt;
                 StringBuilder skeletonBuilder;
                 Object* options = new Object(state, Object::PrototypeIsNull);
@@ -1526,6 +1570,28 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
                 auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), Value(), m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDateTime) && !m_wasThereNoFormatOption) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(m_year));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(m_month));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDay(), ObjectPropertyDescriptor(m_day));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyWeekday(), ObjectPropertyDescriptor(m_weekday));
+                if (!m_era.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                }
+                if (!m_dayPeriodInput.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyDayPeriod(), ObjectPropertyDescriptor(m_dayPeriodInput));
+                }
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(m_hour));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(m_minute));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(m_second));
+                options->directDefineOwnProperty(state, state.context()->staticStrings().lazyFractionalSecondDigits(), ObjectPropertyDescriptor(m_fractionalSecondDigits));
+
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), m_hourCycle, m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
             } else if ((dateTimeValue.second.value() == TemporalKind::Instant) && !m_wasThereNoFormatOption) {
                 StringMap opt;
                 StringBuilder skeletonBuilder;
@@ -1549,8 +1615,8 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
                 }
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyFractionalSecondDigits(), ObjectPropertyDescriptor(m_fractionalSecondDigits));
 
-                String* hour = initDateTimeFormatMainHelper(state, opt, options, m_hour12, skeletonBuilder);
-                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, m_timeStyle, Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, m_timeStyle, m_hourCycle, m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
             }
         }
@@ -1558,7 +1624,7 @@ std::tuple<double, LocalResourcePointer<UDateFormat>> IntlDateTimeFormatObject::
         x = value.toNumber(state);
 #endif
     }
-    return std::make_tuple(x, std::move(newFormatHolder));
+    return std::make_tuple(x, std::move(newFormatHolder), isPlainTemporal);
 }
 
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, Value value, bool allowZonedDateTime)
@@ -1566,7 +1632,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     auto utilResult = icuFormatTemporalHelper(state, value, allowZonedDateTime);
     double x = std::get<0>(utilResult);
     auto icuFormat = std::get<1>(utilResult).get() ? std::get<1>(utilResult).get() : m_icuDateFormat;
-    return format(state, icuFormat, x);
+    return format(state, icuFormat, x, std::get<2>(utilResult));
 }
 
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, double x)
@@ -1574,12 +1640,12 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     return format(state, m_icuDateFormat, x);
 }
 
-UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, UDateFormat* dateFormat, double x)
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, UDateFormat* dateFormat, double x, bool isPlainTemporal)
 {
     // If x is not a finite Number, then throw a RangeError exception.
     // If x is NaN, throw a RangeError exception
     // If abs(time) > 8.64 × 10^15, return NaN.
-    if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
+    if (std::isinf(x) || std::isnan(x) || (!isPlainTemporal && !IS_IN_TIME_RANGE(x))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is valid in DateTimeFormat format()");
     }
 
@@ -1604,7 +1670,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, Valu
     // If x is not a finite Number, then throw a RangeError exception.
     // If x is NaN, throw a RangeError exception
     // If abs(time) > 8.64 × 10^15, return NaN.
-    if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
+    if (std::isinf(x) || std::isnan(x) || (!std::get<2>(utilResult) && !IS_IN_TIME_RANGE(x))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is not valid in DateTimeFormat formatToParts()");
     }
 
@@ -2034,8 +2100,10 @@ std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointe
 
     double startDate = std::get<0>(utilResult1);
     double endDate = std::get<0>(utilResult2);
-    startDate = DateObject::timeClip(startDate);
-    endDate = DateObject::timeClip(endDate);
+    if (!std::get<2>(utilResult1)) {
+        startDate = DateObject::timeClip(startDate);
+        endDate = DateObject::timeClip(endDate);
+    }
 
     if (std::isnan(startDate) || std::isnan(endDate)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
@@ -2051,7 +2119,14 @@ std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointe
         initICUIntervalFormatIfNecessary(state);
         icuDateIntervalFormat = m_icuDateIntervalFormat.value();
     } else {
-        auto fmt = initICUIntervalFormat(state, icuFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, m_timeZoneICU);
+        String* intervalTimeZone = m_timeZoneICU;
+        if (startDateInput.isObject()) {
+            auto startObject = startDateInput.asObject();
+            if (startObject->isTemporalPlainDateObject() || startObject->isTemporalPlainDateTimeObject() || startObject->isTemporalPlainMonthDayObject() || startObject->isTemporalPlainTimeObject() || startObject->isTemporalPlainYearMonthObject()) {
+                intervalTimeZone = state.context()->staticStrings().UTC.string();
+            }
+        }
+        auto fmt = initICUIntervalFormat(state, icuFormat, m_locale, m_calendar, m_numberingSystem, m_hourCycle, intervalTimeZone);
         tempICUIntervalFormatHolder = std::move(fmt);
         icuDateIntervalFormat = tempICUIntervalFormatHolder.get();
     }

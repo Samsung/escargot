@@ -96,7 +96,7 @@ static std::string grandfatheredLangTag(const std::string& locale)
     tagMap["sgn-ch-de"] = "sgg";
     // Regular.
     tagMap["art-lojban"] = "jbo";
-    tagMap["cel-gaulish"] = "xtg-x-cel-gaulish";
+    tagMap["cel-gaulish"] = "xtg";
     tagMap["no-bok"] = "nb";
     tagMap["no-nyn"] = "nn";
     tagMap["zh-guoyu"] = "zh";
@@ -1257,6 +1257,20 @@ static std::string preferredRegion(const std::string& region)
     return region;
 }
 
+static std::string preferredComplexRegion(const std::string& language, const std::string& script, const std::string& region)
+{
+    if (region == "SU" || region == "810") {
+        if (language == "hy" || script == "Armn")
+            return "AM";
+        return "RU";
+    }
+    if (region == "CS")
+        return "RS";
+    if (region == "NT")
+        return "SA";
+    return preferredRegion(region);
+}
+
 static std::string privateUseLangTag(const std::vector<std::string>& parts, size_t startIndex)
 {
     size_t numParts = parts.size();
@@ -1384,6 +1398,52 @@ static bool canonicalizeLanguageTagHelper(std::vector<std::string>& parts, const
                 value.clear();
             }
 
+            for (auto& keyword : values) {
+                std::string& keywordKey = keyword.first;
+                std::vector<std::string>& keywordValue = keyword.second;
+                if (keywordKey == "ca" && keywordValue.size() == 3 && keywordValue[0] == "ethiopic" && keywordValue[1] == "amete" && keywordValue[2] == "alem") {
+                    keywordValue = { "ethioaa" };
+                    continue;
+                }
+                if (keywordValue.size() != 1)
+                    continue;
+                std::string& type = keywordValue[0];
+                if (keywordKey == "ca" && type == "ethiopic-amete-alem")
+                    type = "ethioaa";
+                else if (keywordKey == "ca" && type == "islamicc")
+                    type = "islamic-civil";
+                else if (keywordKey == "ks" && type == "primary")
+                    type = "level1";
+                else if (keywordKey == "ks" && type == "tertiary")
+                    type = "level3";
+                else if (keywordKey == "ms" && type == "imperial")
+                    type = "uksystem";
+                else if ((keywordKey == "rg" || keywordKey == "sd") && type == "no23")
+                    type = "no50";
+                else if ((keywordKey == "rg" || keywordKey == "sd") && type == "cn11")
+                    type = "cnbj";
+                else if ((keywordKey == "rg" || keywordKey == "sd") && type == "cz10a")
+                    type = "cz110";
+                else if ((keywordKey == "rg" || keywordKey == "sd") && (type == "fra" || type == "frg"))
+                    type = "frges";
+                else if ((keywordKey == "rg" || keywordKey == "sd") && type == "lud")
+                    type = "lucl";
+                else if (keywordKey == "tz" && type == "cnckg")
+                    type = "cnsha";
+                else if (keywordKey == "tz" && type == "eire")
+                    type = "iedub";
+                else if (keywordKey == "tz" && type == "est")
+                    type = "papty";
+                else if (keywordKey == "tz" && type == "gmt0")
+                    type = "gmt";
+                else if (keywordKey == "tz" && (type == "uct" || type == "zulu"))
+                    type = "utc";
+                else if ((keywordKey == "kb" || keywordKey == "kc" || keywordKey == "kh" || keywordKey == "kk" || keywordKey == "kn") && type == "yes")
+                    type = "true";
+                if (type == "true")
+                    keywordValue.clear();
+            }
+
             std::sort(values.begin(), values.end(),
                       [](const std::pair<std::string, std::vector<std::string>>& a, const std::pair<std::string, std::vector<std::string>>& b) -> bool {
                           return a.first < b.first;
@@ -1449,6 +1509,50 @@ static bool canonicalizeLanguageTagHelper(std::vector<std::string>& parts, const
                     single += '-';
                 }
                 single += extPart;
+            }
+
+            if (singletonValue.key == 't') {
+                std::vector<std::string> transformed = split(single, '-');
+                size_t index = 0;
+                std::string canonicalTlang;
+                if (transformed.size() && Intl::isUnicodeLanguageSubtag(transformed[0])) {
+                    size_t languageEnd = 0;
+                    while (languageEnd < transformed.size()
+                           && !(transformed[languageEnd].length() == 2
+                                && isASCIIAlpha(transformed[languageEnd][0])
+                                && isASCIIDigit(transformed[languageEnd][1])))
+                        ++languageEnd;
+                    std::string tlang;
+                    for (size_t i = 0; i < languageEnd; ++i) {
+                        if (i)
+                            tlang += '-';
+                        tlang += transformed[i];
+                    }
+                    canonicalTlang = Intl::canonicalizeLanguageTag(tlang).canonicalizedTag.value()->toNonGCUTF8StringData();
+                    std::transform(canonicalTlang.begin(), canonicalTlang.end(), canonicalTlang.begin(), tolower);
+                    index = languageEnd;
+                }
+                std::vector<std::pair<std::string, std::string>> fields;
+                while (index < transformed.size()) {
+                    std::string key = transformed[index++];
+                    std::string value;
+                    while (index < transformed.size()
+                           && !(transformed[index].length() == 2 && isASCIIAlpha(transformed[index][0]) && isASCIIDigit(transformed[index][1]))) {
+                        if (value.length())
+                            value += '-';
+                        value += transformed[index++];
+                    }
+                    if (key == "m0" && value == "names")
+                        value = "prprname";
+                    fields.push_back(std::make_pair(key, value));
+                }
+                std::sort(fields.begin(), fields.end());
+                single = canonicalTlang;
+                for (const auto& field : fields) {
+                    if (single.length())
+                        single += '-';
+                    single += field.first + "-" + field.second;
+                }
             }
 
             singletonValue.value = std::move(single);
@@ -1568,7 +1672,7 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
             canonical.appendChar('-');
             std::transform(region.begin(), region.end(), region.begin(), toupper);
             result.region = region;
-            auto preffered = preferredRegion(region);
+            auto preffered = preferredComplexRegion(language, result.script, region);
             canonical.appendString(String::fromUTF8(preffered.data(), preffered.length()));
             isRegionAddToCanonical = true;
         }
@@ -1664,6 +1768,9 @@ Intl::CanonicalizedLangunageTag Intl::isStructurallyValidLanguageTagAndCanonical
         return canonicalizeLanguageTag(grandfather);
     }
 
+    if (!isStructurallyValidLanguageTag(locale)) {
+        return Intl::CanonicalizedLangunageTag();
+    }
     return canonicalizeLanguageTag(locale);
 }
 
@@ -2006,6 +2113,15 @@ bool Intl::isStructurallyValidLanguageTag(const std::string& string)
     if (!parser.isEOS())
         return false;
     return true;
+}
+
+bool Intl::isUnicodeLanguageIdentifier(const std::string& string)
+{
+    // DisplayNames language codes use unicode_language_id, rather than the
+    // wider unicode_locale_id accepted by IsStructurallyValidLanguageTag.
+    // In particular this rejects extensions, bare scripts, and "root".
+    LanguageTagParser parser(string);
+    return parser.parseUnicodeLanguageId() && parser.isEOS();
 }
 
 String* Intl::icuLocaleToBCP47Tag(String* string)

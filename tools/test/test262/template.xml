@@ -7,3 +7,17 @@
     <test id="built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1"><reason>TOO SLOW</reason></test>
     <test id="staging/sm/regress/regress-1507322-deep-weakmap"><reason>TOO SLOW</reason></test>
     <test id="staging/Temporal/v8/instant-to-json"><reason>TODO(sometimes fail)</reason></test>
+
+    <!-- Canonical ICU 78.1 limitations. Keep these here so make_excludelist.py
+         preserves the demonstrated ICU reason when it regenerates the list. -->
+    <test id="intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip"><reason>ICU 78.1 extreme-date formatting after Escargot TimeClip handling</reason></test>
+
+    <test id="intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip"><reason>ICU 78.1 extreme-date formatting after Escargot TimeClip handling</reason></test>
+
+    <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip"><reason>ICU 78.1 extreme-date formatting after Escargot TimeClip handling</reason></test>
+
+    <test id="intl402/DateTimeFormat/prototype/formatToParts/era"><reason>ICU 78.1 Coptic era data omits ancient era for ISO 250-06-15</reason></test>
+
+    <test id="intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip"><reason>ICU 78.1 extreme-date formatting after Escargot TimeClip handling</reason></test>
+
+    <test id="intl402/Temporal/PlainDate/from/calc-epoch-year-hebrew"><reason>ICU4C ICU-23007: Hebrew calendar resolves expected day 30 as 29</reason></test>

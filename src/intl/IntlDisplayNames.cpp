@@ -183,7 +183,11 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // b. If IsStructurallyValidLanguageTag(code) is false, throw a RangeError exception.
         // c. Set code to CanonicalizeUnicodeLocaleId(code).
         // d. Return code.
-        auto parsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(code->toNonGCUTF8StringData().data());
+        auto languageCode = code->toNonGCUTF8StringData();
+        if (!Intl::isUnicodeLanguageIdentifier(languageCode)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid language code");
+        }
+        auto parsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(languageCode);
         if (!parsedResult.canonicalizedTag) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid language code");
         }
@@ -239,7 +243,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
             s = mayID.value().toString()->toNonGCUTF8StringData();
         }
 
-        if (!Intl::isValidUnicodeLocaleIdentifier(code)) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(code)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar code");
         }
 
