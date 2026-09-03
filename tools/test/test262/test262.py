@@ -87,6 +87,8 @@ def BuildOptions():
   result.add_option("--list-includes", default=False, action="store_true",
                     help="List includes required by tests")
   result.add_option("--skip", default=[], action="append", help="skip testcase pattern")
+  result.add_option("--tmpdir", default=None,
+                    help="Directory for per-test temporary files (use /dev/shm on Linux for RAM-backed files)")
   return result
 
 
@@ -95,6 +97,11 @@ def ValidateOptions(options):
     ReportError("A --command must be specified.")
   if not path.exists(options.tests):
     ReportError("Couldn't find test path '%s'" % options.tests)
+  if options.tmpdir:
+    if not path.isdir(options.tmpdir):
+      ReportError("Temporary directory '%s' is not a directory" % options.tmpdir)
+    if not os.access(options.tmpdir, os.W_OK | os.X_OK):
+      ReportError("Temporary directory '%s' is not writable" % options.tmpdir)
 
 
 placeHolderPattern = re.compile(r"\{\{(\w+)\}\}")
@@ -105,12 +112,28 @@ def IsWindows():
   return (p == 'Windows') or (p == 'Microsoft')
 
 
+def DefaultTempDir():
+  # /dev/shm is tmpfs on normal Linux systems, but it can be very small in a
+  # container. Fall back to tempfile's platform default unless enough space is
+  # available. Windows deliberately keeps its normal tempfile behavior.
+  ramdisk = '/dev/shm'
+  if sys.platform.startswith('linux') and path.isdir(ramdisk) and \
+      os.access(ramdisk, os.W_OK | os.X_OK):
+    try:
+      if shutil.disk_usage(ramdisk).free >= 128 * 1024 * 1024:
+        return ramdisk
+    except OSError:
+      pass
+  return None
+
+
 class TempFile(object):
 
-  def __init__(self, suffix="", prefix="tmp", text=False):
+  def __init__(self, suffix="", prefix="tmp", text=False, directory=None):
     self.suffix = suffix
     self.prefix = prefix
     self.text = text
+    self.directory = directory
     self.fd = None
     self.name = None
     self.is_closed = False
@@ -120,7 +143,8 @@ class TempFile(object):
     (self.fd, self.name) = tempfile.mkstemp(
         suffix = self.suffix,
         prefix = self.prefix,
-        text = self.text)
+        text = self.text,
+        dir = self.directory)
 
   def Write(self, str):
     os.write(self.fd, str.encode("utf-8"))
@@ -384,8 +408,8 @@ class TestCase(object):
       args = '%s' % command
     else:
       args = command.split(" ")
-    stdout = TempFile(prefix="test262-out-")
-    stderr = TempFile(prefix="test262-err-")
+    stdout = TempFile(prefix="test262-out-", directory=self.suite.tmpdir)
+    stderr = TempFile(prefix="test262-err-", directory=self.suite.tmpdir)
     try:
       logging.info("exec: %s", str(args))
 
@@ -483,8 +507,10 @@ class TestCase(object):
     return TestResult(code, out, err, self)
 
   def Run(self, command_template):
-    driver_tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True)
-    tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True)
+    driver_tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True,
+                          directory=self.suite.tmpdir)
+    tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True,
+                   directory=self.suite.tmpdir)
     try:
       result = self.RunTestIn(command_template, driver_tmp, tmp)
     finally:
@@ -542,13 +568,31 @@ def PercentFormat(partial, total):
                                  ((100.0 * partial)/total,))
 
 def CaseRunner(case):
-  #print(case.GetName())
+  # Do not return TestResult itself: it references TestCase, which in turn
+  # references TestSuite and its (potentially large) include cache.  Sending
+  # that object for every test makes IPC/pickling dominate short test runs.
   result = case.Run(case.command_template)
-  return [case.index, result]
+  return (case.index, result.exit_code, result.stdout, result.stderr,
+          getattr(case, 'escargot_data', None))
+
+
+WORKER_CASES = None
+
+
+def InitializeWorker(cases):
+  # Windows uses the "spawn" start method, so worker processes do not inherit
+  # the parent's case list. Transfer it once during initialization rather
+  # than serializing a full TestCase for every queued job.
+  global WORKER_CASES
+  WORKER_CASES = cases
+
+
+def IndexedCaseRunner(index):
+  return CaseRunner(WORKER_CASES[index])
 
 class TestSuite(object):
 
-  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle, skip_patterns):
+  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle, skip_patterns, tmpdir):
     # TODO: derive from packagerConfig.py
     self.test_root = path.join(root, 'test')
     if len(ESCARGOT_DUMP262DATA):
@@ -563,6 +607,9 @@ class TestSuite(object):
     self.include_cache = { }
     self.total_test_number = 0
     self.skip_patterns = skip_patterns
+    self.tmpdir = tmpdir if tmpdir else DefaultTempDir()
+    if self.tmpdir:
+      logging.info("Using temporary directory: %s", self.tmpdir)
 
   def Validate(self):
     if not path.exists(self.test_root):
@@ -769,20 +816,33 @@ class TestSuite(object):
 
     from multiprocessing import Pool
     import multiprocessing
-    pool = Pool(processes=multiprocessing.cpu_count())
+    for index, case in enumerate(cases):
+      case.command_template = command_template
+      case.index = index
 
-    casesV = []
-    for case in cases:
-        case.command_template = command_template
-        case.index = cases.index(case)
-        casesV.append(case)
+    # Fork lets workers share this immutable list copy-on-write. Spawn-based
+    # platforms (notably Windows) initialize each worker with it once. In both
+    # cases, jobs and results remain small, which matters for short Test262
+    # cases.
+    global WORKER_CASES
+    WORKER_CASES = cases
+    pool_args = {"processes": multiprocessing.cpu_count()}
+    if multiprocessing.get_start_method() != 'fork':
+      pool_args.update(initializer=InitializeWorker, initargs=(cases,))
+    pool = Pool(**pool_args)
 
-    casesResult = pool.imap_unordered(CaseRunner, casesV)
+    # Batch enough jobs to reduce queue synchronization while retaining
+    # scheduling granularity for the occasional slow test.
+    casesResult = pool.imap_unordered(IndexedCaseRunner, range(len(cases)),
+                                     chunksize=16)
 
     resultTemp = [None] * len(cases)
 
-    for cr in casesResult:
-      resultTemp[cr[0]] = cr[1]
+    for index, exit_code, stdout, stderr, escargot_data in casesResult:
+      case = cases[index]
+      if escargot_data is not None:
+        case.escargot_data = escargot_data
+      resultTemp[index] = TestResult(exit_code, stdout, stderr, case)
 
     pool.close()
     pool.join()
@@ -793,9 +853,9 @@ class TestSuite(object):
     if junitfile:
       self.outfile = open(junitfile, "wb")  # Binary mode for XML write
 
-    for case in cases:
+    for index, case in enumerate(cases):
       #result = case.Run(command_template)
-      result = resultTemp[cases.index(case)]
+      result = resultTemp[index]
       if len(ESCARGOT_DUMP262DATA):
         ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["can_block_is_false"]) + "\n")
         ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["is_module"]) + "\n")
@@ -877,7 +937,8 @@ def Main():
                          options.non_strict_only,
                          options.unmarked_default,
                          options.print_handle,
-                         options.skip)
+                         options.skip,
+                         options.tmpdir)
   test_suite.Validate()
   if options.loglevel == 'debug':
     logging.basicConfig(level=logging.DEBUG)

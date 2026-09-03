@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2020-present Samsung Electronics Co., Ltd.
 #
@@ -21,6 +21,7 @@ import re
 import traceback
 import sys
 import subprocess
+import tempfile
 
 from argparse import ArgumentParser
 from os.path import abspath, dirname, join, isfile
@@ -82,6 +83,36 @@ def front_template():
 def rear_template():
     return str('</excludeList>')
 
+def write_exclude_list(contents):
+    """Replace the canonical list without leaving a partial XML file."""
+    fd, temporary_name = tempfile.mkstemp(prefix='excludelist.', suffix='.xml',
+                                          dir=SCRIPT_SOURCE_DIR)
+    try:
+        with os.fdopen(fd, 'w') as exclude_file:
+            exclude_file.write(contents)
+        os.replace(temporary_name, DEFAULT_EXCLUDE_LIST)
+    except:
+        try:
+            os.unlink(temporary_name)
+        except OSError:
+            pass
+        raise
+
+def failed_test_ids(summary, heading, footer):
+    """Return IDs from one Test262 summary section."""
+    start = summary.find(heading)
+    if start < 0:
+        return set()
+    start += len(heading)
+    end = summary.find(footer, start)
+    if end < 0:
+        raise RuntimeError('incomplete Test262 summary: missing ' + footer)
+
+    # A negative test that "expected to fail but passed" is also an engine
+    # failure, so callers intentionally add it to the exclusion list.
+    return set(re.findall(r'^  ([^\n]+?) in (?:strict|non-strict) mode$',
+                          summary[start:end], re.MULTILINE))
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('--engine', metavar='PATH', default=DEFAULT_ESCARGOT,
@@ -90,44 +121,34 @@ def main():
                         help='architecture the engine was built for (%(choices)s; default: %(default)s)')
     args = parser.parse_args()
 
-    full = run_all_test262(args.engine, args.arch)
-    if full.find('- All tests succeeded') >= 0:
-        sys.exit(COLOR_RED + 'already passed all test262 tcs' + COLOR_RESET)
+    with open(DEFAULT_EXCLUDE_LIST, 'r') as exclude_file:
+        previous_list = exclude_file.read()
 
-    with open(DEFAULT_EXCLUDE_LIST, 'w') as out_file:
-        summary = full.split('=== Test262 Summary ===')[1]
+    try:
+        full = run_all_test262(args.engine, args.arch)
+        if full.find('- All tests succeeded') >= 0:
+            write_exclude_list(previous_list)
+            sys.exit(COLOR_RED + 'already passed all test262 tcs' + COLOR_RESET)
 
-        out_list = []
-        if summary.find('Test262 Failed Tests') > 0:
-            failed = summary.split('Test262 Failed Tests')[1]
-            failed = failed.split('Failed Tests End')[0]
-            failed = failed.replace(' in strict mode', '')
-            failed = failed.replace(' in non-strict mode', '')
-            failed = failed.split()
-            failed = sorted(set(failed))
+        summary_marker = '=== Test262 Summary ==='
+        if summary_marker not in full:
+            raise RuntimeError('Test262 did not produce a summary; keeping the previous exclude list')
+        summary = full.split(summary_marker, 1)[1]
 
-            for item in failed:
-                list_item = '    <test id="' + item + '"><reason>TODO</reason></test>\n';
-                out_list.append(list_item)
+        failed = failed_test_ids(summary, 'Test262 Failed Tests', 'Failed Tests End')
+        failed.update(failed_test_ids(summary, 'Test262 Expected to fail but passed',
+                                      'Expected to fail End'))
 
-        if summary.find('Test262 Expected to fail but passed') > 0:
-            failed = summary.split('Test262 Expected to fail but passed')[1]
-            failed = failed.split('Expected to fail End')[0]
-            failed = failed.replace(' in strict mode', '')
-            failed = failed.replace(' in non-strict mode', '')
-            failed = failed.split()
-            failed = sorted(set(failed))
-
-            for item in failed:
-                list_item = '    <test id="' + item + '"><reason>TODO</reason></test>\n';
-                out_list.append(list_item)
-    
-        out_list = sorted(set(out_list))
-        out_file.write(front_template())
-        for item in out_list:
-            out_file.write(item)
-        out_file.write(rear_template())
-        out_file.write('\n')
+        generated_list = front_template()
+        for item in sorted(failed):
+            generated_list += '    <test id="' + item + '"><reason>TODO</reason></test>\n'
+        generated_list += rear_template() + '\n'
+        write_exclude_list(generated_list)
+    except:
+        # run_all_test262 temporarily installs a minimal list so it can find
+        # every failure. Never leave that temporary list behind on an error.
+        write_exclude_list(previous_list)
+        raise
 
     numstat = subprocess.check_output(["git", "diff", "--numstat", DEFAULT_EXCLUDE_LIST]).decode('utf-8').split("\t")
     lines = sorted(re.findall(r'^[+|-][^+|-].*', subprocess.check_output(["git", "diff", "--unified=0", DEFAULT_EXCLUDE_LIST]).decode('utf-8'), re.MULTILINE), key=lambda x:x[:1])
