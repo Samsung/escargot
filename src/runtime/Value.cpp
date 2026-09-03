@@ -870,7 +870,7 @@ double Value::toIntegerIfIntergral(ExecutionState& state) const
     // Let number be ? ToNumber(argument).
     double number = toNumber(state) + 0.0;
     // If number is not an integral Number, throw a RangeError exception.
-    if (std::trunc(number) != number) {
+    if (!std::isfinite(number) || std::trunc(number) != number) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to convert value to intergral");
     }
     // Return ℝ(number).

@@ -588,6 +588,12 @@ TEST(EvalScript, Run3)
     EXPECT_EQ(s2, "Uncaught Error:\neval code (1:22)\neval code (1:39)\n");
 }
 
+TEST(EvalScript, ArrayPrototypeDoesNotHaveFromAsync)
+{
+    auto result = evalScript(g_context.get(), StringRef::createFromASCII("Object.prototype.hasOwnProperty.call(Array.prototype, 'fromAsync')"), StringRef::createFromASCII("array-from-async.js"), false);
+    EXPECT_EQ(result, "false");
+}
+
 TEST(EvalScript, ParseError)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("."), StringRef::createFromASCII("test.js"), false);

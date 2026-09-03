@@ -796,6 +796,14 @@ static Value builtinPromiseTry(ExecutionState& state, Value thisValue, size_t ar
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exception);
     } else {
         // 6. Else,
+        // If the callback returned a Promise constructed by C, it is already
+        // the promise Promise.try must return. In particular, do not resolve
+        // the capability promise with it, which would unnecessarily wrap it.
+        if (result.isObject() && result.asObject()->isPromiseObject()
+            && result.asObject()->get(state, state.context()->staticStrings().constructor).value(state, result.asObject()) == C) {
+            return result;
+        }
+
         // a. Perform ? Call(promiseCapability.[[Resolve]], undefined, « status.[[Value]] »).
         Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &result);
     }
