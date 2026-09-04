@@ -539,6 +539,33 @@ public:
         return false;
     }
 
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+    ALWAYS_INLINE bool mayStartMatchAt(char32_t ch)
+    {
+        const StartCharFilter& filter = pattern->m_startCharFilter;
+        if (ch > 0xFF)
+            return filter.mayStartAboveLatin1;
+        return filter.latin1Bitmap[ch >> 6] & (1ull << (ch & 63));
+    }
+
+    // Advances over the start offsets at which no alternative of the body
+    // disjunction can consume its first character. Returns false if that
+    // exhausts the input, which means there is no match at all: a valid filter
+    // implies the body cannot match the empty string.
+    ALWAYS_INLINE bool advanceToPossibleStart()
+    {
+        if (!pattern->m_startCharFilter.valid)
+            return true;
+
+        while (!input.atEnd()) {
+            if (mayStartMatchAt(input.read()))
+                return true;
+            input.next();
+        }
+        return false;
+    }
+#endif
+
     bool checkCharacter(ByteTerm& term, unsigned negativeInputOffset)
     {
         ASSERT(term.isCharacterType());
@@ -1702,6 +1729,13 @@ public:
         if (btrack)
             BACKTRACK();
 
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+        // Only the body may skip start offsets; a parentheses/assertion
+        // disjunction has to match exactly where its caller left the input.
+        if (disjunction == pattern->m_body.get() && !advanceToPossibleStart())
+            return JSRegExpResult::NoMatch;
+#endif
+
         context->matchBegin = input.getPos();
         context->term = disjunction->terms.data();
 
@@ -2043,6 +2077,15 @@ public:
 
             input.next();
 
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+            // Skip the start offsets where no alternative can even consume its
+            // first character, rather than retrying the whole body at each one.
+            if (!advanceToPossibleStart()) {
+                DUMP_EXTRA("- Return NoMatch\n");
+                return JSRegExpResult::NoMatch;
+            }
+#endif
+
             context->matchBegin = input.getPos();
 
             MATCH_NEXT();
@@ -2232,6 +2275,259 @@ private:
     unsigned remainingMatchCount;
 };
 
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+
+// Computes the StartCharFilter of a pattern (see YarrInterpreter.h) from the
+// parsed form rather than from the bytecode, because PatternTerm still has the
+// quantifiers and the nested disjunctions in place.
+//
+// The result has to be a *superset* of the characters a match can begin with -
+// a character missing from it would silently turn a match into a no-match - so
+// everything that is not modelled here bails out instead of guessing.
+class StartCharFilterBuilder {
+public:
+    static bool build(YarrPattern& pattern, StartCharFilter& filter)
+    {
+        // Unicode patterns advance start offsets by code point, so an offset
+        // skipped here could be the trail surrogate of a pair.
+        if (pattern.eitherUnicode())
+            return false;
+
+        // A sticky pattern only ever tries one start offset.
+        if (pattern.sticky())
+            return false;
+
+        PatternDisjunction* body = pattern.m_body;
+        if (!body || body->m_alternatives.isEmpty())
+            return false;
+
+        // If every alternative is onceThrough the body is anchored, and the
+        // onceThrough skip in the BodyAlternative backtrack already gives up
+        // after the first start offset - a filter could not save anything.
+        bool allOnceThrough = true;
+        for (auto& alternative : body->m_alternatives) {
+            if (!alternative->onceThrough()) {
+                allOnceThrough = false;
+                break;
+            }
+        }
+        if (allOnceThrough)
+            return false;
+
+        bool canMatchEmpty = false;
+        if (!collectDisjunction(body, filter, canMatchEmpty, 0))
+            return false;
+
+        // Skipping a start offset is justified by "no alternative can consume a
+        // character here", which only implies "no match here" if every match
+        // does consume a character.
+        if (canMatchEmpty)
+            return false;
+
+        // A filter that accepts every character can never skip an offset, so it
+        // would be pure overhead.
+        if (filter.mayStartAboveLatin1 && isFullLatin1Bitmap(filter))
+            return false;
+
+        return true;
+    }
+
+private:
+    // Alternations can nest arbitrarily deep; the limit bounds this recursion at
+    // the price of not filtering the few patterns that go deeper.
+    static constexpr unsigned maxRecursionDepth = 16;
+
+    static bool isFullLatin1Bitmap(const StartCharFilter& filter)
+    {
+        for (unsigned i = 0; i < 4; ++i) {
+            if (filter.latin1Bitmap[i] != ~static_cast<uint64_t>(0))
+                return false;
+        }
+        return true;
+    }
+
+    static void addChar(StartCharFilter& filter, char32_t ch)
+    {
+        if (ch > 0xFF) {
+            filter.mayStartAboveLatin1 = true;
+            return;
+        }
+        filter.latin1Bitmap[ch >> 6] |= static_cast<uint64_t>(1) << (ch & 63);
+    }
+
+    static void addRange(StartCharFilter& filter, char32_t begin, char32_t end)
+    {
+        if (end > 0xFF) {
+            filter.mayStartAboveLatin1 = true;
+            end = 0xFF;
+        }
+        for (char32_t ch = begin; ch <= end; ++ch)
+            addChar(filter, ch);
+    }
+
+    // Fills in exactly the 0x00..0xFF characters the class matches, mirroring
+    // Interpreter::testCharacterClass(): it splits the lookup at 0x80 and does
+    // not consult m_table. Being exact rather than a superset is what makes it
+    // safe to complement this for an inverted class.
+    static bool addCharacterClass(StartCharFilter& filter, CharacterClass* characterClass)
+    {
+        // Class set strings (/v) match more than a single character. Those
+        // patterns are unicode ones and already rejected; this is a safety net.
+        if (characterClass->hasStrings())
+            return false;
+
+        if (characterClass->m_anyCharacter) {
+            addRange(filter, 0, 0xFF);
+            filter.mayStartAboveLatin1 = true;
+            return true;
+        }
+
+        for (auto match : characterClass->m_matches) {
+            if (isASCII(match))
+                addChar(filter, match);
+        }
+        for (auto range : characterClass->m_ranges) {
+            if (range.begin <= 0x7F)
+                addRange(filter, range.begin, std::min<char32_t>(range.end, 0x7F));
+        }
+        for (auto match : characterClass->m_matchesUnicode) {
+            if (!isASCII(match))
+                addChar(filter, match);
+        }
+        for (auto range : characterClass->m_rangesUnicode) {
+            if (range.end >= 0x80)
+                addRange(filter, std::max<char32_t>(range.begin, 0x80), range.end);
+        }
+        return true;
+    }
+
+    static bool addCharacterClassTerm(StartCharFilter& filter, PatternTerm& term)
+    {
+        if (!term.invert())
+            return addCharacterClass(filter, term.characterClass);
+
+        StartCharFilter classFilter;
+        if (!addCharacterClass(classFilter, term.characterClass))
+            return false;
+
+        for (unsigned i = 0; i < 4; ++i)
+            filter.latin1Bitmap[i] |= ~classFilter.latin1Bitmap[i];
+        // Which characters above Latin1 the complement covers is not tracked.
+        filter.mayStartAboveLatin1 = true;
+        return true;
+    }
+
+    // Unions the first-character set of the alternative into filter. Sets
+    // canMatchEmpty when no term of it is guaranteed to consume a character, in
+    // which case the alternative can match the empty string at any offset.
+    static bool collectAlternative(PatternAlternative* alternative, StartCharFilter& filter, bool& canMatchEmpty, unsigned depth)
+    {
+        // Only the terms of a lookbehind match backwards, and those are not
+        // walked - but check rather than rely on it.
+        if (alternative->matchDirection() != Forward)
+            return false;
+
+        for (auto& term : alternative->m_terms) {
+            if (term.matchDirection() != Forward)
+                return false;
+
+            switch (term.type) {
+            case PatternTerm::Type::AssertionBOL:
+            case PatternTerm::Type::AssertionEOL:
+            case PatternTerm::Type::AssertionWordBoundary:
+                // Zero-width: it can only narrow down where a match starts.
+                continue;
+
+            case PatternTerm::Type::ParentheticalAssertion:
+                // Zero-width as well. Ignoring what the assertion itself matches
+                // keeps the set a superset, and means a lookbehind needs no
+                // special care here.
+                continue;
+
+            case PatternTerm::Type::PatternCharacter: {
+                char32_t ch = term.patternCharacter;
+                if (term.ignoreCase()) {
+                    // ByteCompiler::atomPatternCharacter() matches either case of
+                    // an ASCII character; above ASCII the folding is ICU's, and
+                    // not worth predicting here.
+                    if (!isASCII(ch))
+                        return false;
+                    addChar(filter, toASCIILower(ch));
+                    addChar(filter, toASCIIUpper(ch));
+                } else
+                    addChar(filter, ch);
+                break;
+            }
+
+            case PatternTerm::Type::CharacterClass:
+                // Interpreter::checkCharacterClass() and its variants fold the
+                // input character at match time, so for an ignoreCase term the
+                // class contents are not a superset of what it matches.
+                if (term.ignoreCase())
+                    return false;
+                if (!addCharacterClassTerm(filter, term))
+                    return false;
+                break;
+
+            case PatternTerm::Type::ParenthesesSubpattern: {
+                if (term.invert())
+                    return false;
+                // A {0} group matches nothing at all.
+                if (!term.quantityMaxCount)
+                    continue;
+                if (depth >= maxRecursionDepth)
+                    return false;
+
+                bool subCanMatchEmpty = false;
+                if (!collectDisjunction(term.parentheses.disjunction, filter, subCanMatchEmpty, depth + 1))
+                    return false;
+                // The group can be passed without consuming anything, so a later
+                // term can still be the one that starts the match.
+                if (subCanMatchEmpty)
+                    continue;
+                break;
+            }
+
+            case PatternTerm::Type::BackReference:
+            case PatternTerm::Type::ForwardReference:
+            case PatternTerm::Type::DotStarEnclosure:
+                // A reference matches whatever was captured, and DotStarEnclosure
+                // stands for a `.*`-wrapped expression: first character unknown.
+                return false;
+            }
+
+            // Only reached for a term that contributed to the set.
+            unsigned minCount = term.quantityMinCount;
+            if (!minCount)
+                continue;
+
+            // The term must consume a character, so no later term can be the one
+            // that starts the match.
+            return true;
+        }
+
+        canMatchEmpty = true;
+        return true;
+    }
+
+    static bool collectDisjunction(PatternDisjunction* disjunction, StartCharFilter& filter, bool& canMatchEmpty, unsigned depth)
+    {
+        if (disjunction->m_alternatives.isEmpty())
+            return false;
+
+        for (auto& alternative : disjunction->m_alternatives) {
+            bool alternativeCanMatchEmpty = false;
+            if (!collectAlternative(alternative.get(), filter, alternativeCanMatchEmpty, depth))
+                return false;
+            if (alternativeCanMatchEmpty)
+                canMatchEmpty = true;
+        }
+        return true;
+    }
+};
+
+#endif // ENABLE_YARR_START_CHAR_FILTER
+
 class ByteCompiler {
     struct ParenthesesStackEntry {
         unsigned beginTerm;
@@ -2264,7 +2560,14 @@ public:
         }
         regexEnd();
 
-        return makeUnique<BytecodePattern>(WTFMove(m_bodyDisjunction), m_allParenthesesInfo, m_pattern, allocator, m_pattern.offsetVectorBaseForNamedCaptures(), m_pattern.offsetsSize());
+        auto bytecodePattern = makeUnique<BytecodePattern>(WTFMove(m_bodyDisjunction), m_allParenthesesInfo, m_pattern, allocator, m_pattern.offsetVectorBaseForNamedCaptures(), m_pattern.offsetsSize());
+
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+        StartCharFilter& startCharFilter = bytecodePattern->m_startCharFilter;
+        startCharFilter.valid = StartCharFilterBuilder::build(m_pattern, startCharFilter);
+#endif
+
+        return bytecodePattern;
     }
 
     void checkInput(unsigned count)
@@ -2880,7 +3183,17 @@ std::unique_ptr<BytecodePattern> byteCompile(YarrPattern& pattern, BumpPointerAl
 
 unsigned interpret(BytecodePattern* bytecode, const LChar* input, unsigned length, unsigned start, unsigned* output)
 {
+#if defined(ESCARGOT_SMALL_CONFIG)
+    // Only the Interpreter<UChar> instantiation is kept under SMALL_CONFIG to avoid
+    // duplicating this large template for LChar as well; widen the 8-bit input instead.
+    Vector<UChar> widenedInput;
+    widenedInput.grow(length);
+    for (unsigned i = 0; i < length; i++)
+        widenedInput[i] = input[i];
+    return Interpreter<UChar>(bytecode, output, widenedInput.data(), length, start).interpret();
+#else
     return Interpreter<LChar>(bytecode, output, input, length, start).interpret();
+#endif
 }
 
 unsigned interpret(BytecodePattern* bytecode, const UChar* input, unsigned length, unsigned start, unsigned* output)
