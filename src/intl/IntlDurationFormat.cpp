@@ -620,11 +620,14 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
             if (nextStyle->equals("numeric")) {
                 if (unit == ISO8601::DateTimeUnit::Second) {
                     totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Second);
+                    value = std::strtod(buildDecimalFormat(unit, totalNanosecondsValue.value()).c_str(), nullptr);
                 } else if (unit == ISO8601::DateTimeUnit::Millisecond) {
                     totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Millisecond);
+                    value = std::strtod(buildDecimalFormat(unit, totalNanosecondsValue.value()).c_str(), nullptr);
                 } else {
                     ASSERT(unit == ISO8601::DateTimeUnit::Microsecond);
                     totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Microsecond);
+                    value = std::strtod(buildDecimalFormat(unit, totalNanosecondsValue.value()).c_str(), nullptr);
                 }
                 ASSERT(totalNanosecondsValue);
 
@@ -770,7 +773,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
                 if (needsFormat) {
                     adjustSignDisplay();
 
-                    auto formattedNumber = totalNanosecondsValue ? formatIntl128AsDecimal(skeletonBuilder) : formatDouble(skeletonBuilder);
+                    auto formattedNumber = formatDouble(skeletonBuilder);
                     auto formatted = formatToString(formattedNumber.get());
                     elements.push_back({ ElementType::Element, std::signbit(value), unit, std::move(formatted), std::move(formattedNumber) });
                 }
@@ -798,7 +801,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
                     skeletonBuilder += u" unit-width-narrow";
                 }
 
-                auto formattedNumber = totalNanosecondsValue ? formatIntl128AsDecimal(skeletonBuilder) : formatDouble(skeletonBuilder);
+                auto formattedNumber = formatDouble(skeletonBuilder);
                 auto formatted = formatToString(formattedNumber.get());
                 elements.push_back({ ElementType::Element, std::signbit(value), unit, std::move(formatted), std::move(formattedNumber) });
             }
