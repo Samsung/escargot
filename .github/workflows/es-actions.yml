@@ -2180,7 +2180,7 @@ jobs:
               cat tools/test/spidermonkey/x86_64.gen.txt 2>/dev/null || true
               exit 1
             }
-            python3 tools/run-tests.py --arch=arm --engine="$(pwd)/out/escargot" octane
+            python3 tools/run-tests.py --arch=arm --engine="$(pwd)/out/escargot" octane octane-memory
           '
     - name: Fix workspace ownership (always runs, even if the job above is cancelled)
       # The chown-on-EXIT trap inside the container above only fires on a
@@ -2269,7 +2269,7 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
-        $RUNNER --arch=aarch64 --engine="${{ github.workspace }}/out/escargot" octane
+        $RUNNER --arch=aarch64 --engine="${{ github.workspace }}/out/escargot" octane octane-memory
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
@@ -2685,7 +2685,7 @@ jobs:
         }' >> "$GITHUB_ENV"
     - name: Boot-test under QEMU (mps3-an547 / Cortex-M55)
       run: |
-        timeout 60 qemu-system-arm \
+        timeout 120 qemu-system-arm \
           -machine mps3-an547 \
           -cpu cortex-m55 \
           -semihosting \

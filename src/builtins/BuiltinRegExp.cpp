@@ -32,8 +32,10 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 {
     Value pattern = argv[0];
     Value flags = argv[1];
-    String* source = pattern.isUndefined() ? String::emptyString() : pattern.toString(state);
-    String* option = flags.isUndefined() ? String::emptyString() : flags.toString(state);
+    // ToString(pattern)/ToString(flags) are deferred: the RegExp-pattern branches below don't need
+    // them, and the spec orders ToString after IsRegExp(pattern) and the Get(pattern, "constructor") check.
+    String* source = nullptr;
+    String* option = nullptr;
 
     // Let patternIsRegExp be IsRegExp(pattern).
     bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExp(state);
@@ -66,12 +68,18 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         if (flags.isUndefined()) {
             Value F = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, pattern);
             option = F.isUndefined() ? String::emptyString() : F.toString(state);
+        } else {
+            option = flags.toString(state);
         }
+    } else {
+        source = pattern.isUndefined() ? String::emptyString() : pattern.toString(state);
+        option = flags.isUndefined() ? String::emptyString() : flags.toString(state);
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->regexpPrototype();
     });
+    ASSERT(source && option);
     RegExpObject* regexp = new RegExpObject(state, proto, source, option);
 
     if (newTarget != state.context()->globalObject()->regexp()) {
@@ -175,22 +183,7 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
-    Object* thisObject = thisValue.asObject();
-    StringBuilder builder;
-    String* pattern = RegExpObject::regexpSourceValue(state, thisObject);
-    Value flagsValue = RegExpObject::regexpFlagsValue(state, thisObject);
-
-    builder.appendString("/", &state);
-    builder.appendString(pattern, &state);
-    builder.appendString("/", &state);
-
-    if (!flagsValue.isUndefined()) {
-        builder.appendString(flagsValue.toString(state), &state);
-    } else {
-        builder.appendString("\0", &state);
-    }
-
-    return builder.finalize(&state);
+    return RegExpObject::regexpToString(state, thisValue.asObject());
 }
 
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

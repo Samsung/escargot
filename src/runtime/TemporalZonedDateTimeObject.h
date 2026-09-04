@@ -173,7 +173,7 @@ public:
     bool equals(ExecutionState& state, Value otherInput);
 
     // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
-    int hoursInDay(ExecutionState& state);
+    double hoursInDay(ExecutionState& state);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
     TemporalInstantObject* toInstant(ExecutionState& state);

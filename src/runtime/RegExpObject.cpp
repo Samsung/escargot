@@ -59,6 +59,7 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
     , m_source(NULL)
     , m_optionString(NULL)
+    , m_toStringCache(NULL)
     , m_legacyFeaturesEnabled(true)
     , m_hasNonWritableLastIndexRegExpObject(false)
     , m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype(false)
@@ -166,6 +167,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     setOptionValueForGC(option);
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapePattern(state, m_source);
+    m_toStringCache = nullptr;
 
     auto& entry = state.context()->regexpCache()->getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {
@@ -184,6 +186,7 @@ void RegExpObject::init(ExecutionState& state, String* source, String* option)
     Option optionVals = parseOption(state, option);
     internalInit(state, source, optionVals);
     m_optionString = option;
+    m_toStringCache = nullptr;
 }
 
 bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
@@ -764,6 +767,36 @@ String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* o
         result = cache[cacheIndex] = new ASCIIString(flags, flagsIdx);
     }
 
+    return result;
+}
+
+String* RegExpObject::regexpToString(ExecutionState& state, Object* obj)
+{
+    // Cache the built string on the RegExpObject itself, but only when the generic get(source)/get(flags)
+    // path (which could observe user-defined own properties) isn't in play.
+    bool canUseCache = obj->isRegExpObject() && !hasOwnRegExpProperty(state, obj);
+    if (canUseCache && obj->asRegExpObject()->m_toStringCache) {
+        return obj->asRegExpObject()->m_toStringCache;
+    }
+
+    StringBuilder builder;
+    String* pattern = regexpSourceValue(state, obj);
+    Value flagsValue = regexpFlagsValue(state, obj);
+
+    builder.appendString("/", &state);
+    builder.appendString(pattern, &state);
+    builder.appendString("/", &state);
+
+    if (!flagsValue.isUndefined()) {
+        builder.appendString(flagsValue.toString(state), &state);
+    } else {
+        builder.appendString("\0", &state);
+    }
+
+    String* result = builder.finalize(&state);
+    if (canUseCache) {
+        obj->asRegExpObject()->m_toStringCache = result;
+    }
     return result;
 }
 

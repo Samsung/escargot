@@ -2091,6 +2091,17 @@ std::tuple<double, double, UCalendar*, UDateIntervalFormat*, LocalResourcePointe
     auto utilResult2 = icuFormatTemporalHelper(state, endDateInput, false);
 
     auto icuFormat = std::get<1>(utilResult1).get() ? std::get<1>(utilResult1).get() : m_icuDateFormat;
+#if defined(ENABLE_TEMPORAL)
+    // Preserve the original era-only range pattern for Temporal.Instant.
+    if (isTemporalObject && startDateInput.isObject()
+        && startDateInput.asObject()->isTemporalInstantObject()
+        && !m_era.isUndefined() && m_year.isUndefined() && m_month.isUndefined()
+        && m_weekday.isUndefined() && m_day.isUndefined() && m_dayPeriod.isUndefined()
+        && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined()
+        && m_fractionalSecondDigits.isUndefined() && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+        icuFormat = m_icuDateFormat;
+    }
+#endif
     LocalResourcePointer<UCalendar> tempICUFormatHolder(nullptr, [](UCalendar* format) {
         udat_close(format);
     });
@@ -2172,6 +2183,16 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& st
     }
 
     if (equal) {
+#if defined(ENABLE_TEMPORAL)
+        if (startDateInput.isObject() && startDateInput.asObject()->isTemporalInstantObject()
+            && !m_era.isUndefined() && m_year.isUndefined() && m_month.isUndefined()
+            && m_weekday.isUndefined() && m_day.isUndefined() && m_dayPeriod.isUndefined()
+            && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined()
+            && m_fractionalSecondDigits.isUndefined() && m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+            // Retain the formatter era-only pattern for equal Instant fields.
+            return format(state, m_icuDateFormat, startDate);
+        }
+#endif
         return format(state, startDateInput);
     }
 

@@ -476,6 +476,24 @@ public:
     unsigned m_frameSize;
 };
 
+// A conservative superset of the characters a match of the body disjunction can
+// begin with. The interpreter uses it to skip start offsets that cannot begin a
+// match at all, instead of retrying every alternative of the body there - see
+// Interpreter::advanceToPossibleStart(). It is computed once per pattern by
+// StartCharFilterBuilder (YarrInterpreter.cpp); anything not fully understood
+// there leaves the filter invalid, which keeps matching unchanged.
+struct StartCharFilter {
+    // Characters 0x00..0xFF that can begin a match. The whole Latin1 range has to
+    // be covered, not just ASCII, because for 8-bit subject strings this bitmap
+    // alone decides.
+    uint64_t latin1Bitmap[4] { 0, 0, 0, 0 };
+    // Whether a match can begin with a character above 0xFF. For non-unicode
+    // patterns a supplementary character is two terms, so this covers its lead
+    // surrogate.
+    bool mayStartAboveLatin1 { false };
+    bool valid { false };
+};
+
 struct BytecodePattern : public gc {
     WTF_MAKE_TZONE_ALLOCATED(BytecodePattern);
 public:
@@ -561,6 +579,9 @@ public:
     CharacterClass* newlineCharacterClass;
     CharacterClass* wordcharCharacterClass;
     CharacterClass* ignoreCaseWordcharCharacterClass;
+#if defined(ENABLE_YARR_START_CHAR_FILTER)
+    StartCharFilter m_startCharFilter;
+#endif
 
 private:
     Vector<std::unique_ptr<ByteDisjunction>> m_allParenthesesInfo;

@@ -58,6 +58,12 @@ jobs:
           # Reduce it before npm ci so postinstall bundles the one-sample suite.
           sed -i 's/minSamples: 20/minSamples: 1/' "$GITHUB_WORKSPACE/test/web-tooling-benchmark/src/suite.js"
           (cd "$GITHUB_WORKSPACE/test/web-tooling-benchmark" && npm ci)
+          # test/octane is a stock chromium/octane submodule checkout; overlay
+          # the single-pass memory driver (tracked under tools/test/octane,
+          # since the submodule only carries its own tracked content and
+          # .gitmodules ignores untracked files here) that CodeLoad needs for
+          # a speed-independent RSS metric.
+          cp "$GITHUB_WORKSPACE/tools/test/octane/base_mem.js" "$GITHUB_WORKSPACE/tools/test/octane/run_mem_ci.js" "$GITHUB_WORKSPACE/test/octane/"
           measure() {
             name="$1"; dir="$2"; script="$3"
             rss_file="$report/$name.rss-kb"
@@ -83,25 +89,43 @@ jobs:
           measure web-tooling-warmup "$GITHUB_WORKSPACE/test/web-tooling-benchmark" dist/cli.js
           for n in 1; do
             measure "octane-$n" "$GITHUB_WORKSPACE/test/octane" run.js
+            # Octane's own RSS during the timed run above scales with however
+            # many iterations the engine's speed fit into the window, not
+            # with actual retention - fatal for CodeLoad, which permanently
+            # pins a compiled function tree per iteration (spec-required
+            # non-configurable global property; see
+            # escargot-codeload-retention-scales-with-speed). So Octane's
+            # RSS is measured separately, from run_mem_ci.js's single fixed-
+            # work pass over every suite. No warm-up run needed: this driver
+            # never loops, so engine speed can't change how much work it does.
+            measure "octane-mem-$n" "$GITHUB_WORKSPACE/test/octane" run_mem_ci.js
             measure "web-tooling-$n" "$GITHUB_WORKSPACE/test/web-tooling-benchmark" dist/cli.js
           done
           sed 's/^  //' <<'  PY' | python3 - "$report"
           import json, pathlib, re, statistics, sys
           report = pathlib.Path(sys.argv[1])
-          def collect(prefix, pattern):
+          def collect(prefix, pattern, rss_prefix=None):
+              # rss_prefix lets score and RSS come from different runs: Octane's
+              # own timed run ties iteration count (and thus CodeLoad's
+              # permanently-retained memory) to engine speed, so its RSS is
+              # sampled from a separate single fixed-work-pass run instead
+              # (see run_mem_ci.js / escargot-codeload-retention-scales-with-speed).
+              rss_prefix = rss_prefix or prefix
               score, rss, output = [], [], []
               for n in range(1, 2):
                   log = (report / "logs" / f"{prefix}-{n}.log").read_text(errors="replace")
                   match = re.search(pattern, log)
                   if not match: raise SystemExit(f"Could not parse {prefix} run {n}")
                   score.append(float(match.group(1)))
-                  rss.extend(int(value) for value in (report / f"{prefix}-{n}.rss-kb").read_text().split())
+                  rss.extend(int(value) for value in (report / f"{rss_prefix}-{n}.rss-kb").read_text().split())
                   output.append(log)
-              if not rss: raise SystemExit(f"Could not collect RSS samples for {prefix}")
+                  if rss_prefix != prefix:
+                      output.append((report / "logs" / f"{rss_prefix}-{n}.log").read_text(errors="replace"))
+              if not rss: raise SystemExit(f"Could not collect RSS samples for {rss_prefix}")
               return {"score": round(statistics.mean(score), 2), "samples": score,
                 "average_rss_kb": round(statistics.mean(rss)), "maximum_rss_kb": max(rss),
                 "rss_samples_kb": rss, "output": output}
-          data = {"octane": collect("octane", r"Score \(version [^)]+\):\s*([0-9.]+)"),
+          data = {"octane": collect("octane", r"Score \(version [^)]+\):\s*([0-9.]+)", rss_prefix="octane-mem"),
             "web_tooling": collect("web-tooling", r"Geometric mean:\s*([0-9.]+)\s+runs/s")}
           (report / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
           rss = data["octane"]["rss_samples_kb"] + data["web_tooling"]["rss_samples_kb"]
@@ -138,10 +162,18 @@ jobs:
         history_file, source_file = map(pathlib.Path, sys.argv[1:])
         history = json.loads(history_file.read_text()) if history_file.exists() else []
         item = json.loads(source_file.read_text())
-        item.update({"sha": os.environ["REVISION"], "short_sha": os.environ["REVISION"][:7], "revision_url": os.environ["REVISION_URL"], "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")})
+        item.update({"sha": os.environ["REVISION"], "short_sha": os.environ["REVISION"][:7], "revision_url": os.environ["REVISION_URL"], "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+          "octane_rss_method": "octane-mem-single-pass-v1"})
         # Earlier entries reported GNU time's peak RSS as both average and
         # maximum. Drop them; only sampled-RSS entries are comparable.
-        history = [x for x in history if x.get("measured_at") and x["sha"] != item["sha"]] + [item]
+        # Octane's Avg/Max RSS also changed source: it used to come from
+        # Octane's own timed run, whose iteration count (and so CodeLoad's
+        # permanently-retained memory) tracks engine speed rather than actual
+        # retention. It now comes from a single fixed-work pass instead (see
+        # run_mem_ci.js). Entries predating that switch aren't comparable
+        # either, so drop anything missing the current octane_rss_method tag.
+        history = [x for x in history if x.get("measured_at") and x["sha"] != item["sha"]
+                   and x.get("octane_rss_method") == item["octane_rss_method"]] + [item]
         history_file.write_text(json.dumps(history[-200:], indent=2) + "\n")
         PY
         python3 - "$site/index.html" README.md <<'PY'
@@ -227,6 +259,7 @@ jobs:
         <main>
           <h1>Escargot performance</h1>
           <p>master only. One measured run per benchmark; warm-up is excluded. RSS is sampled every 50 ms while the benchmark runs.</p>
+          <p><strong>Octane Avg/Max RSS methodology:</strong> measured from a separate single fixed-work pass over every Octane suite (<code>test/octane/run_mem_ci.js</code>), not from Octane's normal timed run. Octane's own loop ties each suite's iteration count to engine speed, and CodeLoad's <code>cacheBust()</code> makes every eval permanently retain its compiled function tree (a spec-required non-configurable global property, not a leak) - so a faster/slower engine alone used to shift these RSS numbers with no real behavior change. Octane Score is unaffected and still comes from the normal timed run. History predating this change used the old speed-dependent method and was dropped as not comparable.</p>
           <div class="grid">
             <section class="card"><h2>Octane Score</h2><canvas id="octane_score"></canvas></section>
             <section class="card"><h2>Web Tooling Score</h2><canvas id="web_score"></canvas></section>
