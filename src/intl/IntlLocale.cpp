@@ -544,6 +544,10 @@ Value IntlLocaleObject::collations(ExecutionState& state)
         }
     }
 
+    std::sort(resultVector.begin(), resultVector.end(), [](const Value& a, const Value& b) {
+        return a.asString()->toNonGCUTF8StringData() < b.asString()->toNonGCUTF8StringData();
+    });
+
     return Object::createArrayFromList(state, resultVector);
 }
 
@@ -639,7 +643,6 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
     }
 
     int32_t firstDayOfWeek = ucal_getAttribute(calendar.get(), UCAL_FIRST_DAY_OF_WEEK);
-    int32_t minimalDays = ucal_getAttribute(calendar.get(), UCAL_MINIMAL_DAYS_IN_FIRST_WEEK);
 
     auto canonicalizeDayOfWeekType = [](UCalendarWeekdayType type) {
         switch (type) {
@@ -697,7 +700,6 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
     Object* result = new Object(state);
     result->set(state, ObjectPropertyName(state, String::fromASCII("firstDay")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(firstDayOfWeek)), result);
     result->set(state, ObjectPropertyName(state, String::fromASCII("weekend")), weekendArray, result);
-    result->set(state, ObjectPropertyName(state, String::fromASCII("minimalDays")), Value(minimalDays), result);
     return result;
 }
 

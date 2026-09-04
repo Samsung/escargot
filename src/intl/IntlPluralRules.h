@@ -54,6 +54,11 @@ public:
         return m_notation;
     }
 
+    String* compactDisplay() const
+    {
+        return m_compactDisplay;
+    }
+
     double minimumIntegerDigits() const
     {
         return m_minimumIntegerDigits;
@@ -116,6 +121,7 @@ protected:
     String* m_locale;
     String* m_type;
     String* m_notation;
+    String* m_compactDisplay;
     double m_minimumIntegerDigits;
     double m_roundingIncrement;
     Value m_minimumFractionDigits; // double or undefined
