@@ -2046,6 +2046,7 @@ bool LanguageTagParser::parseExtensionsAndPUExtensions()
         char16_t prefixCode = m_current[0];
         if (!isASCIIAlphanumeric(prefixCode))
             return true;
+        char16_t singletonKey = tolower(prefixCode);
 
         // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
         // does not include duplicate singleton subtags.
@@ -2054,9 +2055,9 @@ bool LanguageTagParser::parseExtensionsAndPUExtensions()
         // As is often the case, the complete syntactic constraints are not easily captured by ABNF,
         // so there is a further condition: There cannot be more than one extension with the same singleton (-a-, …, -t-, -u-, …).
         // Note that the private use extension (-x-) must come after all other extensions.
-        if (singletonsSet.find(prefixCode) != singletonsSet.end())
+        if (singletonsSet.find(singletonKey) != singletonsSet.end())
             return false;
-        singletonsSet.insert(prefixCode);
+        singletonsSet.insert(singletonKey);
 
         switch (prefixCode) {
         case 'u':
@@ -2107,6 +2108,11 @@ bool LanguageTagParser::parseExtensionsAndPUExtensions()
 // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
 bool Intl::isStructurallyValidLanguageTag(const std::string& string)
 {
+    // BCP 47 uses only ASCII hyphen as a subtag separator. ICU accepts underscores
+    // in locale identifiers, but ECMA-402 must reject them as structurally invalid.
+    if (string.find('_') != std::string::npos)
+        return false;
+
     LanguageTagParser parser(string);
     if (!parser.parseUnicodeLocaleId())
         return false;

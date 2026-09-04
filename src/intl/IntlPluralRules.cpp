@@ -40,6 +40,7 @@ void* IntlPluralRulesObject::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_locale));
         GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_type));
         GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_notation));
+        GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_compactDisplay));
         GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_roundingMode));
         GC_set_bit(desc, GC_WORD_OFFSET(IntlPluralRulesObject, m_trailingZeroDisplay));
         descr = GC_make_descriptor(desc, GC_WORD_LEN(IntlPluralRulesObject));
@@ -52,6 +53,8 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     : DerivedObject(state, proto)
     , m_locale(nullptr)
     , m_type(nullptr)
+    , m_notation(nullptr)
+    , m_compactDisplay(nullptr)
     , m_minimumIntegerDigits(0)
     , m_minimumFractionDigits(0)
     , m_maximumFractionDigits(0)
@@ -91,6 +94,15 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     Value notation = Intl::getOption(state, optionObject, state.context()->staticStrings().lazyNotation().string(), Intl::StringValue, notationValues, 4, notationValues[0]);
     m_notation = notation.asString();
 
+    // Let compactDisplay be ? GetOption(options, "compactDisplay", "string",
+    // « "short", "long" », "short"). It is only exposed by
+    // resolvedOptions when notation is "compact".
+    Value compactDisplayValues[2] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
+    Value compactDisplay = Intl::getOption(state, optionObject, state.context()->staticStrings().lazyCompactDisplay().string(), Intl::StringValue, compactDisplayValues, 2, compactDisplayValues[0]);
+    if (m_notation->equals("compact")) {
+        m_compactDisplay = compactDisplay.asString();
+    }
+
     // Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
     auto optionsResult = Intl::setNumberFormatDigitOptions(state, optionObject, 0, 3, m_notation);
 
@@ -113,7 +125,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
 
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringDataNonGCStd skeleton;
-    Intl::initNumberFormatSkeleton(state, optionsResult, m_notation, state.context()->staticStrings().lazyCompact().string(), skeleton);
+    Intl::initNumberFormatSkeleton(state, optionsResult, m_notation, compactDisplay.asString(), skeleton);
     m_icuNumberFormat = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), foundLocale->toNonGCUTF8StringData().data(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init PluralRules");

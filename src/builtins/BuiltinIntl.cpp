@@ -433,6 +433,26 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
     return fn;
 }
 
+static Object* unwrapNumberFormat(ExecutionState& state, Value thisValue)
+{
+    if (thisValue.isObject() && thisValue.asObject()->hasInternalSlot()
+        && thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
+        return thisValue.asObject();
+    }
+
+    if (thisValue.isObject()) {
+        Symbol* fallbackSymbol = state.context()->globalObject()->intlLegacyConstructedSymbol();
+        Value fallback = thisValue.asObject()->get(state, ObjectPropertyName(state, Value(fallbackSymbol))).value(state, thisValue.asObject());
+        if (fallback.isObject() && fallback.asObject()->hasInternalSlot()
+            && fallback.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
+            return fallback.asObject();
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    return nullptr;
+}
+
 static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value locales, options;
@@ -441,6 +461,33 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
     }
     if (argc >= 2) {
         options = argv[1];
+    }
+
+    // ChainNumberFormat is a normative-optional ECMA-402 feature. When
+    // called as a function with a NumberFormat-prototype receiver, attach a
+    // freshly initialized formatter under this realm's private fallback Symbol.
+    if (!newTarget.hasValue() && thisValue.isObject()) {
+        Object* numberFormatPrototype = state.context()->globalObject()->intlNumberFormatPrototype();
+        Value prototype = thisValue;
+        bool hasNumberFormatPrototype = false;
+        while (prototype.isObject()) {
+            prototype = prototype.asObject()->getPrototype(state);
+            if (prototype.isObject() && prototype.asObject() == numberFormatPrototype) {
+                hasNumberFormatPrototype = true;
+                break;
+            }
+        }
+
+        if (hasNumberFormatPrototype) {
+            Object* numberFormat = new Object(state, numberFormatPrototype);
+            IntlNumberFormat::initialize(state, numberFormat, locales, options);
+            Symbol* fallbackSymbol = state.context()->globalObject()->intlLegacyConstructedSymbol();
+            thisValue.asObject()->defineOwnPropertyThrowsException(
+                state, ObjectPropertyName(state, Value(fallbackSymbol)),
+                ObjectPropertyDescriptor(Value(numberFormat),
+                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+            return thisValue;
+        }
     }
 
     // If NewTarget is undefined, let newTarget be the active function object, else let newTarget be NewTarget.
@@ -462,12 +509,10 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
 
 static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
-    }
-
-    Object* internalSlot = thisValue.asObject()->internalSlot();
+    Object* numberFormat = unwrapNumberFormat(state, thisValue);
+    Object* internalSlot = numberFormat->internalSlot();
     Object* result = new Object(state);
+
 
     setFormatOpt(state, internalSlot, result, String::fromASCII("locale"));
     setFormatOpt(state, internalSlot, result, String::fromASCII("numberingSystem"));
@@ -642,6 +687,9 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyType()), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), ObjectPropertyDescriptor(pr->notation(), ObjectPropertyDescriptor::AllPresent));
+    if (pr->compactDisplay()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyCompactDisplay()), ObjectPropertyDescriptor(pr->compactDisplay(), ObjectPropertyDescriptor::AllPresent));
+    }
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
 
     if (!pr->minimumSignificantDigits().isUndefined()) {

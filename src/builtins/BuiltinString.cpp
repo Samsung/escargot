@@ -457,8 +457,18 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     }
 
     String* string = thisValue.toString(state);
-    String* searchString = searchValue.toString(state);
     bool functionalReplace = replaceValue.isCallable();
+
+    // The RegExp fast path below stands in for RegExp.prototype[@@replace], which never
+    // performs ToString(searchValue) - doing it here would call a user-visible
+    // RegExp.prototype.toString and, since it escapes the whole pattern source, cost far
+    // more than the match itself for long patterns.
+    // searchString stays null only on the RegExp fast path below, which never reads it.
+    String* searchString = nullptr;
+    if (!isSearchValueRegExp || !canUseFastPath) {
+        searchString = searchValue.toString(state);
+    }
+    ASSERT(searchString || (isSearchValueRegExp && canUseFastPath));
 
     if (canUseFastPath) {
         RegexMatchResult result;
@@ -478,6 +488,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                 }
             }
         } else {
+            ASSERT(searchString);
             size_t idx = string->find(searchString);
             if (idx != (size_t)-1) {
                 std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
@@ -535,6 +546,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             return stringReplaceFastPathHelper(state, string, replaceString, result);
         }
     } else {
+        ASSERT(searchString);
         if (!functionalReplace) {
             replaceValue = replaceValue.toString(state);
         }
