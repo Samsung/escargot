@@ -111,11 +111,6 @@ cmake -DENABLE_SHELL=ON -GNinja
 ninja
 ```
 
-> CMake 4.0+ removed support for `cmake_minimum_required(VERSION < 3.5)` and will
-> hard-error on some vendored third-party dependencies (e.g. `third_party/wasm/wabt`)
-> that still declare an older minimum. If your `cmake --version` is 4.0 or newer, add
-> `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the `cmake` command above.
-
 ### macOS
 
 General build prerequisites:
@@ -145,9 +140,6 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 cmake -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DENABLE_SHELL=ON -GNinja
 ninja
 ```
-
-> Same CMake 4.0+ note as the Linux section above applies here too --
-> add `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` if needed.
 
 ### Android
 
