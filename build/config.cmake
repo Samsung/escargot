@@ -276,6 +276,15 @@ IF (ESCARGOT_CODE_CACHE)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_CODE_CACHE)
 ENDIF()
 
+# Lets the Yarr interpreter skip the start offsets at which a match cannot begin
+# (computed per pattern as a first-character set) instead of retrying every
+# alternative of the pattern there. OFF restores the plain retry loop, which is
+# what an A/B measurement of this optimization needs.
+option(ESCARGOT_YARR_START_CHAR_FILTER "Enable the Yarr interpreter first-character prefilter" ON)
+IF (ESCARGOT_YARR_START_CHAR_FILTER)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_YARR_START_CHAR_FILTER)
+ENDIF()
+
 IF (ESCARGOT_WASM)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_WASM)
     # threading should be enabled for WASM (WASM threading feature). This used
