@@ -1307,7 +1307,7 @@ static Value builtinTemporalZonedDateTimeEpochMilliseconds(ExecutionState& state
 static Value builtinTemporalZonedDateTimeHoursInDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, HoursInDay);
-    return Value(zonedDateTime->hoursInDay(state));
+    return Value(Value::EncodeAsDouble, zonedDateTime->hoursInDay(state));
 }
 
 static Value builtinTemporalZonedDateTimeToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

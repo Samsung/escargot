@@ -137,8 +137,10 @@ TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, 
 {
     ComputedTimeZone computedTimeZone;
     if (timeZone.hasTimeZoneName()) {
-        Int128 timezoneAppliedEpoch = Temporal::getEpochNanosecondsFor(state, timeZone, epochNanoseconds, TemporalDisambiguationOption::Compatible);
-        computedTimeZone = ComputedTimeZone(false, timeZone.timeZoneName(), int64_t(epochNanoseconds - timezoneAppliedEpoch));
+        // epochNanoseconds is already an instant. GetEpochNanosecondsFor()
+        // interprets its input as a local wall time and is therefore wrong at
+        // a DST overlap; use the instant-offset operation directly.
+        computedTimeZone = ComputedTimeZone(false, timeZone.timeZoneName(), Temporal::getOffsetNanosecondsFor(state, timeZone, epochNanoseconds));
     } else {
         StringBuilder tz;
         Temporal::formatOffsetTimeZoneIdentifier(state, int(timeZone.offset() / ISO8601::ExactTime::nsPerMinute), tz);
@@ -243,7 +245,7 @@ bool TemporalZonedDateTimeObject::equals(ExecutionState& state, Value otherInput
     return calendarID() == other->calendarID();
 }
 
-int TemporalZonedDateTimeObject::hoursInDay(ExecutionState& state)
+double TemporalZonedDateTimeObject::hoursInDay(ExecutionState& state)
 {
     // Let timeZone be zonedDateTime.[[TimeZone]].
     TimeZone timeZone = this->timeZone();
@@ -258,8 +260,7 @@ int TemporalZonedDateTimeObject::hoursInDay(ExecutionState& state)
     // Let tomorrowNs be ? GetStartOfDay(timeZone, tomorrow).
     auto tomorrowNs = Temporal::getStartOfDay(state, timeZone, tomorrow);
     // Let diff be TimeDurationFromEpochNanosecondsDifference(tomorrowNs, todayNs).
-    // Return 𝔽(TotalTimeDuration(diff, hour)).
-    return (int32_t)((tomorrowNs - todayNs) / ISO8601::ExactTime::nsPerHour);
+    return static_cast<double>(static_cast<int64_t>(tomorrowNs - todayNs)) / static_cast<double>(ISO8601::ExactTime::nsPerHour);
 }
 
 TemporalInstantObject* TemporalZonedDateTimeObject::toInstant(ExecutionState& state)

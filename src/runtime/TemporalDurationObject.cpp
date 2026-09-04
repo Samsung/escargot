@@ -477,6 +477,7 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
     ISO8601::PlainDate isoDate;
     ISO8601::PlainTime time;
     Optional<TimeZone> timeZone;
+    Optional<int64_t> parsedOffsetNanoseconds;
 
     // Let offsetBehaviour be option.
     TemporalOffsetBehaviour offsetBehaviour = TemporalOffsetBehaviour::Option;
@@ -547,6 +548,10 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
 
             if (timeZoneRecord.m_z && !timeZoneRecord.m_nameOrOffset) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
+
+            if (timeZoneRecord.m_offset) {
+                parsedOffsetNanoseconds = timeZoneRecord.m_offset.value();
             }
 
             if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 1 && timeZoneRecord.m_offset && timeZoneRecord.m_offset.value() != timeZoneRecord.m_nameOrOffset.get<1>()) {
@@ -630,7 +635,9 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
     // If offsetBehaviour is option, then
     if (offsetBehaviour == TemporalOffsetBehaviour::Option) {
         // Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
-        if (timeZone.value().hasOffset()) {
+        if (parsedOffsetNanoseconds) {
+            offsetNs = parsedOffsetNanoseconds.value();
+        } else if (timeZone.value().hasOffset()) {
             offsetNs = timeZone.value().offset();
         }
     }
