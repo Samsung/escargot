@@ -21,3 +21,9 @@
     <test id="intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip"><reason>ICU 78.1 extreme-date formatting after Escargot TimeClip handling</reason></test>
 
     <test id="intl402/Temporal/PlainDate/from/calc-epoch-year-hebrew"><reason>ICU4C ICU-23007: Hebrew calendar resolves expected day 30 as 29</reason></test>
+
+    <test id="intl402/Intl/supportedValuesOf/currencies-accepted-by-DisplayNames"><reason>ICU 78.1 data mismatch: AvailableCurrencies includes XAD but ICU DisplayNames(en, currency, fallback none) returns undefined</reason></test>
+
+    <test id="intl402/Intl/supportedValuesOf/units-accepted-by-NumberFormat"><reason>ICU 78.1 NumberFormatter rejects all tested volume-unit skeletons (gallon, fluid-ounce, liter, milliliter)</reason></test>
+    <test id="intl402/NumberFormat/constructor-unit"><reason>ICU 78.1 NumberFormatter rejects all tested volume-unit skeletons (gallon, fluid-ounce, liter, milliliter)</reason></test>
+    <test id="intl402/NumberFormat/prototype/format/units"><reason>ICU 78.1 NumberFormatter rejects all tested volume-unit skeletons (gallon, fluid-ounce, liter, milliliter)</reason></test>
