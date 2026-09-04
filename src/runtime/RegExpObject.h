@@ -199,6 +199,7 @@ public:
     static String* computeRegExpOptionString(ExecutionState& state, Object* obj);
     static String* regexpSourceValue(ExecutionState& state, Object* obj);
     static Value regexpFlagsValue(ExecutionState& state, Object* obj);
+    static String* regexpToString(ExecutionState& state, Object* obj);
     // returns error string if there is error
     static Optional<String*> checkRegExpSyntax(String* pattern, String* flags);
 
@@ -220,6 +221,7 @@ private:
 
     String* m_source;
     String* m_optionString;
+    String* m_toStringCache;
     Option m_option : 16;
     bool m_legacyFeaturesEnabled : 1;
     bool m_hasNonWritableLastIndexRegExpObject : 1;
