@@ -883,15 +883,6 @@
     <test id="language/expressions/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-nullish-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-nullish-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-nullish-assignment-operator-namedevaluation-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-function"><reason>TODO</reason></test>
     <test id="language/expressions/object/__proto__-permitted-dup-shorthand"><reason>TODO</reason></test>
     <test id="language/expressions/object/computed-property-name-topropertykey-before-value-evaluation"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/object-rest-proxy-get-not-called-on-dontenum-keys"><reason>TODO</reason></test>
@@ -1116,7 +1107,6 @@
     <test id="language/statements/for-of/dstr/obj-id-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-before-comma-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-not-last-element-invalid"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-lhs-async-dot"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
@@ -1125,7 +1115,6 @@
     <test id="language/statements/try/completion-values"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-function"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-lex"><reason>TODO</reason></test>
-    <test id="language/statements/using/syntax/using-for-statement"><reason>TODO</reason></test>
     <test id="language/statements/with/get-binding-value-call-with-proxy-env"><reason>TODO</reason></test>
     <test id="language/statements/with/get-binding-value-idref-with-proxy-env"><reason>TODO</reason></test>
     <test id="language/statements/with/get-mutable-binding-binding-deleted-in-get-unscopables"><reason>TODO</reason></test>
