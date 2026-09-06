@@ -22,6 +22,7 @@
 #include "internal/meta.h"
 #include "internal/stack.h"
 #include "internal/strtod.h"
+#include <limits>
 
 #if defined(RAPIDJSON_SIMD) && defined(_MSC_VER)
 #include <intrin.h>
@@ -882,6 +883,7 @@ private:
 
         // Parse 64bit int
         bool useDouble = false;
+        bool numberTooBig = false;
         double d = 0.0;
         if (use64bit) {
             if (minus)
@@ -912,7 +914,7 @@ private:
         if (useDouble) {
             while (s.Peek() >= '0' && s.Peek() <= '9') {
                 if (d >= 1.7976931348623157e307) // DBL_MAX / 10.0
-                    RAPIDJSON_PARSE_ERROR(kParseErrorNumberTooBig, s.Tell());
+                    numberTooBig = true;
                 d = d * 10 + (s.TakePush() - '0');
             }
         }
@@ -994,9 +996,13 @@ private:
                 } else { // positive exp
                     int maxExp = 308 - expFrac;
                     while (s.Peek() >= '0' && s.Peek() <= '9') {
-                        exp = exp * 10 + (s.Take() - '0');
-                        if (exp > maxExp)
-                            RAPIDJSON_PARSE_ERROR(kParseErrorNumberTooBig, s.Tell());
+                        int digit = s.Take() - '0';
+                        if (exp > (maxExp - digit) / 10) {
+                            numberTooBig = true;
+                            exp = maxExp + 1;
+                        } else {
+                            exp = exp * 10 + digit;
+                        }
                     }
                 }
             } else
@@ -1012,11 +1018,15 @@ private:
         const char* decimal = s.Pop(); // Pop stack no matter if it will be used or not.
 
         if (useDouble) {
-            int p = exp + expFrac;
-            if (parseFlags & kParseFullPrecisionFlag)
-                d = internal::StrtodFullPrecision(d, p, decimal, length, decimalPosition, exp);
-            else
-                d = internal::StrtodNormalPrecision(d, p);
+            if (numberTooBig && d != 0.0)
+                d = std::numeric_limits<double>::infinity();
+            else {
+                int p = exp + expFrac;
+                if (parseFlags & kParseFullPrecisionFlag)
+                    d = internal::StrtodFullPrecision(d, p, decimal, length, decimalPosition, exp);
+                else
+                    d = internal::StrtodNormalPrecision(d, p);
+            }
 
             cont = handler.Double(minus ? -d : d);
         } else {

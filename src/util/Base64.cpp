@@ -327,6 +327,30 @@ static inline size_t fixSIMDUTFStopBeforePartialReadLength(T* src, size_t srcLen
 }
 
 template <typename T>
+static inline size_t excessBase64PaddingChunkStart(T* src, size_t srcLength)
+{
+    size_t paddingCount = 0;
+    size_t paddingChunkStart = srcLength;
+    size_t chunkLength = 0;
+    size_t chunkStart = 0;
+    for (size_t i = 0; i < srcLength; i++) {
+        if (isASCIIWhitespace(src[i]))
+            continue;
+        if (!chunkLength)
+            chunkStart = i;
+        if (src[i] == '=') {
+            if (!paddingCount)
+                paddingChunkStart = chunkStart;
+            if (++paddingCount > 2)
+                return paddingChunkStart;
+        }
+        if (++chunkLength == 4)
+            chunkLength = 0;
+    }
+    return srcLength;
+}
+
+template <typename T>
 static std::tuple<FromBase64ShouldThrowError, size_t, size_t, std::vector<uint8_t>> fromBase64Impl(T* src, size_t srcLength, Optional<uint8_t*> dst, size_t dstLength, Alphabet alphabet, LastChunkHandling lastChunkHandling)
 {
     if (dst) {
@@ -337,26 +361,38 @@ static std::tuple<FromBase64ShouldThrowError, size_t, size_t, std::vector<uint8_
             return std::make_tuple(FromBase64ShouldThrowError::No, 0, 0, std::vector<uint8_t>());
         }
 
+        size_t excessPaddingChunkStart = excessBase64PaddingChunkStart(src, srcLength);
         size_t decodeLength = srcLength;
         if (dstLength % 3 == 0) {
             size_t completeChunks = 0;
             size_t chunkLength = 0;
+            bool chunkHasPadding = false;
             for (size_t i = 0; i < srcLength; i++) {
                 if (isASCIIWhitespace(src[i])) {
                     continue;
                 }
+                if (src[i] == '=')
+                    chunkHasPadding = true;
                 if (++chunkLength == 4) {
                     chunkLength = 0;
-                    if (++completeChunks == dstLength / 3) {
+                    if (!chunkHasPadding && ++completeChunks == dstLength / 3) {
                         decodeLength = i + 1;
                         break;
                     }
+                    chunkHasPadding = false;
                 }
             }
         }
 
+        bool shouldRejectExcessPadding = excessPaddingChunkStart < decodeLength;
+        if (shouldRejectExcessPadding)
+            decodeLength = excessPaddingChunkStart;
+
         auto result = simdutf::base64_to_binary_safe(src, decodeLength, (char*)dst.value(), dstLength,
                                                      toSIMDUTFDecodeOptions(alphabet), toSIMDUTFLastChunkHandling(lastChunkHandling), true);
+        if (shouldRejectExcessPadding)
+            return { FromBase64ShouldThrowError::Yes, result.count, dstLength, std::vector<uint8_t>() };
+
         switch (result.error) {
         case simdutf::error_code::SUCCESS: {
             size_t read;
@@ -374,6 +410,9 @@ static std::tuple<FromBase64ShouldThrowError, size_t, size_t, std::vector<uint8_
             return { FromBase64ShouldThrowError::Yes, result.count, dstLength, std::vector<uint8_t>() };
         }
     }
+    if (excessBase64PaddingChunkStart(src, srcLength) != srcLength)
+        return { FromBase64ShouldThrowError::Yes, 0, 0, std::vector<uint8_t>() };
+
     size_t outputLength = simdutf::maximal_binary_length_from_base64(src, srcLength);
     std::vector<uint8_t> output;
     output.resize(outputLength);
