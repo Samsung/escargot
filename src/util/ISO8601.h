@@ -631,7 +631,7 @@ struct DateTimeParseOption {
 Optional<ExactTime> parseISODateTimeWithInstantFormat(String* input);
 Optional<int64_t> parseUTCOffset(String* string, DateTimeParseOption option);
 Optional<TimeZoneID> parseTimeZoneName(String* string);
-Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input);
+Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, DateTimeParseOption option = {});
 Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarYearMonth(String* input, DateTimeParseOption option = {});

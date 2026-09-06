@@ -115,6 +115,49 @@ static std::string grandfatheredLangTag(const std::string& locale)
     return std::string();
 }
 
+// A regular grandfathered tag ceases to be a literal grandfathered tag once
+// variants or extensions are appended. After normal variant sorting, CLDR's
+// languageAlias data still treats its former second subtag as an alias.
+static std::string canonicalizeRegularGrandfatheredVariant(const std::string& tag)
+{
+    auto parts = split(tag, '-');
+    if (parts.empty()) {
+        return tag;
+    }
+
+    struct Alias {
+        const char* language;
+        const char* variant;
+        const char* replacement;
+    };
+    static const Alias aliases[] = {
+        { "art", "lojban", "jbo" },
+        { "cel", "gaulish", "xtg" },
+        { "zh", "guoyu", "zh" },
+        { "zh", "hakka", "hak" },
+        { "zh", "xiang", "hsn" },
+    };
+    for (const auto& alias : aliases) {
+        if (parts[0] != alias.language) {
+            continue;
+        }
+        auto it = std::find(parts.begin() + 1, parts.end(), alias.variant);
+        if (it == parts.end()) {
+            continue;
+        }
+        parts[0] = alias.replacement;
+        parts.erase(it);
+        std::string result;
+        for (size_t i = 0; i < parts.size(); ++i) {
+            if (i)
+                result += '-';
+            result += parts[i];
+        }
+        return result;
+    }
+    return tag;
+}
+
 static std::string intlPreferredLanguageTagStartWithA(const std::string& tag)
 {
     if (tag == "aam")
@@ -1245,6 +1288,10 @@ static std::string intlPreferredRegionTag(const std::string& tag)
         return "YE";
     if (tag == "ZR")
         return "CD";
+    // CLDR territoryAlias: the numeric UN M.49 code is canonicalized
+    // to its alpha-2 region in Unicode locale identifiers.
+    if (tag == "554")
+        return "NZ";
     return "";
 }
 
@@ -1747,7 +1794,8 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
     }
 
     String* e = canonical.finalize();
-    auto estd = e->toNonGCUTF8StringData();
+    auto estd = canonicalizeRegularGrandfatheredVariant(e->toNonGCUTF8StringData());
+    e = String::fromUTF8(estd.data(), estd.length());
     auto preferred = intlRedundantLanguageTag(estd);
     if (preferred != "") {
         e = String::fromUTF8(preferred.data(), preferred.length());
@@ -2498,7 +2546,7 @@ void Intl::availableTimeZones(const std::function<void(const char* buf, size_t l
 
 UTF16StringDataNonGCStd Intl::canonicalTimeZoneID(String* timezoneId)
 {
-    if (timezoneId->equals("Etc/GMT0") || timezoneId->equals("Etc/UTC") || timezoneId->equals("GMT") || timezoneId->equals("Etc/GMT")) {
+    if (timezoneId->equals("Etc/GMT0") || timezoneId->equals("Etc/GMT+0") || timezoneId->equals("Etc/GMT-0") || timezoneId->equals("Etc/UTC") || timezoneId->equals("Etc/Greenwich") || timezoneId->equals("Etc/UCT") || timezoneId->equals("Etc/Universal") || timezoneId->equals("Etc/Zulu") || timezoneId->equals("GMT") || timezoneId->equals("GMT+0") || timezoneId->equals("GMT-0") || timezoneId->equals("GMT0") || timezoneId->equals("Greenwich") || timezoneId->equals("UCT") || timezoneId->equals("Universal") || timezoneId->equals("Zulu") || timezoneId->equals("Etc/GMT")) {
         return u"Etc/UTC";
     }
     auto u16String = timezoneId->toUTF16StringData();
@@ -4143,6 +4191,17 @@ void Calendar::setYear(ExecutionState& state, UCalendar* icuCalendar, const Stri
         } else if (id() == Calendar::ID::Buddhist && era->equals("be")) {
             Calendar(ID::ISO8601).setYear(state, icuCalendar, year + epochISOYear());
             return;
+        } else if (id() == Calendar::ID::ROC) {
+            if (!era->equals("roc") && !era->equals("broc")) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid era value");
+            }
+            // Do not round-trip an extreme before-ROC year through ICU's
+            // era fields: that conversion is outside its reliable range.
+            // ROC is Gregorian with a fixed epoch, so set the ISO extended
+            // year directly on the target calendar instead.
+            int32_t isoYear = era->equals("roc") ? year + epochISOYear() : epochISOYear() + 1 - year;
+            ucal_set(icuCalendar, UCAL_EXTENDED_YEAR, isoYear);
+            return;
         }
         newCal.reset(createICUCalendar(state, "en@calendar=" + toICUString()));
         icuCalendar = newCal.get();
@@ -4214,10 +4273,21 @@ int32_t Calendar::eraYear(ExecutionState& state, UCalendar* icuCalendar)
     int32_t y;
     if (sameAsGregoryExceptHandlingEraAndYear()) {
         UErrorCode status = U_ZERO_ERROR;
+        // Buddhist has a single `be` era, whose eraYear is exactly the
+        // calendar year. ICU's UCAL_YEAR drifts at Temporal's extreme ISO
+        // boundaries, while Calendar::year derives the specified value from
+        // the resolved ISO date.
+        if (id() == Calendar::ID::Buddhist) {
+            return Calendar::year(state, icuCalendar);
+        }
+        if (id() == Calendar::ID::ROC) {
+            auto isoYear = Calendar::computeISODate(state, icuCalendar).year();
+            return isoYear <= epochISOYear() ? epochISOYear() + 1 - isoYear : isoYear - epochISOYear();
+        }
         auto epochTime = ucal_getMillis(icuCalendar, &status);
         CHECK_ICU_CALENDAR()
         if (id() == Calendar::ID::Japanese) {
-            auto meijiStart = ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(1868, 10, 23)).epochMilliseconds();
+            auto meijiStart = ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(1873, 1, 1)).epochMilliseconds();
             if (epochTime < meijiStart) {
                 auto isoYear = Calendar::computeISODate(state, icuCalendar).year();
                 if (isoYear <= 0) {
@@ -4269,7 +4339,7 @@ String* Calendar::era(ExecutionState& state, UCalendar* icuCalendar)
 
     if (sameAsGregoryExceptHandlingEraAndYear()) {
         if (id() == Calendar::ID::Japanese) {
-            auto meijiStart = ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(1868, 10, 23)).epochMilliseconds();
+            auto meijiStart = ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(1873, 1, 1)).epochMilliseconds();
             auto epochTime = ucal_getMillis(icuCalendar, &status);
             if (epochTime < meijiStart) {
                 auto isoYear = Calendar::computeISODate(state, icuCalendar).year();

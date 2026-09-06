@@ -533,7 +533,7 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
         // Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
         ISO8601::DateTimeParseOption option;
         option.allowTimeZoneTimeWithoutTime = true;
-        option.parseSubMinutePrecisionForTimeZone = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::Allow00;
+        option.parseSubMinutePrecisionForTimeZone = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::AllowAll;
         auto result = ISO8601::parseCalendarDateTime(value.asString(), option);
         if (!result) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
@@ -556,14 +556,6 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
 
             if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 1 && timeZoneRecord.m_offset && timeZoneRecord.m_offset.value() != timeZoneRecord.m_nameOrOffset.get<1>()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-            }
-            if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 0 && timeZoneRecord.m_offset) {
-                auto epoch = ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(std::get<0>(unwrappedResult),
-                                                                                          std::get<1>(unwrappedResult) ? std::get<1>(unwrappedResult).value() : ISO8601::PlainTime()))
-                                 .floorEpochMilliseconds();
-                if (timeZoneRecord.m_offset.value() != Temporal::computeTimeZoneOffset(state, timeZoneRecord.m_nameOrOffset.get<0>(), epoch)) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-                }
             }
 
             // Else,
@@ -588,9 +580,17 @@ static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState
             matchBehaviour = TemporalMatchBehaviour::MatchMinutes;
             // If offsetString is not empty, then
             if (timeZoneRecord.m_offset) {
-                // Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
-                // If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to match-exactly.
-                if (timeZoneRecord.m_offset.value() % ISO8601::ExactTime::nsPerHour) {
+                // Like ToTemporalZonedDateTime, determine precision from the
+                // parsed spelling rather than numeric value: "-00:45" is
+                // minute precision while "-00:45:00" is exact.
+                auto offsetString = timeZoneRecord.m_offsetString.value();
+                size_t digitCount = 0;
+                for (size_t i = 0; i < offsetString->length(); i++) {
+                    if (isASCIIDigit(offsetString->charAt(i))) {
+                        digitCount++;
+                    }
+                }
+                if (digitCount > 4) {
                     matchBehaviour = TemporalMatchBehaviour::MatchExactly;
                 }
             }

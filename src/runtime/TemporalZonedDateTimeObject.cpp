@@ -200,13 +200,21 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
     // Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto isoDateTime = Temporal::getISODateTimeFor(state, TimeZone(m_timeZone), epochNanoseconds());
     auto result = Temporal::roundISODateTime(state, isoDateTime, precision.increment, precision.unit, roundingMode);
+    // Rounding can land in a gap. Resolve the rounded wall time back through
+    // the zone so the string describes the actual compatible instant rather
+    // than a nonexistent local time with the pre-transition offset.
+    auto originalOffset = Temporal::getOffsetNanosecondsFor(state, TimeZone(m_timeZone), epochNanoseconds());
+    auto roundedEpochNanoseconds = Temporal::interpretISODateTimeOffset(state, result.plainDate(), result.plainTime(), TemporalOffsetBehaviour::Option,
+                                                                        originalOffset, TimeZone(m_timeZone), false, TemporalDisambiguationOption::Compatible,
+                                                                        TemporalOffsetOption::Prefer, TemporalMatchBehaviour::MatchExactly);
+    result = Temporal::getISODateTimeFor(state, TimeZone(m_timeZone), roundedEpochNanoseconds);
     StringBuilder sb;
     sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, TemporalShowCalendarNameOption::Never));
     sb.appendChar('T');
     sb.appendString(TemporalPlainTimeObject::temporalTimeToString(result.plainTime(), precision.precision));
 
     if (showOffset != TemporalShowOffsetOption::Never) {
-        auto offsetNanoseconds = TemporalDurationObject::roundTimeDurationToIncrement(state, m_timeZone.offset(), ISO8601::ExactTime::nsPerMinute, ISO8601::RoundingMode::HalfExpand);
+        auto offsetNanoseconds = TemporalDurationObject::roundTimeDurationToIncrement(state, Temporal::getOffsetNanosecondsFor(state, TimeZone(m_timeZone), roundedEpochNanoseconds), ISO8601::ExactTime::nsPerMinute, ISO8601::RoundingMode::HalfExpand);
         auto offsetMinutes = int(offsetNanoseconds / ISO8601::ExactTime::nsPerMinute);
         Temporal::formatOffsetTimeZoneIdentifier(state, offsetMinutes, sb);
     }
@@ -554,7 +562,7 @@ ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTime(E
         auto intermediateNs = Temporal::getEpochNanosecondsFor(state, timeZone, intermediateDateTime,
                                                                TemporalDisambiguationOption::Compatible);
         // Set timeDuration to TimeDurationFromEpochNanosecondsDifference(ns2, intermediateNs).
-        Int128 timeDuration = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, intermediateNs);
+        timeDuration = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, intermediateNs);
         // Let timeSign be TimeDurationSign(timeDuration).
         auto timeSign = Temporal::timeDurationSign(timeDuration);
         // If sign ≠ -timeSign, then
@@ -652,14 +660,17 @@ TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::round(ExecutionState& 
         // Let endNs be ? GetStartOfDay(timeZone, dateEnd).
         auto endNs = Temporal::getStartOfDay(state, timeZone, dateEnd);
         // Assert: thisNs < endNs.
-        // Let dayLengthNs be ℝ(endNs - startNs).
-        Int128 dayLengthNs = endNs - startNs;
-        // Let dayProgressNs be TimeDurationFromEpochNanosecondsDifference(thisNs, startNs).
-        Int128 dayProgressNs = Temporal::timeDurationFromEpochNanosecondsDifference(thisNs, startNs);
-        // Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
+        // In a historical backward shift, the next ISO date can begin and
+        // then the current ISO date can recur. The usual instant interval is
+        // then inverted (endNs <= thisNs). Round using civil-day progress,
+        // while still selecting the actual first start of the next date.
+        bool dateRecursAfterNextDateStarts = endNs <= thisNs;
+        Int128 dayLengthNs = dateRecursAfterNextDateStarts ? ISO8601::ExactTime::nsPerDay : endNs - startNs;
+        Int128 dayProgressNs = dateRecursAfterNextDateStarts
+            ? ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(ISO8601::PlainDate(1970, 1, 1), isoDateTime.plainTime())).epochNanoseconds()
+            : Temporal::timeDurationFromEpochNanosecondsDifference(thisNs, startNs);
         auto roundedDayNs = TemporalDurationObject::roundTimeDurationToIncrement(state, dayProgressNs, dayLengthNs, roundingMode);
-        // Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
-        epochNanoseconds = roundedDayNs + startNs;
+        epochNanoseconds = dateRecursAfterNextDateStarts && roundedDayNs == dayLengthNs ? endNs : roundedDayNs + startNs;
     } else {
         // Else,
         // Let roundResult be RoundISODateTime(isoDateTime, roundingIncrement, smallestUnit, roundingMode).
@@ -723,12 +734,13 @@ Value TemporalZonedDateTimeObject::getTimeZoneTransition(ExecutionState& state, 
     // If direction is next, then
     UDate newEpoch = ISO8601::ExactTime(epochNanoseconds()).floorEpochMilliseconds();
     UErrorCode status = U_ZERO_ERROR;
-    auto startOffset = computeTimeZoneOffset(state, m_icuCalendar);
     LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
         ucal_close(r);
     });
 
     UBool ret;
+    bool isFirstSearch = true;
+    bool hasSubmillisecond = epochNanoseconds() != Int128(newEpoch) * ISO8601::ExactTime::nsPerMillisecond;
 
     while (true) {
         if (direction == TemporalDirectionOption::Next) {
@@ -737,18 +749,33 @@ Value TemporalZonedDateTimeObject::getTimeZoneTransition(ExecutionState& state, 
         } else {
             // Else,
             // Let transition be GetNamedTimeZonePreviousTransition(timeZone, zonedDateTime.[[EpochNanoseconds]]).
-            ret = ucal_getTimeZoneTransitionDate(newCal.get(), UTimeZoneTransitionType::UCAL_TZ_TRANSITION_PREVIOUS, &newEpoch, &status);
+            // ICU transitions have millisecond precision. A sub-millisecond
+            // input after a transition therefore needs inclusive lookup for
+            // the initial search; later searches deliberately stay strict.
+            auto transitionType = isFirstSearch && hasSubmillisecond
+                ? UTimeZoneTransitionType::UCAL_TZ_TRANSITION_PREVIOUS_INCLUSIVE
+                : UTimeZoneTransitionType::UCAL_TZ_TRANSITION_PREVIOUS;
+            ret = ucal_getTimeZoneTransitionDate(newCal.get(), transitionType, &newEpoch, &status);
         }
         CHECK_ICU();
 
         if (!ret) {
             break;
         }
+        isFirstSearch = false;
+
+        // A transition is relevant only when its offset changes. Comparing to
+        // the input offset is wrong for a previous transition: an input just
+        // after a forward transition has the same offset as the instant
+        // before an earlier backward transition. Compare the two sides of
+        // this transition instead.
+        auto offsetBeforeTransition = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), int64_t(newEpoch) - 1);
+        auto offsetAtTransition = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), int64_t(newEpoch));
 
         ucal_setMillis(newCal.get(), newEpoch + (direction == TemporalDirectionOption::Next ? 1 : -1), &status);
         CHECK_ICU()
 
-        if (startOffset != computeTimeZoneOffset(state, newCal.get())) {
+        if (offsetBeforeTransition != offsetAtTransition) {
             break;
         }
     }

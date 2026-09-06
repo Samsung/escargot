@@ -477,7 +477,7 @@ static Value builtinTemporalPlainTimeToLocaleString(ExecutionState& state, Value
     RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options, NullOption, true);
     auto result = dateFormat->format(state, plainTime);
     return new UTF16String(result.data(), result.length());
 }
@@ -599,7 +599,7 @@ static Value builtinTemporalPlainDateToLocaleString(ExecutionState& state, Value
 
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options, NullOption, true);
     auto result = dateFormat->format(state, plainDate);
     return new UTF16String(result.data(), result.length());
 }
@@ -988,7 +988,7 @@ static Value builtinTemporalPlainYearMonthToLocaleString(ExecutionState& state, 
     RESOLVE_THIS_BINDING_TO_PLAINYEARMONTH2(plainYearMonth, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options, NullOption, true);
     auto result = dateFormat->format(state, plainYearMonth);
     return new UTF16String(result.data(), result.length());
 }
@@ -1133,7 +1133,7 @@ static Value builtinTemporalPlainMonthDayToLocaleString(ExecutionState& state, V
     RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toLocaleString);
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
-    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options, NullOption, true);
     auto result = dateFormat->format(state, plainMonthDay);
     return new UTF16String(result.data(), result.length());
 }

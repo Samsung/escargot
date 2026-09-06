@@ -199,6 +199,16 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
     }
 
+    // ApplyOptionsToTag first canonicalizes the input LanguageId. In
+    // particular, aliases can change a region (und-Armn-SU -> und-Armn-AM)
+    // before an option replaces the language. Keeping the original ICU
+    // locale buffer here made the later override combine the new language
+    // with the pre-canonicalized region instead.
+    auto canonicalizedTag = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(u8Tag);
+    if (!canonicalizedTag.canonicalizedTag || !localeID.initialize(canonicalizedTag.canonicalizedTag.value()->toNonGCUTF8StringData())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
+    }
+
     Value language = Intl::getOption(state, options, state.context()->staticStrings().lazyLanguage().string(), Intl::StringValue, nullptr, 0, Value());
     if (!language.isUndefined() && !Intl::isUnicodeLanguageSubtag(language.asString()->toNonGCUTF8StringData())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
@@ -322,6 +332,15 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         }
     }
 
+    // MakeLocaleRecord canonicalizes again after UpdateLanguageId so aliases
+    // introduced by option values (for example region 554 -> NZ) are applied.
+    std::string updatedLocale = localeID.toCanonical();
+    auto updatedTag = updatedLocale.empty() ? Optional<std::string>() : Intl::languageTagForLocaleID(updatedLocale.c_str());
+    auto finalCanonicalizedTag = updatedTag ? Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(updatedTag.value()) : Intl::CanonicalizedLangunageTag();
+    if (!finalCanonicalizedTag.canonicalizedTag || !localeID.initialize(finalCanonicalizedTag.canonicalizedTag.value()->toNonGCUTF8StringData())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "failed to initialize Locale");
+    }
+
     std::string cLocale = localeID.toCanonical();
     m_localeID = String::fromUTF8(cLocale.data(), cLocale.length());
     if (!m_localeID->length()) {
@@ -443,7 +462,13 @@ Optional<String*> IntlLocaleObject::calendar() const
 
 Optional<String*> IntlLocaleObject::caseFirst() const
 {
-    return keywordValue(m_localeID, "colcasefirst");
+    auto value = keywordValue(m_localeID, "colcasefirst");
+    // ICU represents the Unicode extension key kf without a type as "yes",
+    // whereas ECMA-402 exposes its empty type as the empty string.
+    if (value && value.value()->equals("yes")) {
+        return String::emptyString();
+    }
+    return value;
 }
 
 Optional<String*> IntlLocaleObject::collation() const
@@ -551,6 +576,47 @@ Value IntlLocaleObject::collations(ExecutionState& state)
     return Object::createArrayFromList(state, resultVector);
 }
 
+static std::string hourCycleRegionOverride(String* localeID)
+{
+    std::string icuLocaleID = localeID->toNonGCUTF8StringData();
+    auto rg = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getKeywordValue, icuLocaleID.data(), "rg");
+    if (U_SUCCESS(rg.first) && (rg.second.size() == 6 || rg.second.size() == 7)
+        && rg.second.compare(rg.second.size() - 4, 4, "zzzz") == 0) {
+        return rg.second.substr(0, rg.second.size() - 4);
+    }
+
+    char country[ULOC_COUNTRY_CAPACITY] = { 0 };
+    UErrorCode status = U_ZERO_ERROR;
+    uloc_getCountry(icuLocaleID.data(), country, sizeof(country), &status);
+    if (U_SUCCESS(status) && country[0]) {
+        return {};
+    }
+
+    auto sd = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getKeywordValue, icuLocaleID.data(), "sd");
+    if (U_SUCCESS(sd.first) && sd.second.size() >= 3) {
+        return sd.second.substr(0, 2);
+    }
+    return {};
+}
+
+static std::string localeIDWithHourCycleRegion(String* localeID)
+{
+    auto region = hourCycleRegionOverride(localeID);
+    if (region.empty()) {
+        return localeID->toNonGCUTF8StringData();
+    }
+
+    auto tag = Intl::languageTagForLocaleID(localeID->toNonGCUTF8StringData().data());
+    LocaleIDBuilder builder;
+    if (!tag || !builder.initialize(tag.value())) {
+        return localeID->toNonGCUTF8StringData();
+    }
+    builder.overrideLanguageScriptRegionVariants(nullptr, nullptr,
+                                                 String::fromUTF8(region.data(), region.size()), nullptr);
+    auto result = builder.toCanonical();
+    return result.empty() ? localeID->toNonGCUTF8StringData() : result;
+}
+
 Value IntlLocaleObject::hourCycles(ExecutionState& state)
 {
     ValueVector resultVector;
@@ -558,8 +624,9 @@ Value IntlLocaleObject::hourCycles(ExecutionState& state)
     if (hourCycle) {
         resultVector.pushBack(hourCycle.value());
     } else {
+        auto localeID = localeIDWithHourCycleRegion(m_localeID);
         UErrorCode status = U_ZERO_ERROR;
-        LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(locale()->toNonGCUTF8StringData().data(), &status),
+        LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(localeID.data(), &status),
                                                                   [](UDateTimePatternGenerator* d) { udatpg_close(d); });
         if (!U_SUCCESS(status)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
