@@ -390,36 +390,20 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                     Object* object = val.asObject();
 
                     ObjectPropertyNameVector keys;
-                    if (!object->canUseOwnPropertyKeysFastPath()) {
-                        auto keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
-
-                        for (size_t i = 0; i < keyValues.size(); ++i) {
-                            keys.push_back(ObjectPropertyName(state, keyValues[i]));
-                        }
-                    } else {
-                        object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                            if (desc.isEnumerable()) {
-                                ObjectPropertyNameVector* keys = (ObjectPropertyNameVector*)data;
-                                keys->push_back(P);
-                            }
-                            return true; }, &keys);
-                    }
-
-                    bool hasValidIterator = false;
-                    rapidjson::GenericValue<rapidjson::UTF16<char16_t>>::ConstMemberIterator iter;
-                    if (source.IsObject()) {
-                        iter = source.MemberBegin();
-                        hasValidIterator = true;
+                    auto keyValues = Object::enumerableOwnProperties(state, object, EnumerableOwnPropertiesType::Key);
+                    for (size_t i = 0; i < keyValues.size(); ++i) {
+                        keys.push_back(ObjectPropertyName(state, keyValues[i]));
                     }
 
                     for (auto key : keys) {
                         const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>* s = &undefined;
-                        if (hasValidIterator) {
-                            if (iter != source.MemberEnd()) {
-                                s = &iter->value;
-                                iter++;
-                            } else {
-                                hasValidIterator = false;
+                        if (source.IsObject()) {
+                            for (auto iter = source.MemberBegin(); iter != source.MemberEnd(); ++iter) {
+                                Value sourceKey = parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, iter->name);
+                                if (key.toPlainValue().toString(state)->equals(sourceKey.asString())) {
+                                    // Duplicate JSON property names are resolved last-wins.
+                                    s = &iter->value;
+                                }
                             }
                         }
                         Value newElement = Walk(val, key, *s);

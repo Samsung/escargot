@@ -446,7 +446,6 @@
     <test id="built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/from/custom-ctor-returns-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/of/custom-ctor-returns-immutable-arraybuffer"><reason>TODO</reason></test>
-    <test id="built-ins/Uint8Array/prototype/setFromBase64/last-chunk-handling"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromBase64/throws-when-target-is-backed-by-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="built-ins/Uint8Array/prototype/setFromHex/throws-when-target-is-backed-by-immutable-arraybuffer"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
@@ -1186,7 +1185,6 @@
     <test id="staging/sm/Iterator/prototype/take/take-more-than-available"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/parse-number-syntax"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/parse-syntax-errors-03"><reason>TODO</reason></test>
-    <test id="staging/sm/JSON/parse-with-source"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/small-codepoints"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/stringify-replacer-array-trailing-holes"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/trailing-comma"><reason>TODO</reason></test>
