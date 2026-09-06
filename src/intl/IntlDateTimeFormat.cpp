@@ -529,14 +529,15 @@ void IntlDateTimeFormatObject::clearNativeResources()
     }
 }
 
-IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone)
-    : IntlDateTimeFormatObject(state, state.context()->globalObject()->intlDateTimeFormatPrototype(), locales, options, toLocaleStringTimeZone)
+IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone, bool isTemporalToLocaleString)
+    : IntlDateTimeFormatObject(state, state.context()->globalObject()->intlDateTimeFormatPrototype(), locales, options, toLocaleStringTimeZone, isTemporalToLocaleString)
 {
 }
 
-IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone)
+IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone, bool isTemporalToLocaleString)
     : DerivedObject(state, proto)
     , m_wasThereNoFormatOption(false)
+    , m_isTemporalToLocaleString(isTemporalToLocaleString)
     , m_locale(String::emptyString())
     , m_dataLocale(String::emptyString())
     , m_calendar(String::emptyString())
@@ -1232,7 +1233,7 @@ IntlDateTimeFormatObject::DateTimeFormatOtherHelperResult IntlDateTimeFormatObje
     status = U_ZERO_ERROR;
     UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(icuDateFormat));
     std::string type(ucal_getType(cal, &status));
-    if (status == U_ZERO_ERROR && std::string("gregorian") == type) {
+    if (status == U_ZERO_ERROR && (type == "gregorian" || type == "iso8601")) {
         ucal_setGregorianChange(cal, minECMAScriptTime, &status);
     }
 
@@ -1406,7 +1407,7 @@ std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatOb
             bool ignoreTimeZone = dateTimeValue.second.value() != TemporalKind::ZonedDateTime && dateTimeValue.second.value() != TemporalKind::Instant;
             // An era alone does not select date or time fields for a Temporal value.
             // Temporal supplies the value-kind default fields in that case, retaining the era.
-            bool temporalNeedsDefaultFields = (dateTimeValue.second.value() == TemporalKind::PlainDateTime || dateTimeValue.second.value() == TemporalKind::PlainDate || dateTimeValue.second.value() == TemporalKind::PlainMonthDay || dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainTime || dateTimeValue.second.value() == TemporalKind::Instant)
+            bool temporalNeedsDefaultFields = (dateTimeValue.second.value() == TemporalKind::PlainDateTime || dateTimeValue.second.value() == TemporalKind::PlainDate || dateTimeValue.second.value() == TemporalKind::PlainMonthDay || dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainTime || dateTimeValue.second.value() == TemporalKind::Instant || dateTimeValue.second.value() == TemporalKind::ZonedDateTime)
                 && !m_era.isUndefined()
                 && m_year.isUndefined() && m_month.isUndefined() && m_day.isUndefined() && m_weekday.isUndefined()
                 && m_dayPeriod.isUndefined() && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined()
@@ -1440,6 +1441,9 @@ std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatOb
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName.isUndefined() ? shortString : Value(m_timeZoneName)));
+                    if (!m_era.isUndefined()) {
+                        options->directDefineOwnProperty(state, state.context()->staticStrings().lazyEra(), ObjectPropertyDescriptor(m_era));
+                    }
                 } else if (dateTimeValue.second.value() == TemporalKind::PlainDate) {
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                     options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
@@ -1477,6 +1481,15 @@ std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatOb
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
                 auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), Value(), m_temporalHourCycle, m_temporalHourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
+            } else if (isPlainTemporal && !m_isTemporalToLocaleString && (!m_dateStyle.isUndefined() || !m_timeStyle.isUndefined()) && (dateTimeValue.second.value() == TemporalKind::PlainDateTime || ((dateTimeValue.second.value() == TemporalKind::PlainDate || dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_dateStyle.isUndefined()) || (dateTimeValue.second.value() == TemporalKind::PlainTime && !m_timeStyle.isUndefined()))) {
+                StringMap opt;
+                StringBuilder skeletonBuilder;
+                Object* options = new Object(state, Object::PrototypeIsNull);
+                Value dateStyle = dateTimeValue.second.value() == TemporalKind::PlainTime ? Value() : Value(m_dateStyle);
+                Value timeStyle = (dateTimeValue.second.value() == TemporalKind::PlainDate || dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) ? Value() : Value(m_timeStyle);
+                String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
+                auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, dateStyle, timeStyle, m_hourCycle, m_hourCycle, Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
+                newFormatHolder.reset(result.icuDateFormat.value());
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_wasThereNoFormatOption && m_year.isUndefined() && m_month.isUndefined() && m_day.isUndefined() && m_weekday.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to YearMonth");
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth) && !m_wasThereNoFormatOption && m_year.isUndefined() && m_month.isUndefined() && m_weekday.isUndefined()) {
@@ -1485,9 +1498,9 @@ std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatOb
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to MonthDay");
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_wasThereNoFormatOption && m_hour.isUndefined() && m_minute.isUndefined() && m_second.isUndefined() && m_fractionalSecondDigits.isUndefined() && m_dayPeriod.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option to PlainTime");
-            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_timeStyle.isUndefined() && m_dateStyle.isUndefined()) {
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && !m_timeStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
-            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_timeStyle.isUndefined() && m_dateStyle.isUndefined()) {
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainDate) && !m_timeStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option timeStyle for date formats");
             } else if ((dateTimeValue.second.value() == TemporalKind::PlainYearMonth || dateTimeValue.second.value() == TemporalKind::PlainMonthDay) && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
                 StringMap opt;
@@ -1496,14 +1509,14 @@ std::tuple<double, LocalResourcePointer<UDateFormat>, bool> IntlDateTimeFormatOb
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
                 auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, m_dateStyle, Value(), Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
-            } else if (dateTimeValue.second.value() == TemporalKind::PlainTime && m_wasThereNoFormatOption && !m_timeStyle.isUndefined()) {
+            } else if (dateTimeValue.second.value() == TemporalKind::PlainTime && m_wasThereNoFormatOption && !m_timeStyle.isUndefined() && m_dateStyle.isUndefined()) {
                 StringMap opt;
                 StringBuilder skeletonBuilder;
                 Object* options = new Object(state, Object::PrototypeIsNull);
                 String* hour = initDateTimeFormatMainHelper(state, opt, options, Value(), skeletonBuilder);
                 auto result = initDateTimeFormatOtherHelper(state, NullOption, m_dataLocale, m_timeZone, Value(), m_timeStyle, Value(), Value(), Value(), hour, opt, skeletonBuilder, ignoreDay, ignoreYear, ignoreTimeZone);
                 newFormatHolder.reset(result.icuDateFormat.value());
-            } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_dateStyle.isUndefined() && m_timeStyle.isUndefined()) {
+            } else if ((dateTimeValue.second.value() == TemporalKind::PlainTime) && !m_dateStyle.isUndefined()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't set option dateStyle for time formats");
             } else if (dateTimeValue.second.value() == TemporalKind::PlainDate && m_wasThereNoFormatOption && !m_dateStyle.isUndefined()) {
                 StringMap opt;

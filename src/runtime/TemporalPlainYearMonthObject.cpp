@@ -45,12 +45,23 @@ TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar)
     : TemporalPlainDateObject(state, proto, icuCalendar, calendar)
 {
+    // A YearMonth is representable only when the first day of its resolved
+    // calendar month is within the Temporal ISO range.  The UCalendar
+    // constructor path is used by From(fields); without this check a month
+    // before the lower (or after the upper) boundary could be accepted just
+    // because its calendar year and ordinal month looked coarse-range valid.
+    if (!Temporal::isoYearMonthWithinLimits(computeISODate(state))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
+    }
 }
 
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar)
     : TemporalPlainDateObject(state, proto, fieldResolveResult, calendar, false)
 {
-    if (fieldResolveResult.second && !Temporal::isoYearMonthWithinLimits(fieldResolveResult.second.value())) {
+    // YearMonth field resolution does not always return an ISO-date cache,
+    // so validate the resolved calendar date itself rather than only an
+    // optional conversion result.
+    if (!Temporal::isoYearMonthWithinLimits(computeISODate(state))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
     }
 }
@@ -215,8 +226,6 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     }
     // Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
     auto durationToAdd = TemporalDurationObject::toDateDurationRecordWithoutTime(state, duration);
-    // Let sign be DurationSign(duration).
-    auto sign = duration.sign();
     // Let calendar be yearMonth.[[Calendar]].
     auto calendar = m_calendarID;
     // Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
@@ -231,34 +240,8 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
     }
 
-    LocalResourcePointer<UCalendar> date(nullptr, [](UCalendar* cal) {
-        ucal_close(cal);
-    });
-    // If sign < 0, then
-    if (sign < 0) {
-        // Let oneMonthDuration be ! CreateDateDurationRecord(0, 1, 0, 0).
-        ISO8601::Duration oneMonthDuration({ 0, 1 });
-        // Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, constrain).
-        auto nextMonth = Temporal::calendarDateAdd(state, calendar, Calendar::computeISODate(state, intermediateDate.get()), intermediateDate.get(), oneMonthDuration, TemporalOverflowOption::Constrain).first;
-        // Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
-        UErrorCode status = U_ZERO_ERROR;
-        auto year = calendar.year(state, nextMonth);
-        auto month = calendar.ordinalMonth(state, nextMonth);
-        CHECK_ICU();
-        auto day = ucal_get(nextMonth, UCAL_DAY_OF_MONTH, &status);
-        CHECK_ICU();
-        auto balancedDate = Temporal::balanceISODate(state, year, month, day - 1);
-        // Assert: ISODateWithinLimits(date) is true.
-        calendar.setYear(state, nextMonth, balancedDate.year());
-        calendar.setOrdinalMonth(state, nextMonth, balancedDate.month());
-        ucal_set(nextMonth, UCAL_DAY_OF_MONTH, balancedDate.day());
-
-        date.reset(nextMonth);
-    } else {
-        // Else,
-        // Let date be intermediateDate.
-        std::swap(date, intermediateDate);
-    }
+    // Let date be intermediateDate.
+    LocalResourcePointer<UCalendar> date(std::move(intermediateDate));
 
     // Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
     auto addedDateResult = Temporal::calendarDateAdd(state, calendar, Calendar::computeISODate(state, date.get()), date.get(), durationToAdd, overflow);
@@ -325,7 +308,7 @@ ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth
     auto duration = ISO8601::InternalDuration::combineDateAndTimeDuration(yearsMonthsDifference, 0);
 
     // If settings.[[SmallestUnit]] is not month or settings.[[RoundingIncrement]] ≠ 1, then
-    if (settings.smallestUnit != ISO8601::DateTimeUnit::Day || settings.roundingIncrement != 1) {
+    if (settings.smallestUnit != ISO8601::DateTimeUnit::Month || settings.roundingIncrement != 1) {
         // Let isoDateTime be CombineISODateAndTimeRecord(thisDate, MidnightTimeRecord()).
         auto isoDateTime = computeISODate(state);
         // Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).

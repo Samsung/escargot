@@ -1396,7 +1396,7 @@ static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true
     return PlainDate(year, month, day);
 }
 
-Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input)
+Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseTime(String* input)
 {
     DateTimeParseOption option;
     ParserString buffer(input);
@@ -1427,7 +1427,10 @@ Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* inpu
     }
 
     if (buffer.atEnd()) {
-        return result;
+        if (!result) {
+            return NullOption;
+        }
+        return std::make_tuple(std::get<0>(result.value()), std::get<1>(result.value()), std::move(calendarOptional));
     }
 
     return NullOption;

@@ -824,7 +824,7 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
             Temporal::getTemporalOverflowOption(state, resolvedOptions);
             // Return ! CreateTemporalYearMonth(item.[[ISODate]], item.[[Calendar]]).
             return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
-                                                    item.asObject()->asTemporalPlainYearMonthObject()->plainDate(), item.asObject()->asTemporalPlainYearMonthObject()->calendarID());
+                                                    item.asObject()->asTemporalPlainYearMonthObject()->computeISODate(state), item.asObject()->asTemporalPlainYearMonthObject()->calendarID());
         }
 
         // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
@@ -863,7 +863,6 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
 
     if (result) {
         plainDate = std::get<0>(result.value());
-        plainDate = ISO8601::PlainDate(plainDate.year(), plainDate.month(), 1);
         timeZone = std::get<2>(result.value());
         calendarID = std::get<3>(result.value());
 
@@ -901,6 +900,13 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
     if (!mayID) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid CalendarID");
     }
+    // TemporalYearMonthString may carry a reference day. ISO YearMonths
+    // always use day one when converted from a string; a non-ISO calendar's
+    // reference day is significant and must be retained (for example the
+    // Islamic-civil calendar alias case).
+    if (mayID.value().isISO8601()) {
+        plainDate = ISO8601::PlainDate(plainDate.year(), plainDate.month(), 1);
+    }
     // Let resolvedOptions be ? GetOptionsObject(options).
     auto resolvedOptions = Intl::getOptionsObject(state, options);
     // Perform ? GetTemporalOverflowOption(resolvedOptions).
@@ -931,9 +937,25 @@ static void makeUnder1972YearCalendar(ExecutionState& state, Calendar calendar, 
             }
         }
 
+        auto day = ucal_get(icuCalendar, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU_CALENDAR();
+        if (static_cast<unsigned>(day) != fields.day.value()) {
+            shouldChangeYear = true;
+        }
         if (shouldChangeYear) {
-            // should change year
             diff++;
+            // ICU-23274: Chinese/Dangi data can report a leap month in an
+            // older year even when it is not a valid Temporal reference
+            // month (including the known 2033 irregularity). Keep the
+            // reference-year search within the modern reference-data window;
+            // otherwise constrain the absent leap code instead of looping.
+            constexpr int32_t maxReferenceYearSearch = 50;
+            if (!wasYearSpecified && diff > maxReferenceYearSearch
+                && (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi)
+                && fields.monthCode && fields.monthCode.value().isLeapMonth) {
+                fields.monthCode.value().isLeapMonth = false;
+                diff = 0;
+            }
         } else {
             if (wasYearSpecified && calendar.hasLeapMonths() && !fields.monthCode) {
                 fields.monthCode = calendar.monthCode(state, icuCalendar);
@@ -954,6 +976,63 @@ static void makeUnder1972YearCalendar(ExecutionState& state, Calendar calendar, 
         setICUMonth(state, calendar, fields, icuCalendar);
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
     }
+}
+
+static bool findChineseDangiMonthDayReference(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, UCalendar* icuCalendar)
+{
+    ASSERT(calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi);
+    // Temporal Table 6 is normative. ICU Dangi reports a 30-day M08L in 2052,
+    // but no Dangi M08L day-30 reference exists in the table.
+    if (calendar.id() == Calendar::ID::Dangi
+        && fields.monthCode.value().isLeapMonth
+        && fields.monthCode.value().monthNumber == 8
+        && fields.day.value() == 30) {
+        return false;
+    }
+    struct Reference {
+        Calendar::ID calendar;
+        MonthCode monthCode;
+        unsigned day;
+        ISO8601::PlainDate isoDate;
+    };
+    static std::vector<Reference> references;
+    for (const auto& reference : references) {
+        if (reference.calendar == calendar.id() && reference.monthCode == fields.monthCode.value() && reference.day == fields.day.value()) {
+            UErrorCode status = U_ZERO_ERROR;
+            ucal_setMillis(icuCalendar, ISO8601::ExactTime::fromPlainDate(reference.isoDate).floorEpochMilliseconds(), &status);
+            CHECK_ICU_CALENDAR();
+            return true;
+        }
+    }
+    for (int direction = 0; direction != 2; ++direction) {
+        int first = direction == 0 ? 1972 : 1973;
+        int last = direction == 0 ? 1900 : 2100;
+        int step = direction == 0 ? -1 : 1;
+        for (int isoYear = first; direction == 0 ? isoYear >= last : isoYear <= last; isoYear += step) {
+            for (unsigned sampleMonth = 1; sampleMonth <= 12; ++sampleMonth) {
+                UErrorCode status = U_ZERO_ERROR;
+                ucal_setMillis(icuCalendar, ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(isoYear, sampleMonth, 1)).floorEpochMilliseconds(), &status);
+                CHECK_ICU_CALENDAR();
+                fields.year = calendar.year(state, icuCalendar);
+                ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, 1);
+                setICUMonth(state, calendar, fields, icuCalendar);
+                ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+                if (calendar.monthCode(state, icuCalendar) != fields.monthCode.value()) {
+                    continue;
+                }
+                auto day = ucal_get(icuCalendar, UCAL_DAY_OF_MONTH, &status);
+                CHECK_ICU_CALENDAR();
+                if (static_cast<unsigned>(day) != fields.day.value()) {
+                    continue;
+                }
+                if (Calendar::computeISODate(state, icuCalendar).year() == isoYear) {
+                    references.push_back({ calendar.id(), fields.monthCode.value(), fields.day.value(), Calendar::computeISODate(state, icuCalendar) });
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state, Value item, Value options)
@@ -1083,18 +1162,66 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
 
 Int128 Temporal::getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601::PlainDate isoDate)
 {
-    int64_t offset;
+    auto localEpoch = ISO8601::ExactTime::fromPlainDate(isoDate).epochNanoseconds();
     if (timeZone.hasOffset()) {
-        offset = timeZone.offset();
-    } else {
-        offset = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), isoDate, NullOption, true);
+        auto epoch = localEpoch - timeZone.offset();
+        if (!ISO8601::isValidEpochNanoseconds(epoch)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        }
+        return epoch;
     }
-    auto epoch = ISO8601::ExactTime::fromPlainDate(isoDate).epochNanoseconds() - offset;
 
+    // GetPossibleEpochNanoseconds for midnight. Normally there is one
+    // candidate (or two when midnight is repeated), but a gap that crosses
+    // midnight has none. In that case GetStartOfDay is the transition
+    // instant, not the compatible disambiguation of nominal midnight.
+    String* name = timeZone.timeZoneName();
+    int64_t formerOffset = computeTimeZoneOffsetForLocal(state, name, isoDate, NullOption, UCAL_TZ_LOCAL_FORMER, UCAL_TZ_LOCAL_FORMER);
+    int64_t latterOffset = computeTimeZoneOffsetForLocal(state, name, isoDate, NullOption, UCAL_TZ_LOCAL_LATTER, UCAL_TZ_LOCAL_LATTER);
+    auto isCandidate = [&](int64_t offset) {
+        Int128 candidate = localEpoch - Int128(offset);
+        return ISO8601::isValidEpochNanoseconds(candidate)
+            && candidate + Int128(computeTimeZoneOffset(state, name, ISO8601::ExactTime(candidate).floorEpochMilliseconds())) == localEpoch;
+    };
+
+    bool formerValid = isCandidate(formerOffset);
+    bool latterValid = latterOffset != formerOffset && isCandidate(latterOffset);
+    if (formerValid || latterValid) {
+        Int128 former = localEpoch - Int128(formerOffset);
+        Int128 latter = localEpoch - Int128(latterOffset);
+        return formerValid && latterValid ? std::min(former, latter) : (formerValid ? former : latter);
+    }
+
+    // ICU exposes the exact instant of an historical transition. Starting
+    // from the compatible (post-gap) interpretation, that transition is the
+    // first instant of this civil day. UCAL_TZ_TRANSITION_PREVIOUS is strict
+    // (a transition at the queried instant is not "previous"), so query one
+    // millisecond after the compatible instant to select it rather than the
+    // preceding seasonal transition.
+    auto u16 = name->toUTF16StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UCalendar> calendar(ucal_open(u16.data(), u16.length(), "en", UCAL_GREGORIAN, &status), [](UCalendar* r) {
+        ucal_close(r);
+    });
+    if (!calendar) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to get timeZone offset from ICU");
+    }
+    Int128 compatible = localEpoch - Int128(formerOffset);
+    ucal_setMillis(calendar.get(), ISO8601::ExactTime(compatible).floorEpochMilliseconds() + 1, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to get timeZone offset from ICU");
+    }
+    UDate transition;
+    if (!ucal_getTimeZoneTransitionDate(calendar.get(), UCAL_TZ_TRANSITION_PREVIOUS, &transition, &status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to get timeZone transition from ICU");
+    }
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to get timeZone transition from ICU");
+    }
+    auto epoch = Int128(static_cast<int64_t>(transition)) * 1000000;
     if (!ISO8601::isValidEpochNanoseconds(epoch)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
     }
-
     return epoch;
 }
 
@@ -1343,7 +1470,7 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
         if (std::get<3>(unwrappedResult)) {
             auto mayCalendar = Calendar::fromString(std::get<3>(unwrappedResult).value());
             if (!mayCalendar) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
             }
             calendar = mayCalendar.value();
         }
@@ -2304,6 +2431,13 @@ Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value tem
         }
         return NullOption;
     };
+    if (parseResultTime) {
+        auto cid = tryOnce(state, std::get<2>(parseResultTime.value()));
+        if (cid) {
+            return cid.value();
+        }
+    }
+
     if (parseResult) {
         auto cid = tryOnce(state, std::get<3>(parseResult.value()));
         if (cid) {
@@ -2542,8 +2676,15 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
     if (mode == CalendarDateFromFieldsMode::MonthDay && calendar.isISO8601() && !fields.year) {
         fields.year = 1972;
     } else if (mode == CalendarDateFromFieldsMode::MonthDay && !calendar.isISO8601()) {
-        if (!fields.year && fields.monthCode) {
-            fields.year = 1972 - calendar.epochISOYear();
+        if (!fields.year && fields.monthCode && !fields.month) {
+            // PlainMonthDay uses an ISO reference year. A calendar epoch is not its calendar year at that reference date.
+            LocalResourcePointer<UCalendar> referenceCalendar(calendar.createICUCalendar(state), [](UCalendar* r) {
+                ucal_close(r);
+            });
+            UErrorCode status = U_ZERO_ERROR;
+            ucal_setMillis(referenceCalendar.get(), ISO8601::ExactTime::fromPlainDate(ISO8601::PlainDate(1972, 12, 31)).floorEpochMilliseconds(), &status);
+            CHECK_ICU_CALENDAR();
+            fields.year = calendar.year(state, referenceCalendar.get());
         }
         shouldTestUnder1972Year = true;
     }
@@ -2595,7 +2736,6 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
     LocalResourcePointer<UCalendar> icuCalendarHolder(icuCalendar, [](UCalendar* r) {
         ucal_close(r);
     });
-
     Optional<ISO8601::PlainDate> isoDateIfExist;
     Optional<MonthCode> constrainedMonthCode;
     if (calendar.isISO8601()) {
@@ -2649,6 +2789,25 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
                 }
             }
         }
+        // CalendarDateToISO must reject an out-of-range calendar year before
+        // inspecting or constraining its month/day fields. In particular,
+        // ICU month calculation for a year outside Temporal's ISO range is
+        // neither necessary nor a valid way to make the input acceptable.
+        if (mode != CalendarDateFromFieldsMode::YearMonth && (fields.year || (fields.era && fields.eraYear))) {
+            // Avoid asking ICU to represent a calendar year far beyond any
+            // possible Temporal ISO date. Some lunar calendars signal this
+            // as an ICU error; the specified observable result is RangeError.
+            auto inputYear = fields.year.valueOr(fields.eraYear.valueOr(0));
+            if (inputYear > 500000 || inputYear < -500000) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
+            }
+            // Do not validate the ISO date until its supplied month and day
+            // have also been applied. At the Temporal limits, the calendar's
+            // initial ICU month/day can lie outside the ISO range even though
+            // the requested complete date is valid. CreateTemporalDate
+            // performs the final ISO boundary check after field resolution.
+        }
+
         if (fields.monthCode) {
             auto maxMonth = monthCodePerYear(calendar);
             if (fields.monthCode.value().monthNumber > maxMonth) {
@@ -2686,8 +2845,11 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
 
         if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
             setICUYear(state, calendar, fields, icuCalendar);
-            constrainedMonthCode = setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::Date ? overflow : TemporalOverflowOption::Reject);
-
+            if (mode == CalendarDateFromFieldsMode::YearMonth && fields.month && overflow == TemporalOverflowOption::Constrain) {
+                auto maxMonth = TemporalPlainDateGetter::monthsInYear(state, ISO8601::PlainDate(), calendar, icuCalendar).asInt32();
+                fields.month = std::min<unsigned>(fields.month.value(), maxMonth);
+            }
+            constrainedMonthCode = setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::MonthDay ? TemporalOverflowOption::Reject : overflow);
             if (fields.year) {
                 if (calendar.year(state, icuCalendar) != fields.year.value()) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "'year' and computed 'year' calendar fields are inconsistent");
@@ -2695,12 +2857,50 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             }
         } else {
             setICUYear(state, calendar, fields, icuCalendar);
-            constrainedMonthCode = setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::Date ? overflow : TemporalOverflowOption::Reject);
+            if (mode == CalendarDateFromFieldsMode::YearMonth && fields.month && overflow == TemporalOverflowOption::Constrain) {
+                auto maxMonth = TemporalPlainDateGetter::monthsInYear(state, ISO8601::PlainDate(), calendar, icuCalendar).asInt32();
+                fields.month = std::min<unsigned>(fields.month.value(), maxMonth);
+            }
+            constrainedMonthCode = setICUMonthDay(state, calendar, fields, icuCalendar, mode == CalendarDateFromFieldsMode::MonthDay ? TemporalOverflowOption::Reject : overflow);
         }
     }
 
+    if (mode == CalendarDateFromFieldsMode::MonthDay && wasYearSpecified
+        && (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi)
+        && fields.month && fields.monthCode
+        && static_cast<unsigned>(calendar.ordinalMonth(state, icuCalendar)) != fields.month.value()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid month value");
+    }
+
+    if (constrainedMonthCode && mode == CalendarDateFromFieldsMode::MonthDay
+        && (calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi)) {
+        fields.monthCode = constrainedMonthCode;
+    }
+
     if (shouldTestUnder1972Year) {
-        makeUnder1972YearCalendar(state, calendar, fields, icuCalendar, wasYearSpecified);
+        if ((calendar.id() == Calendar::ID::Chinese || calendar.id() == Calendar::ID::Dangi)
+            && fields.monthCode && fields.monthCode.value().isLeapMonth) {
+            if (wasYearSpecified && overflow == TemporalOverflowOption::Reject) {
+                UErrorCode status = U_ZERO_ERROR;
+                auto day = ucal_get(icuCalendar, UCAL_DAY_OF_MONTH, &status);
+                CHECK_ICU_CALENDAR();
+                if (calendar.monthCode(state, icuCalendar) != fields.monthCode.value()
+                    || static_cast<unsigned>(day) != fields.day.value()) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid monthCode value");
+                }
+            }
+            if (!findChineseDangiMonthDayReference(state, calendar, fields, icuCalendar)) {
+                if (overflow == TemporalOverflowOption::Reject) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid monthCode value");
+                }
+                fields.monthCode.value().isLeapMonth = false;
+                if (!findChineseDangiMonthDayReference(state, calendar, fields, icuCalendar)) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid monthCode value");
+                }
+            }
+        } else {
+            makeUnder1972YearCalendar(state, calendar, fields, icuCalendar, wasYearSpecified);
+        }
     } else if (!calendar.isISO8601()) {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -2957,12 +3157,20 @@ std::pair<UCalendar*, ISO8601::PlainDate> Temporal::calendarDateAdd(ExecutionSta
         bool isHebrewRejectCase = overflow == TemporalOverflowOption::Reject && calendar.id() == Calendar::ID::Hebrew && duration.years() && mc.isLeapMonth;
 
         CHECK_ICU_CALENDAR()
-        ucal_add(newCal.get(), UCAL_YEAR, duration.years(), &status);
-        check = ucal_get(newCal.get(), UCAL_YEAR, &status);
-        CHECK_ICU_CALENDAR()
-        if (check < (y + duration.years())) {
-            if (overflow == TemporalOverflowOption::Reject) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        if (calendar.id() == Calendar::ID::Persian) {
+            // CalendarDateAdd balances years and months before constraining
+            // the day. Applying the year first turns Esfand 30 into 29 even
+            // if the final target month can represent day 30 or 31.
+            auto months = duration.years() * 12 + duration.months();
+            ucal_add(newCal.get(), UCAL_ORDINAL_MONTH, months, &status);
+        } else {
+            ucal_add(newCal.get(), UCAL_YEAR, duration.years(), &status);
+            check = ucal_get(newCal.get(), UCAL_YEAR, &status);
+            CHECK_ICU_CALENDAR()
+            if (check < (y + duration.years())) {
+                if (overflow == TemporalOverflowOption::Reject) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+                }
             }
         }
 
@@ -2988,10 +3196,24 @@ std::pair<UCalendar*, ISO8601::PlainDate> Temporal::calendarDateAdd(ExecutionSta
         }
 
         CHECK_ICU_CALENDAR()
-        ucal_add(newCal.get(), UCAL_ORDINAL_MONTH, duration.months(), &status);
-        if (!calendar.hasLeapMonths()) {
+        if (calendar.id() != Calendar::ID::Persian) {
+            ucal_add(newCal.get(), UCAL_ORDINAL_MONTH, duration.months(), &status);
+        }
+        if (!calendar.hasLeapMonths() && calendar.id() != Calendar::ID::Persian) {
             check = calendar.ordinalMonth(state, newCal.get());
-            if (check < (m + duration.months())) {
+            // The ordinal month restarts at zero when this addition crosses
+            // a calendar year.  Comparing it with the unbalanced ordinal
+            // month incorrectly treats a valid ROC September + 5 months as
+            // an overflow (ordinal 1 is not less than an out-of-range 13).
+            // ROC has the Gregorian twelve-month cycle, so compare against
+            // its balanced ordinal month instead.
+            int32_t unbalancedMonth = m + duration.months();
+            bool didOverflow = check < unbalancedMonth;
+            if (calendar.id() == Calendar::ID::ROC) {
+                // ordinalMonth is one-based; balance before comparing.
+                didOverflow = check != nonNegativeModulo(unbalancedMonth - 1, 12) + 1;
+            }
+            if (didOverflow) {
                 if (overflow == TemporalOverflowOption::Reject) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
                 }
@@ -3129,6 +3351,9 @@ ISO8601::Duration Temporal::calendarDateUntil(ExecutionState& state, Calendar ca
         LocalResourcePointer<UCalendar> calOne(calendar.createICUCalendar(state), [](UCalendar* r) {
             ucal_close(r);
         });
+        LocalResourcePointer<UCalendar> calTwo(calendar.createICUCalendar(state), [](UCalendar* r) {
+            ucal_close(r);
+        });
 
         auto oneEpoch = ISO8601::ExactTime::fromPlainDate(one).epochMilliseconds();
         auto twoEpoch = ISO8601::ExactTime::fromPlainDate(two).epochMilliseconds();
@@ -3137,26 +3362,90 @@ ISO8601::Duration Temporal::calendarDateUntil(ExecutionState& state, Calendar ca
         ucal_setMillis(calOne.get(), oneEpoch, &status);
         CHECK_ICU_CALENDAR();
 
-        if (largestUnit == TemporalUnit::Year) {
-            years = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_EXTENDED_YEAR, &status);
+        ucal_setMillis(calTwo.get(), twoEpoch, &status);
+        CHECK_ICU_CALENDAR();
+
+        // ICU's ucal_getFieldDifference does not implement Temporal's
+        // NonISODateUntil rule. In particular it treats an end-of-month
+        // constrained intermediate as a whole year/month, while Temporal
+        // chooses the largest constrained CalendarDateAdd candidate that
+        // does not pass the destination. Use CalendarDateAdd itself for the
+        // candidate calculation so intercalary and variable-length months
+        // follow the same overflow semantics as Temporal date addition.
+        auto originalDay = ucal_get(calOne.get(), UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU_CALENDAR();
+        auto addCandidate = [&](double candidateYears, double candidateMonths) {
+            // For calendars with a fixed number of months per year, select
+            // the combined year/month candidate from the original date in a
+            // single ordinal-month operation. Sequential CalendarDateAdd
+            // would constrain (for example) a Persian day 30 in the
+            // intermediate year and incorrectly retain day 29 after moving
+            // to a later month where day 30 exists.
+            double addYears = candidateYears;
+            double addMonths = candidateMonths;
+            if (candidateMonths && !calendar.hasLeapMonths()) {
+                addYears = 0;
+                addMonths += candidateYears * monthsPerYear(calendar);
+            }
+            auto added = calendarDateAdd(state, calendar, one, calOne.get(),
+                                         ISO8601::Duration{ addYears, addMonths, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                         TemporalOverflowOption::Constrain);
+
+            auto candidateDay = ucal_get(added.first, UCAL_DAY_OF_MONTH, &status);
             CHECK_ICU_CALENDAR();
-            if (years) {
-                oneEpoch = ucal_getMillis(calOne.get(), &status);
-                CHECK_ICU_CALENDAR();
+            ucal_close(added.first);
+            // Compare the requested, unconstrained day.  A constrained day
+            // is not automatically beyond the destination: M06 day 31
+            // constrained to M07 day 30 is still before M08 day 30. Its
+            // conceptual position is the constrained ISO date plus the
+            // omitted days.
+            auto comparisonDate = added.second;
+            if (candidateDay != originalDay) {
+                comparisonDate = isoDateAdd(state, comparisonDate,
+                                            ISO8601::Duration{ 0.0, 0.0, 0.0, static_cast<double>(originalDay - candidateDay), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                            TemporalOverflowOption::Constrain);
+            }
+            return std::make_pair(added.second, comparisonDate);
+        };
+        auto surpasses = [&](const std::pair<ISO8601::PlainDate, ISO8601::PlainDate>& candidate) {
+            return candidate.second.compare(two) * sign > 0;
+        };
+
+        if (largestUnit == TemporalUnit::Year) {
+            years = calendar.year(state, calTwo.get()) - calendar.year(state, calOne.get());
+            auto candidate = addCandidate(years, 0);
+            while (surpasses(candidate)) {
+                years -= sign;
+                candidate = addCandidate(years, 0);
             }
         }
 
         if (largestUnit <= TemporalUnit::Month) {
-            months = ucal_getFieldDifference(calOne.get(), twoEpoch, UCAL_ORDINAL_MONTH, &status);
-            CHECK_ICU_CALENDAR();
-            if (months) {
-                oneEpoch = ucal_getMillis(calOne.get(), &status);
+            auto yearMonthForDate = [&](const ISO8601::PlainDate& date) {
+                LocalResourcePointer<UCalendar> cal(calendar.createICUCalendar(state), [](UCalendar* r) {
+                    ucal_close(r);
+                });
+                UErrorCode fieldStatus = U_ZERO_ERROR;
+                ucal_setMillis(cal.get(), ISO8601::ExactTime::fromPlainDate(date).epochMilliseconds(), &fieldStatus);
                 CHECK_ICU_CALENDAR();
+                return std::make_pair(calendar.year(state, cal.get()), calendar.ordinalMonth(state, cal.get()));
+            };
+            auto candidate = addCandidate(years, 0);
+            auto candidateYearMonth = yearMonthForDate(candidate.first);
+            auto targetYearMonth = yearMonthForDate(two);
+            months = (targetYearMonth.first - candidateYearMonth.first) * monthsPerYear(calendar)
+                + targetYearMonth.second - candidateYearMonth.second;
+            candidate = addCandidate(years, months);
+            while (surpasses(candidate)) {
+                months -= sign;
+                candidate = addCandidate(years, months);
             }
         }
 
         if (largestUnit <= TemporalUnit::Day) {
-            days = std::floor((twoEpoch - oneEpoch) / static_cast<double>(ISO8601::TimeConstants::msPerDay));
+            auto candidate = addCandidate(years, months);
+            auto candidateEpoch = ISO8601::ExactTime::fromPlainDate(candidate.first).epochMilliseconds();
+            days = std::floor((twoEpoch - candidateEpoch) / static_cast<double>(ISO8601::TimeConstants::msPerDay));
         }
     }
 
@@ -3423,6 +3712,27 @@ double applyUnsignedRoundingMode(double x, double r1, double r2, ISO8601::Unsign
 // https://tc39.es/proposal-temporal/#sec-temporal-computenudgewindow
 static NudgeWindow computeNudgeWindow(ExecutionState& state, int32_t sign, const ISO8601::InternalDuration& duration, Int128 originEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, double increment, TemporalUnit unit, bool additionalShift)
 {
+    // Calendar-unit durations must be added in their own calendar. In
+    // particular, a Chinese calendar month is not an ISO calendar month, so
+    // using ISODateAdd here can produce a rounding window outside the
+    // destination date.
+    auto addCalendarDate = [&](const ISO8601::Duration& dateDuration, bool allowOutOfRange = false) {
+        if (calendar.isISO8601()) {
+            return Temporal::isoDateAdd(state, isoDateTime.plainDate(), dateDuration, TemporalOverflowOption::Constrain, allowOutOfRange);
+        }
+
+        LocalResourcePointer<UCalendar> calendarDate(calendar.createICUCalendar(state), [](UCalendar* cal) {
+            ucal_close(cal);
+        });
+        UErrorCode status = U_ZERO_ERROR;
+        ucal_setMillis(calendarDate.get(), ISO8601::ExactTime::fromPlainDate(isoDateTime.plainDate()).epochMilliseconds(), &status);
+        CHECK_ICU_CALENDAR();
+        auto result = Temporal::calendarDateAdd(state, calendar, isoDateTime.plainDate(), calendarDate.get(), dateDuration, TemporalOverflowOption::Constrain);
+        LocalResourcePointer<UCalendar> resultCalendar(result.first, [](UCalendar* cal) {
+            ucal_close(cal);
+        });
+        return result.second;
+    };
     double r1 = 0;
     double r2 = 0;
     ISO8601::Duration startDuration;
@@ -3448,7 +3758,7 @@ static NudgeWindow computeNudgeWindow(ExecutionState& state, int32_t sign, const
     }
     case TemporalUnit::Week: {
         auto yearsMonths = adjustDateDurationRecord(state, duration.dateDuration(), 0, 0, NullOption);
-        auto weeksStart = Temporal::isoDateAdd(state, isoDateTime.plainDate(), yearsMonths, TemporalOverflowOption::Constrain);
+        auto weeksStart = addCalendarDate(yearsMonths);
         auto weeksEnd = Temporal::balanceISODate(state, weeksStart.year(), weeksStart.month(), weeksStart.day() + duration.dateDuration().days());
         auto untilResult = Temporal::calendarDateUntil(state, calendar, weeksStart, weeksEnd, TemporalUnit::Week);
         Int128 weeks = roundNumberToIncrementInt128((Int128)(duration.dateDuration().weeks() + untilResult.weeks()),
@@ -3476,11 +3786,11 @@ static NudgeWindow computeNudgeWindow(ExecutionState& state, int32_t sign, const
     if (startDuration.dateDurationSign() == 0) {
         startEpochNs = originEpochNs;
     } else {
-        auto start = Temporal::isoDateAdd(state, isoDateTime.plainDate(), startDuration, TemporalOverflowOption::Constrain, !timeZone && calendar.isISO8601() && increment > 1);
+        auto start = addCalendarDate(startDuration, !timeZone && calendar.isISO8601() && increment > 1);
         auto startDateTime = ISO8601::PlainDateTime(start, isoDateTime.plainTime());
         startEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, startDateTime, TemporalDisambiguationOption::Compatible);
     }
-    auto end = Temporal::isoDateAdd(state, isoDateTime.plainDate(), endDuration, TemporalOverflowOption::Constrain, !timeZone && calendar.isISO8601() && increment > 1);
+    auto end = addCalendarDate(endDuration, !timeZone && calendar.isISO8601() && increment > 1);
     auto endDateTime = ISO8601::PlainDateTime(end, isoDateTime.plainTime());
     Int128 endEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, endDateTime, TemporalDisambiguationOption::Compatible);
     // Plain date/time operations may round to a duration whose nominal end is
@@ -3912,8 +4222,7 @@ Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds
         return addInstant(state, epochNanoseconds, duration.time());
     }
     // Let isoDateTime be GetISODateTimeFor(timeZone, epochNanoseconds).
-    // Pass NullOption to timeZone to get utc date time
-    auto isoDateTime = getISODateTimeFor(state, NullOption, epochNanoseconds);
+    auto isoDateTime = getISODateTimeFor(state, timeZone, epochNanoseconds);
     // Let addedDate be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], duration.[[Date]], overflow).
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
@@ -3931,8 +4240,7 @@ Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time value");
     }
     // Let intermediateNs be ! GetEpochNanosecondsFor(timeZone, intermediateDateTime, compatible).
-    // Pass NullOption to timeZone to get utc date time
-    auto intermediateNs = getEpochNanosecondsFor(state, NullOption, intermediateDateTime, TemporalDisambiguationOption::Compatible);
+    auto intermediateNs = getEpochNanosecondsFor(state, timeZone, intermediateDateTime, TemporalDisambiguationOption::Compatible);
     // Return ? AddInstant(intermediateNs, duration.[[Time]]).
     return addInstant(state, intermediateNs, duration.time());
 }

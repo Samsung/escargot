@@ -28,8 +28,8 @@ namespace Escargot {
 
 class IntlDateTimeFormatObject : public DerivedObject {
 public:
-    IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
-    IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
+    IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption, bool isTemporalToLocaleString = false);
+    IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption, bool isTemporalToLocaleString = false);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -169,6 +169,7 @@ protected:
     UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x, bool isPlainTemporal = false);
 
     bool m_wasThereNoFormatOption;
+    bool m_isTemporalToLocaleString;
 
     String* m_locale;
     String* m_dataLocale;
