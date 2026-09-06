@@ -491,6 +491,7 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
                                     String* indent, String* gap, bool propertyListTouched, ValueVectorWithInlineStorage& propertyList,
                                     LargeStringBuilder& product)
 {
+    CHECK_STACK_OVERFLOW(state);
     Value value = holder->get(state, ObjectPropertyName(state, key)).value(state, holder);
     if (value.isObject() || value.isBigInt()) {
         Value toJson = Object::getV(state, value, ObjectPropertyName(state, strings->toJSON));
