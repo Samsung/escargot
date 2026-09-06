@@ -71,16 +71,16 @@ public:
         context->m_classInfo.m_src = new StringView(m_class.classSrc());
         codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
 
-        if (hasSuper && !m_class.superClass()->isIdentifier()) {
-            m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
-        }
-
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
         if (m_class.classBodyLexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
             context->m_lexicalBlockIndex = m_class.classBodyLexicalBlockIndex();
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_class.classBodyLexicalBlockIndex());
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
+        }
+
+        if (hasSuper && !m_class.superClass()->isIdentifier()) {
+            m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
         }
 
         if (hasSuper && m_class.superClass()->isIdentifier()) {

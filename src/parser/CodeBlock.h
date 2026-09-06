@@ -666,6 +666,11 @@ public:
         m_isDerivedClassConstructor = true;
     }
 
+    void setAsImplicitDerivedClassConstructor()
+    {
+        m_isImplicitDerivedClassConstructor = true;
+    }
+
     void setNeedsVirtualIDOperation()
     {
         ASSERT(isInterpretedCodeBlock());
@@ -745,6 +750,11 @@ public:
     bool isDerivedClassConstructor() const
     {
         return m_isDerivedClassConstructor;
+    }
+
+    bool isImplicitDerivedClassConstructor() const
+    {
+        return m_isImplicitDerivedClassConstructor;
     }
 
     bool isObjectMethod() const
@@ -1057,6 +1067,9 @@ protected:
     bool m_isFunctionBodyOnlyVirtualArrowFunctionExpression : 1;
     bool m_isClassConstructor : 1;
     bool m_isDerivedClassConstructor : 1;
+    // The synthesized `constructor(...args) { super(...args); }` forwards the
+    // incoming argument List directly. It must not observe Array iteration.
+    bool m_isImplicitDerivedClassConstructor : 1;
     bool m_isObjectMethod : 1;
     bool m_isClassMethod : 1;
     bool m_isClassStaticMethod : 1;

@@ -4169,6 +4169,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
                 auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true, true);
                 functionSource.codeBlock->setAsClassConstructor();
                 functionSource.codeBlock->setAsDerivedClassConstructor();
+                functionSource.codeBlock->setAsImplicitDerivedClassConstructor();
                 constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),
                                                                        functionSource.codeBlock, functionSource.outerEnvironment, proto,
                                                                        outerClassConstructor, code->m_classSrc, name);
@@ -4772,7 +4773,8 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
         break;
     }
-    case CallComplexCase::Super: {
+    case CallComplexCase::Super:
+    case CallComplexCase::SuperSoleSpreadElement: {
         ASSERT(!code->m_isOptional);
         // Let newTarget be GetNewTarget().
         Object* newTarget = state.getNewTarget();
@@ -4786,7 +4788,24 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         Value* argv;
         ValueVector spreadArgs;
 
-        if (code->m_hasSpreadElement) {
+        if (code->m_kind == CallComplexCase::SuperSoleSpreadElement) {
+            const Value& source = registerFile[code->m_argumentsStartIndex];
+            if (byteCodeBlock->m_codeBlock->isImplicitDerivedClassConstructor()
+                && source.isObject() && source.asObject()->isArrayObject()) {
+                // The synthesized constructor is specified in terms of the
+                // invocation's argument List, not an observable array spread.
+                ArrayObject* args = source.asObject()->asArrayObject();
+                const uint32_t length = args->arrayLength(state);
+                spreadArgs.reserve(length);
+                for (uint32_t i = 0; i < length; ++i) {
+                    spreadArgs.push_back(args->getOwnProperty(state, ObjectPropertyName(state, i)).value(state, args));
+                }
+            } else {
+                spreadSoleIterableArgument(state, source, spreadArgs);
+            }
+            argv = spreadArgs.data();
+            argc = spreadArgs.size();
+        } else if (code->m_hasSpreadElement) {
             spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
             argv = spreadArgs.data();
             argc = spreadArgs.size();

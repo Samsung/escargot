@@ -4,6 +4,7 @@ test/fixtures
 
 # out dated
 non262/TypedArray/prototype-constructor-identity.js
+non262/class/defaultConstructorDerivedSpread.js
 
 # test driver is weird. we run the script properly but test driver says fail
 non262/module/await-restricted-nested.js

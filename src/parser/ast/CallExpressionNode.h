@@ -251,7 +251,7 @@ public:
         // evaluation order needs preserving around the spread, so the call can be handed the
         // raw iterable directly (see CallComplexCase::SoleSpreadElement) instead of building a
         // CreateSpreadArrayObject just to immediately re-flatten it in spreadFunctionArguments()
-        bool isSoleSpreadElement = !isSuperCall && m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
+        bool isSoleSpreadElement = m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
 
         ByteCodeRegisterIndex argumentsStartIndex;
         bool hasSpreadElement;
@@ -283,7 +283,7 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, hasSpreadElement, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), isSoleSpreadElement ? CallComplexCase::SuperSoleSpreadElement : CallComplexCase::Super, false, hasSpreadElement, false,
                                                 REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
         } else if (isSoleSpreadElement) {
@@ -411,7 +411,7 @@ public:
 
         // see the non-TCO generateExpressionByteCode above for the rationale; spread calls
         // (mixed or sole) never attempt TCO below, so this is a pure opcode substitution
-        bool isSoleSpreadElement = !isSuperCall && m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
+        bool isSoleSpreadElement = m_arguments.size() == 1 && m_arguments.begin()->astNode()->type() == ASTNodeType::SpreadElement;
 
         ByteCodeRegisterIndex argumentsStartIndex;
         bool hasSpreadElement;
@@ -443,7 +443,7 @@ public:
         }
 
         if (isSuperCall) {
-            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Super, false, hasSpreadElement, false,
+            codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), isSoleSpreadElement ? CallComplexCase::SuperSoleSpreadElement : CallComplexCase::Super, false, hasSpreadElement, false,
                                                 REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
         } else if (isSoleSpreadElement) {

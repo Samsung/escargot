@@ -6464,18 +6464,22 @@ public:
             addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::LetKeyword);
         }
 
+        ParserBlockContext classBlockContext;
+        openBlock(classBlockContext);
+        if (id.string()->length()) {
+            addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
+        }
+
+        // ClassDefinitionEvaluation creates the class-name lexical environment
+        // before evaluating a ClassHeritage. A named class expression's
+        // `extends` expression must therefore resolve this immutable binding,
+        // rather than a same-named outer binding.
         bool hasSuperClass = false;
         ASTNode superClass = nullptr;
         if (this->matchKeyword(ExtendsKeyword)) {
             hasSuperClass = true;
             this->nextToken();
             superClass = this->isolateCoverGrammar(builder, &Parser::parseLeftHandSideExpressionAllowCall<ASTBuilder>);
-        }
-
-        ParserBlockContext classBlockContext;
-        openBlock(classBlockContext);
-        if (id.string()->length()) {
-            addDeclaredNameIntoContext(id, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
         }
 
         MetaNode endNode;
