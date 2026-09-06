@@ -692,6 +692,11 @@ public:
         return m_hasEval;
     }
 
+    bool hasEvalInParameter() const
+    {
+        return m_hasEvalInParameter;
+    }
+
     bool hasWith() const
     {
         return m_hasWith;
@@ -829,6 +834,11 @@ public:
     bool allowArguments() const
     {
         return m_allowArguments;
+    }
+
+    bool hasExplicitArgumentsDeclaration() const
+    {
+        return m_hasExplicitArgumentsDeclaration;
     }
 
     bool hasDynamicSourceCode() const
@@ -1052,6 +1062,7 @@ protected:
     bool m_canAllocateEnvironmentOnStack : 1;
     bool m_hasDescendantUsesNonIndexedVariableStorage : 1;
     bool m_hasEval : 1;
+    bool m_hasEvalInParameter : 1;
     bool m_hasWith : 1;
     bool m_isStrict : 1;
     bool m_inWith : 1;
@@ -1081,6 +1092,7 @@ protected:
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     bool m_allowArguments : 1;
+    bool m_hasExplicitArgumentsDeclaration : 1;
     // represent if its source code is created dynamically by createDynamicFunctionScript
     bool m_hasDynamicSourceCode : 1;
 #if defined(ENABLE_TCO)

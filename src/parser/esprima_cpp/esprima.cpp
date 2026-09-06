@@ -2640,6 +2640,9 @@ public:
                 // check callee of CallExpressionNode
                 if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
                     this->currentScopeContext->m_hasEval = true;
+                    if (this->context->inParameterParsing) {
+                        this->currentScopeContext->m_hasEvalInParameter = true;
+                    }
                 }
                 exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, optional));
                 if (asyncArrow && this->match(Arrow)) {
@@ -4045,6 +4048,13 @@ public:
     {
         ASSERT(kind == VarKeyword || kind == LetKeyword || kind == ConstKeyword || kind == UsingKeyword);
 
+        if (kind == VarKeyword && name == stringArguments) {
+            this->currentScopeContext->m_hasExplicitArgumentsDeclaration = true;
+            if (this->context->inFunctionBody) {
+                this->currentScopeContext->m_hasBodyArgumentsVarDeclaration = true;
+            }
+        }
+
         if (!this->isParsingSingleFunction) {
             /*
                we need this bunch of code for tolerate this error(we consider variable 'e' as lexically declared)
@@ -5259,6 +5269,11 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
         }
 
+        if (this->currentScopeContext->m_hasEvalInParameter && this->context->inArrowFunction
+            && this->currentScopeContext->m_hasBodyArgumentsVarDeclaration) {
+            this->currentScopeContext->insertNameAtBlock(stringArguments, this->currentScopeContext->m_functionBodyBlockIndex, false, false);
+        }
+
         if (currentScopeContext->m_functionBodyBlockIndex) {
             closeBlock(blockContext);
         }
@@ -5320,6 +5335,12 @@ public:
                 break;
             }
             this->parseStatementListItem(builder);
+        }
+
+        if (this->currentScopeContext->m_hasEvalInParameter && this->context->inArrowFunction) {
+            if (this->currentScopeContext->m_hasBodyArgumentsVarDeclaration) {
+                this->currentScopeContext->insertNameAtBlock(stringArguments, this->currentScopeContext->m_functionBodyBlockIndex, false, false);
+            }
         }
 
         if (this->currentScopeContext->m_functionBodyBlockIndex) {

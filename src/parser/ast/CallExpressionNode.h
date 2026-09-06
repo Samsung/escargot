@@ -157,7 +157,7 @@ public:
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
-                                                m_isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                                m_isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size(), context->m_inParameterInitialization),
                                 context, this->m_loc.index);
             return;
         }
@@ -319,7 +319,7 @@ public:
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
-                                                m_isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                                m_isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size(), context->m_inParameterInitialization),
                                 context, this->m_loc.index);
             return;
         }

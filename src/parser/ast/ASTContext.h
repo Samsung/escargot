@@ -288,6 +288,7 @@ struct ASTClassInfo {
 struct ASTScopeContext {
     bool m_isStrict : 1;
     bool m_hasEval : 1;
+    bool m_hasEvalInParameter : 1;
     bool m_hasWith : 1;
     bool m_inWith : 1;
     bool m_isArrowFunctionExpression : 1;
@@ -310,6 +311,8 @@ struct ASTScopeContext {
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     bool m_allowArguments : 1;
+    bool m_hasExplicitArgumentsDeclaration : 1;
+    bool m_hasBodyArgumentsVarDeclaration : 1;
     bool m_needRareData : 1;
 #ifndef ESCARGOT_DEBUGGER
     bool m_hasStringArguments : 1;
@@ -681,6 +684,7 @@ struct ASTScopeContext {
     explicit ASTScopeContext(ASTAllocator &allocator, bool isStrict = false)
         : m_isStrict(isStrict)
         , m_hasEval(false)
+        , m_hasEvalInParameter(false)
         , m_hasWith(false)
         , m_inWith(false)
         , m_isArrowFunctionExpression(false)
@@ -701,6 +705,8 @@ struct ASTScopeContext {
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
         , m_allowArguments(true)
+        , m_hasExplicitArgumentsDeclaration(false)
+        , m_hasBodyArgumentsVarDeclaration(false)
         , m_needRareData(false)
 #ifndef ESCARGOT_DEBUGGER
         , m_hasStringArguments(false)

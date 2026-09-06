@@ -2538,12 +2538,14 @@ public:
 
     CallComplexCase(const ByteCodeLOC& loc, Kind kind,
                     bool inWithScope, bool hasSpreadElement, bool isOptional,
-                    const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+                    const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount,
+                    bool isDirectEvalInParameterScope = false)
         : ByteCode(Opcode::CallComplexCaseOpcode, loc)
         , m_kind(kind)
         , m_inWithScope(inWithScope)
         , m_hasSpreadElement(hasSpreadElement)
         , m_isOptional(isOptional)
+        , m_isDirectEvalInParameterScope(isDirectEvalInParameterScope)
         , m_argumentCount(argumentCount)
         , m_receiverOrThisIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
@@ -2560,6 +2562,7 @@ public:
         , m_inWithScope(true)
         , m_hasSpreadElement(hasSpreadElement)
         , m_isOptional(isOptional)
+        , m_isDirectEvalInParameterScope(false)
         , m_argumentCount(argumentCount)
         , m_calleeName(calleeName)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -2571,6 +2574,7 @@ public:
     bool m_inWithScope : 1;
     bool m_hasSpreadElement : 1;
     bool m_isOptional : 1;
+    bool m_isDirectEvalInParameterScope : 1;
     uint16_t m_argumentCount : 16;
 
     union {
