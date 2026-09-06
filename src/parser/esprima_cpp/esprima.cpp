@@ -703,8 +703,16 @@ public:
         this->collectComments();
         ALLOC_TOKEN(next);
         this->scanner->lex(next);
+        this->collectComments();
+        ALLOC_TOKEN(afterNext);
+        this->scanner->lex(afterNext);
         this->scanner->restoreState(state);
-        return next->type == Token::IdentifierToken && next->equalsToKeywordNoEscape(OfKeyword);
+        // The `using of` lookahead restriction applies only to a for-of head.
+        // In a classic for statement, `of` is a valid binding identifier, e.g.
+        // `for (using of = null;;)`. The restriction is needed for the
+        // ambiguous `for (using of of iterable)` form instead.
+        return next->type == Token::IdentifierToken && next->equalsToKeywordNoEscape(OfKeyword)
+            && afterNext->type == Token::IdentifierToken && afterNext->equalsToKeywordNoEscape(OfKeyword);
     }
 
     ALWAYS_INLINE void collectComments()
@@ -3304,7 +3312,7 @@ public:
             bool isAsync = false;
             exprNode = this->parseConditionalExpression(builder);
 
-            if (token->type == Token::IdentifierToken && (token->lineNumber == this->lookahead.lineNumber) && token->equalsToKeywordNoEscape(AsyncKeyword)) {
+            if (exprNode->type() == Identifier && token->type == Token::IdentifierToken && (token->lineNumber == this->lookahead.lineNumber) && token->equalsToKeywordNoEscape(AsyncKeyword)) {
                 if (this->lookahead.type == Token::IdentifierToken || this->matchKeyword(YieldKeyword)) {
                     ASTNode arg = this->parsePrimaryExpression(builder);
                     arg = builder.reinterpretExpressionAsPattern(arg);
@@ -3583,12 +3591,21 @@ public:
                         exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
                         break;
                     case LogicalAndEqual:
+                        if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
+                            this->addImplicitName(rightNode, exprNode->asIdentifier()->name());
+                        }
                         exprResult = builder.createAssignmentExpressionLogicalAndNode(exprNode, rightNode);
                         break;
                     case LogicalOrEqual:
+                        if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
+                            this->addImplicitName(rightNode, exprNode->asIdentifier()->name());
+                        }
                         exprResult = builder.createAssignmentExpressionLogicalOrNode(exprNode, rightNode);
                         break;
                     case LogicalNullishEqual:
+                        if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
+                            this->addImplicitName(rightNode, exprNode->asIdentifier()->name());
+                        }
                         exprResult = builder.createAssignmentExpressionLogicalNullishNode(exprNode, rightNode);
                         break;
                     default:
