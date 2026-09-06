@@ -2532,6 +2532,7 @@ public:
         MayBuiltinEval,
         InWithScope,
         Super,
+        SuperSoleSpreadElement,
         Import
     };
 

@@ -1990,16 +1990,25 @@ static void addPrivateMember(ExecutionState& state, ObjectExtendedExtraData* e, 
 
 void Object::addPrivateField(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value)
 {
+    if (UNLIKELY(!isExtensible(state))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot add private member to a non-extensible object");
+    }
     addPrivateMember(state, ensureExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
 }
 
 void Object::addPrivateMethod(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* fn)
 {
+    if (UNLIKELY(!isExtensible(state))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot add private member to a non-extensible object");
+    }
     addPrivateMember(state, ensureExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
 }
 
 void Object::addPrivateAccessor(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
 {
+    if (UNLIKELY(!isExtensible(state))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot add private member to a non-extensible object");
+    }
     auto e = ensureExtendedExtraData();
     ObjectPrivateMemberDataChain* piece = ensurePieceOnPrivateMemberChain(state, e, contextObject);
 

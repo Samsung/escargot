@@ -128,8 +128,6 @@
     <test id="built-ins/Function/prototype/arguments/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/caller/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/line-terminator-normalisation-CR"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.toStringTag/weird-setter"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/chunks/argument-effect-order"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/chunks/argument-validation-failure-close-throws"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/chunks/argument-validation-failure-closes-underlying"><reason>TODO</reason></test>
@@ -164,12 +162,6 @@
     <test id="built-ins/Iterator/prototype/chunks/underlying-iterator-advanced-in-parallel"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/chunks/underlying-iterator-closed-in-parallel"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/chunks/yields-distinct-arrays"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/constructor/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/constructor/weird-setter"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/drop/argument-effect-order"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/drop/argument-validation-failure-closes-underlying"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/drop/limit-rangeerror"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/flatMap/return-is-forwarded-to-mapper-result"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/includes/argument-effect-order"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/includes/argument-validation-failure-closes-underlying"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/includes/basic-match-and-miss"><reason>TODO</reason></test>
@@ -226,9 +218,6 @@
     <test id="built-ins/Iterator/prototype/join/results-no-separator"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/join/results-nonempty-separator"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/join/separator-tostring"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/take/argument-effect-order"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/take/argument-validation-failure-closes-underlying"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/take/limit-rangeerror"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/windows/argument-effect-order"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/windows/argument-validation-failure-close-throws"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/windows/argument-validation-failure-closes-underlying"><reason>TODO</reason></test>
@@ -677,7 +666,6 @@
     <test id="language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference"><reason>TODO</reason></test>
     <test id="language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-field-accessor"><reason>TODO</reason></test>
-    <test id="language/expressions/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.10_T1"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.11_T1"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.1_T1"><reason>TODO</reason></test>
@@ -1075,9 +1063,6 @@
     <test id="language/statements/class/private-non-static-setter-static-getter-early-error"><reason>TODO</reason></test>
     <test id="language/statements/class/private-static-getter-non-static-setter-early-error"><reason>TODO</reason></test>
     <test id="language/statements/class/private-static-setter-non-static-getter-early-error"><reason>TODO</reason></test>
-    <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
-    <test id="language/statements/class/subclass/default-constructor-spread-override"><reason>TODO</reason></test>
-    <test id="language/statements/class/subclass/private-class-field-on-nonextensible-return-override"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/head-lhs-async"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>

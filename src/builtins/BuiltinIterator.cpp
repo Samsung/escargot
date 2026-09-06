@@ -163,6 +163,54 @@ static Value builtinIteratorConstructor(ExecutionState& state, Value thisValue, 
     return new Object(state, proto);
 }
 
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype-constructor
+static Value builtinIteratorPrototypeConstructorGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return state.context()->globalObject()->iterator();
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype-@@tostringtag
+static Value builtinIteratorPrototypeToStringTagGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return state.context()->staticStrings().Iterator.string();
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-setterthatignoresprototypeproperties
+static Value iteratorPrototypeSetterThatIgnoresPrototypeProperties(ExecutionState& state, Value thisValue, Value value, const ObjectPropertyName& propertyName)
+{
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator prototype setter called on non-object");
+    }
+
+    Object* object = thisValue.asObject();
+    if (object == state.context()->globalObject()->iteratorPrototype()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot assign to Iterator.prototype property");
+    }
+
+    // Deliberately inspect only the receiver's own descriptor. Looking through
+    // its prototype would invoke this accessor again instead of shadowing it.
+    if (!object->getOwnProperty(state, propertyName).hasValue()) {
+        if (!object->defineOwnProperty(state, propertyName, ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot define Iterator prototype property");
+        }
+    } else if (!object->set(state, propertyName, value, object)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot assign to Iterator prototype property");
+    }
+    return Value();
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-set-iteratorprototype-constructor
+static Value builtinIteratorPrototypeConstructorSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return iteratorPrototypeSetterThatIgnoresPrototypeProperties(state, thisValue, argv[0], ObjectPropertyName(state.context()->staticStrings().constructor));
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-set-iteratorprototype-@@tostringtag
+static Value builtinIteratorPrototypeToStringTagSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return iteratorPrototypeSetterThatIgnoresPrototypeProperties(state, thisValue, argv[0], ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag));
+}
+
 #define RESOLVE_THIS_BINDING_TO_WRAP_FOR_VALID_ITERATOR(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
     if (!thisValue.isObject() || !thisValue.asObject()->isWrapForValidIteratorObject()) {                                                                                                                                                              \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -710,7 +758,7 @@ static std::pair<Value, bool> iteratorTakeClosure(ExecutionState& state, Iterato
     //     IfAbruptCloseIterator(completion, iterated).
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     IteratorRecord* iterated = obj->underlyingIterators()[0];
-    double remaining = closureData->callback.toNumber(state);
+    double remaining = closureData->callback.asNumber();
 
     if (remaining == 0) {
         obj->markIteratorIsDone();
@@ -721,7 +769,7 @@ static std::pair<Value, bool> iteratorTakeClosure(ExecutionState& state, Iterato
         return std::make_pair(Value(), true);
     }
     if (remaining != std::numeric_limits<double>::infinity()) {
-        closureData->callback = Value(static_cast<int32_t>(remaining - 1));
+        closureData->callback = Value(Value::DoubleToIntConvertibleTestNeeds, remaining - 1);
     }
 
     auto value = IteratorObject::iteratorStepValue(state, iterated);
@@ -761,6 +809,11 @@ static Value builtinIteratorTake(ExecutionState& state, Value thisValue, size_t 
     if (std::isnan(numLimit)) {
         return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "numLimit is NaN", true), true);
     }
+    // If numLimit is finite and greater than 2**53 - 1, close the
+    // underlying iterator before reporting the RangeError.
+    if (std::isfinite(numLimit) && numLimit > 9007199254740991.0) {
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "numLimit is too large", true), true);
+    }
     // Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     // If integerLimit < 0, then
     //    a. Let error be ThrowCompletion(a newly created RangeError object).
@@ -773,7 +826,7 @@ static Value builtinIteratorTake(ExecutionState& state, Value thisValue, size_t 
     iterated = IteratorObject::getIteratorDirect(state, O.asObject());
     // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
     // Set result.[[UnderlyingIterator]] to iterated.
-    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorTakeClosure, iterated, new IteratorData(argv[0]));
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorTakeClosure, iterated, new IteratorData(Value(Value::DoubleToIntConvertibleTestNeeds, integerLimit)));
     // Return result.
     return result;
 }
@@ -903,6 +956,13 @@ static Value builtinIteratorDrop(ExecutionState& state, Value thisValue, size_t 
         IteratorObject::iteratorClose(state, iterated, error, true);
     }
 
+    // If numLimit is finite and greater than 2**53 - 1, close the
+    // underlying iterator before reporting the RangeError.
+    if (std::isfinite(numLimit) && numLimit > 9007199254740991.0) {
+        Value error = ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "limit must not exceed Number.MAX_SAFE_INTEGER");
+        IteratorObject::iteratorClose(state, iterated, error, true);
+    }
+
     // Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     double integerLimit = Value(Value::DoubleToIntConvertibleTestNeeds, numLimit).toInteger(state);
 
@@ -992,6 +1052,7 @@ static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, Iter
             if (!innerValue) {
                 // If innerValue is done, then Set innerAlive to false.
                 closureData->innerAlive = false;
+                closureData->innerIterator->m_done = true;
                 closureData->innerIterator = nullptr;
             } else {
                 // Else, Let completion be Completion(Yield(innerValue)).
@@ -1031,6 +1092,7 @@ static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, Iter
         // Set counter to counter + 1.
         closureData->innerAlive = true;
         closureData->innerIterator = innerIterator;
+        obj->underlyingIterators().pushBack(innerIterator);
         closureData->counter = StorePositiveNumberAsOddNumber(closureData->counter + 1);
     }
 }
@@ -1095,8 +1157,11 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolIterator, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    JSGetterSetter iteratorToStringTag(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolToStringTag, builtinIteratorPrototypeToStringTagGetter, 0, NativeFunctionInfo::Strict)),
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolToStringTag, builtinIteratorPrototypeToStringTagSetter, 1, NativeFunctionInfo::Strict)));
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                          ObjectPropertyDescriptor(Value(strings->Iterator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(iteratorToStringTag, ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolDispose, builtinIteratorDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1119,6 +1184,12 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
     m_iterator->setFunctionPrototype(state, m_iteratorPrototype);
+
+    JSGetterSetter iteratorConstructor(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->constructor, builtinIteratorPrototypeConstructorGetter, 0, NativeFunctionInfo::Strict)),
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->constructor, builtinIteratorPrototypeConstructorSetter, 1, NativeFunctionInfo::Strict)));
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->constructor),
+                                                          ObjectPropertyDescriptor(iteratorConstructor, ObjectPropertyDescriptor::ConfigurablePresent));
 
     // https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
     m_wrapForValidIteratorPrototype = new Object(state, m_iteratorPrototype);
