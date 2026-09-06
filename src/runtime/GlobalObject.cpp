@@ -340,7 +340,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 }
 
 Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thisValue,
-                              InterpretedCodeBlock* parentCodeBlock, bool inWithOperation)
+                              InterpretedCodeBlock* parentCodeBlock, bool inWithOperation, bool isInParameterScope)
 {
     if (arg.isString()) {
         if (UNLIKELY((bool)state.context()->securityPolicyCheckCallback())) {
@@ -376,7 +376,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
                                                  false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
                                                  parentCodeBlock->allowSuperProperty(), allowNewTarget, true)
                              .scriptThrowsExceptionIfParseError(state);
-        return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
+        return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction, isInParameterScope);
     }
     return arg;
 }

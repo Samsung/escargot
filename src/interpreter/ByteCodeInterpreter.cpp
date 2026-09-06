@@ -4454,12 +4454,17 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
                 newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
             }
         } else {
-            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, blockInfo->fromCatchClauseNode());
+            bool isParameterEvalBodyScope = byteCodeBlock->m_codeBlock->hasEvalInParameter()
+                && byteCodeBlock->m_codeBlock->isArrowFunctionExpression()
+                && blockInfo->blockIndex() == byteCodeBlock->m_codeBlock->functionBodyBlockIndex();
+            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, isParameterEvalBodyScope, blockInfo->fromCatchClauseNode());
 
             auto& iv = blockInfo->identifiers();
             auto siz = iv.size();
             for (size_t i = 0; i < siz; i++) {
-                newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, false);
+                bool isParameterEvalBodyArguments = isParameterEvalBodyScope
+                    && iv[i].m_name == byteCodeBlock->m_codeBlock->context()->staticStrings().arguments;
+                newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, isParameterEvalBodyArguments);
             }
         }
         if (LIKELY(blockInfo->canAllocateEnvironmentOnStack())) {
@@ -4716,7 +4721,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
 
                 registerFile[code->m_resultIndex] = state.context()->globalObject()->evalLocal(state, arg, registerFile[code->m_receiverOrThisIndex],
                                                                                                byteCodeBlock->m_codeBlock->asInterpretedCodeBlock(),
-                                                                                               code->m_inWithScope);
+                                                                                               code->m_inWithScope, code->m_isDirectEvalInParameterScope);
             } else {
                 Value thisValue;
                 if (code->m_inWithScope) {

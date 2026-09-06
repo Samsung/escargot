@@ -514,7 +514,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 }
 
 // NOTE: eval by direct call
-Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside, bool isEvalCodeOnFunction)
+Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside, bool isEvalCodeOnFunction, bool isInParameterScope)
 {
     ByteCodeBlock* byteCodeBlock = m_topCodeBlock->byteCodeBlock();
 
@@ -530,6 +530,17 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     const InterpretedCodeBlock::IdentifierInfoVector& vec = m_topCodeBlock->identifierInfos();
     size_t vecLen = vec.size();
+
+    if (isInParameterScope && isEvalCodeOnFunction && !m_topCodeBlock->isStrict() && m_topCodeBlock->hasExplicitArgumentsDeclaration()) {
+        bool shouldThrow = !parentCodeBlock->isArrowFunctionExpression();
+        if (!shouldThrow) {
+            AtomicString arguments = state.context()->staticStrings().arguments;
+            shouldThrow = parentCodeBlock->isParameterName(arguments);
+        }
+        if (shouldThrow) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Cannot declare arguments in direct eval during parameter initialization");
+        }
+    }
 
     // test there was let on block scope
     LexicalEnvironment* e = state.lexicalEnvironment();
@@ -572,6 +583,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     if (recordToAddVariable->isGlobalEnvironmentRecord()) {
         testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
+    }
+
+    if (m_topCodeBlock->hasExplicitArgumentsDeclaration()) {
+        AtomicString arguments = state.context()->staticStrings().arguments;
+        if (recordToAddVariable->hasBinding(state, arguments).m_index == SIZE_MAX) {
+            recordToAddVariable->createBinding(state, arguments, inStrict ? false : true, true, true, m_topCodeBlock);
+        }
     }
 
     for (size_t i = 0; i < vecLen; i++) {

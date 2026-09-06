@@ -244,7 +244,7 @@ public:
     size_t originSourceLineOffset() const { return m_originSourceLineOffset; }
 
 private:
-    Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
+    Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false, bool isInParameterScope = false);
     Script* loadModuleFromScript(ExecutionState& state, ModuleRequest& request);
     void loadExternalModule(ExecutionState& state);
     Value executeModule(ExecutionState& state, Optional<Script*> referrer);

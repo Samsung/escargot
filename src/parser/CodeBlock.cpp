@@ -238,6 +238,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_canAllocateEnvironmentOnStack(false)
     , m_hasDescendantUsesNonIndexedVariableStorage(false)
     , m_hasEval(false)
+    , m_hasEvalInParameter(false)
     , m_hasWith(false)
     , m_isStrict(false)
     , m_inWith(false)
@@ -263,6 +264,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
+    , m_hasExplicitArgumentsDeclaration(false)
     , m_hasDynamicSourceCode(false)
 #if defined(ENABLE_TCO)
     , m_isTailRecursionDisabled(false)
@@ -288,6 +290,7 @@ void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bo
     m_isAsync = scopeCtx->m_isAsync;
 
     m_hasEval = scopeCtx->m_hasEval;
+    m_hasEvalInParameter = scopeCtx->m_hasEvalInParameter;
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
 
@@ -301,6 +304,7 @@ void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bo
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
     m_allowArguments = scopeCtx->m_allowArguments;
+    m_hasExplicitArgumentsDeclaration = scopeCtx->m_hasExplicitArgumentsDeclaration;
 
     const ASTScopeContextNameInfoVector& innerIdentifiers = scopeCtx->m_varNames;
     m_identifierInfos.resize(innerIdentifiers.size());
@@ -324,6 +328,7 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
 {
     m_isStrict = scopeCtx->m_isStrict;
     m_hasEval = scopeCtx->m_hasEval;
+    m_hasEvalInParameter = scopeCtx->m_hasEvalInParameter;
     m_hasWith = scopeCtx->m_hasWith;
     m_inWith = scopeCtx->m_inWith;
     m_hasArrowParameterPlaceHolder = scopeCtx->m_hasArrowParameterPlaceHolder;
@@ -352,6 +357,7 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     m_allowSuperCall = scopeCtx->m_allowSuperCall;
     m_allowSuperProperty = scopeCtx->m_allowSuperProperty;
     m_allowArguments = scopeCtx->m_allowArguments;
+    m_hasExplicitArgumentsDeclaration = scopeCtx->m_hasExplicitArgumentsDeclaration;
 
     const AtomicStringTightVector& parameterNames = scopeCtx->m_parameters;
     if (parameterNames.size() > 0) {
@@ -550,6 +556,10 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
         }
     }
 
+    if (m_hasEvalInParameter && isArrowFunctionExpression() && currentBlockIndex == 0) {
+        isThereHeapVariable = true;
+    }
+
     if (bi->isGenericBlockInfo()) {
         if (m_blockInfosLength == 1) {
             m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
@@ -658,12 +668,12 @@ void InterpretedCodeBlock::computeVariables()
                     if (m_blockInfosLength == 1) {
                         m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
                     } else {
-                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
                     }
                     ASSERT(!m_blockInfos[i]->identifiers().size());
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
-                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
+                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
                     for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
                         m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
                         m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
@@ -745,12 +755,12 @@ void InterpretedCodeBlock::computeVariables()
                     if (m_blockInfosLength == 1) {
                         m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
                     } else {
-                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
                     }
                     ASSERT(!m_blockInfos[i]->identifiers().size());
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
-                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
+                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
                     for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
                         m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
                         m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;

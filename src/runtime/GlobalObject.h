@@ -466,7 +466,7 @@ public:
 
     Value eval(ExecutionState& state, const Value& arg);
     // we get isInWithOperation as parameter because this affects bytecode
-    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation);
+    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation, bool isInParameterScope = false);
 
     void* operator new(size_t size)
     {
