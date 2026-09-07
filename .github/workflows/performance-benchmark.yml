@@ -76,11 +76,15 @@ jobs:
               awk '/^VmRSS:/{print $2}' "/proc/$pid/status" 2>/dev/null >> "$rss_file" || true
               sleep 0.05
             done
-            if ! wait "$pid"; then
+            if wait "$pid"; then status=0; else status=$?; fi
+            if [ "$status" -ne 0 ]; then
+              echo "$name exited with status $status; last output:" >&2
+              tail -n 40 "$report/logs/$name.log" >&2 || true
               return 1
             fi
             if [ ! -s "$rss_file" ]; then
-              echo "Could not collect RSS samples for $name" >&2
+              echo "Could not collect RSS samples for $name; last output:" >&2
+              tail -n 40 "$report/logs/$name.log" >&2 || true
               return 1
             fi
           }
@@ -134,9 +138,14 @@ jobs:
         LOCKED
 
     - uses: actions/upload-artifact@v6
+      # Upload on failure too, so a crash mid-benchmark leaves the per-run
+      # engine logs (performance-report/logs/*.log) behind for diagnosis -
+      # otherwise the workspace is git-clean'd before the next run.
+      if: always()
       with:
         name: performance-report-${{ env.TARGET_SHA }}
         path: performance-report/
+        if-no-files-found: ignore
 
     - name: Publish history and dashboard
       shell: bash
