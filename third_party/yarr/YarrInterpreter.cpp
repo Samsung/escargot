@@ -599,9 +599,29 @@ public:
         bool match;
         // Escargot update for `built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-p.js`
         if (term.m_flags.contains(Flags::IgnoreCase) && term.m_flags.contains(Flags::Unicode)) {
-#if defined(ENABLE_ICU)
             char32_t ch = inputChar;
-            if (u_islower(ch)) {
+            // ASCII range: use the C library's ctype functions instead of ICU's,
+            // since ICU's Unicode case-folding is unneeded overhead for plain ASCII
+            // and ctype's argument is only well-defined for values <= 128 anyway.
+            if (ch <= 128) {
+                if (islower(ch)) {
+                    if (term.invert()) {
+                        match = testCharacterClass(term.atom.characterClass, ch) && testCharacterClass(term.atom.characterClass, toupper(ch));
+                    } else {
+                        match = testCharacterClass(term.atom.characterClass, ch) || testCharacterClass(term.atom.characterClass, toupper(ch));
+                    }
+                } else if (isupper(ch)) {
+                    if (term.invert()) {
+                        match = testCharacterClass(term.atom.characterClass, ch) && testCharacterClass(term.atom.characterClass, tolower(ch));
+                    } else {
+                        match = testCharacterClass(term.atom.characterClass, ch) || testCharacterClass(term.atom.characterClass, tolower(ch));
+                    }
+                } else {
+                    match = testCharacterClass(term.atom.characterClass, ch);
+                }
+            }
+#if defined(ENABLE_ICU)
+            else if (u_islower(ch)) {
                 if (term.invert()) {
                     match = testCharacterClass(term.atom.characterClass, ch) && testCharacterClass(term.atom.characterClass, u_toupper(ch));
                 } else {
@@ -613,12 +633,11 @@ public:
                 } else {
                     match = testCharacterClass(term.atom.characterClass, ch) || testCharacterClass(term.atom.characterClass, u_tolower(ch));
                 }
-            } else {
+            }
+#endif
+            else {
                 match = testCharacterClass(term.atom.characterClass, ch);
             }
-#else
-            match = testCharacterClass(term.atom.characterClass, static_cast<char32_t>(inputChar));
-#endif
         } else {
             match = testCharacterClass(term.atom.characterClass, static_cast<char32_t>(inputChar));
         }
