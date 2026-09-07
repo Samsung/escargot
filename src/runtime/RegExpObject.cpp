@@ -294,12 +294,25 @@ void RegExpCacheMap::clear()
     RegExpCacheMapData::clear();
 }
 
+void RegExpCacheMap::pruneUnused()
+{
+    for (auto it = begin(); it != end();) {
+        if (!it.value()->m_used) {
+            it = erase(it);
+        } else {
+            it.value()->m_used = false;
+            ++it;
+        }
+    }
+}
+
 RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const RegExpObject::Option& option)
 {
     RegExpObject::RegExpCacheKey key(source, option);
 
     auto hit = m_mruCache.lookup(key);
     if (hit) {
+        hit.value()->m_used = true;
         return *hit.value();
     }
 
@@ -307,6 +320,7 @@ RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(
     auto it = RegExpCacheMapData::find(key);
     if (it != end()) {
         entry = it.value();
+        entry->m_used = true;
     } else {
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;

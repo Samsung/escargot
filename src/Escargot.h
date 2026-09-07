@@ -695,8 +695,15 @@ typedef uint16_t LexicalBlockIndex;
 #define SCRIPT_FUNCTION_OBJECT_BYTECODE_PRUNING_AGE 3
 #endif
 
+// Soft high-water mark: once RegExpCacheMap exceeds this many entries, GC mark start
+// triggers a CLOCK sweep (RegExpCacheMap::pruneUnused()) that drops only entries unused
+// since the previous sweep, so steady-state usage converges on the real working set
+// rather than being capped here. Raised from the old hard-cap value of 64 -- since the
+// sweep, not this number, is what reclaims unused entries, a higher mark just means a
+// larger transient working set can survive a single GC before being judged, not that
+// more garbage accumulates. See YARR.md.
 #ifndef REGEXP_CACHE_SIZE_MAX
-#define REGEXP_CACHE_SIZE_MAX 64
+#define REGEXP_CACHE_SIZE_MAX 512
 #endif
 
 // maximum number of tail call arguments allowed

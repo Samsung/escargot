@@ -111,12 +111,18 @@ public:
             : m_yarrError(yarrError)
             , m_yarrPattern(yarrPattern)
             , m_bytecodePattern(bytecodePattern)
+            , m_used(true)
         {
         }
 
         const char* m_yarrError;
         JSC::Yarr::YarrPattern* m_yarrPattern;
         JSC::Yarr::BytecodePattern* m_bytecodePattern;
+        // Set on every insert and on every hit (MRU or hashmap); cleared by
+        // RegExpCacheMap::pruneUnused()'s CLOCK-style sweep. Lets the GC-triggered
+        // prune keep the working set while dropping entries untouched since the
+        // previous sweep, instead of wiping the whole map.
+        bool m_used;
     };
 
     RegExpObject(ExecutionState& state, String* source, String* option);
@@ -321,6 +327,12 @@ public:
         return RegExpCacheMapData::size();
     }
     void clear();
+    // CLOCK (second-chance) sweep, called from GC mark start once size() exceeds
+    // REGEXP_CACHE_SIZE_MAX instead of clear()ing the whole map: erases entries not
+    // used since the previous sweep, and gives every survivor a fresh chance by
+    // resetting its used bit. Leaves the MRU cache alone -- entries erased here that
+    // still have an MRU slot are harmless (see RegExpCacheEntry::m_used comment).
+    void pruneUnused();
 
 private:
     // Fast path for the last MRUCacheSize distinct (source, option) keys, checked before the
