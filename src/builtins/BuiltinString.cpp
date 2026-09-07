@@ -452,6 +452,13 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             if (!replacer.isUndefined()) {
                 Value parameters[2] = { thisValue, replaceValue };
                 return Object::call(state, replacer, searchValue, 2, parameters);
+            } else if (isSearchValueRegExp) {
+                // @@replace was removed from searchValue (e.g. deleted off
+                // RegExp.prototype): per spec this strips all regexp-specific
+                // behavior, including the ToString(regexp) bypass the fast path
+                // below relies on. Fall back to treating searchValue like any
+                // other object (ToString + literal search).
+                canUseFastPath = false;
             }
         }
     }
