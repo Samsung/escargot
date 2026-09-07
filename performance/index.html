@@ -3,6 +3,7 @@
 <main>
   <h1>Escargot performance</h1>
   <p>master only. One measured run per benchmark; warm-up is excluded. RSS is sampled every 50 ms while the benchmark runs.</p>
+  <p><strong>Octane Avg/Max RSS methodology:</strong> measured from a separate single fixed-work pass over every Octane suite (<code>test/octane/run_mem_ci.js</code>), not from Octane's normal timed run. Octane's own loop ties each suite's iteration count to engine speed, and CodeLoad's <code>cacheBust()</code> makes every eval permanently retain its compiled function tree (a spec-required non-configurable global property, not a leak) - so a faster/slower engine alone used to shift these RSS numbers with no real behavior change. Octane Score is unaffected and still comes from the normal timed run. History predating this change used the old speed-dependent method and was dropped as not comparable.</p>
   <div class="grid">
     <section class="card"><h2>Octane Score</h2><canvas id="octane_score"></canvas></section>
     <section class="card"><h2>Web Tooling Score</h2><canvas id="web_score"></canvas></section>

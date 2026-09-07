@@ -256,12 +256,6 @@ sudo apt-get install libicu-dev:i386
 cmake -DENABLE_SHELL=ON -GNinja
 ninja
 </code></pre>
-<blockquote>
-<p>CMake 4.0+ removed support for <code>cmake_minimum_required(VERSION &lt; 3.5)</code> and will
-hard-error on some vendored third-party dependencies (e.g. <code>third_party/wasm/wabt</code>)
-that still declare an older minimum. If your <code>cmake --version</code> is 4.0 or newer, add
-<code>-DCMAKE_POLICY_VERSION_MINIMUM=3.5</code> to the <code>cmake</code> command above.</p>
-</blockquote>
 <h3>macOS</h3>
 <p>General build prerequisites:</p>
 <pre><code class="language-sh">brew install autoconf automake cmake libtool ninja pkg-config
@@ -285,10 +279,6 @@ export PKG_CONFIG_PATH=&quot;/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_P
 cmake -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DENABLE_SHELL=ON -GNinja
 ninja
 </code></pre>
-<blockquote>
-<p>Same CMake 4.0+ note as the Linux section above applies here too --
-add <code>-DCMAKE_POLICY_VERSION_MINIMUM=3.5</code> if needed.</p>
-</blockquote>
 <h3>Android</h3>
 <p>Build prerequisites on Ubuntu:</p>
 <pre><code class="language-sh">sudo apt install openjdk-17-jdk # require java 17
