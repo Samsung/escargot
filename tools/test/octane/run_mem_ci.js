@@ -29,6 +29,32 @@ load(base_dir + 'typescript-compiler.js');
 
 var success = true;
 
+// processMemoryUsage() is a native Escargot::Shell test hook (guarded by
+// ESCARGOT_ENABLE_TEST, see src/shell/Shell.cpp) that isn't compiled into
+// plain release/deploy builds - and this driver is meant to run on exactly
+// those. Neither caller of this file actually parses the RSS_KB/BASE_RSS_KB/
+// FINAL_RSS_KB lines below (tools/run-tests.py's octane-memory gate reads
+// peak RSS from `/usr/bin/time -f %M` externally, and
+// .github/workflows/performance-benchmark.yml samples VmRSS from
+// /proc/$pid/status externally); they're only for a human skimming the raw
+// log. So read the same /proc/self/status VmRSS line ourselves, in JS, via
+// the always-available `read()` builtin, instead of depending on a
+// test-only native function.
+//
+// /proc/self/status is Linux-only - both current callers of this driver
+// only invoke it there, but read() throws (not just returns null) when the
+// file can't be opened, so guard it anyway rather than let a future
+// Darwin/Windows run die on an uncaught exception. Match the old native
+// processMemoryUsage()'s failure behavior: return -1.
+function processMemoryUsage() {
+  try {
+    var match = /VmRSS:\s*(\d+) kB/.exec(read('/proc/self/status'));
+    return match ? parseInt(match[1], 10) * 1024 : -1;
+  } catch (e) {
+    return -1;
+  }
+}
+
 function PrintResult(name, result) {
   gc(); gc();
   print(name + ': ' + result + ' | RSS_KB ' + Math.round(processMemoryUsage() / 1024));
