@@ -2174,7 +2174,12 @@ private:
     unsigned m_maxSeenBackReference { 0 };
     bool m_isNamedForwardReferenceAllowed;
     bool m_kIdentityEscapeSeen { false };
-    Vector<ParenthesesType, 16> m_parenthesesStack;
+    // NOTE: kept at inline capacity 0 (not 16) on purpose. Vector<T,N>'s inline storage
+    // (third_party/yarr/Vector.h) measured a WebTooling geomean regression (-1.43%) when this
+    // field actually used its N>0 inline slots; see YARR.md "Variant B reverted per user
+    // request; Variant A alone re-measured" section. The SBO implementation itself is kept
+    // (it's a reusable improvement), just not applied here.
+    Vector<ParenthesesType, 0> m_parenthesesStack;
     NamedCaptureGroups m_namedCaptureGroups;
     GCHashSet<String> m_forwardReferenceNames;
 
