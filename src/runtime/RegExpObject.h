@@ -87,13 +87,15 @@ public:
 
         bool operator==(const RegExpCacheKey& otherKey) const
         {
-            return (m_body == otherKey.m_body)
-                && (m_ignoreCase == otherKey.m_ignoreCase)
-                && (m_multiline == otherKey.m_multiline)
-                && (m_dotAll == otherKey.m_dotAll)
-                && (m_unicode == otherKey.m_unicode)
-                && (m_unicodeSets == otherKey.m_unicodeSets)
-                && (m_sticky == otherKey.m_sticky);
+            if ((m_ignoreCase != otherKey.m_ignoreCase)
+                || (m_multiline != otherKey.m_multiline)
+                || (m_dotAll != otherKey.m_dotAll)
+                || (m_unicode != otherKey.m_unicode)
+                || (m_unicodeSets != otherKey.m_unicodeSets)
+                || (m_sticky != otherKey.m_sticky)) {
+                return false;
+            }
+            return m_body->equals(otherKey.m_body);
         }
         String* m_body;
         bool m_ignoreCase : 1;
