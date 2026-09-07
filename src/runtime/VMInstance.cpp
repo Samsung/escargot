@@ -226,8 +226,16 @@ void vmMarkStartCallback(void* data)
     self->m_lastGCMarkStartTickCount = fastTickCount();
 
     bool inIdleMode = self->inIdleMode();
-    if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(inIdleMode)) {
+    if (UNLIKELY(inIdleMode)) {
+        // dropping everything when the app backgrounds is intended, unlike the
+        // steady-state case below
         self->m_regexpCache->clear();
+    } else if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX) {
+        // CLOCK sweep instead of a full clear(): entries a live RegExpObject still shares
+        // aren't freed by clear() anyway (internalInit copies m_yarrPattern/m_bytecodePattern
+        // into the object itself), so wiping the map only forces a duplicate recompile on next
+        // use. The sweep only drops entries untouched since the previous sweep.
+        self->m_regexpCache->pruneUnused();
     }
 
     if (!self->m_isPruningCompiledByteCodes
