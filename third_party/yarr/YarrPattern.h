@@ -751,7 +751,12 @@ struct YarrPattern : public gc {
     unsigned m_initialStartValueFrameLocation { 0 };
     unsigned m_numDuplicateNamedCaptureGroups { 0 };
     PatternDisjunction* m_body { nullptr };
-    Vector<std::unique_ptr<PatternDisjunction>, 4> m_disjunctions;
+    // NOTE: kept at inline capacity 0 (not 4) on purpose. Vector<T,N>'s inline storage
+    // (third_party/yarr/Vector.h) measured a WebTooling geomean regression (-1.43%) when this
+    // field actually used its N>0 inline slots; see YARR.md "Variant B reverted per user
+    // request; Variant A alone re-measured" section. The SBO implementation itself is kept
+    // (it's a reusable improvement), just not applied here.
+    Vector<std::unique_ptr<PatternDisjunction>, 0> m_disjunctions;
     Vector<std::unique_ptr<CharacterClass>> m_userCharacterClasses;
     Vector<::Escargot::AtomicString> m_captureGroupNames;
     // The contents of the RHS Vector of m_namedGroupToParenIndices depends on whether the String is a

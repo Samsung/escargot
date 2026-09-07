@@ -22,11 +22,17 @@
 
 #include <vector>
 #include <iterator>
+#include <utility>
+#include <algorithm>
+#include <new>
 
 namespace WTF {
 
 template <typename T, size_t N = 0>
-class Vector {
+class Vector;
+
+template <typename T>
+class Vector<T, 0> {
 public:
     typedef typename std::vector<T>::iterator iterator;
     typedef typename std::vector<T>::const_iterator const_iterator;
@@ -181,7 +187,7 @@ public:
         impl.reserve(siz);
     }
 
-    void swap(Vector<T, N>& other)
+    void swap(Vector<T, 0>& other)
     {
         impl.swap(other.impl);
     }
@@ -221,6 +227,329 @@ public:
 
 private:
     std::vector<T> impl;
+};
+
+// Small-buffer-optimized primary template, used for N>0.
+// Up to N elements live inline in m_inlineStorage with zero heap allocation;
+// once the element count would exceed N, storage spills (one-way) to a
+// std::vector<T> and stays spilled until clear() (which has nothing left to
+// preserve, so un-spilling there is free and safe).
+template <typename T, size_t N>
+class Vector {
+public:
+    typedef T* iterator;
+    typedef const T* const_iterator;
+
+    Vector() {}
+    Vector(const Vector& v)
+    {
+        append(v);
+    }
+
+    // Copy/move-assignment are deliberately not implemented. With the old
+    // single-std::vector storage, compiler-synthesized assignment happened to
+    // be correct (it just forwarded to std::vector<T>::operator=). With raw
+    // inline storage, a compiler-synthesized copy/move-assignment would do a
+    // memberwise copy of m_inlineStorage as a plain byte array -- that
+    // compiles silently (byte arrays are always memberwise-copyable) but is
+    // memory-unsafe for any non-trivial T (e.g. two unique_ptrs would end up
+    // pointing at the same object, causing a double free). Neither current
+    // N>0 field (m_disjunctions in YarrPattern, m_parenthesesStack in
+    // YarrParser) nor their containing classes are ever copy- or
+    // move-assigned as a whole today, so deleting is a safe, defensive
+    // default: any future code that actually needs it will get a loud
+    // compile error at the call site (forcing a conscious implementation
+    // decision then) instead of silent heap corruption now.
+    Vector& operator=(const Vector&) = delete;
+    Vector& operator=(Vector&&) = delete;
+
+    Vector(const T* v, size_t len)
+    {
+        reserve(len);
+        for (size_t i = 0; i < len; i ++) {
+            append(v[i]);
+        }
+    }
+
+    Vector(std::initializer_list<T> list)
+    {
+        reserve(list.size());
+        for (auto& i : list) {
+            append(i);
+        }
+    }
+
+    Vector(std::span<T> span)
+    {
+        reserve(span.size());
+        for (auto& i : span) {
+            append(i);
+        }
+    }
+
+    size_t size() const
+    {
+        return m_spilled ? m_heap.size() : m_size;
+    }
+
+    T& operator[](size_t i)
+    {
+        return m_spilled ? m_heap[i] : inlinePtr()[i];
+    }
+
+    const T& operator[](size_t i) const
+    {
+        return m_spilled ? m_heap[i] : inlinePtr()[i];
+    }
+
+    T& at(size_t i)
+    {
+        return (*this)[i];
+    }
+
+    T* data()
+    {
+        return m_spilled ? m_heap.data() : inlinePtr();
+    }
+
+    iterator begin()
+    {
+        return m_spilled ? m_heap.data() : inlinePtr();
+    }
+
+    iterator end()
+    {
+        return begin() + size();
+    }
+
+    const_iterator begin() const
+    {
+        return m_spilled ? m_heap.data() : inlinePtr();
+    }
+
+    const_iterator end() const
+    {
+        return begin() + size();
+    }
+
+    T& last()
+    {
+        return (*this)[size() - 1];
+    }
+
+    bool isEmpty() const
+    {
+        return size() == 0;
+    }
+
+    template <typename U>
+    void append(const U& u)
+    {
+        if (!m_spilled && m_size == N)
+            spillToHeap(N + 1);
+        if (m_spilled)
+            m_heap.push_back(static_cast<T>(u));
+        else {
+            new (inlinePtr() + m_size) T(static_cast<T>(u));
+            ++m_size;
+        }
+    }
+
+    void append(T&& u)
+    {
+        if (!m_spilled && m_size == N)
+            spillToHeap(N + 1);
+        if (m_spilled)
+            m_heap.push_back(std::move(u));
+        else {
+            new (inlinePtr() + m_size) T(std::move(u));
+            ++m_size;
+        }
+    }
+
+    // Reaches only into v's public API (not v's private members) so this
+    // works for any M/N combination, unlike the old N==0-only implementation
+    // this was derived from, which relied on private access happening to be
+    // per-class rather than per-instance.
+    template <size_t M>
+    void append(const Vector<T, M>& v)
+    {
+        for (typename Vector<T, M>::const_iterator it = v.begin(); it != v.end(); ++it)
+            append(*it);
+    }
+
+    void insert(size_t i, const T& t)
+    {
+        append(t);
+        for (size_t k = size() - 1; k > i; --k) {
+            using std::swap;
+            swap((*this)[k], (*this)[k - 1]);
+        }
+    }
+
+    void remove(size_t i)
+    {
+        for (size_t k = i; k + 1 < size(); ++k) {
+            using std::swap;
+            swap((*this)[k], (*this)[k + 1]);
+        }
+        removeLast();
+    }
+
+    void removeLast()
+    {
+        if (m_spilled)
+            m_heap.pop_back();
+        else {
+            inlinePtr()[m_size - 1].~T();
+            --m_size;
+        }
+    }
+
+    void clear()
+    {
+        if (m_spilled) {
+            std::vector<T>().swap(m_heap);
+            m_spilled = false;
+        } else {
+            for (size_t i = 0; i < m_size; ++i)
+                inlinePtr()[i].~T();
+        }
+        m_size = 0;
+    }
+
+    void grow(size_t s)
+    {
+        if (s <= size()) {
+            shrink(s);
+            return;
+        }
+        while (size() < s)
+            append(T());
+    }
+
+    void shrink(size_t newLength)
+    {
+        ASSERT(newLength <= size());
+        while (size() != newLength) {
+            removeLast();
+        }
+    }
+
+    // Deliberately does not un-spill even if size() drops back to <= N after
+    // shrinking the heap vector -- a deliberate simplification (see the
+    // one-way-spill note at the class top), not a bug to "fix".
+    void shrinkToFit()
+    {
+        if (m_spilled)
+            m_heap.shrink_to_fit();
+    }
+
+    size_t capacity() const
+    {
+        return m_spilled ? m_heap.capacity() : N;
+    }
+
+    void reserveInitialCapacity(size_t siz)
+    {
+        reserve(siz);
+    }
+
+    void swap(Vector<T, N>& other)
+    {
+        size_t aSize = size(), bSize = other.size();
+        size_t common = std::min(aSize, bSize);
+        for (size_t i = 0; i < common; ++i) {
+            using std::swap;
+            swap((*this)[i], other[i]);
+        }
+        if (aSize > bSize) {
+            for (size_t i = common; i < aSize; ++i)
+                other.append(std::move((*this)[i]));
+            shrink(common);
+        } else if (bSize > aSize) {
+            for (size_t i = common; i < bSize; ++i)
+                append(std::move(other[i]));
+            other.shrink(common);
+        }
+    }
+
+    void deleteAllValues()
+    {
+        clear();
+    }
+
+    void reserveCapacity(size_t c)
+    {
+        reserve(c);
+    }
+
+    void reserve(size_t capacity)
+    {
+        if (capacity <= N && !m_spilled)
+            return;
+        if (!m_spilled)
+            spillToHeap(capacity);
+        else
+            m_heap.reserve(capacity);
+    }
+
+    T takeLast()
+    {
+        if (m_spilled) {
+            T last(std::move(m_heap.back()));
+            m_heap.pop_back();
+            return last;
+        }
+        T last(std::move(inlinePtr()[m_size - 1]));
+        inlinePtr()[m_size - 1].~T();
+        --m_size;
+        return last;
+    }
+
+    void fill(const T& val, size_t newSize)
+    {
+        if (size() > newSize)
+            shrink(newSize);
+        else if (newSize > capacity()) {
+            clear();
+            grow(newSize);
+        }
+        std::fill(begin(), end(), val);
+    }
+
+    ~Vector()
+    {
+        clear();
+    }
+
+private:
+    T* inlinePtr()
+    {
+        return reinterpret_cast<T*>(m_inlineStorage);
+    }
+
+    const T* inlinePtr() const
+    {
+        return reinterpret_cast<const T*>(m_inlineStorage);
+    }
+
+    void spillToHeap(size_t capacityHint)
+    {
+        // precondition: !m_spilled
+        m_heap.reserve(capacityHint);
+        for (size_t i = 0; i < m_size; ++i) {
+            m_heap.push_back(std::move(inlinePtr()[i]));
+            inlinePtr()[i].~T();
+        }
+        m_size = 0;
+        m_spilled = true;
+    }
+
+    alignas(alignof(T)) unsigned char m_inlineStorage[sizeof(T) * N];
+    size_t m_size { 0 }; // valid only while !m_spilled
+    bool m_spilled { false };
+    std::vector<T> m_heap; // valid only once m_spilled; empty otherwise
 };
 
 template <typename T>
