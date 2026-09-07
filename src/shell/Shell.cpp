@@ -1198,6 +1198,23 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
 #include <windows.h> // for SetConsoleOutputCP
 #endif
 
+static void printHelp()
+{
+    printf("Usage: escargot [options] [file]\n");
+    printf("Options:\n");
+    printf("  -h, --help                  Show this help message and exit\n");
+    printf("  -v, --version               Show version information and exit\n");
+    printf("  -e <script>                 Evaluate the specified JavaScript string and exit\n");
+    printf("  -f                          Ignored (compatibility option)\n");
+    printf("  --shell                     Force starting the interactive shell\n");
+    printf("  --module                    Execute the following script as an ES module\n");
+    printf("  --canblock-is-false         Set the platform canBlock flag to false\n");
+    printf("  --filename-as=<name>        Specify the file name of the executed script\n");
+    printf("  --start-debug-server[=opt]  Start the debugger server\n");
+    printf("  --debugger-wait-source      Wait for and execute the debug client source script\n");
+    printf("  --wait-before-exit          Wait before exit for inspection\n");
+}
+
 int main(int argc, char* argv[])
 {
 #if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
@@ -1261,6 +1278,14 @@ int main(int argc, char* argv[])
                     runShell = true;
                     continue;
                 }
+                if (strcmp(argv[i], "--version") == 0) {
+                    printf("escargot version:%s, %s%s\n", Globals::version(), Globals::buildDate(), Globals::supportsThreading() ? "(supports threading)" : "");
+                    return 0;
+                }
+                if (strcmp(argv[i], "--help") == 0) {
+                    printHelp();
+                    return 0;
+                }
                 if (strcmp(argv[i], "--module") == 0) {
                     seenModule = true;
                     continue;
@@ -1302,6 +1327,14 @@ int main(int argc, char* argv[])
                     continue;
                 }
             } else { // `-option` case
+                if (strcmp(argv[i], "-v") == 0) {
+                    printf("escargot version:%s, %s%s\n", Globals::version(), Globals::buildDate(), Globals::supportsThreading() ? "(supports threading)" : "");
+                    return 0;
+                }
+                if (strcmp(argv[i], "-h") == 0) {
+                    printHelp();
+                    return 0;
+                }
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
                     i++;
