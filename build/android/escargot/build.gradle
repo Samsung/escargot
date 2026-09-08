@@ -157,6 +157,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
         commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Linux", "-DESCARGOT_BUILD_SHARED_LIBS=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
+                "-DESCARGOT_SHADOWREALM=ON", "-DESCARGOT_WASM=ON",
                 "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         var javaHome = new ByteArrayOutputStream().withStream { os ->
@@ -178,6 +179,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
         environment("PKG_CONFIG_PATH", pkgConfigPath)
         commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Darwin", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DUNDER_NDK=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
+                "-DESCARGOT_SHADOWREALM=ON", "-DESCARGOT_WASM=ON",
                 "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
                 "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
                 "-DJAVA_INCLUDE_PATH2=" + javaHome + "/include/darwin", "-DJAVA_AWT_INCLUDE_PATH=" + javaHome + "/include",
