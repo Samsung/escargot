@@ -60,10 +60,13 @@
 <li><a href="#macOS">macOS</a></li>
 <li><a href="#iOS">iOS</a></li>
 <li><a href="#Android">Android</a></li>
+<li><a href="#Tizen">Tizen</a></li>
 <li><a href="#Windows">Windows</a></li>
 <li><a href="#Bare-metal--RTOS">Bare-metal / RTOS</a></li>
+<li><a href="#Vendored-ICU">Vendored ICU</a></li>
 </ul>
 </li>
+<li><a href="#Debugger">Debugger</a></li>
 <li><a href="#Testing-">Testing</a></li>
 <li><a href="#Contributing-">Contributing</a></li>
 <li><a href="#Research-Papers-">Research Papers</a></li>
@@ -71,44 +74,54 @@
 </ul>
 <h2>Building 🛠️</h2>
 <h3>Supported Platforms and Architectures</h3>
+<p>Architecture names below use <code>x86</code> for 32-bit Intel, <code>x64</code> for x86-64,
+<code>arm</code> for 32-bit ARM, and <code>aarch64</code>/<code>arm64</code> for 64-bit ARM.</p>
 <table>
 <thead>
 <tr>
-<th><strong>OS</strong></th>
-<th><strong>Architecture</strong></th>
+<th>Platform</th>
+<th>Architectures</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>Linux(Ubuntu)</strong></td>
-<td>x86/x64/arm/aarch64/riscv64</td>
+<td>Linux</td>
+<td>x86, x64, arm, aarch64, riscv64</td>
+<td>Supported Linux platform. Ubuntu is used by CI and in the package-install example; it is not an OS restriction.</td>
 </tr>
 <tr>
 <td>macOS</td>
-<td>x64/aarch64</td>
+<td>x64, aarch64</td>
+<td>Supported on both Intel and Apple Silicon.</td>
 </tr>
 <tr>
 <td>iOS / iPadOS</td>
-<td>aarch64 (Simulator + device)</td>
+<td>aarch64</td>
+<td>Simulator and device builds are supported.</td>
 </tr>
 <tr>
 <td>Windows</td>
-<td>Win32/x64</td>
+<td>x86, x64, arm64</td>
+<td>Supported; WebAssembly is currently unavailable on arm64.</td>
 </tr>
 <tr>
 <td>Android</td>
-<td>x86/x64/arm/aarch64</td>
+<td>x86, x64, arm, aarch64</td>
+<td>Supported across the Android ABIs.</td>
 </tr>
 <tr>
 <td>Tizen</td>
-<td>arm (build-only)</td>
+<td>x86, x64, arm, aarch64, riscv64</td>
+<td></td>
 </tr>
 <tr>
 <td>Bare-metal / RTOS</td>
-<td>arm (Cortex-M, via FreeRTOS/NuttX samples)</td>
+<td>arm (Cortex-M)</td>
+<td>FreeRTOS and NuttX reference ports are provided.</td>
 </tr>
 </tbody></table>
 <h3>Build Options</h3>
-<p>The following build options are supported when generating build rules using cmake.</p>
+<p>Pass these options when configuring with CMake.</p>
 <table>
 <thead>
 <tr>
@@ -131,8 +144,8 @@
 <td>OFF</td>
 </tr>
 <tr>
-<td>-DENABLE_SHELL</td>
-<td>Build the Escargot shell (canonical name: -DESCARGOT_ENABLE_SHELL)</td>
+<td>-DESCARGOT_ENABLE_SHELL</td>
+<td>Build the Escargot shell (<code>-DENABLE_SHELL</code> remains a legacy alias)</td>
 <td>ON/OFF</td>
 <td>ON, except OFF when ESCARGOT_NAPI is ON</td>
 </tr>
@@ -228,23 +241,105 @@
 </tr>
 </tbody></table>
 <details>
-<summary>Advanced / developer-only options (profiling, sanitizers, internal knobs)</summary><p>| <strong>Flag</strong> | <strong>Description</strong> | <strong>Value</strong> | <strong>Default</strong> |
-|-|-|-|-|-|
-| <strong>-DESCARGOT_ASAN</strong> | Build with AddressSanitizer | ON/OFF | OFF |
-| <strong>-DESCARGOT_COVERAGE</strong> | Build with gcov/Codecov instrumentation | ON/OFF | OFF |
-| <strong>-DESCARGOT_DEPLOY</strong> | Build for deployment (set up RPATH for a bundled ICU) | ON/OFF | OFF |
-| <strong>-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN</strong> | Load libicu at runtime via dlopen() instead of linking directly | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn&#39;t work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
-| <strong>-DESCARGOT_LIBICU_SUPPORT_VENDORED</strong> | Build/ship Escargot&#39;s own ICU instead of relying on a system-provided one (see &quot;Vendored ICU&quot; below) | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
-| <strong>-DESCARGOT_USE_EXTENDED_API</strong> | Enable the extended C++ API (FunctionTemplateRef, etc.) | ON/OFF | ON when NAPI is ON, otherwise OFF |
-| <strong>-DESCARGOT_USE_CUSTOM_LOGGING</strong> | Use a custom logging backend instead of the host&#39;s native log (e.g. dlog on Tizen) | ON/OFF | OFF |
-| <strong>-DESCARGOT_TCO_DEBUG</strong> | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | ON/OFF | OFF |
-| <strong>-DESCARGOT_PROFILE_BDWGC</strong> | Enable bdwgc (Boehm GC) profiling |  ON/OFF | OFF |
-| <strong>-DESCARGOT_MEM_STATS</strong> | Enable memory usage statistics | ON/OFF | OFF |
-| <strong>-DESCARGOT_VALGRIND</strong> | Build with Valgrind annotations | ON/OFF | OFF |
-| <strong>-DESCARGOT_GOOGLE_PERF</strong> | Build with gperftools (Google Performance Tools) profiling | ON/OFF | OFF |
-| <strong>-DESCARGOT_BUILD_64BIT_FORCE_LARGE</strong> | On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression | ON/OFF | ON |</p>
+<summary>Advanced / developer-only options (profiling, sanitizers, internal knobs)</summary><table>
+<thead>
+<tr>
+<th><strong>Flag</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Value</strong></th>
+<th><strong>Default</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>-DESCARGOT_ASAN</strong></td>
+<td>Build with AddressSanitizer</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_COVERAGE</strong></td>
+<td>Build with gcov/Codecov instrumentation</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_DEPLOY</strong></td>
+<td>Build for deployment (set up RPATH for a bundled ICU)</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN</strong></td>
+<td>Load libicu at runtime via dlopen() instead of linking directly</td>
+<td>ON/OFF</td>
+<td>ON, except OFF on macOS (dlopen-loaded ICU doesn&#39;t work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_LIBICU_SUPPORT_VENDORED</strong></td>
+<td>Build/ship Escargot&#39;s own ICU instead of relying on a system-provided one (see &quot;Vendored ICU&quot; below)</td>
+<td>ON/OFF</td>
+<td>ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too)</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_USE_EXTENDED_API</strong></td>
+<td>Enable the extended C++ API (FunctionTemplateRef, etc.)</td>
+<td>ON/OFF</td>
+<td>ON when NAPI is ON, otherwise OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_USE_CUSTOM_LOGGING</strong></td>
+<td>Use a custom logging backend instead of the host&#39;s native log (e.g. dlog on Tizen)</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_YARR_START_CHAR_FILTER</strong></td>
+<td>Enable the Yarr interpreter first-character prefilter</td>
+<td>ON/OFF</td>
+<td>ON</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_TCO_DEBUG</strong></td>
+<td>Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO)</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_PROFILE_BDWGC</strong></td>
+<td>Enable bdwgc (Boehm GC) profiling</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_MEM_STATS</strong></td>
+<td>Enable memory usage statistics</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_VALGRIND</strong></td>
+<td>Build with Valgrind annotations</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_GOOGLE_PERF</strong></td>
+<td>Build with gperftools (Google Performance Tools) profiling</td>
+<td>ON/OFF</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td><strong>-DESCARGOT_BUILD_64BIT_FORCE_LARGE</strong></td>
+<td>On 64-bit targets, force full 64-bit pointers instead of 32-bit-in-64-bit compression</td>
+<td>ON/OFF</td>
+<td>ON</td>
+</tr>
+</tbody></table>
 </details><h3>Linux</h3>
-<p>General build prerequisites:</p>
+<p>Escargot supports Linux distributions generally. The commands below use
+Debian/Ubuntu package names because Ubuntu is used by CI; install the
+equivalent development packages on other distributions.</p>
+<p>Debian/Ubuntu prerequisites:</p>
 <pre><code class="language-sh">sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build pkg-config
 </code></pre>
 <p>Prerequisites for x86-64-to-x86 compilation:</p>
@@ -252,18 +347,18 @@
 sudo apt-get install libicu-dev:i386
 </code></pre>
 <p>Build Escargot:</p>
-<pre><code class="language-sh">git submodule update --init third_party # update submodules
-cmake -DENABLE_SHELL=ON -GNinja
-ninja
+<pre><code class="language-sh">git submodule update --init third_party
+cmake -H. -Bout -GNinja -DESCARGOT_ENABLE_SHELL=ON
+cmake --build out
 </code></pre>
 <h3>macOS</h3>
 <p>General build prerequisites:</p>
 <pre><code class="language-sh">brew install autoconf automake cmake libtool ninja pkg-config
 </code></pre>
 <p>Build Escargot:</p>
-<pre><code class="language-sh">git submodule update --init third_party # update submodules
-cmake -DENABLE_SHELL=ON -GNinja
-ninja
+<pre><code class="language-sh">git submodule update --init third_party
+cmake -H. -Bout -GNinja -DESCARGOT_ENABLE_SHELL=ON
+cmake --build out
 </code></pre>
 <p>ICU is vendored by default on macOS (see &quot;Vendored ICU&quot; below) -- it&#39;s built
 from the <code>third_party/icu</code> submodule above and linked statically, so no
@@ -276,15 +371,15 @@ export PKG_CONFIG_PATH=&quot;/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH
 # add icu path to pkg_config_path (arm64)
 export PKG_CONFIG_PATH=&quot;/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH&quot;
 
-cmake -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DENABLE_SHELL=ON -GNinja
-ninja
+cmake -H. -Bout -GNinja -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DESCARGOT_ENABLE_SHELL=ON
+cmake --build out
 </code></pre>
 <h3>Android</h3>
 <p>Build prerequisites on Ubuntu:</p>
 <pre><code class="language-sh">sudo apt install openjdk-17-jdk # require java 17
 </code></pre>
 <p>Build Escargot using gradle:</p>
-<pre><code class="language-sh">git submodule update --init third_party # update submodules
+<pre><code class="language-sh">git submodule update --init third_party
 export ANDROID_SDK_ROOT=.... # set your android SDK root first
 cd build/android/
 ./gradlew bundleReleaseAar # build escargot AAR
@@ -296,6 +391,17 @@ cd build/android/
 ./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
 ./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
 </code></pre>
+<h3>Tizen</h3>
+<p>Escargot is packaged and deployed in Tizen products. The RPM spec supports
+the Tizen package architectures <code>x86</code>, <code>x64</code>, <code>arm</code>, <code>aarch64</code>, and
+<code>riscv64</code>, and selects product profiles such as TV, mobile, wearable, and
+headless through the Tizen build environment.</p>
+<p>For a reference GBS build, use the repository&#39;s Tizen profile:</p>
+<pre><code class="language-sh">git submodule update --init third_party/GCutil
+gbs -c .github/workflows/gbs.conf build -A armv7l -P profile.tizen --define &quot;enable_shell 1&quot;
+</code></pre>
+<p>The public CI continuously validates the armv7 package build. Tizen product
+build and qualification flows use the same RPM packaging integration.</p>
 <h3>Bare-metal / RTOS</h3>
 <p>Escargot runs on bare-metal and RTOS targets with no OS underneath
 (no pthreads, no <code>mmap</code>, no filesystem). Specifying a bare-metal/RTOS target via <code>CMAKE_SYSTEM_NAME</code> (such as <code>Generic</code>, <code>NuttX</code>, <code>FreeRTOS</code>) automatically
@@ -326,29 +432,92 @@ monorepo at pinned commits (cached across runs) and boot-tests the same
 way. Both ports&#39; shared contract and checklist are in
 <a href="https://github.com/Samsung/escargot/blob/master/docs/porting/RTOS_PORTING_GUIDE.md"><code>docs/porting/RTOS_PORTING_GUIDE.md</code></a>.</p>
 <h3>Windows</h3>
-<p>Install VS2022 with cmake and ninja.
-Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Prompt for VS 2022 ]</p>
-<p>ICU is vendored by default on Windows (see &quot;Vendored ICU&quot; below) via
-<a href="https://github.com/microsoft/vcpkg">vcpkg</a> -- install it first and pass its
-installed-tree path as <code>ICU_ROOT</code>:</p>
-<pre><code class="language-sh">git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git
+<p>Ninja is <strong>not</strong> required. Build from a <strong>Developer Command Prompt for
+Visual Studio 2022</strong> with the Visual Studio CMake generator and MSBuild.</p>
+<p>Install the following:</p>
+<ul>
+<li>Visual Studio 2022&#39;s <strong>Desktop development with C++</strong> workload, including
+<strong>MSVC v143 C++ build tools</strong>, <strong>CMake tools for Windows</strong>, and a
+<strong>Windows 10 or 11 SDK</strong>.</li>
+<li>The MSVC target tools for the architecture you intend to build.</li>
+<li>Python 3, available as <code>python</code> on <code>PATH</code>. Escargot uses it to generate
+Unicode tables during the build.</li>
+<li>Git, for the source checkout, submodules, and vcpkg bootstrap.</li>
+</ul>
+<p>Choose the matching Visual Studio platform and vcpkg triplet:</p>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>CMake <code>-A</code> value</th>
+<th>vcpkg triplet</th>
+<th>Additional MSVC tools</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>x86</td>
+<td><code>Win32</code></td>
+<td><code>x86-windows</code></td>
+<td>x86/x64 build tools</td>
+</tr>
+<tr>
+<td>x64</td>
+<td><code>x64</code></td>
+<td><code>x64-windows</code></td>
+<td>x86/x64 build tools</td>
+</tr>
+<tr>
+<td>ARM64</td>
+<td><code>ARM64</code></td>
+<td><code>arm64-windows</code></td>
+<td>ARM64 build tools</td>
+</tr>
+</tbody></table>
+<p>ICU is supplied through <a href="https://github.com/microsoft/vcpkg">vcpkg</a>. The
+following x64 example can be adapted with the table above:</p>
+<pre><code class="language-bat">git clone --depth 1 --branch 2026.07.29 https://github.com/microsoft/vcpkg.git
 call vcpkg\bootstrap-vcpkg.bat
-vcpkg\vcpkg.exe install icu --triplet=x64-windows # or x86-windows / arm64-windows
+vcpkg\vcpkg.exe install icu --triplet=x64-windows
 
-git submodule update --init third_party # update submodules
+git submodule update --init third_party
 
-CMake -G &quot;Visual Studio 17 2022&quot; -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING=&quot;10.0&quot;  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DICU_ROOT=vcpkg\installed\x64-windows -Bout -DENABLE_SHELL=ON
-# ICU_ROOT above points at a vcpkg-installed ICU; drop it (and pass
-# -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF) to use the OS-provided ICU instead.
-cd out
-msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
+cmake -S . -B out -G &quot;Visual Studio 17 2022&quot; -A x64 ^
+  -DICU_ROOT=vcpkg\installed\x64-windows ^
+  -DESCARGOT_ENABLE_SHELL=ON
+cmake --build out --config Release
 </code></pre>
-<p>After building, copy the ICU DLLs the binary actually depends on (<code>dumpbin /dependents out\escargot.exe | findstr /i icu</code>) from
-<code>vcpkg\installed\x64-windows\bin\</code> next to <code>escargot.exe</code> -- see the
-<code>build-on-windows-x86-x64</code>/<code>build-windows</code> CI jobs for the exact commands.
-Pass <code>-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF</code> to fall back to the
-OS-provided ICU (Windows 10 1703+&#39;s built-in <code>icu.lib</code>) instead and skip all
-of the above.</p>
+<p>For ARM64, substitute <code>-A ARM64</code> and <code>arm64-windows</code>. Also pass
+<code>-DESCARGOT_WASM=OFF</code>: the vendored WABT dependency does not yet support
+MSVC/ARM64.</p>
+<pre><code class="language-bat">vcpkg\vcpkg.exe install icu --triplet=arm64-windows
+cmake -S . -B out-arm64 -G &quot;Visual Studio 17 2022&quot; -A ARM64 ^
+  -DICU_ROOT=vcpkg\installed\arm64-windows ^
+  -DESCARGOT_ENABLE_SHELL=ON -DESCARGOT_WASM=OFF
+cmake --build out-arm64 --config Release
+</code></pre>
+<p>The executable is written to <code>out\Release\escargot.exe</code> (or
+<code>out-arm64\Release\escargot.exe</code>). Copy the ICU DLLs it depends on from the
+matching <code>vcpkg\installed\&lt;triplet&gt;\bin\</code> directory beside the executable
+when distributing it.</p>
+<h4>Use Windows&#39; built-in ICU DLL (no vcpkg)</h4>
+<p>To avoid bundling ICU from vcpkg, explicitly select the Windows ICU path:</p>
+<pre><code class="language-bat">cmake -S . -B out -G &quot;Visual Studio 17 2022&quot; -A x64 ^
+  -DESCARGOT_ENABLE_SHELL=ON ^
+  -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF
+cmake --build out --config Release
+</code></pre>
+<p>This links through the Windows SDK&#39;s <code>icu.lib</code> and uses the ICU DLL supplied
+by Windows at runtime, so there is no <code>ICU_ROOT</code>, vcpkg installation, or ICU
+DLL to copy beside <code>escargot.exe</code>. It requires a target with the built-in ICU
+available (Windows 10 version 1703 or later). Escargot also falls back to
+this runtime-ICU path when no vcpkg ICU is found, but passing
+<code>-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF</code> records the choice explicitly and
+avoids the configure-time fallback warning.</p>
+<p>The Windows ICU version follows the operating system. Use the vcpkg path
+above when a pinned ICU version and identical Intl/Unicode behavior across
+machines are more important than avoiding the ICU deployment files.</p>
+<p>If you prefer Ninja, it is also supported; it is an optional generator, not
+a prerequisite for Windows builds.</p>
 <h3>iOS</h3>
 <p><code>ESCARGOT_HOST=ios</code> cross-compiles Escargot from a macOS host to arm64 iOS.
 Which of Apple&#39;s two iOS SDKs is targeted is selected with
@@ -393,7 +562,7 @@ cmake -B out -GNinja \
     -DCMAKE_OSX_SYSROOT=iphonesimulator \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+    -DESCARGOT_ENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
 ninja -Cout
 </code></pre>
 <p>The resulting <code>out/escargot</code> is an arm64 Mach-O binary linked against the
@@ -446,7 +615,7 @@ cmake -B out-device -GNinja \
     -DCMAKE_OSX_SYSROOT=iphoneos \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-    -DENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
+    -DESCARGOT_ENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
 ninja -Cout-device
 
 # or a shared libescargot.dylib to embed in an app bundle&#39;s Frameworks/
@@ -616,12 +785,15 @@ sudo apt-get install python3-chardet  # or: pip install chardet -- required by t
 <td><code>v8</code></td>
 </tr>
 </tbody></table>
-<p>Run each benchmark separately or all together as shown below:</p>
-<pre><code class="language-sh">tools/run-tests.py --engine=./out/linux/x64/release/escargot web-tooling-benchmark
-tools/run-tests.py --engine=./out/linux/x64/release/escargot spidermonkey test262 v8
+<p>After a default build, run individual benchmark suites (or combine suites in
+one command) as follows:</p>
+<pre><code class="language-sh">tools/run-tests.py --engine=./out/escargot web-tooling-benchmark
+tools/run-tests.py --engine=./out/escargot spidermonkey test262 v8
 </code></pre>
 <h2>Contributing 💡</h2>
-<p>Escargot welcomes contributions from developers in any form, wheter it&#39;s code, documentation, bug reports, or suggestions. By contributing to the project, you agree to license your contributions under the <a href="https://github.com/Samsung/escargot/blob/master/LICENSE">LGPL-2.1</a> license.</p>
+<p>Escargot welcomes contributions of code, documentation, bug reports, and
+suggestions. By contributing, you agree to license your contribution under
+the <a href="https://github.com/Samsung/escargot/blob/master/LICENSE">LGPL-2.1</a>.</p>
 <h4>❗ Vulnerability Reporting</h4>
 <p>⚠️ If you identify any vulnerabilities, please report them through the <a href="https://github.com/Samsung/escargot/issues">Issues page</a>. <em>Reports sent via other channels may not be considered or may be processed with delays</em>. Please note that our project assumes the execution of valid JavaScript source code only. Handling of invalid source code is not within the main scope of this project and might not be addressed.</p>
 <h2>Research Papers 📝</h2>
