@@ -70,10 +70,14 @@ bool EnumerateObject::checkIfModified(ExecutionState& state)
         }
         if (obj->isFastModeArray() && m_index < m_keys.size()) {
             Value currentKey = m_keys[m_index];
-            auto idx = currentKey.tryToUseAsIndex(state);
-            if (idx < m_arrayLength) {
-                if (obj->m_fastModeData[idx].isEmpty()) {
-                    return true;
+            // a key already consumed by destructuring is left empty, and there
+            // is nothing to re-check for it
+            if (!currentKey.isEmpty()) {
+                auto idx = currentKey.tryToUseAsIndex(state);
+                if (idx < m_arrayLength) {
+                    if (obj->m_fastModeData[idx].isEmpty()) {
+                        return true;
+                    }
                 }
             }
         }

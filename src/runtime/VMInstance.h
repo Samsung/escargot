@@ -228,6 +228,10 @@ public:
         return m_inIdleMode;
     }
 
+    // whether any object in the heap is dirty as a prototype. a pure
+    // short-circuit: while it is false no prototype chain can answer an array
+    // index, so chain walks can be skipped entirely. the fast-mode invariant
+    // itself is per-array, see Object::prototypeChainMayHaveIndexedProperty
     bool didSomePrototypeObjectDefineIndexedProperty()
     {
         return m_didSomePrototypeObjectDefineIndexedProperty;
@@ -257,7 +261,16 @@ public:
     void addObjectStructureToRootSet(ObjectStructure* structure);
     Optional<ObjectStructure*> findRootedObjectStructure(ObjectStructureItem* properties, size_t propertyCount);
 
-    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
+    // an object in a prototype chain can now answer an array index. marks it as
+    // dirty and, when something may already inherit from it, drops every
+    // fast-mode array that does
+    void somePrototypeObjectDefineIndexedProperty(ExecutionState& state, Object* dirtyPrototypeObject, bool mayHaveInheritingObjects);
+
+    // `object` was re-parented onto a chain that can answer an array index
+    void prototypeChainOfObjectBecameDirty(ExecutionState& state, Object* object);
+
+    // restores the fast-mode invariant after a prototype chain changed shape
+    void convertArraysWithDirtyPrototypeChainIntoNonFastMode(ExecutionState& state);
 
     JobQueue* jobQueue()
     {

@@ -72,6 +72,7 @@ struct ObjectExtendedExtraData : public gc {
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
+    bool m_isIndexedPropertyDirtyAsPrototype : 1;
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
     bool m_isFinalizerRegistered : 1;
@@ -1030,6 +1031,21 @@ public:
         return m_structure->hasIndexPropertyName() || hasIndexedPropertyOutsideStructure();
     }
 
+    // this object sits in a prototype chain and can answer an array index, so
+    // no fast-mode array may keep it in its chain. sticky: an object that once
+    // dirtied a chain is never trusted again, which keeps the bit a plain load
+    // with no invalidation to track
+    bool isIndexedPropertyDirtyAsPrototype() const
+    {
+        return UNLIKELY(hasRareData()) && rareData()->m_isIndexedPropertyDirtyAsPrototype;
+    }
+
+    // the fast-mode ArrayObject invariant: no object in the array's prototype
+    // chain can answer an array index. walks the raw [[Prototype]] links so it
+    // never runs user code -- a proxy is always dirty as a prototype, so the
+    // walk stops before it would need the proxy's getPrototypeOf trap
+    static bool prototypeChainMayHaveIndexedProperty(Optional<Object*> proto);
+
     // this object is already a prototype and just gained an indexed property
     void markIndexedPropertyAppearedAsPrototype(ExecutionState& state);
 
@@ -1179,9 +1195,8 @@ public:
     // true when this object can answer an array-index own property that its
     // ObjectStructure does not record -- string/typed-array/arguments elements,
     // proxy traps, API property handlers. such an object used as a prototype
-    // must still raise didSomePrototypeObjectDefineIndexedProperty: fast-mode
-    // arrays below it answer holes as undefined and store in place instead of
-    // walking up the chain.
+    // must still count as dirty: fast-mode arrays below it answer holes as
+    // undefined and store in place instead of walking up the chain.
     // declared last on purpose: a virtual added in the middle of this class
     // renumbers the vtable slot of every virtual below it -- including the hot
     // markAsPrototypeObject -- and moves them across cache lines for no reason

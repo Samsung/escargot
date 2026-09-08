@@ -221,10 +221,8 @@ Optional<ArrayObject*> IteratorObject::tryFastArrayIterationSource(ExecutionStat
     if (!arr->isFastModeArray()) {
         return NullOption;
     }
-    // holes must read as undefined, not from a prototype
-    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
-        return NullOption;
-    }
+    // being in fast mode already means no prototype in the chain can answer an
+    // array index, so a hole reads as undefined
     GlobalObject* g = state.context()->globalObject();
     if (arr->getPrototypeObject(state) != g->arrayPrototype()) {
         return NullOption;

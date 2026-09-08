@@ -104,6 +104,7 @@ ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUin
 ObjectRareData::ObjectRareData(Object* obj)
     : m_isExtensible(true)
     , m_isEverSetAsPrototypeObject(false)
+    , m_isIndexedPropertyDirtyAsPrototype(false)
     , m_isArrayObjectLengthWritable(true)
     , m_isSpreadArrayObject(false)
     , m_isFinalizerRegistered(false)
@@ -735,29 +736,53 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
         }
     }
 
+    // re-parenting can hand this object -- and everything that inherits
+    // through it -- a chain that answers an array index, which no fast-mode
+    // array is allowed to have
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
+                 && prototypeChainMayHaveIndexedProperty(o))) {
+        state.context()->vmInstance()->prototypeChainOfObjectBecameDirty(state, this);
+    }
+
     // 10. Return true.
     return true;
 }
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
+    // nothing inherits from an object that is only now becoming a prototype,
+    // so if it turns out to be dirty no array in the heap has to be looked at
+    bool mayHaveInheritingObjects = isEverSetAsPrototypeObject();
+
     if (hasVTag(g_objectTag)) {
         writeVTag(g_prototypeObjectTag);
     } else {
         ensureRareData()->m_isEverSetAsPrototypeObject = true;
     }
 
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && mayHaveIndexedPropertyAsPrototype())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    if (UNLIKELY(mayHaveIndexedPropertyAsPrototype() && !isIndexedPropertyDirtyAsPrototype())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, mayHaveInheritingObjects);
     }
 }
 
 void Object::markIndexedPropertyAppearedAsPrototype(ExecutionState& state)
 {
     ASSERT(isEverSetAsPrototypeObject());
-    if (LIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    if (LIKELY(!isIndexedPropertyDirtyAsPrototype())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
     }
+}
+
+bool Object::prototypeChainMayHaveIndexedProperty(Optional<Object*> proto)
+{
+    while (proto) {
+        Object* p = proto.value();
+        if (p->isIndexedPropertyDirtyAsPrototype()) {
+            return true;
+        }
+        proto = p->rawInternalPrototypeObject();
+    }
+    return false;
 }
 
 ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
@@ -1193,8 +1218,8 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
         }
 
         if (UNLIKELY(ownDesc.isDataAccessorProperty() && ownDesc.nativeGetterSetterData()->m_actsLikeJSGetterSetter)) {
-            if (UNLIKELY(isEverSetAsPrototypeObject() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && propertyName.isIndexString())) {
-                state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+            if (UNLIKELY(isEverSetAsPrototypeObject() && !isIndexedPropertyDirtyAsPrototype() && propertyName.isIndexString())) {
+                state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
             }
             ObjectStructurePropertyName propertyStructureName = propertyName.toObjectStructurePropertyName(state);
             auto findResult = m_structure->findProperty(propertyStructureName);
@@ -2393,8 +2418,8 @@ Object::FastLookupSymbolResult Object::fastLookupForSymbol(ExecutionState& state
 bool DerivedObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     // check indexed property to confirm that there is no indexed property in prototype objects
-    if (UNLIKELY(isEverSetAsPrototypeObject() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && P.isIndexString())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    if (UNLIKELY(isEverSetAsPrototypeObject() && !isIndexedPropertyDirtyAsPrototype() && P.isIndexString())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
     }
 
     return defineOwnPropertyMethod(state, P, desc);

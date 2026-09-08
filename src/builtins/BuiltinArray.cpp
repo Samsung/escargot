@@ -1186,16 +1186,13 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 
                 bool fastCopied = false;
                 if (LIKELY(arr->isArrayObject() && obj->isArrayObject()
-                           && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
                            && n + len < (int64_t)std::numeric_limits<uint32_t>::max())) {
                     auto* src = arr->asArrayObject();
                     auto* dst = obj->asArrayObject();
-                    // src must sit directly on Array.prototype: exotic prototypes
-                    // (e.g. String wrappers) expose indexed properties without
-                    // raising didSomePrototypeObjectDefineIndexedProperty, and
-                    // holes must not read through such a chain
+                    // both being in fast mode is enough: that already means no
+                    // object in either prototype chain can answer an array
+                    // index, so a hole reads as undefined
                     if (src->isFastModeArray() && dst->isFastModeArray() && dst->isExtensible(state)
-                        && src->getPrototypeObject(state) == state.context()->globalObject()->arrayPrototype()
                         && (uint64_t)len <= src->length(state) && dst->length(state) == (uint64_t)n) {
                         fastCopied = dst->copyFastModeElementsFrom(state, src, 0, (uint32_t)n, (uint32_t)len);
                     }
@@ -1246,14 +1243,12 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
     // Let count be max(final - k, 0).
     // Let A be ArraySpeciesCreate(O, count).
     Object* ArrayObject = arraySpeciesCreate(state, thisObject, std::max(((int64_t)finalEnd - (int64_t)k), (int64_t)0));
-    if (LIKELY(thisObject->isArrayObject() && ArrayObject->isArrayObject()
-               && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+    if (LIKELY(thisObject->isArrayObject() && ArrayObject->isArrayObject())) {
         auto* src = thisObject->asArrayObject();
         auto* dst = ArrayObject->asArrayObject();
         uint32_t count = (uint32_t)std::max(finalEnd - kStart, (int64_t)0);
         // see the prototype note in builtinArrayConcat's fast path
         if (src->isFastModeArray() && dst->isFastModeArray() && dst->isExtensible(state)
-            && src->getPrototypeObject(state) == state.context()->globalObject()->arrayPrototype()
             && (uint64_t)finalEnd <= src->length(state) && (int64_t)dst->length(state) == (int64_t)count
             && dst->copyFastModeElementsFrom(state, src, (uint32_t)kStart, 0, count)) {
             return dst;
@@ -2236,7 +2231,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
 
     if (O->isArrayObject()) {
         auto* arrayO = static_cast<ArrayObject*>(O);
-        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect())) {
             // fast path
             Value first = arrayO->getFastModeValue(0);
             if (UNLIKELY(first.isEmpty())) {
@@ -2313,7 +2308,7 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
 
     if (O->isArrayObject()) {
         auto* arrayO = static_cast<ArrayObject*>(O);
-        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect() && !state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+        if (LIKELY(arrayO->isFastModeArray() && arrayO->isLengthPropertyWritableDirect())) {
             // If len + argCount > 2^53 - 1, throw a TypeError exception.
             CHECK_ARRAY_LENGTH(len + argCount > Value::maximumLength());
 

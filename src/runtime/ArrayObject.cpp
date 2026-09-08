@@ -56,7 +56,11 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     , m_fastModeData(nullptr)
 #endif
 {
-    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+    // fast mode requires that nothing in this array's prototype chain can
+    // answer an array index; the VM-wide bit only short-circuits the walk while
+    // no object in the heap is dirty at all
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
+                 && Object::prototypeChainMayHaveIndexedProperty(proto))) {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
         m_fastModeData.reset(&ArrayObject::DummyArrayElement);
 #else
@@ -74,7 +78,7 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& s
     : ArrayObject(state, proto)
 {
     if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
-        if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+        if (UNLIKELY(!isFastModeArray())) {
             // m_fastModeData has the initial value `DummyArrayElement`
             // this could trigger an error while destructing of m_fastModeData when an exception thrown right after here
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -927,8 +931,8 @@ void ArrayPrototypeObject::markAsPrototypeObject(ExecutionState& state)
     // construction -- so the virtual query cannot be true and re-marking on
     // every `new` must not pay for an indirect call
     ASSERT(!hasIndexedPropertyOutsideStructure());
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    if (UNLIKELY(structure()->hasIndexPropertyName() && !isIndexedPropertyDirtyAsPrototype())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
     }
 }
 
