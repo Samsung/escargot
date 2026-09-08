@@ -1023,6 +1023,16 @@ public:
         }
     }
 
+    // whether an indexed property is observable on this object when it sits in
+    // a prototype chain, from either storage
+    bool mayHaveIndexedPropertyAsPrototype() const
+    {
+        return m_structure->hasIndexPropertyName() || hasIndexedPropertyOutsideStructure();
+    }
+
+    // this object is already a prototype and just gained an indexed property
+    void markIndexedPropertyAppearedAsPrototype(ExecutionState& state);
+
     bool isSpreadArray() const
     {
         if (LIKELY(!hasRareData())) {
@@ -1165,6 +1175,20 @@ public:
 
     virtual void addFinalizer(FinalizerFunction fn, void* data) override;
     virtual bool removeFinalizer(FinalizerFunction fn, void* data) override;
+
+    // true when this object can answer an array-index own property that its
+    // ObjectStructure does not record -- string/typed-array/arguments elements,
+    // proxy traps, API property handlers. such an object used as a prototype
+    // must still raise didSomePrototypeObjectDefineIndexedProperty: fast-mode
+    // arrays below it answer holes as undefined and store in place instead of
+    // walking up the chain.
+    // declared last on purpose: a virtual added in the middle of this class
+    // renumbers the vtable slot of every virtual below it -- including the hot
+    // markAsPrototypeObject -- and moves them across cache lines for no reason
+    virtual bool hasIndexedPropertyOutsideStructure() const
+    {
+        return false;
+    }
 
     struct FastLookupSymbolResult {
         FastLookupSymbolResult()

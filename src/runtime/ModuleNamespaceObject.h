@@ -90,6 +90,12 @@ public:
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-getownproperty-p
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        return true;
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-hasproperty-p

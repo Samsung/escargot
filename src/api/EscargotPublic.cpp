@@ -2449,6 +2449,11 @@ public:
     {
     }
 
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        return true;
+    }
+
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
         Value PV = P.toPlainValue();
