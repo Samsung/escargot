@@ -7,16 +7,53 @@
 [![codecov](https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8)](https://codecov.io/gh/Samsung/escargot)
 
 
-Escargot is a lightweight JavaScript engine developed by [Samsung](https://github.com/Samsung), designed specifically for resource-constrained environments. It is optimized for performance and low memory usage, making it ideal for use in embedded systems, IoT devices, and other applications where resources are limited.
+Escargot is an embeddable JavaScript engine developed by
+[Samsung](https://github.com/Samsung). It is designed for products that need
+more than a minimal scripting runtime but still have to manage CPU, memory,
+and platform constraints carefully.
 
-Key features of Escargot include:
-* **ECMAScript Compliance**: Escargot supports a significant portion of the latest ECMAScript version ([ECMAScript 2025](https://262.ecma-international.org/16.0/)), ensuring compatibility with modern JavaScript standards while maintaining a lightweight footprint.
-* **Node-API (N-API) Compliance**: Escargot provides a 100% compliant Node-API (N-API) layer supporting ABI stability versions up to v10. This allows developers to load pre-compiled Node.js C++ addons directly and embed the engine using standard C-style hosting APIs. See [`docs/n-api.md`](docs/n-api.md) for details and a complete embedding example.
-* **Memory Efficiency**: The engine is designed with memory constraints in mind, making it suitable for devices with limited RAM and storage.
-* **Performance Optimization**: Escargot implements various optimization techniques to ensure fast execution of JavaScript code, even on low-power devices.
-* **Extensibility**: The engine can be customized and extended to meet the specific needs of different applications, providing flexibility for developers.
+Rather than minimizing the engine binary at all costs, Escargot balances
+runtime memory efficiency, interpreter performance, and modern JavaScript
+functionality. Its C++ implementation and built-in features can produce a
+larger native binary than ultra-minimal engines, but the engine is designed
+to use memory efficiently as applications and object graphs grow. This makes
+it a strong fit for substantial JavaScript workloads on embedded Linux,
+mobile, IoT, and other resource-aware products.
 
-Escargot is an open-source project that allows developers to contribute to its development or use it in their own projects, while also powering several services in Samsung products. The engine's design prioritizes simplicity and efficiency, making it an excellent choice for developers working in embedded or resource-limited environments.
+Escargot compiles JavaScript to bytecode and executes it without a JIT. The
+interpreter-based architecture avoids executable-memory requirements and
+provides predictable deployment characteristics, while the standards
+implementation supplies the language and internationalization features
+expected by real products.
+
+Key capabilities include:
+
+* **Modern JavaScript and internationalization**: broad ECMAScript support,
+  including the [ECMAScript 2026 specification](https://262.ecma-international.org/17.0/),
+  plus `Intl` (ECMA-402) and `Temporal` backed by ICU.
+* **Efficient execution of growing applications**: runtime data structures
+  and interpreter optimizations target good performance without allowing
+  memory overhead to scale unnecessarily with larger programs.
+* **Product-oriented portability**: Linux, Android, Tizen, macOS, iOS,
+  Windows, and reference bare-metal/RTOS ports are supported without
+  depending on JIT availability.
+* **Flexible feature footprint**: WebAssembly, threading, code cache,
+  debugger, ICU, and small-device optimizations can be selected for the
+  target instead of imposing one fixed runtime configuration.
+* **System-provided ICU option**: instead of vendoring its own ICU, Escargot
+  can link against the ICU already installed on the target OS, trading some
+  `Intl`/`Temporal` functionality for a smaller binary.
+* **Multiple embedding surfaces**: applications can use the public C++ API
+  in [`src/api/EscargotPublic.h`](src/api/EscargotPublic.h), or enable the
+  Node-API v10 layer and C-style hosting APIs documented in
+  [`docs/n-api.md`](docs/n-api.md).
+* **Deployment-ready outputs**: CMake can produce static or shared libraries,
+  a command-line shell, and C++ tests. Memory is managed by the
+  Boehm-Demers-Weiser conservative garbage collector in
+  `third_party/GCutil`.
+
+Escargot powers services in Samsung products and is available as an
+LGPL-2.1 open source project for other embedders and contributors.
 
 
 ## Contents 📋
@@ -107,7 +144,7 @@ equivalent development packages on other distributions.
 
 Debian/Ubuntu prerequisites:
 ```sh
-sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build pkg-config
+sudo apt-get install build-essential cmake git libicu-dev pkg-config python3
 ```
 
 Prerequisites for x86-64-to-x86 compilation:
@@ -119,21 +156,31 @@ sudo apt-get install libicu-dev:i386
 Build Escargot:
 ```sh
 git submodule update --init third_party
-cmake -H. -Bout -GNinja -DESCARGOT_ENABLE_SHELL=ON
+cmake -S . -B out -DCMAKE_BUILD_TYPE=Release -DESCARGOT_ENABLE_SHELL=ON
 cmake --build out
+
+# Run a JavaScript file with the shell produced by the default build.
+./out/escargot path/to/script.js
 ```
+
+The default configuration produces the static library `out/libescargot.a`
+and the `out/escargot` shell. Set `ESCARGOT_BUILD_SHARED_LIBS=ON` for a
+shared library, or `ESCARGOT_ENABLE_SHELL=OFF` when embedding the library
+without the command-line shell.
 
 ### macOS
 
-General build prerequisites:
+Install the Xcode Command Line Tools (or full Xcode), then install the
+remaining build prerequisites:
 ```sh
-brew install autoconf automake cmake libtool ninja pkg-config
+xcode-select --install
+brew install cmake python
 ```
 
 Build Escargot:
 ```sh
 git submodule update --init third_party
-cmake -H. -Bout -GNinja -DESCARGOT_ENABLE_SHELL=ON
+cmake -S . -B out -DCMAKE_BUILD_TYPE=Release -DESCARGOT_ENABLE_SHELL=ON
 cmake --build out
 ```
 
@@ -149,7 +196,9 @@ export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 # add icu path to pkg_config_path (arm64)
 export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 
-cmake -H. -Bout -GNinja -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF -DESCARGOT_ENABLE_SHELL=ON
+cmake -S . -B out -DCMAKE_BUILD_TYPE=Release \
+    -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF \
+    -DESCARGOT_ENABLE_SHELL=ON
 cmake --build out
 ```
 
@@ -229,12 +278,15 @@ way. Both ports' shared contract and checklist are in
 
 ### Windows
 
-Ninja is **not** required. Build from a **Developer Command Prompt for
-Visual Studio 2022** with the Visual Studio CMake generator and MSBuild.
+Build from a **Developer Command Prompt for Visual Studio** with the Visual
+Studio CMake generator and MSBuild. The examples below use Visual Studio
+2022 (`-G "Visual Studio 17 2022"`); substitute the generator name for
+another installed Visual Studio version (e.g. `-G "Visual Studio 16 2019"`)
+if that's what you have.
 
 Install the following:
 
-- Visual Studio 2022's **Desktop development with C++** workload, including
+- Visual Studio's **Desktop development with C++** workload, including
   **MSVC v143 C++ build tools**, **CMake tools for Windows**, and a
   **Windows 10 or 11 SDK**.
 - The MSVC target tools for the architecture you intend to build.
@@ -306,9 +358,6 @@ The Windows ICU version follows the operating system. Use the vcpkg path
 above when a pinned ICU version and identical Intl/Unicode behavior across
 machines are more important than avoiding the ICU deployment files.
 
-If you prefer Ninja, it is also supported; it is an optional generator, not
-a prerequisite for Windows builds.
-
 ### iOS
 
 `ESCARGOT_HOST=ios` cross-compiles Escargot from a macOS host to arm64 iOS.
@@ -326,9 +375,9 @@ CMake/toolchain level. arm64 is the only supported architecture (armv7
 devices predate every supported deployment target, and an x86_64 simulator
 would mean an Intel build machine).
 
-Prerequisites: a full Xcode install (not just the Command Line Tools --
+Prerequisite: a full Xcode install (not just the Command Line Tools --
 `xcrun --sdk iphonesimulator --show-sdk-path`, or `--sdk iphoneos` for a
-device build, must succeed) and `ninja`.
+device build, must succeed).
 
 ICU on iOS has exactly two supported configurations: vendored (the default;
 see "Vendored ICU" below) or off entirely (`-DESCARGOT_LIBICU_SUPPORT=OFF`).
@@ -341,13 +390,13 @@ those other ICU paths are rejected with a `FATAL_ERROR` at configure time.
 ```sh
 git submodule update --init third_party/GCutil third_party/icu # update submodules (+ vendored ICU source)
 
-cmake -B out -GNinja \
+cmake -S . -B out \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=iphonesimulator \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
     -DESCARGOT_ENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
-ninja -Cout
+cmake --build out
 ```
 
 The resulting `out/escargot` is an arm64 Mach-O binary linked against the
@@ -405,22 +454,22 @@ vendored ICU cross build picks up too:
 git submodule update --init third_party/GCutil third_party/icu
 
 # static libescargot.a (+ the escargot shell binary)
-cmake -B out-device -GNinja \
+cmake -S . -B out-device \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=iphoneos \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
     -DESCARGOT_ENABLE_SHELL=ON -DCMAKE_BUILD_TYPE=Release
-ninja -Cout-device
+cmake --build out-device
 
 # or a shared libescargot.dylib to embed in an app bundle's Frameworks/
-cmake -B out-device-shared -GNinja \
+cmake -S . -B out-device-shared \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=iphoneos \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
     -DESCARGOT_BUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
-ninja -Cout-device-shared
+cmake --build out-device-shared
 ```
 
 ⚠️ **Read this before shipping a device build.** Escargot's own CI builds
@@ -578,6 +627,9 @@ the [LGPL-2.1](https://github.com/Samsung/escargot/blob/master/LICENSE).
 
 * [Tail Call Optimization Tailored for Native Stack Utilization in JavaScript Runtimes](https://doi.org/10.1109/ACCESS.2024.3441750)  
   IEEE Access Vol. 12, pp. 111801-111817, 2024
+
+* [Rethinking Exception Handling in a Lightweight JavaScript Interpreter](https://doi.org/10.1109/ACCESS.2026.3726724)  
+  IEEE Access, pp. 130711-130727, 2026
 
 ## License 📜
 Escargot is open-source software primarily licensed under [LGPL-2.1](https://github.com/Samsung/escargot/blob/master/LICENSE), with some components covered by other licenses. Complete license and copyright information can be found in the source code.
