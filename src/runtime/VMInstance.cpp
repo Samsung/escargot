@@ -846,24 +846,54 @@ void VMInstance::enterIdleMode()
     m_inIdleMode = false;
 }
 
-void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
+void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state, Object* dirtyPrototypeObject, bool mayHaveInheritingObjects)
 {
+    ASSERT(dirtyPrototypeObject->isEverSetAsPrototypeObject());
     m_didSomePrototypeObjectDefineIndexedProperty = true;
-    std::vector<ArrayObject*> allOfArray;
+    dirtyPrototypeObject->ensureRareData()->m_isIndexedPropertyDirtyAsPrototype = true;
+
+    // marking the object is enough when nothing inherits from it yet: no
+    // existing array can hold it in its chain, and any array created later
+    // consults the chain itself. only an object that was already a prototype
+    // can have live fast-mode arrays under it, and that costs a heap walk
+    if (mayHaveInheritingObjects) {
+        convertArraysWithDirtyPrototypeChainIntoNonFastMode(state);
+    }
+}
+
+void VMInstance::prototypeChainOfObjectBecameDirty(ExecutionState& state, Object* object)
+{
+    if (object->isArrayObject()) {
+        object->asArrayObject()->convertIntoNonFastMode(state);
+    }
+    // whatever inherits through this object lost the invariant as well
+    if (UNLIKELY(object->isEverSetAsPrototypeObject())) {
+        convertArraysWithDirtyPrototypeChainIntoNonFastMode(state);
+    }
+}
+
+void VMInstance::convertArraysWithDirtyPrototypeChainIntoNonFastMode(ExecutionState& state)
+{
+    // only the arrays that actually inherit from a dirty object lose fast mode;
+    // one on a clean chain -- a null-prototype spread array, or anything below
+    // an untouched Array.prototype -- keeps it
+    std::vector<ArrayObject*> affectedArrays;
     Escargot::HeapObjectIteratorCallback callback =
-        [&allOfArray](Escargot::ExecutionState& state, void* obj) {
+        [&affectedArrays](Escargot::ExecutionState& state, void* obj) {
             Escargot::ArrayObject* arr = (Escargot::ArrayObject*)obj;
-            allOfArray.push_back(arr);
+            if (arr->isFastModeArray() && Object::prototypeChainMayHaveIndexedProperty(arr->rawInternalPrototypeObject())) {
+                affectedArrays.push_back(arr);
+            }
         };
     Escargot::ArrayObject::iterateArrays(state, callback);
 
     GC_disable();
-    Vector<ArrayObject*, GCUtil::gc_malloc_allocator<ArrayObject*>> allOfArrayRooted;
-    allOfArrayRooted.assign(allOfArray.data(), allOfArray.data() + allOfArray.size());
+    Vector<ArrayObject*, GCUtil::gc_malloc_allocator<ArrayObject*>> affectedArraysRooted;
+    affectedArraysRooted.assign(affectedArrays.data(), affectedArrays.data() + affectedArrays.size());
     GC_enable();
 
-    for (size_t i = 0; i < allOfArrayRooted.size(); i++) {
-        allOfArrayRooted[i]->convertIntoNonFastMode(state);
+    for (size_t i = 0; i < affectedArraysRooted.size(); i++) {
+        affectedArraysRooted[i]->convertIntoNonFastMode(state);
     }
 }
 

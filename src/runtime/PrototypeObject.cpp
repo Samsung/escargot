@@ -48,8 +48,8 @@ void PrototypeObject::markAsPrototypeObject(ExecutionState& state)
     // hasIndexedPropertyOutsideStructure() query is a provable false here and
     // must not be paid -- an indirect call per construction is not free
     ASSERT(!hasIndexedPropertyOutsideStructure());
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName())) {
-        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    if (UNLIKELY(structure()->hasIndexPropertyName() && !isIndexedPropertyDirtyAsPrototype())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
     }
 }
 

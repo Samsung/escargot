@@ -58,9 +58,10 @@ public:
     virtual bool hasIndexedPropertyOutsideStructure() const override
     {
         // this object stores nothing of its own -- every access is forwarded to
-        // the target global object, so whether an index can be observed through
-        // it is exactly the target's answer
-        return m_target->mayHaveIndexedPropertyAsPrototype();
+        // the target global object, and its [[Prototype]] is the target's, not
+        // the raw slot Object::prototypeChainMayHaveIndexedProperty() walks. so
+        // the chain cannot be inspected through it and it counts as dirty
+        return true;
     }
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
