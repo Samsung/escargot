@@ -34,6 +34,12 @@ public:
     ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped);
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        return true;
+    }
+
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;

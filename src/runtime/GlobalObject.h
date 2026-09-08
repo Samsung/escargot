@@ -412,6 +412,15 @@ public:
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
+    // deliberately no hasIndexedPropertyOutsideStructure() override here: every
+    // own property of the global object lives in its ObjectStructure. the one
+    // other source it answers from is the embedder's virtual identifier
+    // callback, which by contract is asked about *identifiers* only - the three
+    // callers that are not this class pass a bytecode AtomicString, and an
+    // identifier can never be an array index. an override returning true would
+    // be ruinous: `Object.create(globalThis)` is ordinary code (Octane's
+    // pdfjs.js does it at load time) and would cost every array its fast mode
+
     /*
        Global builtin property getter method
        If builtin property is not yet installed (m_##builtin is null), call install#objName method to install it

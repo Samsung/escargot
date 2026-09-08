@@ -70,6 +70,12 @@ public:
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        return true;
+    }
+
     virtual bool canUseOwnPropertyKeysFastPath() override
     {
         return false;

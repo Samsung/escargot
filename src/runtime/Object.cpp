@@ -747,7 +747,15 @@ void Object::markAsPrototypeObject(ExecutionState& state)
         ensureRareData()->m_isEverSetAsPrototypeObject = true;
     }
 
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
+    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && mayHaveIndexedPropertyAsPrototype())) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    }
+}
+
+void Object::markIndexedPropertyAppearedAsPrototype(ExecutionState& state)
+{
+    ASSERT(isEverSetAsPrototypeObject());
+    if (LIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
     }
 }

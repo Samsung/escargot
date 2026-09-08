@@ -47,11 +47,31 @@ public:
 
     void setPrimitiveValue(ExecutionState& state, String* data)
     {
+        // the characters this object exposes as indexed properties change with
+        // it, so a prototype that had none may gain some here.
+        // InterpreterSlowPath::fastToObject re-primes the shared string proxy
+        // object through here on every boxing of a primitive string, so this
+        // must stay a single flag test: no class derives from StringObject and
+        // none is vtag-rewritten into another, which makes the qualified call
+        // exact and keeps it from becoming an indirect one
+        if (UNLIKELY(Object::isEverSetAsPrototypeObject() && data->length())) {
+            markIndexedPropertyAppearedAsPrototype(state);
+        }
         m_primitiveValue = data;
     }
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        // String.prototype is itself a String exotic object holding the empty
+        // string, and it sits in a prototype chain from startup -- keep the
+        // no-character case clean so that using it as a prototype (`class X
+        // extends String`) does not cost every array its fast mode
+        return m_primitiveValue->length() != 0;
+    }
+
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;

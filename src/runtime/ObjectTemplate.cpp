@@ -82,6 +82,11 @@ public:
         ASSERT(namedData || indexedData);
     }
 
+    virtual bool hasIndexedPropertyOutsideStructure() const override
+    {
+        return m_indexedPropertyHandler != nullptr;
+    }
+
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
         ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;

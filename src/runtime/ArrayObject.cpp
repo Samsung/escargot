@@ -922,7 +922,12 @@ ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
 
 void ArrayPrototypeObject::markAsPrototypeObject(ExecutionState& state)
 {
-    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
+    // as in PrototypeObject::markAsPrototypeObject: an ArrayPrototypeObject
+    // keeps its elements in its ObjectStructure -- it is non-fast mode from
+    // construction -- so the virtual query cannot be true and re-marking on
+    // every `new` must not pay for an indirect call
+    ASSERT(!hasIndexedPropertyOutsideStructure());
+    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && structure()->hasIndexPropertyName())) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
     }
 }
