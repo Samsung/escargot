@@ -545,7 +545,7 @@ public:
         const StartCharFilter& filter = pattern->m_startCharFilter;
         if (ch > 0xFF)
             return filter.mayStartAboveLatin1;
-        return filter.latin1Bitmap[ch >> 6] & (1ull << (ch & 63));
+        return filter.latin1Bitmap[ch >> 5] & (1u << (ch & 31));
     }
 
     // Advances over the start offsets at which no alternative of the body
@@ -2358,8 +2358,8 @@ private:
 
     static bool isFullLatin1Bitmap(const StartCharFilter& filter)
     {
-        for (unsigned i = 0; i < 4; ++i) {
-            if (filter.latin1Bitmap[i] != ~static_cast<uint64_t>(0))
+        for (unsigned i = 0; i < 8; ++i) {
+            if (filter.latin1Bitmap[i] != ~static_cast<uint32_t>(0))
                 return false;
         }
         return true;
@@ -2371,7 +2371,7 @@ private:
             filter.mayStartAboveLatin1 = true;
             return;
         }
-        filter.latin1Bitmap[ch >> 6] |= static_cast<uint64_t>(1) << (ch & 63);
+        filter.latin1Bitmap[ch >> 5] |= static_cast<uint32_t>(1) << (ch & 31);
     }
 
     static void addRange(StartCharFilter& filter, char32_t begin, char32_t end)
@@ -2429,7 +2429,7 @@ private:
         if (!addCharacterClass(classFilter, term.characterClass))
             return false;
 
-        for (unsigned i = 0; i < 4; ++i)
+        for (unsigned i = 0; i < 8; ++i)
             filter.latin1Bitmap[i] |= ~classFilter.latin1Bitmap[i];
         // Which characters above Latin1 the complement covers is not tracked.
         filter.mayStartAboveLatin1 = true;
