@@ -486,7 +486,13 @@ struct StartCharFilter {
     // Characters 0x00..0xFF that can begin a match. The whole Latin1 range has to
     // be covered, not just ASCII, because for 8-bit subject strings this bitmap
     // alone decides.
-    uint64_t latin1Bitmap[4] { 0, 0, 0, 0 };
+    // Stored as 32-bit words rather than uint64_t: BytecodePattern is allocated
+    // via the GC (GC_finalized_atomic_malloc), which on 32-bit targets only
+    // guarantees word (4-byte) alignment - see ALIGNMENT in gcconfig.h. An
+    // 8-byte member here would let the compiler emit an aligned 64-bit store
+    // for the in-class initializer below, which SIGBUSes on ARM when the GC
+    // allocation isn't 8-byte aligned.
+    uint32_t latin1Bitmap[8] { 0, 0, 0, 0, 0, 0, 0, 0 };
     // Whether a match can begin with a character above 0xFF. For non-unicode
     // patterns a supplementary character is two terms, so this covers its lead
     // surrogate.
