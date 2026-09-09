@@ -160,25 +160,15 @@ task buildCMakeNativeNoNDK(type: Exec) {
                 "-DESCARGOT_SHADOWREALM=ON", "-DESCARGOT_WASM=ON",
                 "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-        var javaHome = new ByteArrayOutputStream().withStream { os ->
-            // Must be qualified as project.exec: inside this task(type: Exec)
-            // configuration closure, unqualified exec{} resolves against the
-            // Exec task delegate (which has no such method) under Gradle 9+,
-            // not against the project -- this silently worked pre-9.0.
-            project.exec {
-                executable "/usr/libexec/java_home"
-                args "-v", "1.8"
-                standardOutput = os
-            }
-            os.toString().trim()
-        }
-        var icu4cPath = new ByteArrayOutputStream().withStream { os ->
-            project.exec {
-                commandLine "sh", "-c", "brew --prefix icu4c"
-                standardOutput = os
-            }
-            os.toString().trim()
-        }
+        // Plain Groovy process execution (List.execute()), not Gradle's own
+        // exec API: Project.exec() has been removed as of Gradle 9 (in favor
+        // of an injected ExecOperations service, which isn't available in a
+        // plain task-configuration closure like this one), and unqualified
+        // exec{} here would instead resolve against this task(type: Exec)'s
+        // own delegate, which has no such method either. Sidestep both by
+        // going straight to the JVM via Groovy's execute() extension.
+        var javaHome = ["/usr/libexec/java_home", "-v", "1.8"].execute().text.trim()
+        var icu4cPath = ["sh", "-c", "brew --prefix icu4c"].execute().text.trim()
         var pkgConfigPath = icu4cPath + "/lib/pkgconfig"
         environment("PKG_CONFIG_PATH", pkgConfigPath)
         commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Darwin", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DUNDER_NDK=OFF",
