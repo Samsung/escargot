@@ -1622,7 +1622,8 @@ jobs:
         sudo apt-get install -y ninja-build build-essential pkg-config
     - name: Build (vendored, statically-linked ICU)
       env:
-        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja
+        # UBSan -- see build-on-x64-release's comment (Release only).
+        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_UBSAN=ON
       run: |
         cmake -H. -Bout/vendored-icu $BUILD_OPTIONS
         ninja -Cout/vendored-icu
@@ -1699,7 +1700,16 @@ jobs:
         make install
     - name: Build x64 (${{ matrix.variant.tag }})
       env:
-        BUILD_OPTIONS: -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
+        # ESCARGOT_UBSAN: every x64 CI leg that builds Release (or an unset/empty
+        # CMAKE_BUILD_TYPE, which build/escargot.cmake treats the same way) turns
+        # on UndefinedBehaviorSanitizer, so all TCs run against a UBSan-instrumented
+        # binary (see -fno-sanitize-recover in build/escargot.cmake -- a hit aborts
+        # the process, so it fails the TC run instead of just printing a
+        # diagnostic). Deliberately NOT added to the Debug-mode x64 legs: some UB
+        # (e.g. a misaligned load that only gets widened into a vector op under
+        # optimization -- the kind that's fine on x64 but faults on arm32) simply
+        # doesn't occur at -O0, so those builds wouldn't have caught it anyway.
+        BUILD_OPTIONS: -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_UBSAN=ON
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
@@ -2034,7 +2044,8 @@ jobs:
         make install
     - name: Build x64 (clang)
       env:
-        BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON
+        # UBSan -- see build-on-x64-release's comment (Release only).
+        BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_UBSAN=ON
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/lib -Wl,-rpath=$GITHUB_WORKSPACE/icu64/lib"
@@ -2490,7 +2501,8 @@ jobs:
         ninja -Cout/codecache/x64
     - name: Build x64 Release Mode
       env:
-        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja
+        # UBSan -- see build-on-x64-release's comment (Release only).
+        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=Release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_SHADOWREALM=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_UBSAN=ON
       run: |
         cmake -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/release/x64
