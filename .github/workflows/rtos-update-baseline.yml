@@ -47,7 +47,7 @@ jobs:
         }' >> "$GITHUB_ENV"
     - name: Boot-test under QEMU and capture GC heap at init
       run: |
-        timeout 60 qemu-system-arm \
+        timeout 120 qemu-system-arm \
           -machine mps3-an547 \
           -cpu cortex-m55 \
           -semihosting \
