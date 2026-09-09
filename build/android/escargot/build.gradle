@@ -161,7 +161,11 @@ task buildCMakeNativeNoNDK(type: Exec) {
                 "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         var javaHome = new ByteArrayOutputStream().withStream { os ->
-            exec {
+            // Must be qualified as project.exec: inside this task(type: Exec)
+            // configuration closure, unqualified exec{} resolves against the
+            // Exec task delegate (which has no such method) under Gradle 9+,
+            // not against the project -- this silently worked pre-9.0.
+            project.exec {
                 executable "/usr/libexec/java_home"
                 args "-v", "1.8"
                 standardOutput = os
@@ -169,7 +173,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
             os.toString().trim()
         }
         var icu4cPath = new ByteArrayOutputStream().withStream { os ->
-            exec {
+            project.exec {
                 commandLine "sh", "-c", "brew --prefix icu4c"
                 standardOutput = os
             }
