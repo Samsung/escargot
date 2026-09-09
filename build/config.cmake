@@ -198,7 +198,19 @@ option(ESCARGOT_DEPLOY "Build for deployment (set up RPATH for a bundled ICU)" O
 IF (ESCARGOT_LIBICU_SUPPORT)
     IF (ESCARGOT_DEPLOY)
         # Build for deployment (include ICU library)
-        SET (CMAKE_INSTALL_RPATH "$ORIGIN")
+        # "$ORIGIN" is an ELF/Linux-only RPATH token; Mach-O has no equivalent
+        # by that name (dyld looks it up literally and fails, tried:
+        # '$ORIGIN/libfoo.dylib') -- darwin/ios need "@loader_path" instead.
+        # This was a latent no-op on darwin (release.yml's macOS build never
+        # relied on RPATH for ICU, patching in an explicit @executable_path
+        # via install_name_tool instead) until ESCARGOT_WASM=ON started
+        # linking libwalrus.dylib the plain CMake way (@rpath-based),
+        # which made this RPATH setting load-bearing there for the first time.
+        IF (ESCARGOT_HOST STREQUAL "darwin" OR ESCARGOT_HOST STREQUAL "ios")
+            SET (CMAKE_INSTALL_RPATH "@loader_path")
+        ELSE()
+            SET (CMAKE_INSTALL_RPATH "$ORIGIN")
+        ENDIF()
         SET (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
         SET (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     ENDIF()

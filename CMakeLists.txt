@@ -24,6 +24,16 @@ PROJECT (ESCARGOT)
 # CONFIGURATION
 SET (CMAKE_VERBOSE_MAKEFILE true)
 SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# RUNTIME_OUTPUT_DIRECTORY alone only colocates .exe/.dll on Windows (where a
+# DLL's principal artifact counts as "runtime"); on Linux/macOS a SHARED
+# target's .so/.dylib is governed by LIBRARY_OUTPUT_DIRECTORY instead, which
+# without this line defaults per-target to mirror the source tree under
+# add_subdirectory() (e.g. walrus's libwalrus.so would land in
+# out/third_party/walrus/, not next to the escargot binary). All of this
+# project's release packaging (release.yml) assumes every shared lib the
+# binary depends on sits alongside it via $ORIGIN/@rpath -- keep that true
+# for every add_subdirectory'd target, not just this project's own.
+SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 MESSAGE(STATUS "CMAKE_SYSTEM_NAME: " ${CMAKE_SYSTEM_NAME})
 MESSAGE(STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})

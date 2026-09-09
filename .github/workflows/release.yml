@@ -59,6 +59,15 @@ jobs:
           install_name_tool -change "$LIB" "@executable_path/$BASENAME" deploy/escargot
         done
 
+        # ESCARGOT_WASM=ON builds walrus as a shared lib (libwalrus.dylib),
+        # colocated next to escargot via CMAKE_LIBRARY_OUTPUT_DIRECTORY (see
+        # CMakeLists.txt) and referenced by escargot as @rpath/libwalrus.dylib
+        # (CMake's own default for a SHARED target, unlike ICU's manual
+        # @executable_path patching above) -- resolved at runtime via
+        # escargot's own @loader_path RPATH (see ESCARGOT_DEPLOY in
+        # build/config.cmake). Just needs to ride along into the deploy dir.
+        cp out/libwalrus.dylib ./deploy/.
+
         # set icu libs
         ICU_LIBS=("libicuuc" "libicui18n" "libicudata")
         ICU_SOURCE_PATH="$(brew --prefix icu4c)/lib"
@@ -81,13 +90,14 @@ jobs:
         ls ./deploy
         otool -L ./deploy/escargot
         otool -L ./deploy/libicu*.dylib
+        otool -L ./deploy/libwalrus.dylib
 
         # Ad-hoc sign
         set -e
         cd deploy
-        for f in libicu*.dylib; do [ -e "$f" ] || continue; codesign -f -s - "$f"; done
+        for f in libicu*.dylib libwalrus.dylib; do [ -e "$f" ] || continue; codesign -f -s - "$f"; done
         codesign --force --deep -s - ./escargot
-        for f in ./escargot libicu*.dylib; do [ -e "$f" ] || continue; codesign --verify --strict --verbose=6 "$f"; done
+        for f in ./escargot libicu*.dylib libwalrus.dylib; do [ -e "$f" ] || continue; codesign --verify --strict --verbose=6 "$f"; done
         cd ..
 
         # run test
@@ -157,9 +167,20 @@ jobs:
         cp out/x86/escargot ./deploy-x86/.
         cp out/x64/escargot ./deploy-x64/.
 
-        # set icu libs
-        ldd deploy-x86/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -I '{}' cp '{}' deploy-x86/
-        ldd deploy-x64/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -I '{}' cp '{}' deploy-x64/
+        # ESCARGOT_WASM=ON builds walrus as a shared lib (libwalrus.so),
+        # colocated next to escargot via CMAKE_LIBRARY_OUTPUT_DIRECTORY (see
+        # CMakeLists.txt) and found at runtime via escargot's own
+        # $ORIGIN RUNPATH -- just needs to ride along into the deploy dir.
+        cp out/x86/libwalrus.so ./deploy-x86/.
+        cp out/x64/libwalrus.so ./deploy-x64/.
+
+        # set icu libs -- with ESCARGOT_LIBICU_SUPPORT_VENDORED=ON, ICU is
+        # statically linked in, so there's nothing for ldd to find here and
+        # no libicu* files ever get copied; nullglob keeps the loops/checks
+        # below from choking on an unmatched literal glob in that case.
+        shopt -s nullglob
+        ldd deploy-x86/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -r -I '{}' cp '{}' deploy-x86/
+        ldd deploy-x64/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -r -I '{}' cp '{}' deploy-x64/
         for LIB in ./deploy-x86/libicu*; do
           patchelf --set-rpath '$ORIGIN' "$LIB"
         done
@@ -171,10 +192,10 @@ jobs:
         echo "Check results..."
         ls ./deploy-x86
         ldd deploy-x86/escargot
-        ldd deploy-x86/libicu*
+        for LIB in ./deploy-x86/libicu*; do ldd "$LIB"; done
         ls ./deploy-x64
         ldd deploy-x64/escargot
-        ldd deploy-x64/libicu*
+        for LIB in ./deploy-x64/libicu*; do ldd "$LIB"; done
 
         # run test
         $RUNNER --engine="$GITHUB_WORKSPACE/deploy-x86/escargot" new-es
@@ -270,7 +291,13 @@ jobs:
       run: |
         python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
         rename out\escargot.exe escargot-win-${{ matrix.arch }}.exe
-        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe out\icu*.dll
+        rem ESCARGOT_WASM=ON builds walrus.dll, already colocated with
+        rem escargot.exe via CMAKE_RUNTIME_OUTPUT_DIRECTORY (Windows treats a
+        rem shared lib's DLL as a "runtime" artifact, unlike Linux/macOS'
+        rem .so/.dylib -- see CMakeLists.txt) and found automatically via
+        rem Windows' default per-executable-directory DLL search order, but
+        rem still needs to ride along explicitly into the shipped zip.
+        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe out\icu*.dll out\walrus.dll
       shell: cmd
     - name: Upload
       uses: actions/upload-artifact@v6
@@ -350,10 +377,14 @@ jobs:
         mkdir -p result-x64
         unzip artifacts/escargot-linux-x86.zip -d result-x86
         unzip artifacts/escargot-linux-x64.zip -d result-x64
+        # ESCARGOT_LIBICU_SUPPORT_VENDORED=ON statically links ICU, so there's
+        # no libicu* shared object shipped in the zip to ldd -- see the
+        # matching nullglob comment in build-linux's Deploy step above.
+        shopt -s nullglob
         ldd result-x86/escargot
-        ldd result-x86/libicu*
+        for LIB in result-x86/libicu*; do ldd "$LIB"; done
         ldd result-x64/escargot
-        ldd result-x64/libicu*
+        for LIB in result-x64/libicu*; do ldd "$LIB"; done
         $RUNNER --engine="$GITHUB_WORKSPACE/result-x86/escargot" new-es
         $RUNNER --engine="$GITHUB_WORKSPACE/result-x64/escargot" new-es
 
