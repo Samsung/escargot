@@ -2797,7 +2797,14 @@ std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFie
             // Avoid asking ICU to represent a calendar year far beyond any
             // possible Temporal ISO date. Some lunar calendars signal this
             // as an ICU error; the specified observable result is RangeError.
-            auto inputYear = fields.year.valueOr(fields.eraYear.valueOr(0));
+            // When the caller didn't specify 'year', fields.year has already
+            // been overwritten above with a small ISO-reference-year
+            // placeholder (for the "monthCode without year" MonthDay case),
+            // so it no longer reflects the magnitude the caller passed in;
+            // fall back to the untouched 'eraYear' field instead, or this
+            // check silently misses an out-of-range eraYear and lets ICU
+            // choke on it further down.
+            auto inputYear = wasYearSpecified ? fields.year.value() : fields.eraYear.valueOr(fields.year.valueOr(0));
             if (inputYear > 500000 || inputYear < -500000) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
             }

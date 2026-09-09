@@ -108,7 +108,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     }
 
     Value fractionDigits = argv[0];
-    int digit = fractionDigits.toInteger(state);
+    int digit = Value::truncateDoubleToInt32Unchecked(fractionDigits.toInteger(state));
     if (digit < 0 || digit > 100) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
@@ -149,7 +149,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     }
 
     Value fractionDigits = argv[0];
-    int digit = fractionDigits.toInteger(state);
+    int digit = Value::truncateDoubleToInt32Unchecked(fractionDigits.toInteger(state));
 
     if (std::isnan(number)) { // 3
         return state.context()->staticStrings().NaN.string();
@@ -195,7 +195,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
         return Value(Value::DoubleToIntConvertibleTestNeeds, number).toString(state);
     }
 
-    int p = precision.toInteger(state);
+    int p = Value::truncateDoubleToInt32Unchecked(precision.toInteger(state));
 
     if (std::isnan(number)) {
         return state.context()->staticStrings().NaN.string();

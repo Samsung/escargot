@@ -830,8 +830,13 @@ int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32
     // to shift. If the exponent is greater than 52 we need to shift the value
     // left by (exp - 52), if the value is less than 52 we need to shift right
     // accordingly.
+    // bits is just a bit pattern here, not a value being computed on, but
+    // shifting it left while it's typed as signed int64_t is UB whenever
+    // the sign bit is set (i.e. whenever the original double was
+    // negative) -- shift the unsigned reinterpretation instead, which
+    // preserves the exact same bit pattern with well-defined behavior.
     int32_t result = (exp > 52)
-        ? static_cast<int32_t>(bits << (exp - 52))
+        ? static_cast<int32_t>(static_cast<uint64_t>(bits) << (exp - 52))
         : static_cast<int32_t>(bits >> (52 - exp));
 
     // IEEE-754 double precision values are stored omitting an implicit 1 before
@@ -839,14 +844,28 @@ int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32
     // invalid bits into the result that are not a part of the mantissa (the sign
     // and exponent bits from the floatingpoint representation); mask these out.
     if (exp < 32) {
-        int32_t missingOne = 1 << exp;
-        result &= missingOne - 1;
-        result += missingOne;
+        // Do this arithmetic in unsigned: for exp == 31, "1 << exp" is
+        // INT32_MIN and "missingOne - 1" is INT_MIN - 1, both UB on a
+        // signed int32_t (caught by UBSan -- exercised e.g. by Octane's
+        // splay benchmark). Unsigned shift/subtract/add are all
+        // well-defined for every exp in [0, 31]; only the final store
+        // back into the signed result needs (implementation-defined,
+        // but universally the intended) reinterpretation of the bit
+        // pattern.
+        uint32_t missingOne = 1u << exp;
+        uint32_t unsignedResult = static_cast<uint32_t>(result);
+        unsignedResult &= missingOne - 1;
+        unsignedResult += missingOne;
+        result = static_cast<int32_t>(unsignedResult);
     }
 
     // If the input value was negative (we could test either 'number' or 'bits',
     // but testing 'bits' is likely faster) invert the result appropriately.
-    return bits < 0 ? -result : result;
+    // result can legitimately be exactly INT32_MIN here (e.g. shifting to
+    // produce -2^31), and negating INT32_MIN is UB in signed arithmetic;
+    // negate as unsigned and reinterpret the bit pattern back, which is
+    // well-defined and gives the same result on any two's-complement target.
+    return bits < 0 ? static_cast<int32_t>(-static_cast<uint32_t>(result)) : result;
 }
 
 Value::ValueIndex Value::tryToUseAsIndexSlowCase(ExecutionState& ec) const

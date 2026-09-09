@@ -350,7 +350,7 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
                 q = S->advanceStringIndex(q, unicodeMatching);
             } else {
                 // Else e != p
-                size_t matchStart = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, z).toNumber(state);
+                size_t matchStart = z.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, z).toLength(state);
 
                 if (matchStart >= S->length()) {
                     matchStart = p;
@@ -596,7 +596,7 @@ static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_
     Value arguments[] = { thisObj, flags };
     Object* matcher = Object::construct(state, c, 2, arguments).toObject(state);
 
-    size_t lastIndex = thisObj->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, thisObj).toNumber(state);
+    size_t lastIndex = thisObj->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, thisObj).toLength(state);
     matcher->asRegExpObject()->setLastIndex(state, Value(lastIndex));
 
     if (flags->find("g") != SIZE_MAX) {

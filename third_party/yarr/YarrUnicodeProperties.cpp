@@ -30,6 +30,7 @@
 #include "YarrPattern.h"
 
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -135,7 +136,25 @@ static const int32_t maxPropertyNameChoice = 8;
 static bool exactPropertyNameMatch(UProperty prop, const std::string& name)
 {
     for (int32_t choice = 0; choice < maxPropertyNameChoice; choice++) {
-        const char* candidate = u_getPropertyName(prop, static_cast<UPropertyNameChoice>(choice));
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        // RuntimeICUBinder's u_getPropertyName wrapper is declared with the
+        // UPropertyNameChoice's underlying integer type, not the enum itself
+        // (see FOR_EACH_UC_OP in RuntimeICUBinder.h) precisely so the
+        // "additional name" choices above can be passed through without ever
+        // materializing an out-of-range enum value -- so no cast here.
+        const char* candidate = u_getPropertyName(prop, choice);
+#else
+        // Directly-linked ICU (vendored or system) declares this parameter as
+        // UPropertyNameChoice itself, so the call needs a conversion.
+        // static_cast'ing an out-of-range int straight to that enum type is
+        // itself UB (UBSan's enum check flags it once choice goes past
+        // U_LONG_PROPERTY_NAME), so call through a function pointer typed
+        // with the enum's underlying integer instead -- the same trick
+        // RuntimeICUBinder uses above.
+        using GetPropertyNameFn = const char* (*)(UProperty, std::underlying_type<UPropertyNameChoice>::type);
+        static const auto rawGetPropertyName = reinterpret_cast<GetPropertyNameFn>(&u_getPropertyName);
+        const char* candidate = rawGetPropertyName(prop, choice);
+#endif
         if (candidate && name == candidate)
             return true;
     }
@@ -146,7 +165,15 @@ static bool exactPropertyNameMatch(UProperty prop, const std::string& name)
 static bool exactPropertyValueNameMatch(UProperty prop, int32_t value, const std::string& name)
 {
     for (int32_t choice = 0; choice < maxPropertyNameChoice; choice++) {
-        const char* candidate = u_getPropertyValueName(prop, value, static_cast<UPropertyNameChoice>(choice));
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        // See exactPropertyNameMatch() above.
+        const char* candidate = u_getPropertyValueName(prop, value, choice);
+#else
+        // See exactPropertyNameMatch() above.
+        using GetPropertyValueNameFn = const char* (*)(UProperty, int32_t, std::underlying_type<UPropertyNameChoice>::type);
+        static const auto rawGetPropertyValueName = reinterpret_cast<GetPropertyValueNameFn>(&u_getPropertyValueName);
+        const char* candidate = rawGetPropertyValueName(prop, value, choice);
+#endif
         if (candidate && name == candidate)
             return true;
     }

@@ -60,6 +60,15 @@ IF (ESCARGOT_ASAN)
     SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -lasan)
 ENDIF()
 
+# -fno-sanitize-recover=undefined: abort on the first UB hit instead of
+# printing-and-continuing, so each CI run/local repro points at exactly one
+# finding instead of a wall of (possibly cascading) diagnostics.
+option(ESCARGOT_UBSAN "Build with UndefinedBehaviorSanitizer" OFF)
+IF (ESCARGOT_UBSAN)
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fsanitize=undefined -fno-sanitize-recover=undefined)
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -fsanitize=undefined)
+ENDIF()
+
 # Code coverage test with gcovr and Codecov
 option(ESCARGOT_COVERAGE "Build with gcov/Codecov instrumentation" OFF)
 IF (ESCARGOT_COVERAGE)

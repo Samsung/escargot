@@ -194,12 +194,19 @@ public:
             }
         }
 
-        PresentAttribute presentAttributes() const
+        // Not a pure PresentAttribute: m_data always carries the inline-tag
+        // bit (bit 0) and sometimes the mode bit (bit 6) alongside the real
+        // flag bits, so the combined value is never one of the declared
+        // enumerators (UBSan's enum-load check flags it). Every caller only
+        // ever masks this against a single known PresentAttribute flag, so
+        // the extra bits are harmless -- return the raw bits as size_t
+        // instead of mislabeling them as the enum type.
+        size_t presentAttributes() const
         {
             if (LIKELY(m_data & 1)) {
-                return (PresentAttribute)m_data;
+                return m_data;
             } else {
-                return (PresentAttribute)m_nativeGetterSetterData->m_presentAttributes;
+                return m_nativeGetterSetterData->m_presentAttributes;
             }
         }
         ObjectStructurePropertyDescriptorMode mode() const

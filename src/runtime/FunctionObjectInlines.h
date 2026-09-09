@@ -143,7 +143,12 @@ public:
         ThisValueBinder thisValueBinder;
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
             Value* arguments = CustomAllocator<Value>().allocate(argc);
-            memcpy(arguments, argv, sizeof(Value) * argc);
+            // argv is null when called with no arguments (argc == 0); memcpy's
+            // args are declared nonnull, so passing that through unconditionally
+            // is UB even at length 0. Skip the copy instead.
+            if (argc) {
+                memcpy(arguments, argv, sizeof(Value) * argc);
+            }
 
             ExecutionState* newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict);
 

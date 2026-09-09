@@ -214,7 +214,15 @@ class ThreadLocal {
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
     static ALWAYS_INLINE char* tlsValueAddress(size_t offset)
     {
-        return tlsBaseAddress() + offset;
+        // On x86-64/x86 Linux, static TLS variables sit *below* the thread
+        // pointer (TLS "Variant II"), so `offset` here is really a wrapped
+        // negative ptrdiff_t. `base + offset` as pointer arithmetic leaves
+        // the bounds of the object `base` points to, which is UB per the
+        // standard even though it lands on the correct address on every
+        // real target (mod 2^64 wraparound) -- do the add as an integer
+        // instead, where unsigned overflow is well-defined. Same codegen
+        // (single `lea`), just not flagged by UBSan's pointer-overflow check.
+        return reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(tlsBaseAddress()) + offset);
     }
 
     static ALWAYS_INLINE size_t readTlsValue(size_t offset)
@@ -243,7 +251,7 @@ class ThreadLocal {
         // ENABLE_TLS_ACCESS_BY_ADDRESS was compiled in for riscv32/riscv64
         // (observed as a SIGSEGV in CI once ESCARGOT_TLS_ACCESS_BY_ADDRESS
         // started defaulting ON for riscv64 too).
-        return *(reinterpret_cast<size_t*>(tlsBaseAddress() + offset));
+        return *(reinterpret_cast<size_t*>(tlsValueAddress(offset)));
 #endif
     }
 

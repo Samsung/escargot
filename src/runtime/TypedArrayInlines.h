@@ -58,7 +58,11 @@ struct IntegralTypedArrayAdapter {
     }
     static TypeArg toNativeFromDouble(ExecutionState& state, double value)
     {
-        int32_t result = static_cast<int32_t>(value);
+        // Speculative fast-path cast: value can be far outside int32_t's
+        // range here (e.g. a large Atomics operand), which is UB for a
+        // plain static_cast, but the mismatch check right below always
+        // catches it and falls back to the well-defined slow path.
+        int32_t result = Value::truncateDoubleToInt32Unchecked(value);
         if (static_cast<double>(result) != value)
             result = Value(Value::EncodeAsDouble, value).toInt32(state);
         return static_cast<TypeArg>(result);
@@ -189,9 +193,32 @@ struct TypedArrayHelper {
 #else
 #define ATTRIBUTE_NO_OPTIMIZE_IF_ARM32
 #endif
+
+    // DataView allows byte-granular (not element-size-aligned) access by
+    // spec, so rawBytes here is not guaranteed to satisfy T's alignment.
+    // Dereferencing it through a T* is UB in the C++ memory model even
+    // though x86 supports unaligned loads/stores in hardware (UBSan's
+    // misaligned-load/store check flags it). memcpy is the portable,
+    // well-defined equivalent and compiles down to the same single
+    // (possibly unaligned) load/store instruction wherever the target
+    // supports it, so this is zero-cost on x64/ARM64.
+    template <typename T>
+    ALWAYS_INLINE static T readRawBytesAs(uint8_t* rawBytes)
+    {
+        T result;
+        memcpy(&result, rawBytes, sizeof(T));
+        return result;
+    }
+
+    template <typename T>
+    ALWAYS_INLINE static void writeRawBytesAs(uint8_t* rawBytes, const T& value)
+    {
+        memcpy(rawBytes, &value, sizeof(T));
+    }
+
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static Float32Adaptor::Type readFloat32(uint8_t* rawBytes)
     {
-        return bitwise_cast<Float32Adaptor::Type>(*reinterpret_cast<uint32_t*>(rawBytes));
+        return readRawBytesAs<Float32Adaptor::Type>(rawBytes);
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static Float64Adaptor::Type readFloat64(uint8_t* rawBytes)
     {
@@ -203,7 +230,7 @@ struct TypedArrayHelper {
         resultAs32[1] = bufferAs32[1];
         return bitwise_cast<Float64Adaptor::Type>(result);
 #else
-        return bitwise_cast<Float64Adaptor::Type>(*reinterpret_cast<uint64_t*>(rawBytes));
+        return readRawBytesAs<Float64Adaptor::Type>(rawBytes);
 #endif
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigInt64Adaptor::Type readInt64(uint8_t* rawBytes)
@@ -216,7 +243,7 @@ struct TypedArrayHelper {
         resultAs32[1] = bufferAs32[1];
         return result;
 #else
-        return *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes);
+        return readRawBytesAs<BigInt64Adaptor::Type>(rawBytes);
 #endif
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigUint64Adaptor::Type readUint64(uint8_t* rawBytes)
@@ -229,7 +256,7 @@ struct TypedArrayHelper {
         resultAs32[1] = bufferAs32[1];
         return result;
 #else
-        return *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes);
+        return readRawBytesAs<BigUint64Adaptor::Type>(rawBytes);
 #endif
     }
 
@@ -243,15 +270,15 @@ struct TypedArrayHelper {
         case TypedArrayType::Uint8Clamped:
             return Value(*reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes));
         case TypedArrayType::Int16:
-            return Value(*reinterpret_cast<Int16Adaptor::Type*>(rawBytes));
+            return Value(readRawBytesAs<Int16Adaptor::Type>(rawBytes));
         case TypedArrayType::Uint16:
-            return Value(*reinterpret_cast<Uint16Adaptor::Type*>(rawBytes));
+            return Value(readRawBytesAs<Uint16Adaptor::Type>(rawBytes));
         case TypedArrayType::Int32:
-            return Value(*reinterpret_cast<Int32Adaptor::Type*>(rawBytes));
+            return Value(readRawBytesAs<Int32Adaptor::Type>(rawBytes));
         case TypedArrayType::Uint32:
-            return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
+            return Value(readRawBytesAs<Uint32Adaptor::Type>(rawBytes));
         case TypedArrayType::Float16:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(*reinterpret_cast<uint16_t*>(rawBytes)));
+            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(rawBytes)));
         case TypedArrayType::Float32:
             return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(rawBytes));
         case TypedArrayType::Float64:
@@ -279,31 +306,31 @@ struct TypedArrayHelper {
             *reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes) = Uint8ClampedAdaptor::toNative(state, val);
             break;
         case TypedArrayType::Int16:
-            *reinterpret_cast<Int16Adaptor::Type*>(rawBytes) = Int16Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Int16Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Uint16:
-            *reinterpret_cast<Uint16Adaptor::Type*>(rawBytes) = Uint16Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Uint16Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Int32:
-            *reinterpret_cast<Int32Adaptor::Type*>(rawBytes) = Int32Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Int32Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Uint32:
-            *reinterpret_cast<Uint32Adaptor::Type*>(rawBytes) = Uint32Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Uint32Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Float16:
-            *reinterpret_cast<Float16Adaptor::Type*>(rawBytes) = Float16Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Float16Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Float32:
-            *reinterpret_cast<Float32Adaptor::Type*>(rawBytes) = Float32Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Float32Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Float64:
-            *reinterpret_cast<Float64Adaptor::Type*>(rawBytes) = Float64Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, Float64Adaptor::toNative(state, val));
             break;
         case TypedArrayType::BigInt64:
-            *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes) = BigInt64Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, BigInt64Adaptor::toNative(state, val));
             break;
         case TypedArrayType::BigUint64:
-            *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes) = BigUint64Adaptor::toNative(state, val);
+            writeRawBytesAs(rawBytes, BigUint64Adaptor::toNative(state, val));
             break;
         default:
             RELEASE_ASSERT_NOT_REACHED();

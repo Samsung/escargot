@@ -201,7 +201,7 @@ protected:
     static int daysFromYear(int year);
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1
     static time64_t daysToMs(int year, int month, int date);
-    static time64_t timeFromYear(int year) { return TimeConstant::MsPerDay * daysFromYear(year); }
+    static time64_t timeFromYear(int year);
     static bool inLeapYear(int year);
 };
 } // namespace Escargot

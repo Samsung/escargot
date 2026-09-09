@@ -1035,7 +1035,13 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     bool inTransitionMode = m_structure->inTransitionMode();
     if (!inTransitionMode) {
         auto newData = ALLOCA(sizeof(ObjectStructureItem) * cnt, ObjectStructureItem);
-        memcpy(newData, propertiesVector, sizeof(ObjectStructureItem) * cnt);
+        // cnt == 0 (an object with no properties) makes propertiesVector a
+        // null pointer (m_structure->properties() on an empty structure);
+        // memcpy's source is declared nonnull, so calling it unconditionally
+        // is UB even though the length is 0. Skip the copy instead.
+        if (cnt) {
+            memcpy(newData, propertiesVector, sizeof(ObjectStructureItem) * cnt);
+        }
         propertiesVector = newData;
     }
     for (size_t i = 0; i < cnt; i++) {
@@ -1784,6 +1790,21 @@ bool Object::isArray(ExecutionState& state)
     return false;
 }
 
+// nextIndexForward/Backward below run every non-index property key through
+// toNumber() and truncate straight to int64_t, expecting a non-numeric key
+// (which yields NaN) or an out-of-range one (Infinity/huge magnitude) to
+// truncate to some fixed hardware sentinel. That sentinel isn't actually
+// InvalidIndexValue on x86 (cvttsd2siq maps all of those to INT64_MIN), but
+// INT64_MIN is extreme enough that it's excluded by the range comparisons
+// right below the cast either way -- so the cast is safe by construction,
+// just not expressible in standard C++. Isolate it here instead of adding a
+// real range check to this hot path.
+ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+static int64_t doubleToInt64ForIndexCompare(double d)
+{
+    return static_cast<int64_t>(d);
+}
+
 void Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex)
 {
     Value ptr = obj;
@@ -1808,7 +1829,7 @@ void Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
                 Data* e = (Data*)data;
                 int64_t* ret = e->ret;
                 Value key = name.toPlainValue();
-                index = key.toNumber(state);
+                index = doubleToInt64ForIndexCompare(key.toNumber(state));
                 if ((uint64_t)index != Value::InvalidIndexValue) {
                     if (index > *e->cur && *ret > index) {
                         *ret = std::min(index, *ret);
@@ -1844,7 +1865,7 @@ void Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
                 Data* e = (Data*)data;
                 int64_t* ret = e->ret;
                 Value key = name.toPlainValue();
-                index = key.toNumber(state);
+                index = doubleToInt64ForIndexCompare(key.toNumber(state));
                 if ((uint64_t)index != Value::InvalidIndexValue) {
                     if (index < *e->cur) {
                         *ret = std::max(index, *ret);

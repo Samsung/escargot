@@ -2155,7 +2155,12 @@ static Value builtinUint8ArrayFromBase64(ExecutionState& state, Value thisValue,
     auto& v = std::get<3>(result);
     ArrayBuffer* abo = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), v.size());
     obj->setBuffer(abo, 0, v.size(), v.size());
-    memcpy(abo->data(), v.data(), v.size());
+    // v.data() may be null for an empty result (e.g. decoding an empty
+    // base64 string); memcpy's pointer arguments are declared nonnull
+    // even for a 0-length copy, so skip the call entirely in that case.
+    if (v.size() > 0) {
+        memcpy(abo->data(), v.data(), v.size());
+    }
     return obj;
 }
 

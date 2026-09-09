@@ -903,7 +903,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     // 6, 7, 8
     String* gap = String::emptyString();
     if (space.isNumber()) {
-        int space_cnt = std::min(space.toInteger(state), 10.0);
+        int space_cnt = Value::truncateDoubleToInt32Unchecked(std::min(space.toInteger(state), 10.0));
         if (space_cnt >= 1) {
             UTF8StringData gapData;
             gapData.resizeWithUninitializedValues(space_cnt);

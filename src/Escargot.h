@@ -170,6 +170,22 @@
 #endif
 #endif
 
+// double -> int32_t truncation of an out-of-range value (NaN/Inf/too-large
+// magnitude) is UB per the standard, but every target this engine supports
+// truncates it in hardware to some fixed-per-target garbage value that the
+// caller already re-validates (compares the truncated int back against the
+// original double) -- so the actual behavior is safe and deliberate, just
+// not expressible in standard C++. Silencing this specific check keeps the
+// cast a single hardware truncate instruction instead of adding a range
+// check to a very hot path (see Value::isInt32ConvertibleDouble).
+#ifndef ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW __attribute__((no_sanitize("float-cast-overflow")))
+#else
+#define ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+#endif
+#endif
+
 #ifndef ATTRIBUTE_NO_OPTIMIZE
 #if defined(COMPILER_GCC)
 #define ATTRIBUTE_NO_OPTIMIZE __attribute__((optimize("O0")))

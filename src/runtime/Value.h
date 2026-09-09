@@ -307,8 +307,22 @@ public:
     intptr_t payload() const;
     static constexpr double maximumLength();
 
-    static bool isInt32ConvertibleDouble(const double& d);
-    static bool isInt32ConvertibleDouble(const double& d, int32_t& asInt32);
+    ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static bool isInt32ConvertibleDouble(const double& d);
+    ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static bool isInt32ConvertibleDouble(const double& d, int32_t& asInt32);
+
+    // Shared helper for the two common "unsafe by the letter of the
+    // standard, safe by construction" truncation patterns seen across the
+    // codebase: (1) truncate then range-check against small bounds (e.g.
+    // fractionDigits-style [0, 100] arguments), where a NaN/Infinity/huge
+    // input truncates to some fixed hardware sentinel that always fails
+    // the check; (2) speculatively truncate as a fast path and compare
+    // the result back against the original double, falling back to a
+    // slower, well-defined conversion on mismatch. Either way d can be
+    // out of int32_t's representable range, which is UB for a plain
+    // static_cast even though x86 hardware truncates it to a fixed
+    // sentinel (INT32_MIN) instead of trapping -- isolate that cast here
+    // instead of adding a redundant explicit check at every call site.
+    ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static int32_t truncateDoubleToInt32Unchecked(double d);
 
 private:
     ValueDescriptor u;

@@ -82,10 +82,22 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
     return Value(Value::DoubleToIntConvertibleTestNeeds, minValue);
 }
 
+// x is only known to be a number here, not yet known to be finite/in-range;
+// truncating a NaN/Infinity/huge-magnitude double to int64_t is UB in
+// standard C++, but the hardware truncation sentinel it produces on x86 is
+// never equal to x (NaN compares unequal to everything, and Infinity/huge
+// values are far outside int64_t's range), so the "== x" check right after
+// this call harmlessly rejects it. That makes the cast safe by construction.
+ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+static int64_t doubleToInt64ForRoundFastPath(double x)
+{
+    return static_cast<int64_t>(x);
+}
+
 static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    if (x == static_cast<int64_t>(x)) {
+    if (x == doubleToInt64ForRoundFastPath(x)) {
         return Value(Value::DoubleToIntConvertibleTestNeeds, x);
     }
     if (x == -0.5)
@@ -204,6 +216,17 @@ static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc
     return Value(Value::DoubleToIntConvertibleTestNeeds, sqrt(x.toNumber(state)));
 }
 
+// y_int below is only meaningful where it exactly reconstructs y (every
+// use guards with "y == y_int" first); when y is Infinity or out of int
+// range, the hardware truncation sentinel it produces on x86 is never
+// equal to y, so those comparisons harmlessly reject it. That makes the
+// cast safe by construction, just not expressible in standard C++.
+ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+static int doubleToIntForPowExponent(double y)
+{
+    return static_cast<int>(y);
+}
+
 static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
@@ -213,7 +236,7 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
     if (UNLIKELY(std::abs(x) == 1 && std::isinf(y)))
         return Value(Value::NanInit);
 
-    int y_int = static_cast<int>(y);
+    int y_int = doubleToIntForPowExponent(y);
 
     if (y == y_int) {
         unsigned n = (y < 0) ? -y : y;
@@ -503,7 +526,10 @@ static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc
 {
     int32_t x = argv[0].toInt32(state);
     int32_t y = argv[1].toInt32(state);
-    return Value(x * y);
+    // Math.imul is spec'd to multiply as 32-bit values and let the result
+    // wrap; do the multiply in unsigned arithmetic so the wraparound is
+    // well-defined instead of relying on signed-overflow UB.
+    return Value(static_cast<int32_t>(static_cast<uint32_t>(x) * static_cast<uint32_t>(y)));
 }
 
 static Value builtinMathLog(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
