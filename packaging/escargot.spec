@@ -332,6 +332,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_tv
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_libdir}/escargot/libgc-lib.so*
 %{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
@@ -340,6 +341,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_headless
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_libdir}/escargot/libgc-lib.so*
 %{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
@@ -348,6 +350,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_mobile
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_libdir}/escargot/libgc-lib.so*
 %{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
@@ -356,6 +359,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_wearable
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_libdir}/escargot/libgc-lib.so*
 %{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
