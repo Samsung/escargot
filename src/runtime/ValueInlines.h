@@ -410,7 +410,12 @@ inline double reinterpretInt64ToDouble(int64_t value)
 
 inline Value::Value(EncodeAsDoubleTag, const double& d)
 {
-    u.asInt64 = reinterpretDoubleToInt64(d) + DoubleEncodeOffset;
+    // Perform the offset addition in unsigned arithmetic: the bit pattern of a
+    // double reinterpreted as int64_t can be negative (e.g. NaN payloads with the
+    // sign bit set), and adding DoubleEncodeOffset to it can overflow int64_t,
+    // which is UB for signed integers. Unsigned overflow wraps around by
+    // definition and yields the same bit pattern we want here.
+    u.asInt64 = static_cast<int64_t>(static_cast<uint64_t>(reinterpretDoubleToInt64(d)) + static_cast<uint64_t>(DoubleEncodeOffset));
 }
 
 inline Value::Value(int i)
@@ -459,7 +464,9 @@ inline bool Value::asBoolean() const
 inline double Value::asDouble() const
 {
     ASSERT(isDouble());
-    return reinterpretInt64ToDouble(u.asInt64 - DoubleEncodeOffset);
+    // See the comment in the EncodeAsDoubleTag constructor: do the inverse
+    // subtraction in unsigned arithmetic to avoid signed-overflow UB.
+    return reinterpretInt64ToDouble(static_cast<int64_t>(static_cast<uint64_t>(u.asInt64) - static_cast<uint64_t>(DoubleEncodeOffset)));
 }
 
 inline bool Value::isEmpty() const
@@ -607,6 +614,11 @@ ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d, int32_t& asI
         return false;
     }
     return true;
+}
+
+ALWAYS_INLINE int32_t Value::truncateDoubleToInt32Unchecked(double d)
+{
+    return static_cast<int32_t>(d);
 }
 
 inline Value::Value(NaNInitTag)

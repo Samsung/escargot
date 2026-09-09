@@ -105,8 +105,13 @@ namespace RuntimeICUBinder {
     F(u_hasBinaryProperty, UBool(CALLCONV*)(UChar32 c, UProperty which), UBool) \
     F(u_getPropertyEnum, UProperty(CALLCONV*)(const char* alias), UProperty) \
     F(u_getPropertyValueEnum, int32_t(CALLCONV*)(UProperty property, const char* alias), int32_t) \
-    F(u_getPropertyName, const char*(CALLCONV*)(UProperty propertyEnum, UPropertyNameChoice nameChoice), const char*) \
-    F(u_getPropertyValueName, const char*(CALLCONV*)(UProperty propertyEnum, int32_t valueEnum, UPropertyNameChoice nameChoice), const char*)
+    /* nameChoice is the enum's underlying integer type, not UPropertyNameChoice itself:
+     * callers probe alias indices beyond U_LONG_PROPERTY_NAME (see YarrUnicodeProperties.cpp),
+     * which the public enum doesn't declare, so materializing them as UPropertyNameChoice
+     * would be UB (-fsanitize=enum). Using the underlying type (rather than a hardcoded
+     * int32_t) keeps this correct even if int isn't 32 bits on some ABI. */ \
+    F(u_getPropertyName, const char*(CALLCONV*)(UProperty propertyEnum, std::underlying_type<UPropertyNameChoice>::type nameChoice), const char*) \
+    F(u_getPropertyValueName, const char*(CALLCONV*)(UProperty propertyEnum, int32_t valueEnum, std::underlying_type<UPropertyNameChoice>::type nameChoice), const char*)
 
 #define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                               \
     F(u_getVersion, void(CALLCONV*)(UVersionInfo versionArray), void)                                                                                                                                          \

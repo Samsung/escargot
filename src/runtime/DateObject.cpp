@@ -356,7 +356,11 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 
 time64_t DateObject::timeinfoToMs(ExecutionState& state, int year, int mon, int day, int hour, int minute, int64_t second, int64_t millisecond)
 {
-    return (daysToMs(year, mon, day) + hour * TimeConstant::MsPerHour + minute * TimeConstant::MsPerMinute + second * TimeConstant::MsPerSecond + millisecond);
+    time64_t daysMs = daysToMs(year, mon, day);
+    if (daysMs == TIME64NAN) {
+        return TIME64NAN;
+    }
+    return (daysMs + hour * TimeConstant::MsPerHour + minute * TimeConstant::MsPerMinute + second * TimeConstant::MsPerSecond + millisecond);
 }
 
 
@@ -1146,6 +1150,21 @@ inline int DateObject::daysFromYear(int year)
     }
 }
 
+time64_t DateObject::timeFromYear(int year)
+{
+    // `365 * (year - 1970)` inside daysFromYear is plain `int` arithmetic, so it
+    // overflows (UBSAN-flagged) once `year` gets anywhere near INT32_MAX/INT32_MIN.
+    // isInValidRange() (BuiltinDate.cpp) only rejects years outside int32 range,
+    // not outside the actual valid Date range, so a huge-but-int32-representable
+    // year can still reach here. Any year this far from 1970 already produces a
+    // time value outside MaximumDatePrimitiveValue, so short-circuit to TIME64NAN
+    // before doing arithmetic that could overflow.
+    if (std::abs(static_cast<int64_t>(year) - 1970) > 1000000) {
+        return TIME64NAN;
+    }
+    return TimeConstant::MsPerDay * daysFromYear(year);
+}
+
 
 int DateObject::yearFromTime(time64_t t)
 {
@@ -1348,8 +1367,11 @@ void DateObject::resolveCache(ExecutionState& state)
 time64_t DateObject::daysToMs(int year, int month, int date)
 {
     ASSERT(0 <= month && month < 12);
-    time64_t t = timeFromYear(year) + daysFromMonth(year, month) * TimeConstant::MsPerDay;
-    return t + (date - 1) * TimeConstant::MsPerDay;
+    time64_t t = timeFromYear(year);
+    if (t == TIME64NAN) {
+        return TIME64NAN;
+    }
+    return t + daysFromMonth(year, month) * TimeConstant::MsPerDay + (date - 1) * TimeConstant::MsPerDay;
 }
 
 String* DateObject::toDateString(ExecutionState& state)

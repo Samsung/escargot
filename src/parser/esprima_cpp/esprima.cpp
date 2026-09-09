@@ -5173,7 +5173,13 @@ public:
                 switch (param->type()) {
                 case Identifier: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (this->codeBlock->parameterUsed() & (1 << paramIndex) || this->codeBlock->parameterUsed() == DISABLE_PARAM_CHECK) {
+                    // m_parameterUsed is a 16-bit field; paramIndex >= 16 always
+                    // implies parameterUsed() == DISABLE_PARAM_CHECK already (see
+                    // popScopeContext), so gate the shift itself on paramIndex < 16
+                    // instead of computing "1 << paramIndex" unconditionally --
+                    // paramIndex can reach 32+ for functions with many parameters,
+                    // which is UB (shift exponent too large for a 32-bit int).
+                    if ((paramIndex < 16 && (this->codeBlock->parameterUsed() & (1 << paramIndex))) || this->codeBlock->parameterUsed() == DISABLE_PARAM_CHECK) {
 #endif
                         Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
@@ -5193,7 +5199,8 @@ public:
                 }
                 case RestElement: {
 #ifndef ESCARGOT_DEBUGGER
-                    if (this->codeBlock->parameterUsed() & (1 << paramIndex) || this->codeBlock->parameterUsed() == DISABLE_PARAM_CHECK || param->asRestElement()->argument()->type() != Identifier) {
+                    // See the comment on the identical guard above.
+                    if ((paramIndex < 16 && (this->codeBlock->parameterUsed() & (1 << paramIndex))) || this->codeBlock->parameterUsed() == DISABLE_PARAM_CHECK || param->asRestElement()->argument()->type() != Identifier) {
 #endif
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(param));
                         container->appendChild(statement);

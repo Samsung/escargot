@@ -407,7 +407,11 @@ int32_t __ieee754_rem_pio2(double x, double *y)
     GET_LOW_WORD(low, x);
     SET_LOW_WORD(z, low);
     e0 = (ix >> 20) - 1046; /* e0 = ilogb(z)-23; */
-    SET_HIGH_WORD(z, ix - static_cast<int32_t>(e0 << 20));
+    // e0 can be negative here (e.g. Math.sin/cos/tan of arguments just above
+    // the "medium size" reduction threshold); shifting it while still a
+    // (possibly negative) int32_t is UB regardless of magnitude, so shift as
+    // uint32_t first -- same bit pattern, well-defined.
+    SET_HIGH_WORD(z, ix - static_cast<int32_t>(static_cast<uint32_t>(e0) << 20));
     for (i = 0; i < 2; i++) {
         tx[i] = static_cast<double>(static_cast<int32_t>(z));
         z = (z - tx[i]) * two24;
@@ -1424,10 +1428,14 @@ double atan2(double y, double x)
     ix = hx & 0x7FFFFFFF;
     EXTRACT_WORDS(hy, ly, y);
     iy = hy & 0x7FFFFFFF;
-    if (((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x7FF00000) || ((iy | ((ly | -static_cast<int32_t>(ly)) >> 31)) > 0x7FF00000)) {
+    // See the identical idiom (and its UB) in atanh() above.
+    if (((ix | ((lx | static_cast<int32_t>(-lx)) >> 31)) > 0x7FF00000) || ((iy | ((ly | static_cast<int32_t>(-ly)) >> 31)) > 0x7FF00000)) {
         return x + y; /* x or y is NaN */
     }
-    if (((hx - 0x3FF00000) | lx) == 0)
+    // hx can be INT32_MIN (x == -0.0); only whether the difference is exactly
+    // zero matters here, so do the subtraction in unsigned space (wraps,
+    // well-defined) instead of on a possibly-negative int32_t.
+    if (((static_cast<uint32_t>(hx) - 0x3FF00000u) | lx) == 0)
         return atan(y); /* x=1.0 */
     m = ((hy >> 31) & 1) | ((hx >> 30) & 2); /* 2*sign(x)+sign(y) */
 
@@ -1700,10 +1708,13 @@ double exp(double x)
 
     /* x is now in primary range */
     t = x * x;
+    // k (and k+1000 below) can be negative; shift as uint32_t to build the
+    // exponent bit pattern instead of shifting a possibly-negative int32_t
+    // (UB regardless of magnitude).
     if (k >= -1021) {
-        INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0);
+        INSERT_WORDS(twopk, 0x3FF00000 + (static_cast<uint32_t>(k) << 20), 0);
     } else {
-        INSERT_WORDS(twopk, 0x3FF00000 + ((k + 1000) << 20), 0);
+        INSERT_WORDS(twopk, 0x3FF00000 + (static_cast<uint32_t>(k + 1000) << 20), 0);
     }
     c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
     if (k == 0) {
@@ -1747,7 +1758,11 @@ double atanh(double x)
     uint32_t lx;
     EXTRACT_WORDS(hx, lx, x);
     ix = hx & 0x7FFFFFFF;
-    if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3FF00000) /* |x|>1 */
+    // -(int32_t)lx is UB when lx's bit pattern is INT32_MIN (negating
+    // INT32_MIN overflows); negate the unsigned value instead (wraps,
+    // well-defined) and reinterpret the bits back, which gives the exact
+    // same result this fdlibm idiom relies on.
+    if ((ix | ((lx | static_cast<int32_t>(-lx)) >> 31)) > 0x3FF00000) /* |x|>1 */
         return (x - x) / (x - x);
     if (ix == 0x3FF00000)
         return x / zero;
@@ -2492,7 +2507,9 @@ double expm1(double x)
     if (k == 0) {
         return x - (x * e - hxs); /* c is 0 */
     } else {
-        INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0); /* 2^k */
+        // k can be -1 here (checked/returned separately only after this line);
+        // shift as uint32_t, see the exp() fix above for why.
+        INSERT_WORDS(twopk, 0x3FF00000 + (static_cast<uint32_t>(k) << 20), 0); /* 2^k */
         e = (x * (e - c) - c);
         e -= hxs;
         if (k == -1)

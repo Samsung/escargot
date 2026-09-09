@@ -396,8 +396,8 @@ public:
     static String* fromLatin1(const char16_t* s, size_t len, Optional<ExecutionState*> state = NullOption);
 
     static String* fromCharCode(char32_t code, Optional<ExecutionState*> state = NullOption);
-    static String* fromDouble(double v);
-    static String* fromDouble(double v, ExecutionState& state); // give ExecutionState& for double to string cache
+    ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static String* fromDouble(double v);
+    ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static String* fromDouble(double v, ExecutionState& state); // give ExecutionState& for double to string cache
     static String* fromInt32(int32_t v);
     static String* fromInt32(int32_t v, ExecutionState& state); // give ExecutionState& for int32 to string cache
     static String* fromUint32(uint32_t v);
@@ -664,6 +664,13 @@ protected:
     template <typename T>
     static ALWAYS_INLINE bool stringEqual(const T* s, const T* s1, const size_t len)
     {
+        // memcmp's pointer arguments are declared nonnull even when len is
+        // 0, but an empty string's data pointer can legitimately be null;
+        // skip the call in that case instead of relying on memcmp to
+        // treat a null+0-length argument as a harmless no-op.
+        if (len == 0) {
+            return true;
+        }
         return memcmp(s, s1, sizeof(T) * len) == 0;
     }
 

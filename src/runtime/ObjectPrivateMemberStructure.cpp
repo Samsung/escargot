@@ -52,7 +52,13 @@ ObjectPrivateMemberStructure* ObjectPrivateMemberStructure::addProperty(const Ob
     ObjectPrivateMemberStructure* newStructure = new ObjectPrivateMemberStructure();
     newStructure->m_properties.resize(m_properties.size() + 1);
 
-    memcpy(newStructure->m_properties.data(), m_properties.data(), m_properties.size() * sizeof(ObjectPrivateMemberStructureItem));
+    // m_properties.data() is null on an empty Vector (the first property
+    // added to an object); memcpy's args are declared nonnull, so passing
+    // that through unconditionally is UB even at length 0. Skip the copy
+    // instead.
+    if (m_properties.size()) {
+        memcpy(newStructure->m_properties.data(), m_properties.data(), m_properties.size() * sizeof(ObjectPrivateMemberStructureItem));
+    }
     newStructure->m_properties[m_properties.size()] = newItem;
 
     m_transitionInfo.pushBack(ObjectPrivateMemberStructureTransitionVectorItem(newItem, newStructure));

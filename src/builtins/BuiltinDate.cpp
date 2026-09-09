@@ -121,7 +121,14 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             double minute = args[4];
             double second = args[5];
             double millisecond = args[6];
-            if ((int)year >= 0 && (int)year <= 99) {
+            // year hasn't been through isInValidRange() yet at this point, so it
+            // may still be NaN/Infinity/out of int32 range; truncating that to
+            // int is UB in standard C++, but the hardware truncation sentinel
+            // it produces on x86 always fails the [0, 99] check below anyway
+            // (matching the spec: only an in-range yr gets the +1900 shift),
+            // so the cast is safe by construction.
+            int yearAsInt = Value::truncateDoubleToInt32Unchecked(year);
+            if (yearAsInt >= 0 && yearAsInt <= 99) {
                 year += 1900;
             }
             if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
@@ -167,7 +174,10 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     double millisecond = args[6];
 
     if (!std::isnan(year)) {
-        int yi = (int)year;
+        // year is only known finite here, not in-range; see the identical
+        // reasoning above for why truncating a possibly-Infinity/huge year
+        // to int is safe despite being UB in standard C++.
+        int yi = Value::truncateDoubleToInt32Unchecked(year);
         if (yi >= 0 && yi <= 99) {
             yi += 1900;
             year = yi;

@@ -581,30 +581,37 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     }
 
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
-    auto tlsBase = tlsBaseAddress();
+    // Computed as an unsigned integer difference, not pointer subtraction:
+    // on x86-64/x86 Linux the static TLS variables below live *below* the
+    // thread pointer (TLS "Variant II"), so this is really a wrapped
+    // negative distance. `char* - char*` between two unrelated objects is
+    // itself UB (only well-defined within the same array), even though it
+    // produces the correct wrapped value on every real target -- subtract
+    // as uintptr_t instead, where unsigned wraparound is well-defined.
+    auto tlsBase = reinterpret_cast<uintptr_t>(tlsBaseAddress());
     if (!g_stackLimitTlsOffset) {
-        g_stackLimitTlsOffset = reinterpret_cast<char*>(&g_stackLimit) - tlsBase;
+        g_stackLimitTlsOffset = reinterpret_cast<uintptr_t>(&g_stackLimit) - tlsBase;
     } else {
         // runtime check
-        size_t newDistance = reinterpret_cast<char*>(&g_stackLimit) - tlsBase;
+        size_t newDistance = reinterpret_cast<uintptr_t>(&g_stackLimit) - tlsBase;
         ESCARGOT_RELEASE_ASSERT(newDistance == g_stackLimitTlsOffset);
     }
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     if (!g_emptyStringTlsOffset) {
-        g_emptyStringTlsOffset = reinterpret_cast<char*>(&g_emptyStringInstance) - tlsBase;
+        g_emptyStringTlsOffset = reinterpret_cast<uintptr_t>(&g_emptyStringInstance) - tlsBase;
     } else {
         // runtime check
-        size_t newDistance = reinterpret_cast<char*>(&g_emptyStringInstance) - tlsBase;
+        size_t newDistance = reinterpret_cast<uintptr_t>(&g_emptyStringInstance) - tlsBase;
         ESCARGOT_RELEASE_ASSERT(newDistance == g_emptyStringTlsOffset);
     }
 #endif
 
     if (!g_gcEpochTlsOffset) {
-        g_gcEpochTlsOffset = reinterpret_cast<char*>(&g_gcEpoch) - tlsBase;
+        g_gcEpochTlsOffset = reinterpret_cast<uintptr_t>(&g_gcEpoch) - tlsBase;
     } else {
         // runtime check
-        size_t newDistance = reinterpret_cast<char*>(&g_gcEpoch) - tlsBase;
+        size_t newDistance = reinterpret_cast<uintptr_t>(&g_gcEpoch) - tlsBase;
         ESCARGOT_RELEASE_ASSERT(newDistance == g_gcEpochTlsOffset);
     }
 

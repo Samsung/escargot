@@ -251,10 +251,21 @@ TemporalPlainTimeObject* TemporalPlainTimeObject::addDurationToTime(ExecutionSta
     }
 
     // Let internalDuration be ToInternalDurationRecord(duration).
+    // internalDuration.[[Time]] is a single exact nanosecond count, not six
+    // independent fields -- collapse duration's time units into it the same
+    // way ToInternalDurationRecord does (timeDurationFromComponents), instead
+    // of truncating each field to int64_t individually. A duration's
+    // milliseconds/microseconds/nanoseconds fields are independently allowed
+    // to be far larger than int64_t's range (e.g. a duration expressed
+    // entirely in microseconds), so truncating one of them on its own would
+    // overflow; only the combined total is guaranteed to fit (validated by
+    // duration.isValid() above).
+    Int128 durationTimeInNanoseconds = TemporalDurationObject::timeDurationFromComponents(state, duration.hours(), duration.minutes(), duration.seconds(),
+                                                                                          duration.milliseconds(), duration.microseconds(), duration.nanoseconds());
     // Let result be AddTime(temporalTime.[[Time]], internalDuration.[[Time]]).
     // Return ! CreateTemporalTime(result).
-    auto result = Temporal::balanceTime(int64_t(duration.hours()) + int64_t(plainTime().hour()), int64_t(duration.minutes()) + int64_t(plainTime().minute()), int64_t(duration.seconds()) + int64_t(plainTime().second()),
-                                        int64_t(duration.milliseconds()) + int64_t(plainTime().millisecond()), int64_t(duration.microseconds()) + int64_t(plainTime().microsecond()), int64_t(duration.nanoseconds()) + int64_t(plainTime().nanosecond()));
+    auto result = Temporal::balanceTime(Int128(plainTime().hour()), Int128(plainTime().minute()), Int128(plainTime().second()),
+                                        Int128(plainTime().millisecond()), Int128(plainTime().microsecond()), Int128(plainTime().nanosecond()) + durationTimeInNanoseconds);
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), ISO8601::PlainTime(result.hours(), result.minutes(), result.seconds(), result.milliseconds(), result.microseconds(), result.nanoseconds()));
 }
 

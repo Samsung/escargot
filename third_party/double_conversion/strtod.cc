@@ -286,7 +286,13 @@ static bool DiyFpStrtod(Vector<const char> buffer,
   const int kDenominator = 1 << kDenominatorLog;
   // Move the remaining decimals into the exponent.
   exponent += remaining_decimals;
-  int error = (remaining_decimals == 0 ? 0 : kDenominator / 2);
+  // error is declared uint64_t (not int): Normalize() below can shift by up
+  // to 63 bits (DiyFp's significand is 64 bits wide and non-zero, so its
+  // leading-zero count is in [0, 63]), and shifting a 32-bit int by that much
+  // is UB even though the shifted value itself always stays small. error is
+  // later combined with the uint64_t half_way anyway (see below), so this
+  // matches its real usage.
+  uint64_t error = (remaining_decimals == 0 ? 0 : kDenominator / 2);
 
   int old_e = input.e();
   input.Normalize();

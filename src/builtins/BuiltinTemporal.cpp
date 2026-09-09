@@ -266,16 +266,35 @@ static Value builtinTemporalInstantCompare(ExecutionState& state, Value thisValu
     return Value(0);
 }
 
+// see the comment at its call site in builtinTemporalInstantFromEpochMilliseconds
+// for why this truncation is safe despite being UB by the letter of the standard
+ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW
+static int64_t doubleToInt64ForEpochMilliseconds(double n)
+{
+    return static_cast<int64_t>(n);
+}
+
 static Value builtinTemporalInstantFromEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Set epochMilliseconds to ? ToNumber(epochMilliseconds).
-    // Set epochMilliseconds to ? NumberToBigInt(epochMilliseconds).
     double n = argv[0].toNumber(state);
-    Int128 epoch = static_cast<int64_t>(n);
+    // Set epochMilliseconds to ? NumberToBigInt(epochMilliseconds).
+    // NumberToBigInt throws a RangeError for a non-integral Number, which also
+    // covers NaN/Infinity -- check that before n is ever truncated to an
+    // integer type below, since truncating those is UB.
+    if (!isIntegralNumber(n)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
+    }
+    // n is finite and integral here, but may still be outside int64_t's
+    // representable range; truncating such a huge value is UB in standard
+    // C++, but the hardware truncation sentinel it produces on x86 always
+    // fails the IsValidEpochNanoseconds check below, so the cast is safe by
+    // construction.
+    Int128 epoch = doubleToInt64ForEpochMilliseconds(n);
     // Let epochNanoseconds be epochMilliseconds × ℤ(10**6).
     epoch *= 1000000;
     // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
-    if (!isIntegralNumber(n) || !ISO8601::ExactTime(epoch).isValid()) {
+    if (!ISO8601::ExactTime(epoch).isValid()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
     }
     // Return ! CreateTemporalInstant(epochNanoseconds).

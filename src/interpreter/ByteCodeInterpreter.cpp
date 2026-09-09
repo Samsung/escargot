@@ -1182,10 +1182,13 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             if (left.isInt32() && right.isInt32()) {
-                int32_t lnum = left.asInt32();
+                // JS's "<<" wraps the 32-bit result regardless of sign; do the
+                // shift itself in unsigned so an overflowing shift (e.g.
+                // 49734321 << 12) isn't UB on a signed int32_t.
+                uint32_t lnum = static_cast<uint32_t>(left.asInt32());
                 int32_t rnum = right.asInt32();
                 lnum <<= ((unsigned int)rnum) & 0x1F;
-                registerFile[code->m_dstIndex] = Value(lnum);
+                registerFile[code->m_dstIndex] = Value(static_cast<int32_t>(lnum));
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left);
             }
@@ -2626,10 +2629,12 @@ NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& s
     } else {
         switch (kind) {
         case Interpreter::ShiftOperationKind::Left: {
-            int32_t lnum32 = lnum.first.toInt32(state);
+            // See the comment on the fast-path BinaryLeftShift handler above --
+            // same unsigned-shift fix for the same UB.
+            uint32_t lnum32 = static_cast<uint32_t>(lnum.first.toInt32(state));
             int32_t rnum32 = rnum.first.toInt32(state);
             lnum32 <<= ((unsigned int)rnum32) & 0x1F;
-            return Value(lnum32);
+            return Value(static_cast<int32_t>(lnum32));
         }
         case Interpreter::ShiftOperationKind::SignedRight: {
             int32_t lnum32 = lnum.first.toInt32(state);
@@ -4670,7 +4675,9 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         if (callee.asPointerValue() == state.context()->globalObject()->functionApply()) {
             if (!functionRecord->argumentsObject()) {
                 Value* v = ALLOCA(sizeof(Value) * state.argc(), Value);
-                memcpy(v, state.argv(), sizeof(Value) * state.argc());
+                if (state.argc()) {
+                    memcpy(v, state.argv(), sizeof(Value) * state.argc());
+                }
                 registerFile[code->m_resultIndex] = receiver.asPointerValue()->call(state, registerFile[code->m_argumentsStartIndex], state.argc(), v);
                 return;
             }

@@ -111,8 +111,12 @@ public:
     template <typename T>
     RAPIDJSON_FORCEINLINE T* Push(size_t count = 1)
     {
-        // Expand the stack if needed
-        if (stackTop_ + sizeof(T) * count >= stackEnd_)
+        // Expand the stack if needed. stackTop_ is null before the first
+        // Push() (memory is allocated lazily); applying a non-zero offset
+        // to it below would be UB, so check for that case first -- the
+        // short-circuit keeps the pointer arithmetic from ever running on
+        // a null stackTop_.
+        if (stackTop_ == 0 || stackTop_ + sizeof(T) * count >= stackEnd_)
             Expand<T>(count);
 
         T* ret = reinterpret_cast<T*>(stackTop_);
@@ -138,7 +142,18 @@ public:
     template <typename T>
     T* Bottom() { return (T*)stack_; }
 
-    Allocator& GetAllocator() { return *allocator_; }
+    // allocator_ is still null before the first Push()->Expand() lazily creates
+    // one (see below); binding a reference through it here would be UB even if
+    // the reference is never read through. Lazily create it here too, since
+    // callers such as GenericDocument::ParseStream() fetch the allocator before
+    // ever pushing.
+    Allocator& GetAllocator()
+    {
+        if (!allocator_) {
+            ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator());
+        }
+        return *allocator_;
+    }
     bool Empty() const { return stackTop_ == stack_; }
     size_t GetSize() const { return static_cast<size_t>(stackTop_ - stack_); }
     size_t GetCapacity() const { return static_cast<size_t>(stackEnd_ - stack_); }
