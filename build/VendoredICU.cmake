@@ -94,6 +94,18 @@ IF (ESCARGOT_HOST STREQUAL "linux")
     SET (VENDORED_ICU_INSTALL_DIR ${VENDORED_ICU_PREFIX}/install)
     SET (VENDORED_ICU_DATA_FILTER_FILE ${ESCARGOT_ROOT}/build/icu-filters/escargot.json)
 
+    # runConfigureICU Linux/gcc always configures a native-word-size build --
+    # it has no idea about ESCARGOT_ARCH/CMAKE_SYSTEM_PROCESSOR, unlike the
+    # rest of this project's own targets, which get -m32 from
+    # ESCARGOT_CXXFLAGS/ESCARGOT_THIRDPARTY_CFLAGS (see build/target.cmake).
+    # Forward the same -m32 via CFLAGS/CXXFLAGS/LDFLAGS for the x86-on-x64-host
+    # case (gcc-multilib, already required for the rest of an x86 Linux
+    # build); nothing needed for x64/aarch64 native builds.
+    SET (VENDORED_ICU_EXTRA_ENV "")
+    IF ((ESCARGOT_ARCH STREQUAL "x86") OR (ESCARGOT_ARCH STREQUAL "i686"))
+        SET (VENDORED_ICU_EXTRA_ENV "CFLAGS=-m32" "CXXFLAGS=-m32" "LDFLAGS=-m32")
+    ENDIF()
+
     ExternalProject_Add (vendored-icu-build
         PREFIX ${VENDORED_ICU_PREFIX}
         SOURCE_DIR ${VENDORED_ICU_SOURCE_DIR}
@@ -102,6 +114,7 @@ IF (ESCARGOT_HOST STREQUAL "linux")
         BUILD_IN_SOURCE FALSE
         CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
             "ICU_DATA_FILTER_FILE=${VENDORED_ICU_DATA_FILTER_FILE}"
+            ${VENDORED_ICU_EXTRA_ENV}
             ${VENDORED_ICU_SOURCE_DIR}/runConfigureICU Linux/gcc
                 --enable-static
                 --disable-shared
