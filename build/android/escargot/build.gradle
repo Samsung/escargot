@@ -155,9 +155,14 @@ task buildCMakeNativeNoNDK(type: Exec) {
     dependsOn createNativeNoNDK
     workingDir dirForNativeNoNDK
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        // Deliberately NOT passing -DESCARGOT_WASM=ON: the actual Android AAR
+        // build (see externalNativeBuild.cmake.arguments above) never enables
+        // it either, and doing so here made this host jar link against a
+        // shared libwalrus.so that bundleHostJar didn't originally bundle,
+        // breaking any consumer that isn't building right next to it.
         commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Linux", "-DESCARGOT_BUILD_SHARED_LIBS=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
-                "-DESCARGOT_SHADOWREALM=ON", "-DESCARGOT_WASM=ON",
+                "-DESCARGOT_SHADOWREALM=ON",
                 "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         // Plain Groovy process execution (List.execute()), not Gradle's own
@@ -171,9 +176,11 @@ task buildCMakeNativeNoNDK(type: Exec) {
         var icu4cPath = ["sh", "-c", "brew --prefix icu4c"].execute().text.trim()
         var pkgConfigPath = icu4cPath + "/lib/pkgconfig"
         environment("PKG_CONFIG_PATH", pkgConfigPath)
+        // Deliberately NOT passing -DESCARGOT_WASM=ON here either -- see the
+        // matching comment on the Linux branch above.
         commandLine "/usr/bin/env", "cmake", "-DCMAKE_SYSTEM_NAME=Darwin", "-DESCARGOT_BUILD_SHARED_LIBS=OFF", "-DUNDER_NDK=OFF",
                 "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
-                "-DESCARGOT_SHADOWREALM=ON", "-DESCARGOT_WASM=ON",
+                "-DESCARGOT_SHADOWREALM=ON",
                 "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
                 "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
                 "-DJAVA_INCLUDE_PATH2=" + javaHome + "/include/darwin", "-DJAVA_AWT_INCLUDE_PATH=" + javaHome + "/include",
@@ -229,6 +236,17 @@ task bundleHostJar(type: Jar) {
     from(dirForNativeNoNDK.asFile.toString() + "/libescargot-jni.so")
     from(dirForNativeNoNDK.asFile.toString() + "/libescargot-jni.dylib")
     rename("libescargot-jni.dylib", "libescargot-jni.so")
+    // If buildCMakeNativeNoNDK ever passes -DESCARGOT_WASM=ON again, walrus
+    // gets built as a shared lib (see build/escargot.cmake) that
+    // libescargot-jni dynamically links against, sitting next to it in the
+    // build dir. Bundle it defensively so the jar stays self-contained even
+    // then -- without this, a consumer extracting only libescargot-jni.so
+    // from the jar (see Escargot.java) would hit UnsatisfiedLinkError:
+    // libwalrus.so: cannot open shared object file. `from` on a
+    // nonexistent path (the common case, WASM off) is a silent no-op.
+    from(dirForNativeNoNDK.asFile.toString() + "/libwalrus.so")
+    from(dirForNativeNoNDK.asFile.toString() + "/libwalrus.dylib")
+    rename("libwalrus.dylib", "libwalrus.so")
 }
 
 task sourcesJar(type: Jar) {
