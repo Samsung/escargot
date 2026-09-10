@@ -4,9 +4,115 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Lets this be run by hand (e.g. `gh workflow run`) to test workflow
+  # changes without needing a real version tag.
+  workflow_dispatch: {}
 
 jobs:
+  # Compiles libescargot-jni.so inside an EOL ubuntu:14.04.5 (glibc 2.19)
+  # container so the resulting binary's glibc floor stays low enough to run
+  # on virtually any Linux distro, old or new -- a "manylinux"-style trick.
+  # ubuntu-latest's own glibc is far too new for a Maven artifact meant to
+  # run on arbitrary consumer machines.
+  #
+  # Deliberately does NOT run Gradle/a JVM inside this container: modern JDKs
+  # (8/11/17) all need newer glibc than 14.04 ships (confirmed by hand before
+  # writing this job), so this bypasses Gradle entirely and invokes, by hand,
+  # the same cmake/make commands buildCMakeNativeNoNDK/buildGMakeNativeNoNDK
+  # run in build.gradle. FIND_PACKAGE(JNI) in src/main/cpp/CMakeLists.txt
+  # only needs jni.h/jni_md.h to exist on disk -- it never links a real
+  # libjvm.so at the TARGET_LINK_LIBRARIES level -- so a JDK tarball only
+  # needs to be unpacked for its headers, never executed.
+  build-lowglibc-native-so:
+    # Deliberately NOT a job-level `container:` -- GitHub Actions runs every
+    # step's JS action (checkout, upload-artifact, even this composite retry
+    # wrapper) via a Node binary injected into the job's container, and
+    # Node 20/24 need a far newer glibc/libstdc++ than ubuntu:14.04.5 has
+    # (confirmed the hard way: `container: {image: ubuntu:14.04.5}` here
+    # failed actions/checkout itself with GLIBC_2.27/CXXABI_1.3.9 not found,
+    # before any of our own build steps even ran). Instead, run on a normal
+    # modern runner and drive the old container by hand via `docker run` --
+    # only our own build commands ever execute inside it, never a GitHub
+    # Action.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        with: |
+          submodules: recursive
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Build libescargot-jni.so inside ubuntu:14.04.5 (glibc 2.19)
+      # Same invocation as buildCMakeNativeNoNDK/buildGMakeNativeNoNDK in
+      # build/android/escargot/build.gradle, run directly instead of via
+      # Gradle -- modern JDKs (8/11/17) all need newer glibc than 14.04
+      # ships (confirmed by hand), and FIND_PACKAGE(JNI) in
+      # src/main/cpp/CMakeLists.txt only needs jni.h/jni_md.h to exist on
+      # disk -- it never links a real libjvm.so at the
+      # TARGET_LINK_LIBRARIES level -- so a JDK tarball only needs to be
+      # unpacked for its headers, never executed.
+      #
+      # Stock GCC 4.8.4 claims C++11 support but fails on real C++11
+      # features this project uses (SIMD intrinsics, initializer_list
+      # operators) -- confirmed by hand -- so GCC 9 is installed instead.
+      # Stock cmake 2.8.12 is likewise too old, so 3.26.5 is downloaded.
+      run: |
+        docker run --rm -v "$PWD":/src -w /src ubuntu:14.04.5 bash -c '
+          set -euxo pipefail
+          sed -i -e "s|archive.ubuntu.com|security.ubuntu.com|g" /etc/apt/sources.list
+          apt-get update
+          apt-get install -y build-essential wget curl unzip git software-properties-common ca-certificates pkg-config
+
+          add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          apt-get update
+          apt-get install -y gcc-9 g++-9
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60
+          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 60
+          g++ --version
+
+          wget -q https://github.com/Kitware/CMake/releases/download/v3.26.5/cmake-3.26.5-linux-x86_64.tar.gz -O /tmp/cmake.tar.gz
+          tar -xzf /tmp/cmake.tar.gz -C /opt/
+          ln -sf /opt/cmake-3.26.5-linux-x86_64/bin/cmake /usr/local/bin/cmake
+          cmake --version
+
+          wget -q https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz -O /tmp/jdk.tar.gz
+          mkdir -p /opt/jdk
+          tar -xzf /tmp/jdk.tar.gz -C /opt/jdk --strip-components=1
+          test -f /opt/jdk/include/jni.h
+          export JAVA_HOME=/opt/jdk
+
+          mkdir -p build/android/escargot/build/native_nondk
+          cd build/android/escargot/build/native_nondk
+          cmake -DCMAKE_SYSTEM_NAME=Linux -DESCARGOT_BUILD_SHARED_LIBS=OFF \
+                -DESCARGOT_BUILD_64BIT_FORCE_LARGE=ON -DESCARGOT_SHADOWREALM=ON \
+                -DUNDER_NDK=OFF ../../src/main/cpp
+          make -j$(nproc)
+          ls -la libescargot-jni.so
+        '
+    - name: Verify glibc floor
+      run: |
+        cd build/android/escargot/build/native_nondk
+        readelf --version-info libescargot-jni.so
+        echo "=== max GLIBC/GLIBCXX/CXXABI symbol versions ==="
+        objdump -T libescargot-jni.so | grep -oE '(GLIBC_|GLIBCXX_|CXXABI_)[0-9._]+' | sort -V | uniq
+        # -static-libstdc++ is already hardcoded in CMakeLists.txt for this
+        # non-NDK branch -- fail loudly if that ever regresses, since a
+        # dynamic libstdc++/libgcc_s dependency would defeat the whole point
+        # of this job.
+        if objdump -T libescargot-jni.so | grep -qE 'GLIBCXX_|CXXABI_'; then
+          echo "ERROR: libescargot-jni.so now depends on GLIBCXX_/CXXABI_ symbols -- static libstdc++ linking regressed"
+          exit 1
+        fi
+    - name: Upload native artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: lowglibc-native-so
+        path: build/android/escargot/build/native_nondk/libescargot-jni.so
+        if-no-files-found: error
+
   build-android-on-ubuntu:
+    needs: build-lowglibc-native-so
     runs-on: ubuntu-latest
     steps:
     - uses: Wandalen/wretry.action@v3
@@ -31,6 +137,47 @@ jobs:
         ./gradlew sourcesJar
         ./gradlew :escargot:testDebugUnitTest
         mv ./escargot/build/libs/escargot.jar ./escargot/build/libs/escargot-ubuntu.jar
+    - name: Download low-glibc native library
+      uses: actions/download-artifact@v6
+      with:
+        name: lowglibc-native-so
+        path: /tmp/lowglibc-so
+    - name: Swap in the low-glibc libescargot-jni.so
+      # escargot-ubuntu.jar is published to Maven and needs to run on
+      # whatever glibc a consumer's own host happens to have, old or new --
+      # this ubuntu-latest runner's glibc is too new for that, so the native
+      # lib actually shipped comes from build-lowglibc-native-so instead.
+      # Everything else in the jar (classes, javadoc/sources) comes from
+      # this job's normal build above.
+      run: |
+        JAR="$PWD/build/android/escargot/build/libs/escargot-ubuntu.jar"
+        TMPDIR=$(mktemp -d)
+        cd "$TMPDIR"
+        unzip -q "$JAR" libescargot-jni.so
+        md5sum libescargot-jni.so
+        cp /tmp/lowglibc-so/libescargot-jni.so .
+        md5sum libescargot-jni.so
+        zip -qr "$JAR" libescargot-jni.so
+        rm -rf "$TMPDIR"
+        # Re-verify the swap stuck and the glibc floor survived repackaging.
+        VERIFYDIR=$(mktemp -d)
+        cd "$VERIFYDIR"
+        unzip -q "$JAR" libescargot-jni.so
+        objdump -T libescargot-jni.so | grep -oE '(GLIBC_|GLIBCXX_|CXXABI_)[0-9._]+' | sort -V | uniq
+        if objdump -T libescargot-jni.so | grep -qE 'GLIBCXX_|CXXABI_'; then
+          echo "ERROR: swapped-in .so unexpectedly depends on GLIBCXX_/CXXABI_"
+          exit 1
+        fi
+    - name: Smoke test escargot-ubuntu.jar standalone
+      # Deliberately not reusing testDebugUnitTest's classpath/build dir --
+      # see tools/release-smoketest/Smoke.java's header comment.
+      run: |
+        mkdir -p /tmp/smoketest
+        cp ./build/android/escargot/build/libs/escargot-ubuntu.jar /tmp/smoketest/
+        cp ./tools/release-smoketest/Smoke.java /tmp/smoketest/
+        cd /tmp/smoketest
+        javac -cp escargot-ubuntu.jar Smoke.java
+        java -cp .:escargot-ubuntu.jar Smoke
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
@@ -68,6 +215,16 @@ jobs:
         ./gradlew bundleHostJar
         ./gradlew :escargot:testDebugUnitTest
         mv ./escargot/build/libs/escargot.jar ./escargot/build/libs/escargot-mac.jar
+    - name: Smoke test escargot-mac.jar standalone
+      # Deliberately not reusing testDebugUnitTest's classpath/build dir --
+      # see tools/release-smoketest/Smoke.java's header comment.
+      run: |
+        mkdir -p /tmp/smoketest
+        cp ./build/android/escargot/build/libs/escargot-mac.jar /tmp/smoketest/
+        cp ./tools/release-smoketest/Smoke.java /tmp/smoketest/
+        cd /tmp/smoketest
+        javac -cp escargot-mac.jar Smoke.java
+        java -cp .:escargot-mac.jar Smoke
     - name: Upload build artifact
       uses: actions/upload-artifact@v6
       with:
@@ -76,8 +233,62 @@ jobs:
           ./build/android/escargot/build/libs/escargot-mac.jar
         if-no-files-found: error
 
+  # On-device smoke test of the actual AAR being released -- the host jars
+  # (escargot-ubuntu/escargot-mac) get their own standalone `java` smoke test
+  # above, but the AAR's native libs are NDK-compiled for Android ABIs and
+  # can't be exercised by a plain `java` CLI, so this needs a real
+  # instrumented run instead. Filtered to just ReleaseSmokeTest (a few
+  # seconds) rather than EscargotTest's full suite (~5-10 min), which
+  # es-actions.yml's test-on-android job already runs on every push/PR to
+  # master -- this job's purpose is to gate *this specific tagged commit's*
+  # release, not to duplicate that broader signal.
+  #
+  # Real arm64 hardware isn't available on any GitHub-hosted runner (see
+  # es-actions.yml's test-on-android comment) -- x86/x86_64 KVM emulation is
+  # the closest available stand-in. armeabi-v7a/arm64-v8a (the real-device
+  # ABIs) still only get compile-verified here, same limitation as
+  # test-on-android.
+  smoke-test-android-aar:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        with: |
+          submodules: recursive
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Enable KVM
+      run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+    - name: Set up JDK
+      uses: actions/setup-java@v4.1.0
+      with:
+        distribution: "zulu"
+        java-version: 17
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+    - name: Run ReleaseSmokeTest on emulator (x86 then x86_64, one boot)
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 28
+        arch: x86_64
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -camera-back none -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim
+        disable-animations: true
+        # See test-on-android's matching comment on why this must be one
+        # logical line chained with && instead of separate script lines.
+        # Scoped to :escargot: specifically (unlike test-on-android's bare
+        # `connectedDebugAndroidTest`) -- the testInstrumentationRunnerArguments
+        # class filter otherwise also applies to :app:connectedDebugAndroidTest,
+        # whose own test APK doesn't contain ReleaseSmokeTest and fails with
+        # initializationError instead of just skipping it.
+        script: cd build/android/ && ./gradlew :escargot:connectedDebugAndroidTest -DESCARGOT_TEST_ABI=x86,armeabi-v7a -Pandroid.testInstrumentationRunnerArguments.class=com.samsung.lwe.escargot.ReleaseSmokeTest && ./gradlew :escargot:uninstallAll && ./gradlew :escargot:connectedDebugAndroidTest -DESCARGOT_TEST_ABI=x86_64,arm64-v8a -Pandroid.testInstrumentationRunnerArguments.class=com.samsung.lwe.escargot.ReleaseSmokeTest
+
   merge-update-release:
-    needs: [build-android-on-ubuntu, build-android-on-macos]
+    needs: [build-android-on-ubuntu, build-android-on-macos, smoke-test-android-aar]
     runs-on: ubuntu-latest
     steps:
     - name: Download build artifacts
