@@ -102,6 +102,7 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryUnsignedRightShift)                       \
     F(BinaryInOperation)                              \
     F(BinaryInstanceOfOperation)                      \
+    F(BinaryInstanceOfOperationInlineCache)           \
     F(CreateObjectPrepare)                            \
     F(CreateObject)                                   \
     F(CreateOnlyKeyValueObject)                       \
@@ -956,7 +957,59 @@ DEFINE_BINARY_OPERATION(Exponentiation, "exponentiation operation");
 DEFINE_BINARY_OPERATION(GreaterThan, "greaterthan");
 DEFINE_BINARY_OPERATION(GreaterThanOrEqual, "greaterthan or equal");
 DEFINE_BINARY_OPERATION(InOperation, "in operation");
-DEFINE_BINARY_OPERATION(InstanceOfOperation, "instance of");
+class BinaryInstanceOfOperation : public ByteCode {
+public:
+    enum CacheState : uint8_t {
+        Empty,
+        Ready,
+        Megamorphic,
+    };
+
+    static constexpr size_t MaxHasInstanceChainLength = 12;
+    static constexpr size_t MinCacheFillCount = 2;
+
+    BinaryInstanceOfOperation(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::BinaryInstanceOfOperationOpcode, loc)
+        , m_srcIndex0(registerIndex0)
+        , m_srcIndex1(registerIndex1)
+        , m_dstIndex(dstRegisterIndex)
+        , m_cachedPrototypeIndex(0)
+        , m_cachedHasInstanceChainLength(0)
+        , m_cacheMissCount(0)
+        , m_cacheState(CacheState::Empty)
+        , m_canReadPrototypeDirectly(false)
+    {
+    }
+
+    // ByteCodeGenerator::relocateByteCode reinterprets binary operations as BinaryPlus while
+    // relocating registers. Keep these three fields first and identically laid out.
+    ByteCodeRegisterIndex m_srcIndex0;
+    ByteCodeRegisterIndex m_srcIndex1;
+    ByteCodeRegisterIndex m_dstIndex;
+
+    // ByteCodeBlockData uses malloc and is not scanned by the GC. Non-transition structures
+    // stored here are rooted once through ByteCodeBlock::m_otherLiteralData when the cache fills;
+    // immutable transition nodes need no extra root.
+    ObjectStructure* m_cachedHasInstanceChain[MaxHasInstanceChainLength]{};
+    uint16_t m_cachedPrototypeIndex;
+    uint32_t m_cachedHasInstanceChainLength : 8;
+    uint32_t m_cacheMissCount : 8;
+    uint32_t m_cacheState : 2;
+    uint32_t m_canReadPrototypeDirectly : 1;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("instance of r%u <- r%u , r%u", m_dstIndex, m_srcIndex0, m_srcIndex1);
+    }
+#endif
+};
+
+class BinaryInstanceOfOperationInlineCache : public BinaryInstanceOfOperation {
+public:
+};
+
+COMPILE_ASSERT(sizeof(BinaryInstanceOfOperationInlineCache) == sizeof(BinaryInstanceOfOperation), "");
 DEFINE_BINARY_OPERATION(LeftShift, "left shift");
 DEFINE_BINARY_OPERATION(LessThan, "lessthan");
 DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
