@@ -125,7 +125,8 @@ public:
     static Value unaryMinusSlowCase(ExecutionState& state, const Value& a);
     static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
     static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
-    static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
+    static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile, ByteCodeBlock* block);
+    static bool tryInstanceOfInlineCache(ExecutionState& state, BinaryInstanceOfOperation* code, Object* C, const Value& lhs, bool& result);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
     static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::BitwiseOperationKind kind);
@@ -229,6 +230,53 @@ private:
     static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
     static FunctionEnvironmentRecord* findNearestFunctionEnvironmentRecord(ExecutionState& state, ExecutionState*& es);
 };
+
+ALWAYS_INLINE bool InterpreterSlowPath::tryInstanceOfInlineCache(ExecutionState& state, BinaryInstanceOfOperation* code, Object* C, const Value& lhs, bool& result)
+{
+    Object* cur = C;
+    for (size_t i = 0; i < code->m_cachedHasInstanceChainLength; i++) {
+        if (UNLIKELY(!cur || cur->structure() != code->m_cachedHasInstanceChain[i])) {
+            return false;
+        }
+        cur = cur->Object::getPrototypeObject(state);
+    }
+    if (UNLIKELY(cur != state.context()->globalObject()->functionPrototype())) {
+        return false;
+    }
+
+    if (!lhs.isObject()) {
+        result = false;
+        return true;
+    }
+
+    Value prototype;
+    if (LIKELY(code->m_canReadPrototypeDirectly)) {
+        prototype = Value(C->m_values[code->m_cachedPrototypeIndex]);
+        if (UNLIKELY(prototype.isEmpty())) {
+            prototype = VMInstance::functionPrototypeNativeGetter(state, C, Value(C), C->m_values[code->m_cachedPrototypeIndex]);
+        }
+    } else {
+        prototype = C->getOwnNonPlainDataPropertyUtilForObject(state, code->m_cachedPrototypeIndex, Value(C));
+    }
+    if (UNLIKELY(!prototype.isObject())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_InvalidPrototypeProperty);
+    }
+
+    Object* target = prototype.asObject();
+    Object* chainObject = lhs.asObject();
+    while (true) {
+        Object* next = chainObject->getPrototypeObject(state);
+        if (next == target) {
+            result = true;
+            return true;
+        }
+        if (!next) {
+            result = false;
+            return true;
+        }
+        chainObject = next;
+    }
+}
 
 // A TypedArray's `.length` is a native accessor on the shared %TypedArray%.prototype, not an
 // intrinsic own property the way Array's is -- so, unlike Array (where `.length` is always the
@@ -1790,11 +1838,29 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(BinaryInstanceOfOperationInlineCache)
+            :
+        {
+            BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
+            const Value& rhs = registerFile[code->m_srcIndex1];
+            if (LIKELY(rhs.isObject() && code->m_cacheState == BinaryInstanceOfOperation::CacheState::Ready)) {
+                bool result;
+                if (LIKELY(InterpreterSlowPath::tryInstanceOfInlineCache(*state, code, rhs.asObject(), registerFile[code->m_srcIndex0], result))) {
+                    registerFile[code->m_dstIndex] = Value(result);
+                    ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
+                    NEXT_INSTRUCTION();
+                }
+            }
+            InterpreterSlowPath::instanceOfOperation(*state, code, registerFile, byteCodeBlock);
+            ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(BinaryInstanceOfOperation)
             :
         {
             BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
-            InterpreterSlowPath::instanceOfOperation(*state, code, registerFile);
+            InterpreterSlowPath::instanceOfOperation(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
             NEXT_INSTRUCTION();
         }
@@ -2514,9 +2580,87 @@ NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& sta
     return Value(Value::DoubleToIntConvertibleTestNeeds, pow(base, exp));
 }
 
-NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile, ByteCodeBlock* block)
 {
-    registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex0].instanceOf(state, registerFile[code->m_srcIndex1]));
+    const Value& lhs = registerFile[code->m_srcIndex0];
+    const Value& rhs = registerFile[code->m_srcIndex1];
+
+    if (code->m_cacheState == BinaryInstanceOfOperation::CacheState::Megamorphic) {
+        registerFile[code->m_dstIndex] = Value(lhs.instanceOf(state, rhs));
+        return;
+    }
+
+    if (code->m_cacheState == BinaryInstanceOfOperation::CacheState::Ready) {
+        bool result;
+        if (rhs.isObject() && tryInstanceOfInlineCache(state, code, rhs.asObject(), lhs, result)) {
+            registerFile[code->m_dstIndex] = Value(result);
+            return;
+        }
+        code->m_cacheState = BinaryInstanceOfOperation::CacheState::Megamorphic;
+        registerFile[code->m_dstIndex] = Value(lhs.instanceOf(state, rhs));
+        return;
+    }
+
+    code->m_cacheMissCount++;
+    if (code->m_cacheMissCount < BinaryInstanceOfOperation::MinCacheFillCount || !rhs.isObject()) {
+        registerFile[code->m_dstIndex] = Value(lhs.instanceOf(state, rhs));
+        return;
+    }
+
+    Object* C = rhs.asObject();
+    bool cacheable = C->isCallable() && !C->isBoundFunctionObject();
+    Object* globalFunctionPrototype = state.context()->globalObject()->functionPrototype();
+    VectorWithInlineStorage<BinaryInstanceOfOperation::MaxHasInstanceChainLength, ObjectStructure*, std::allocator<ObjectStructure*> > newChain;
+    Object* obj = C;
+    while (cacheable && obj != globalFunctionPrototype) {
+        if (UNLIKELY(!obj->isInlineCacheable()) || UNLIKELY(newChain.size() >= BinaryInstanceOfOperation::MaxHasInstanceChainLength)) {
+            cacheable = false;
+            break;
+        }
+        ObjectStructure* structure = obj->structure();
+        if (UNLIKELY(structure->hasSymbolPropertyName()
+                     && structure->findProperty(ObjectStructurePropertyName(state.context()->vmInstance()->globalSymbols().hasInstance)).first != SIZE_MAX)) {
+            cacheable = false;
+            break;
+        }
+        newChain.push_back(structure);
+        obj = obj->Object::getPrototypeObject(state);
+        if (!obj) {
+            cacheable = false;
+        }
+    }
+
+    if (cacheable && newChain.size()) {
+        ObjectStructure* cStructure = newChain[0];
+        auto property = cStructure->findProperty(ObjectStructurePropertyName(state.context()->staticStrings().prototype));
+        if (property.first != SIZE_MAX && property.first <= std::numeric_limits<uint16_t>::max()
+            && property.second->m_descriptor.isDataProperty()) {
+            for (size_t i = 0; i < newChain.size(); i++) {
+                ObjectStructure* structure = newChain[i];
+                code->m_cachedHasInstanceChain[i] = structure;
+                if (!structure->inTransitionMode()) {
+                    block->m_otherLiteralData.push_back(structure);
+                    structure->markReferencedByInlineCache();
+                }
+            }
+            code->m_cachedHasInstanceChainLength = newChain.size();
+            code->m_cachedPrototypeIndex = property.first;
+            bool isPlainDataProperty = property.second->m_descriptor.isPlainDataProperty();
+            code->m_canReadPrototypeDirectly = isPlainDataProperty
+                || property.second->m_descriptor.nativeGetterSetterData()->m_getter == VMInstance::functionPrototypeNativeGetter;
+            code->m_cacheState = BinaryInstanceOfOperation::CacheState::Ready;
+            code->changeOpcode(Opcode::BinaryInstanceOfOperationInlineCacheOpcode);
+
+            bool result;
+            bool hit = tryInstanceOfInlineCache(state, code, C, lhs, result);
+            ASSERT(hit);
+            registerFile[code->m_dstIndex] = Value(result);
+            return;
+        }
+    }
+
+    code->m_cacheState = BinaryInstanceOfOperation::CacheState::Megamorphic;
+    registerFile[code->m_dstIndex] = Value(lhs.instanceOf(state, rhs));
 }
 
 static void appendValueToTemplateBuilder(StringBuilder& builder, const Value& val, ExecutionState& state)

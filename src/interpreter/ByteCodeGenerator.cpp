@@ -810,6 +810,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case BinaryUnsignedRightShiftOpcode:
         case BinaryInOperationOpcode:
         case BinaryInstanceOfOperationOpcode:
+        case BinaryInstanceOfOperationInlineCacheOpcode:
         case BinaryExponentiationOpcode: {
             BinaryPlus* plus = (BinaryPlus*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(plus->m_srcIndex0, stackBase, stackBaseWillBe, stackVariableSize);
