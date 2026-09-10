@@ -3,15 +3,16 @@
   <groupId>com.samsung.lwe.escargot</groupId>
   <artifactId>escargot-android</artifactId>
   <versioning>
-    <latest>5.0.0.20260910.0.ac26c1a</latest>
-    <release>5.0.0.20260910.0.ac26c1a</release>
+    <latest>5.0.1.20260910.0.905d41b</latest>
+    <release>5.0.1.20260910.0.905d41b</release>
     <versions>
       <version>4.2.0.20241105.0.6d2dd5ec</version>
       <version>4.2.0.20250530.0.62e6e01</version>
       <version>4.2.0.20250602.0.72205bb</version>
       <version>4.2.0.20250609.0.895052f</version>
       <version>5.0.0.20260910.0.ac26c1a</version>
+      <version>5.0.1.20260910.0.905d41b</version>
     </versions>
-    <lastUpdated>20260910021834</lastUpdated>
+    <lastUpdated>20260910022023</lastUpdated>
   </versioning>
 </metadata>
