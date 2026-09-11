@@ -99,8 +99,7 @@ void SetGlobalVariable::dump()
 #endif
 
 ByteCodeBlock::ByteCodeBlock()
-    : m_isAlive(true)
-    , m_shouldClearStack(false)
+    : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
     , m_isAccounted(false)
@@ -200,22 +199,22 @@ void ByteCodeBlock::clearByteCodeBlock(void* obj, void* cd)
 
 int ByteCodeBlock::clearByteCodeBlockFromDisclaimGC(void* obj)
 {
-#if !defined(NDEBUG)
+#ifdef GC_DEBUG
     obj = GC_USR_PTR_FROM_BASE(obj);
 #endif
     ByteCodeBlock* self = (ByteCodeBlock*)obj;
-    if (!self->m_isAlive) {
+    // m_vm also serves as the alive mark for this proc; see the comment on it in
+    // ByteCode.h for why
+    if (!self->m_vm) {
         // already freed
         return 0;
     }
-    self->m_isAlive = true;
     clearByteCodeBlock(obj, nullptr);
     return 0;
 }
 
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
-    : m_isAlive(true)
-    , m_shouldClearStack(false)
+    : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
     , m_needsExtendedExecutionState(false)
     , m_isAccounted(false)

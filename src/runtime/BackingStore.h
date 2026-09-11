@@ -221,8 +221,18 @@ private:
         void* m_deleterData;
         size_t m_maxByteLength;
     };
-    bool m_isAllocatedByPlatform;
-    bool m_isResizable;
+    // bitfields so the alive mark below packs into the same byte instead of costing this
+    // (very numerous) object a whole extra one
+    bool m_isAllocatedByPlatform : 1;
+    bool m_isResizable : 1;
+    // alive mark for clearNonSharedBackingStore. Must not reuse the vptr
+    // (word 0): GC_disclaim_and_reclaim (GCutil reclaim.c) writes the
+    // free-list link into word 0 the moment this disclaim proc first returns
+    // 0, and keeps re-invoking the proc on that same still-unreclaimed slot
+    // on every later sweep; GC_clear_block() zeroes everything *except* word
+    // 0, so a later revisit would read that stale link instead of a real
+    // vtable/zero and wrongly treat the slot as still alive.
+    bool m_gcDisclaimAlive : 1;
 };
 
 #if defined(ENABLE_THREADING)
@@ -383,6 +393,12 @@ public:
 private:
     SharedBackingStore(SharedDataBlockInfo* sharedInfo);
 
+    // Also doubles as the alive mark for clearSharedBackingStore: nulled out
+    // once the slot is disposed. Unlike the vptr (word 0), GC_clear_block()
+    // reliably zeroes this on every sweep pass, including revisits of an
+    // already-reclaimed slot -- see the comment on
+    // NonSharedBackingStore::m_gcDisclaimAlive for why word 0 can't be used
+    // for this.
     SharedDataBlockInfo* m_sharedDataBlockInfo;
 };
 #endif

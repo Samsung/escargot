@@ -220,10 +220,10 @@ void printEveryReachableGCObjects()
         [](void* obj, size_t bytes, void* cd) {
             size_t size;
             int kind = GC_get_kind_and_size(obj, &size);
-#if defined(NDEBUG)
-            void* ptr = obj;
-#else
+#ifdef GC_DEBUG
             void* ptr = GC_USR_PTR_FROM_BASE(obj);
+#else
+            void* ptr = obj;
 #endif
             size_t* totalSize = (size_t*)cd;
             *totalSize += size;
