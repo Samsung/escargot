@@ -187,6 +187,38 @@ jobs:
           ./build/android/escargot/build/**/escargot-*.jar
           !./build/android/escargot/build/**/escargot-*Shell.aar
         if-no-files-found: error
+    - name: Publish escargot-android Maven artifacts
+      # RELEASE.md's manual escargot-android publish recipe requires a real
+      # `./gradlew publish` run (unlike escargot-ubuntu/-mac, this is the only
+      # one of the three that needs the actual Gradle maven-publish task --
+      # it's what generates the .module/checksums/per-artifact files and
+      # updates maven-metadata.xml, none of which a plain `assemble` produces).
+      # `bundleHostJar` above already ran `assemble`, so `publish` here is
+      # incremental, not a second full native build.
+      # Named differently from build-artifact-* on purpose: merge-update-release
+      # globs build-artifact-* for escargot-*.aar/.jar to bundle into the
+      # human-facing Android-Release-<date>.zip release asset, and this
+      # directory's nested per-version .aar would get swept up by that same
+      # glob and land in that zip too -- undesired, since this artifact is the
+      # already-versioned Maven-package fragment, not another copy for the
+      # smoke-test zip.
+      working-directory: ./build/android
+      run: |
+        RELEASE_VERSION=$(cat ../../RELEASE_VERSION | sed 's/^v//')
+        BUILD_DATE=$(date -u +%Y%m%d)
+        SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        MAVEN_VERSION="${RELEASE_VERSION}.${BUILD_DATE}.0.${SHORT_SHA}"
+        OUT_DIR="$GITHUB_WORKSPACE/maven-publish-out/android/releases"
+        mkdir -p "$OUT_DIR"
+        sed -i "s#X.X.X.20XXXXXX.X.XXXXXXXX#${MAVEN_VERSION}#" escargot/build.gradle
+        sed -i "s#\"/XXXXXX/android/releases/\"#\"${OUT_DIR}/\"#" escargot/build.gradle
+        ./gradlew publish
+    - name: Upload escargot-android Maven publish output
+      uses: actions/upload-artifact@v6
+      with:
+        name: maven-publish-android
+        path: ./maven-publish-out/android/releases
+        if-no-files-found: error
 
   build-android-on-macos:
     runs-on: macos-15
