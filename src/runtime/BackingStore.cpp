@@ -59,6 +59,7 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     , m_deleterData(callbackData)
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
     , m_isResizable(false)
+    , m_gcDisclaimAlive(true)
 {
 }
 
@@ -69,18 +70,18 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     , m_maxByteLength(maxByteLength)
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
     , m_isResizable(true)
+    , m_gcDisclaimAlive(true)
 {
     ASSERT(isAllocatedByPlatform);
 }
 
 int NonSharedBackingStore::clearNonSharedBackingStore(void* obj)
 {
-#if !defined(NDEBUG)
+#ifdef GC_DEBUG
     obj = GC_USR_PTR_FROM_BASE(obj);
 #endif
     NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
-    // check vptr to see if this is still a valid NonSharedBackingStore
-    if (*(void**)self == nullptr) {
+    if (!self->m_gcDisclaimAlive) {
         // already freed
         return 0;
     }
@@ -89,8 +90,9 @@ int NonSharedBackingStore::clearNonSharedBackingStore(void* obj)
     } else {
         self->m_deleter(self->m_data, self->m_maxByteLength, nullptr);
     }
-    // zero the vptr to mark as cleaned
-    *(void**)self = nullptr;
+    // mark cleaned; must not use the vptr (word 0) for this -- see the
+    // comment on m_gcDisclaimAlive in BackingStore.h
+    self->m_gcDisclaimAlive = false;
     return 0;
 }
 
@@ -186,18 +188,22 @@ SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
 
 int SharedBackingStore::clearSharedBackingStore(void* obj)
 {
-#if !defined(NDEBUG)
+#ifdef GC_DEBUG
     obj = GC_USR_PTR_FROM_BASE(obj);
 #endif
     SharedBackingStore* self = (SharedBackingStore*)obj;
-    // check vptr to see if this is still a valid SharedBackingStore
-    if (*(void**)self == nullptr) {
+    // Read m_sharedDataBlockInfo directly rather than through the virtual
+    // sharedDataBlockInfo() accessor (which ASSERTs it's non-null) -- and
+    // not the vptr (word 0), which GC_clear_block() does not zero on a
+    // revisit of an already-reclaimed slot; see the comment on this member
+    // in BackingStore.h.
+    if (self->m_sharedDataBlockInfo == nullptr) {
         // already freed
         return 0;
     }
-    self->sharedDataBlockInfo()->deref();
-    // zero the vptr to mark as cleaned
-    *(void**)self = nullptr;
+    self->m_sharedDataBlockInfo->deref();
+    // mark cleaned
+    self->m_sharedDataBlockInfo = nullptr;
     return 0;
 }
 

@@ -3805,7 +3805,6 @@ public:
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLOCData(Context* c, ByteCodeLOCData* locData);
 
-    bool m_isAlive : 1; // alive mark for clearByteCodeBlock
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
     bool m_needsExtendedExecutionState : 1;
@@ -3837,7 +3836,14 @@ public:
     // and cached here so that clearByteCodeBlock() can do its bookkeeping without walking
     // the (possibly already dead) CodeBlock. never traced -- the VMInstance outlives its
     // bytecode, and once it is gone isFinalized() stops us from touching it.
-    // empty only for the stack allocated block used while generating bytecode
+    // empty only for the stack allocated block used while generating bytecode (which never
+    // reaches the GC), or once clearByteCodeBlockFromDisclaimGC has disposed of the block --
+    // it is also the alive mark that proc checks, so it must not be assigned anywhere else.
+    // it can double as that mark precisely because it is not word 0: GC_disclaim_and_reclaim
+    // (GCutil reclaim.c) writes the free-list link into word 0 the moment the disclaim proc
+    // first returns 0, then keeps re-invoking the proc on that same still-unreclaimed slot on
+    // every later sweep; GC_clear_block() zeroes everything *except* word 0, so a sentinel
+    // living there would read back that stale link -- not 0 -- on a revisit.
     Optional<VMInstance*> m_vm;
     Optional<std::vector<uint8_t>*> m_locData;
 };
