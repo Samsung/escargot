@@ -72,18 +72,20 @@ public:
             : m_context(context)
             , m_waiter(waiter)
             , m_promise(promise)
+            , m_notified(false)
         {
         }
 
         Context* m_context;
         Waiter* m_waiter;
         Optional<Object*> m_promise;
+        std::condition_variable m_conditionVariable;
+        bool m_notified;
     };
 
     struct Waiter {
         void* m_blockAddress;
         std::mutex m_mutex;
-        std::condition_variable m_waiter;
         std::vector<std::shared_ptr<WaiterItem>> m_waiterList;
     };
 
