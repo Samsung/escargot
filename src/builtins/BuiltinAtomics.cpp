@@ -470,14 +470,12 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                 bool notified = true;
                 {
                     std::unique_lock<std::mutex> ul(WL->m_mutex);
-                    bool isExistOnWaiterList = std::find(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem) != WL->m_waiterList.end();
-                    if (isExistOnWaiterList) {
-                        if (t == std::numeric_limits<double>::infinity()) {
-                            WL->m_waiter.wait(ul);
-                        } else {
-                            notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
-                        }
+                    if (t == std::numeric_limits<double>::infinity()) {
+                        waiterItem->m_conditionVariable.wait(ul, [&] { return waiterItem->m_notified; });
+                    } else {
+                        notified = waiterItem->m_conditionVariable.wait_for(ul, std::chrono::milliseconds((int64_t)t), [&] { return waiterItem->m_notified; });
                     }
+                    WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
                 }
 
                 {
@@ -493,10 +491,6 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                         }
                     }
                 }
-                {
-                    std::unique_lock<std::mutex> ul(WL->m_mutex);
-                    WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
-                }
                 Global::platform()->markJSJobFromAnotherThreadExists(context);
             };
             std::unique_lock<std::mutex> ul(state.context()->vmInstance()->asyncWaiterDataMutex());
@@ -510,14 +504,13 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         return Value(resultObject.value());
     } else {
         bool notified = true;
-        WL->m_mutex.unlock();
-        std::unique_lock<std::mutex> ul(WL->m_mutex);
+        std::unique_lock<std::mutex> ul(WL->m_mutex, std::adopt_lock);
         auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL));
         WL->m_waiterList.push_back(waiterItem);
         if (t == std::numeric_limits<double>::infinity()) {
-            WL->m_waiter.wait(ul);
+            waiterItem->m_conditionVariable.wait(ul, [&] { return waiterItem->m_notified; });
         } else {
-            notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+            notified = waiterItem->m_conditionVariable.wait_for(ul, std::chrono::milliseconds((int64_t)t), [&] { return waiterItem->m_notified; });
         }
         WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
         if (notified) {
@@ -578,9 +571,10 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
     //     c. Perform NotifyWaiter(WL, W).
     //     d. Set n to n + 1.
     for (n = 0; n < count; n++) {
-        const auto& f = WL->m_waiterList.front();
-        f->m_waiter->m_waiter.notify_one();
+        auto f = WL->m_waiterList.front();
         WL->m_waiterList.erase(WL->m_waiterList.begin());
+        f->m_notified = true;
+        f->m_conditionVariable.notify_one();
     }
     // 13. Perform LeaveCriticalSection(WL).
     WL->m_mutex.unlock();

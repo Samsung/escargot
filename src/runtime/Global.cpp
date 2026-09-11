@@ -113,7 +113,10 @@ void Global::finalize()
 
 #if defined(ENABLE_THREADING)
     for (size_t i = 0; i < g_waiter.size(); i++) {
-        g_waiter[i]->m_waiter.notify_all();
+        for (auto& waiterItem : g_waiter[i]->m_waiterList) {
+            waiterItem->m_notified = true;
+            waiterItem->m_conditionVariable.notify_one();
+        }
         delete g_waiter[i];
     }
     std::vector<Waiter*>().swap(g_waiter);
