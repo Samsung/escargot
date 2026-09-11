@@ -59,7 +59,8 @@
 #endif
 
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) && !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
-extern char FillOpcodeTableAsmLbl[];
+// Keep the entry label assembler-local so profilers do not split interpret() at this point.
+extern char FillOpcodeTableAsmLbl[] asm(".LFillOpcodeTableAsmLbl");
 const void* FillOpcodeTableAddress[] = { &FillOpcodeTableAsmLbl[0] };
 #endif
 
@@ -2213,20 +2214,37 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 
 #if !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
-            asm volatile("FillOpcodeTableAsmLbl:");
+            asm volatile(".LFillOpcodeTableAsmLbl:");
 #endif
 
+            // The label addresses must be computed here, in this cold block. Passing each
+            // one through an empty asm makes it opaque to the optimizer; without that,
+            // GCC's SLP vectorizer packs them into SSE constants and materializes the
+            // whole table in interpret()'s entry block, so every JS call pays for it
+            // (i686: 314 extra instructions per call) even though this runs once.
+#define OPAQUE_LABEL_ADDRESS(dest, opcode) \
+    void* dest = &&opcode##OpcodeLbl;      \
+    asm volatile(""                        \
+                 : "+r"(dest));
+
 #if defined(ENABLE_CODE_CACHE)
-#define REGISTER_TABLE(opcode)                                          \
-    g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl; \
-    g_opcodeTable.m_opcodeMap.insert(std::make_pair(&&opcode##OpcodeLbl, (size_t)opcode##Opcode));
+#define REGISTER_TABLE(opcode)                                                                  \
+    {                                                                                           \
+        OPAQUE_LABEL_ADDRESS(labelAddress, opcode)                                              \
+        g_opcodeTable.m_addressTable[opcode##Opcode] = labelAddress;                            \
+        g_opcodeTable.m_opcodeMap.insert(std::make_pair(labelAddress, (size_t)opcode##Opcode)); \
+    }
 #else
-#define REGISTER_TABLE(opcode) \
-    g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl;
+#define REGISTER_TABLE(opcode)                                       \
+    {                                                                \
+        OPAQUE_LABEL_ADDRESS(labelAddress, opcode)                   \
+        g_opcodeTable.m_addressTable[opcode##Opcode] = labelAddress; \
+    }
 #endif
             FOR_EACH_BYTECODE(REGISTER_TABLE);
 
 #undef REGISTER_TABLE
+#undef OPAQUE_LABEL_ADDRESS
 #endif
             return Value();
         }
