@@ -78,9 +78,17 @@ void Heap::initialize()
 
 void Heap::finalize()
 {
+#if defined(ESCARGOT_GOOGLE_PERF)
+    // These collections exist to drain finalizers and to leave a clean heap
+    // for leak checking; the process is about to exit either way. Under a
+    // CPU profiler they are pure noise -- each one is a full mark of the
+    // whole live heap that reclaims nothing, and they land in the profile as
+    // marking cost that no part of the workload asked for.
+#else
     for (size_t i = 0; i < 5; i++) {
         GC_gcollect_and_unmap();
     }
+#endif
 }
 
 void Heap::printGCHeapUsage()

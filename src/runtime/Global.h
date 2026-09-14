@@ -49,12 +49,16 @@ public:
     static void finalize();
     static void finalizeGC()
     {
+#if defined(ESCARGOT_GOOGLE_PERF)
+        // See Heap::finalize(): shutdown collections are profiler noise.
+#else
         GC_register_mark_stack_func([]() {});
         GC_gcollect_and_unmap();
         GC_gcollect_and_unmap();
         GC_gcollect_and_unmap();
         GC_invoke_finalizers();
         GC_register_mark_stack_func(nullptr);
+#endif
     }
 
     static Platform* platform();
