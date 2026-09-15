@@ -104,62 +104,20 @@ inline Value::Value(bool b)
 
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
-    u.asBits.tag = OtherPointerTag;
+    u.asBits.tag = PointerTag;
     u.asBits.payload = static_cast<int32_t>(ptr);
 }
 
 inline Value::Value(PointerValue* ptr)
 {
-    // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTypeTag() & (POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
-        u.asBits.tag = OtherPointerTag;
-    } else {
-        u.asBits.tag = ObjectPointerTag;
-    }
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
+    u.asBits.tag = PointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
 }
 
 inline Value::Value(const PointerValue* ptr)
 {
-    if (ptr->isObject()) {
-        u.asBits.tag = ObjectPointerTag;
-    } else {
-        u.asBits.tag = OtherPointerTag;
-    }
+    u.asBits.tag = PointerTag;
     u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
-}
-
-inline Value::Value(const PointerValue* ptr, FromNonObjectPointerTag)
-{
-    ASSERT(!ptr->isObject());
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
-}
-
-inline Value::Value(String* ptr)
-{
-    ASSERT(ptr != NULL);
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
-}
-
-inline Value::Value(const String* ptr)
-{
-    ASSERT(ptr != NULL);
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<String*>(ptr));
-}
-
-inline Value::Value(Object* ptr)
-{
-    u.asBits.tag = ObjectPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
-}
-
-inline Value::Value(const Object* ptr)
-{
-    u.asBits.tag = ObjectPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
 }
 
 inline Value::Value(FromTagTag, uint32_t tag)
@@ -242,7 +200,7 @@ ALWAYS_INLINE bool Value::isNumber() const
 
 inline bool Value::isPointerValue() const
 {
-    return (tag() == ObjectPointerTag) || (tag() == OtherPointerTag);
+    return (tag() == PointerTag);
 }
 
 inline bool Value::isUndefined() const
@@ -282,17 +240,17 @@ inline PointerValue* Value::asPointerValue() const
 
 inline bool Value::isString() const
 {
-    return tag() == OtherPointerTag && asPointerValue()->isString();
+    return isPointerValue() && asPointerValue()->isString();
 }
 
 inline bool Value::isSymbol() const
 {
-    return tag() == OtherPointerTag && asPointerValue()->isSymbol();
+    return isPointerValue() && asPointerValue()->isSymbol();
 }
 
 inline bool Value::isBigInt() const
 {
-    return tag() == OtherPointerTag && asPointerValue()->isBigInt();
+    return isPointerValue() && asPointerValue()->isBigInt();
 }
 
 inline String* Value::asString() const
@@ -315,7 +273,24 @@ inline BigInt* Value::asBigInt() const
 
 inline bool Value::isObject() const
 {
-    return tag() == ObjectPointerTag;
+    return isPointerValue() && asPointerValue()->isObject();
+}
+
+inline bool Value::getObjectAndStructure(Object*& object, ObjectStructure*& structure) const
+{
+    if (UNLIKELY(!isPointerValue())) {
+        return false;
+    }
+
+    PointerValue* pointer = asPointerValue();
+    const size_t typeTagOrStructure = pointer->getTypeTag();
+    if (UNLIKELY(typeTagOrStructure & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
+        return false;
+    }
+
+    object = reinterpret_cast<Object*>(pointer);
+    structure = reinterpret_cast<ObjectStructure*>(typeTagOrStructure);
+    return true;
 }
 
 inline Object* Value::asObject() const
@@ -323,17 +298,17 @@ inline Object* Value::asObject() const
     return asPointerValue()->asObject();
 }
 
-inline bool Value::isFunction() const
+inline bool Value::isFunctionObject() const
 {
-    return isObject() && asPointerValue()->isFunctionObject();
+    return isPointerValue() && asPointerValue()->isFunctionObject();
 }
 
 inline bool Value::isExtendedNativeFunctionObject() const
 {
-    return isObject() && asPointerValue()->isExtendedNativeFunctionObject();
+    return isPointerValue() && asPointerValue()->isExtendedNativeFunctionObject();
 }
 
-inline FunctionObject* Value::asFunction() const
+inline FunctionObject* Value::asFunctionObject() const
 {
     return asPointerValue()->asFunctionObject();
 }
@@ -561,17 +536,34 @@ inline bool Value::isObject() const
     return isPointerValue() && asPointerValue()->isObject();
 }
 
+inline bool Value::getObjectAndStructure(Object*& object, ObjectStructure*& structure) const
+{
+    if (UNLIKELY(!isPointerValue())) {
+        return false;
+    }
+
+    PointerValue* pointer = asPointerValue();
+    const size_t typeTagOrStructure = pointer->getTypeTag();
+    if (UNLIKELY(typeTagOrStructure & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
+        return false;
+    }
+
+    object = reinterpret_cast<Object*>(pointer);
+    structure = reinterpret_cast<ObjectStructure*>(typeTagOrStructure);
+    return true;
+}
+
 inline Object* Value::asObject() const
 {
     return asPointerValue()->asObject();
 }
 
-inline bool Value::isFunction() const
+inline bool Value::isFunctionObject() const
 {
     return isPointerValue() && asPointerValue()->isFunctionObject();
 }
 
-inline FunctionObject* Value::asFunction() const
+inline FunctionObject* Value::asFunctionObject() const
 {
     return asPointerValue()->asFunctionObject();
 }
@@ -741,11 +733,7 @@ ALWAYS_INLINE double Value::asNumber() const
 
 inline bool Value::isPrimitive() const
 {
-#ifdef ESCARGOT_32
-    return tag() != ObjectPointerTag;
-#else
-    return isUndefined() || isNull() || isNumber() || isString() || isBoolean() || isSymbol() || isBigInt();
-#endif
+    return !isObject();
 }
 
 inline bool Value::isCallable() const
@@ -1046,6 +1034,16 @@ inline Value Value::toCanonicalizeKeyedCollectionKey(ExecutionState&) const
         }
     }
     return *this;
+}
+
+inline bool Value::isArrayObject() const
+{
+    return isPointerValue() && asPointerValue()->hasArrayObjectTag();
+}
+
+inline ArrayObject* Value::asArrayObject() const
+{
+    return asPointerValue()->asArrayObject();
 }
 
 } // namespace Escargot

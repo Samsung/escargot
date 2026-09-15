@@ -208,8 +208,8 @@ static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value 
     FunctionObject* targetFunction = nullptr;
     bool needThrow = false;
     if (thisValue.isCallable()) {
-        if (thisValue.isFunction()) {
-            targetFunction = thisValue.asFunction();
+        if (thisValue.isFunctionObject()) {
+            targetFunction = thisValue.asFunctionObject();
             if (targetFunction->isScriptFunctionObject()) {
                 InterpretedCodeBlock* codeBlock = targetFunction->asScriptFunctionObject()->interpretedCodeBlock();
                 if (codeBlock->isStrict() || codeBlock->isArrowFunctionExpression() || codeBlock->isGenerator()) {

@@ -613,7 +613,7 @@ static void sendProperty(DebuggerEscargot* debugger, ExecutionState* state, Atom
             type |= DebuggerEscargot::ESCARGOT_VARIABLE_LONG_VALUE;
             valueStr = new (alloca(sizeof(StringView))) StringView(valueStr, 0, ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH);
         }
-    } else if (value.isFunction()) {
+    } else if (value.isFunctionObject()) {
         type = DebuggerEscargot::ESCARGOT_VARIABLE_FUNCTION;
     } else if (value.isObject()) {
         type = DebuggerEscargot::ESCARGOT_VARIABLE_OBJECT;

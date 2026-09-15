@@ -152,6 +152,7 @@ private:
     size_t m_typeTag;
     bf_t m_bf;
 };
+COMPILE_ASSERT(sizeof(BigInt) >= sizeof(PointerValue) + sizeof(size_t), "BigInt must contain the type-tag word read by PointerValue::getTypeTag()");
 } // namespace Escargot
 
 #endif

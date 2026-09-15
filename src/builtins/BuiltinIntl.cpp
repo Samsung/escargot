@@ -118,7 +118,7 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
     FunctionObject* fn;
     auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyCompareFunction()));
     if (g.hasValue()) {
-        fn = g.value(state, internalSlot).asFunction();
+        fn = g.value(state, internalSlot).asFunctionObject();
     } else {
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlCollatorCompare, 2, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompareFunction()), Value(fn), internalSlot);
@@ -423,7 +423,7 @@ static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value th
     FunctionObject* fn;
     auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyFormat()));
     if (g.hasValue()) {
-        fn = g.value(state, internalSlot).asFunction();
+        fn = g.value(state, internalSlot).asFunctionObject();
     } else {
         fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlNumberFormatFormat, 1, NativeFunctionInfo::Strict));
         internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().lazyFormat()), Value(fn), internalSlot);

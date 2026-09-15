@@ -77,6 +77,7 @@ private:
     Optional<String*> m_description; // nullptr of desc represents `undefined`
     Optional<SymbolFinalizerData*> m_finalizerData; // handle finalizer data of Symbol
 };
+COMPILE_ASSERT(sizeof(Symbol) >= sizeof(PointerValue) + sizeof(size_t), "Symbol must contain the type-tag word read by PointerValue::getTypeTag()");
 } // namespace Escargot
 
 #endif

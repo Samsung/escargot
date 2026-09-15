@@ -628,8 +628,8 @@ String* Object::constructorName(ExecutionState& state)
         Optional<Object*> object = getPrototypeObject(state);
         if (object) {
             Value c = object->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, object.value());
-            if (c.isFunction()) {
-                ctor = c.asFunction();
+            if (c.isFunctionObject()) {
+                ctor = c.asFunctionObject();
             }
         }
     }
@@ -729,8 +729,8 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
                 ensureExtendedExtraData()->m_meaningfulConstructor = lastPrototype.asObject()->asScriptClassConstructorPrototypeObject()->constructor();
             } else {
                 auto ctor = lastPrototype.asObject()->readConstructorSlotWithoutState();
-                if (ctor && ctor.value().isFunction()) {
-                    ensureExtendedExtraData()->m_meaningfulConstructor = ctor.value().asFunction();
+                if (ctor && ctor.value().isFunctionObject()) {
+                    ensureExtendedExtraData()->m_meaningfulConstructor = ctor.value().asFunctionObject();
                 }
             }
         }

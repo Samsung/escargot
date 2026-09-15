@@ -2732,8 +2732,8 @@ OptionalRef<ContextRef> ObjectRef::creationContext()
 
         auto ctor = o->readConstructorSlotWithoutState();
         if (ctor) {
-            if (ctor.value().isFunction()) {
-                return toRef(ctor.value().asFunction()->codeBlock()->context());
+            if (ctor.value().isFunctionObject()) {
+                return toRef(ctor.value().asFunctionObject()->codeBlock()->context());
             }
         }
 

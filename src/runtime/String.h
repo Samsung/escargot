@@ -685,6 +685,8 @@ protected:
     }
 };
 
+COMPILE_ASSERT(sizeof(String) >= sizeof(PointerValue) + sizeof(size_t), "String must contain the type-tag word read by PointerValue::getTypeTag()");
+
 #if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(OS_WINDOWS)
 COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 4, "");
 #endif
