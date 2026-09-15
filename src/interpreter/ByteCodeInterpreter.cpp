@@ -647,36 +647,32 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             GetObject* code = (GetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            Object* obj;
-            if (LIKELY(willBeObject.isObject())) {
-                obj = willBeObject.asObject();
-                if (LIKELY(obj->hasArrayObjectTag())) {
-                    ArrayObject* arr = reinterpret_cast<ArrayObject*>(obj);
-                    if (LIKELY(arr->isFastModeArray())) {
-                        // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
-                        // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
-                        if (LIKELY(property.isUInt32())) {
-                            uint32_t idx = property.asUInt32();
-                            if (LIKELY(idx < arr->arrayLength(*state))) {
-                                registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
-                                ADD_PROGRAM_COUNTER(GetObject);
-                                NEXT_INSTRUCTION();
-                            }
-                        } else if (property.isString()) {
-                            uint32_t idx = property.asString()->tryToUseAsIndex32();
-                            if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
-                                registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
-                                ADD_PROGRAM_COUNTER(GetObject);
-                                NEXT_INSTRUCTION();
-                            }
+            if (LIKELY(willBeObject.isArrayObject())) {
+                ArrayObject* arr = willBeObject.asArrayObject();
+                if (LIKELY(arr->isFastModeArray())) {
+                    // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
+                    // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+                    if (LIKELY(property.isUInt32())) {
+                        uint32_t idx = property.asUInt32();
+                        if (LIKELY(idx < arr->arrayLength(*state))) {
+                            registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                            ADD_PROGRAM_COUNTER(GetObject);
+                            NEXT_INSTRUCTION();
                         }
-                        // For Object or other types, fall through to slow case to avoid side effects
+                    } else if (property.isString()) {
+                        uint32_t idx = property.asString()->tryToUseAsIndex32();
+                        if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
+                            registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                            ADD_PROGRAM_COUNTER(GetObject);
+                            NEXT_INSTRUCTION();
+                        }
                     }
-                } else {
-                    registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(*state, property, willBeObject);
-                    ADD_PROGRAM_COUNTER(GetObject);
-                    NEXT_INSTRUCTION();
+                    // For Object or other types, fall through to slow case to avoid side effects
                 }
+            } else if (willBeObject.isObject()) {
+                registerFile[code->m_storeRegisterIndex] = willBeObject.asObject()->getIndexedPropertyValue(*state, property, willBeObject);
+                ADD_PROGRAM_COUNTER(GetObject);
+                NEXT_INSTRUCTION();
             }
             JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
         }
@@ -687,7 +683,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasArrayObjectTag())) {
+            if (LIKELY(willBeObject.isArrayObject())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->isFastModeArray())) {
                     // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
@@ -718,18 +714,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             Object* obj;
+            ObjectStructure* objStructure;
             {
                 const Value& receiver = registerFile[code->m_objectRegisterIndex];
-                if (LIKELY(receiver.isObject())) {
-                    obj = receiver.asObject();
-                } else {
+                if (UNLIKELY(!receiver.getObjectAndStructure(obj, objStructure))) {
                     obj = InterpreterSlowPath::fastToObject(*state, receiver);
+                    objStructure = obj->structure();
                 }
             }
 
             auto cacheData = code->m_simpleInlineCache->m_cachedStructures;
             auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
-            ObjectStructure* const objStructure = obj->structure();
             for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
                 if (cacheData[currentCacheIndex] == objStructure) {
                     ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
@@ -813,10 +808,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& receiver = registerFile[code->m_objectRegisterIndex];
             Object* obj;
-            if (LIKELY(receiver.isObject())) {
-                obj = receiver.asObject();
-            } else {
+            ObjectStructure* objStructure;
+            if (UNLIKELY(!receiver.getObjectAndStructure(obj, objStructure))) {
                 obj = InterpreterSlowPath::fastToObject(*state, receiver);
+                objStructure = obj->structure();
             }
 
             GetObjectInlineCacheComplexCaseData* inlineCache = code->m_complexInlineCache;
@@ -825,13 +820,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 const size_t cSiz = entry.m_cachedhiddenClassChainLength;
                 Object* cur = obj;
                 bool ok = true;
-                for (size_t i = 0; i < cSiz; i++) {
+                if (UNLIKELY(cSiz > 0 && objStructure != entry.m_cachedhiddenClassChain[0])) {
+                    ok = false;
+                }
+                for (size_t i = 1; ok && i < cSiz; i++) {
+                    cur = cur->Object::getPrototypeObject(*state);
                     if (UNLIKELY(!cur || cur->structure() != entry.m_cachedhiddenClassChain[i])) {
                         ok = false;
                         break;
-                    }
-                    if (i + 1 < cSiz) {
-                        cur = cur->Object::getPrototypeObject(*state);
                     }
                 }
                 if (LIKELY(ok)) {
@@ -860,12 +856,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            if (LIKELY(willBeObject.isObject())) {
-                Object* obj = willBeObject.asObject();
+            Object* obj;
+            ObjectStructure* testItem;
+            if (LIKELY(willBeObject.getObjectAndStructure(obj, testItem))) {
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache && code->m_inlineCacheProtoTraverseMaxIndex == 0);
 
-                ObjectStructure* testItem = obj->structure();
                 const size_t cacheFillCount = inlineCache->m_cache.size();
                 // Squeezing optimization for register-starved architectures (like ARM32).
                 // Unrolling the cache loop to explicit static checks for indices 0 and 1
@@ -920,8 +916,9 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            if (LIKELY(willBeObject.isObject())) {
-                Object* obj = willBeObject.asObject();
+            Object* obj;
+            ObjectStructure* objStructure;
+            if (LIKELY(willBeObject.getObjectAndStructure(obj, objStructure))) {
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache);
                 const size_t checkCount = inlineCache->m_cache.size();
@@ -934,13 +931,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     const size_t cSiz0 = entry0.m_cachedhiddenClassChainLength;
                     Object* cur0 = obj;
                     bool ok0 = true;
-                    for (size_t i = 0; i < cSiz0; i++) {
+                    if (UNLIKELY(cSiz0 > 0 && objStructure != entry0.m_cachedHiddenClassChainData[0])) {
+                        ok0 = false;
+                    }
+                    for (size_t i = 1; ok0 && i < cSiz0; i++) {
+                        cur0 = cur0->Object::getPrototypeObject(*state);
                         if (UNLIKELY(!cur0 || cur0->structure() != entry0.m_cachedHiddenClassChainData[i])) {
                             ok0 = false;
                             break;
-                        }
-                        if (i + 1 < cSiz0) {
-                            cur0 = cur0->Object::getPrototypeObject(*state);
                         }
                     }
                     if (LIKELY(ok0)) {
@@ -964,13 +962,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         const size_t cSiz1 = entry1.m_cachedhiddenClassChainLength;
                         Object* cur1 = obj;
                         bool ok1 = true;
-                        for (size_t i = 0; i < cSiz1; i++) {
+                        if (UNLIKELY(cSiz1 > 0 && objStructure != entry1.m_cachedHiddenClassChainData[0])) {
+                            ok1 = false;
+                        }
+                        for (size_t i = 1; ok1 && i < cSiz1; i++) {
+                            cur1 = cur1->Object::getPrototypeObject(*state);
                             if (UNLIKELY(!cur1 || cur1->structure() != entry1.m_cachedHiddenClassChainData[i])) {
                                 ok1 = false;
                                 break;
-                            }
-                            if (i + 1 < cSiz1) {
-                                cur1 = cur1->Object::getPrototypeObject(*state);
                             }
                         }
                         if (LIKELY(ok1)) {
@@ -3859,7 +3858,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
         if (UNLIKELY(code->m_needsToUpdateFunctionName)) {
             Value propertyStringOrSymbol(propertyName.isSymbol() ? Value(propertyName.symbol()) : Value(propertyName.toValue().toString(state)));
             Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "", 0);
-            newValue.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+            newValue.asFunctionObject()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
         }
 
         if (data->m_wasStructureComputed) {
@@ -3902,7 +3901,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             newDesc = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
         } else {
             data->m_canStoreStructureOnCode = false;
-            FunctionObject* fn = registerFile[code->m_valueIndex].asFunction();
+            FunctionObject* fn = registerFile[code->m_valueIndex].asFunctionObject();
             updateObjectGetterSetterFunctionName(state, fn, registerFile[code->m_keyIndex], code->m_isGetter);
             int flag = ObjectStructurePropertyDescriptor::ConfigurablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent;
             if (code->m_isGetter) {
@@ -4352,7 +4351,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
         registerFile[code->m_classConstructorRegisterIndex] = constructor;
         registerFile[code->m_classPrototypeRegisterIndex] = proto;
     } else {
-        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunction()->asScriptClassConstructorFunctionObject();
+        auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunctionObject()->asScriptClassConstructorFunctionObject();
         if (code->m_stage == InitializeClass::SetFieldSize) {
             classConstructor->m_instanceFieldInitData.resize(code->m_fieldSize);
             classConstructor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
@@ -4392,9 +4391,9 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
             Object* contextObject = classConstructor->asScriptClassConstructorFunctionObject();
 
             if (isGetter || isSetter) {
-                classConstructor->addPrivateAccessor(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v.asFunction(), isGetter, isSetter);
+                classConstructor->addPrivateAccessor(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v.asFunctionObject(), isGetter, isSetter);
             } else if (type == ScriptClassConstructorFunctionObject::PrivateFieldMethod) {
-                classConstructor->addPrivateMethod(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v.asFunction());
+                classConstructor->addPrivateMethod(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v.asFunctionObject());
             } else {
                 classConstructor->addPrivateField(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v);
             }
@@ -4743,8 +4742,8 @@ NEVER_INLINE void InterpreterSlowPath::binaryInOperation(ExecutionState& state, 
 NEVER_INLINE Value InterpreterSlowPath::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
 {
     if (!constructor.isConstructor()) {
-        if (constructor.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
+        if (constructor.isFunctionObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunctionObject()->codeBlock()->functionName());
         }
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     }
@@ -5332,9 +5331,9 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(Executio
     Value propertyStringOrSymbol = property.isSymbol() ? property : property.toString(state);
 
     if (code->m_redefineFunctionOrClassName) {
-        ASSERT(value.isFunction());
+        ASSERT(value.isFunctionObject());
         Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "", 0);
-        value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+        value.asFunctionObject()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     }
 
     willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
@@ -5576,14 +5575,14 @@ NEVER_INLINE void InterpreterSlowPath::updateObjectGetterSetterFunctionName(Exec
 
 NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object)
 {
-    FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
+    FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunctionObject();
     Value pName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
     updateObjectGetterSetterFunctionName(state, fn, pName, code->m_isGetter);
     JSGetterSetter* gs;
     if (code->m_isGetter) {
-        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
+        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunctionObject(), Value(Value::EmptyValue));
     } else {
-        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+        gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunctionObject());
     }
     ObjectPropertyDescriptor desc(*gs, code->m_presentAttribute);
     object->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, pName), desc);
@@ -5594,7 +5593,7 @@ NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& 
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     const size_t minCacheFillCount = 2;
     if (object->structure() == code->m_inlineCachedStructureBefore) {
-        FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
+        FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunctionObject();
         updateObjectGetterSetterFunctionName(state, fn,
                                              code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex], code->m_isGetter);
         JSGetterSetter* gs;

@@ -20,6 +20,7 @@
 #ifndef __EscargotObjectStructure__
 #define __EscargotObjectStructure__
 
+#include "runtime/String.h"
 #include "runtime/AtomicString.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/ObjectStructurePropertyName.h"

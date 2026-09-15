@@ -1248,6 +1248,11 @@ protected:
     DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DECLARE_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef DECLARE_SCRIPTSIMPLEFUNCTIONOBJECT_TAGS
 };
+
+// getTypeTag() reads the first word following PointerValue's vtable slot.
+// Keep that ABI assumption explicit: concrete JS pointer values below must
+// provide at least one additional word for their structure or type tag.
+COMPILE_ASSERT(sizeof(PointerValue) == sizeof(size_t), "PointerValue must contain only its vtable slot");
 } // namespace Escargot
 
 #endif

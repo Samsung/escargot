@@ -31,7 +31,7 @@ String* Symbol::descriptionString() const
 
 Value Symbol::descriptionValue() const
 {
-    return m_description ? m_description.value() : Value();
+    return m_description ? Value(m_description.value()) : Value();
 }
 
 Symbol* Symbol::fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey)

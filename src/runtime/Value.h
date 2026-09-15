@@ -36,6 +36,8 @@ class String;
 class BigInt;
 class FunctionObject;
 class ExtendedNativeFunctionObject;
+class ArrayObject;
+class ObjectStructure;
 class VMInstance;
 
 union ValueDescriptor {
@@ -104,6 +106,24 @@ public:
     static constexpr const double MinusZeroIndex = std::numeric_limits<double>::min();
     static constexpr const double UndefinedIndex = std::numeric_limits<double>::max();
 #ifdef ESCARGOT_32
+    /*
+     * [32-bit Value Tagging Layout & Remaining Slots]
+     * Tag range: [LowestTag (0xfffffff1), 0xffffffff] (total 15 slots)
+     * - Any tag < 0xfffffff1 is considered a Double value.
+     * - Any tag >= 0xfffffff1 is an immediate value.
+     *
+     * Current allocation:
+     *   0xffffffff : EmptyValueTag
+     *   0xfffffffe : Int32Tag
+     *   0xfffffffd : BooleanFalseTag
+     *   0xfffffffc : PointerTag
+     *   0xfffffff9 : BooleanTrueTag
+     *   0xfffffff5 : NullTag
+     *   0xfffffff1 : UndefinedTag (LowestTag)
+     *
+     * Remaining slots (7 slots):
+     *   0xfffffffa, 0xfffffffb, 0xfffffff8, 0xfffffff7, 0xfffffff6, 0xfffffff4, 0xfffffff3, 0xfffffff2
+     */
     enum : uint32_t { EmptyValueTag = ~ValueEmpty };
     enum : uint32_t { BooleanFalseTag = ~ValueFalse };
     enum : uint32_t { BooleanTrueTag = ~ValueTrue };
@@ -113,10 +133,9 @@ public:
 
     // Any value which last bit is not set
     enum { Int32Tag = 0xfffffffe - 0 };
-    enum { OtherPointerTag = 0xfffffffe - 2 };
-    enum { ObjectPointerTag = 0xfffffffe - 4 };
+    enum { PointerTag = 0xfffffffe - 2 };
 
-    COMPILE_ASSERT((size_t)LowestTag < (size_t)ObjectPointerTag, "");
+    COMPILE_ASSERT((size_t)LowestTag < (size_t)PointerTag, "");
 #endif
 
     enum NullInitTag { Null };
@@ -137,20 +156,11 @@ public:
     explicit Value(TrueInitTag);
     explicit Value(FalseInitTag);
     explicit Value(FromPayloadTag, intptr_t ptr);
-#ifdef ESCARGOT_64
-    explicit Value(PointerValue* ptr);
-    Value(const PointerValue* ptr);
-#else
-    Value(PointerValue* ptr);
-    Value(const PointerValue* ptr);
-    enum FromNonObjectPointerTag { FromNonObjectPointer };
-    Value(const PointerValue* ptr, FromNonObjectPointerTag);
-    Value(Object* ptr);
-    Value(const Object* ptr);
-    Value(String* ptr);
-    Value(const String* ptr);
+#ifdef ESCARGOT_32
     explicit Value(FromTagTag, uint32_t tag);
 #endif
+    Value(PointerValue* ptr);
+    Value(const PointerValue* ptr);
 
     // Numbers
     Value(EncodeAsDoubleTag, const double&);
@@ -199,16 +209,19 @@ public:
     uint64_t asRawData() const;
     inline PointerValue* asPointerValue() const;
     inline Object* asObject() const;
-    inline FunctionObject* asFunction() const;
+    inline FunctionObject* asFunctionObject() const;
     inline ExtendedNativeFunctionObject* asExtendedNativeFunctionObject() const;
+    inline ArrayObject* asArrayObject() const;
     inline String* asString() const;
     inline Symbol* asSymbol() const;
     inline BigInt* asBigInt() const;
 
     // Querying the type.
     inline bool isEmpty() const;
-    inline bool isFunction() const;
+    inline bool isFunctionObject() const;
     inline bool isExtendedNativeFunctionObject() const;
+    inline bool isArrayObject() const;
+    inline bool getObjectAndStructure(Object*& object, ObjectStructure*& structure) const;
     inline bool isUndefined() const;
     inline bool isNull() const;
     inline bool isUndefinedOrNull() const
@@ -287,6 +300,24 @@ public:
 #ifdef ESCARGOT_32
     uint32_t tag() const;
 #elif ESCARGOT_64
+    /*
+     * [64-bit Value Tagging Layout & Remaining Slots]
+     * Format:
+     * - If high 16 bits are 0x0000:
+     *   - If bit 1 (TagBitTypeOther = 0x2) is 0: standard 48-bit pointer.
+     *   - If bit 1 is 1: Immediate/other value of form TagBitTypeOther | (X << TagTypeShift) (where TagTypeShift = 2)
+     *
+     * Current allocation:
+     *   X = 0 (ValueFalse, value 0x2)
+     *   X = 1 (ValueTrue, value 0x6)
+     *   X = 2 (ValueNull, value 0xa)
+     *   X = 3 (ValueUndefined, value 0xe)
+     *   (ValueEmpty is 0x0)
+     *
+     * Remaining slots:
+     *   X can be any value in range [4, 2^46 - 1].
+     *   This yields 2^46 - 4 (approx. 70 trillion) remaining slots.
+     */
 // These values are #defines since using static const integers here is a ~1% regression!
 
 // This value is 2^48, used to encode doubles such that the encoded value will begin

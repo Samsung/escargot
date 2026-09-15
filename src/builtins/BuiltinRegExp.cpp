@@ -202,8 +202,8 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     bool match = false;
     while (proto) {
         Value c = proto->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, proto.value());
-        if (c.isFunction()) {
-            if (c.asFunction()->codeBlock()->context() == calleeContext) {
+        if (c.isFunctionObject()) {
+            if (c.asFunctionObject()->codeBlock()->context() == calleeContext) {
                 match = true;
                 break;
             }

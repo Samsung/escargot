@@ -65,7 +65,7 @@ std::string objectToStringTypeName(const Value object)
     std::string objectType;
     if (object.isSymbol()) {
         objectType = "symbol";
-    } else if (object.isFunction()) {
+    } else if (object.isFunctionObject()) {
         objectType = "function";
     } else if (object.isUndefined()) {
         objectType = "undefined";

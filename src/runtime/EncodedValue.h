@@ -97,6 +97,7 @@ private:
     size_t m_typeTag;
 #endif
 };
+COMPILE_ASSERT(sizeof(NumberInEncodedValue) >= sizeof(size_t) * 2, "NumberInEncodedValue must contain the type-tag word read at offset sizeof(size_t)");
 #pragma pack(pop)
 
 namespace EncodedValueImpl {
@@ -294,22 +295,11 @@ public:
 #endif
         }
 
-#ifdef ESCARGOT_32
-        const uint8_t tag = *(reinterpret_cast<size_t*>(ptr) + 1);
-        if (LIKELY(!(tag & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA))) {
-            return Value(reinterpret_cast<Object*>(ptr));
-        } else if (UNLIKELY(tag == POINTER_VALUE_NUMBER_TAG_IN_DATA)) {
-            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
-        } else {
-            return Value(reinterpret_cast<PointerValue*>(ptr), Value::FromNonObjectPointer);
-        }
-#else
         if (UNLIKELY(readPointerIsNumberEncodedValue(ptr))) {
             return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
-#endif
     }
 
     ALWAYS_INLINE operator Value() const

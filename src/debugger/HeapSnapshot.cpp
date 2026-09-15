@@ -121,8 +121,8 @@ void HeapSnapshot::addObjectProperties(ExecutionState* state, uint64_t& id)
                     continue;
                 }
 
-                if (val.isFunction()) {
-                    propertyId = addNode(Node::closure, name, id, sizeof(*val.asFunction()));
+                if (val.isFunctionObject()) {
+                    propertyId = addNode(Node::closure, name, id, sizeof(*val.asFunctionObject()));
                     addEdge(Node::Edge::property, owner, propertyId, "Function");
                 } else if (val.isBigInt()) {
                     propertyId = addNode(Node::bigint, name, id, sizeof(*val.asBigInt()));
