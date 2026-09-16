@@ -178,7 +178,7 @@ bool DebuggerTcp::send(const uint8_t type, const void* buffer, const size_t leng
     }
 
     size_t headerLength = 0;
-    uint8_t message[ESCARGOT_WS_HEADER_BASE_SIZE + ESCARGOT_WS_EXT_LEN16_SIZE + length];
+    uint8_t message[ESCARGOT_WS_BUFFER_SIZE];
     message[0] = ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT | m_websocketMessageType;
 
     // Server-to-client WebSocket frames are not masked,
