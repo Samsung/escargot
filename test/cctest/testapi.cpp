@@ -23,7 +23,11 @@ using namespace Escargot;
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <vector>
+#if defined(__linux__)
+#include <sys/resource.h>
+#endif
 
 static bool stringEndsWith(const std::string& str, const std::string& suffix)
 {
@@ -124,13 +128,13 @@ static std::string evalScript(ContextRef* context, StringRef* str, StringRef* fi
     std::string result;
     auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
 
-    char str[256];
+    char strBuf[256];
     if (!evalResult.isSuccessful()) {
-        snprintf(str, sizeof(str), "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
-        result += str;
+        snprintf(strBuf, sizeof(strBuf), "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        result += strBuf;
         for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
-            snprintf(str, sizeof(str), "%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
-            result += str;
+            snprintf(strBuf, sizeof(strBuf), "%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+            result += strBuf;
         }
         return result;
     }
@@ -2531,12 +2535,28 @@ TEST(ReloadableString, Basic)
         return ValueRef::createUndefined(); }, string, &d);
 }
 
+// records the native stack address seen at the bottom of the calibration/real
+// recursion below, so DisabledStackOverflow.Basic can measure real stack cost
+// per recursion level instead of relying on a guessed depth constant
+static void* g_disabledStackOverflowProbeAddress;
+
 TEST(DisabledStackOverflow, Basic)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        {
+            FunctionObjectRef::NativeFunctionInfo probeInfo(AtomicStringRef::create(state->context(), "stack_probe"), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+                int marker;
+                g_disabledStackOverflowProbeAddress = &marker;
+                return ValueRef::createUndefined();
+            },
+                                                              0, true, false);
+            FunctionObjectRef* probeRef = FunctionObjectRef::create(state, probeInfo);
+            state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("stack_probe"), probeRef, true, true, true);
+        }
+
         // generate a recursive function that triggers a stack overflow exception
         ValueRef* argv[1] = { StringRef::createFromASCII("n") };
-        StringRef* funcBody = StringRef::createFromASCII("if (n == 0) { return; } else { return stack_func(n - 1); }");
+        StringRef* funcBody = StringRef::createFromASCII("if (n == 0) { stack_probe(); return; } else { return stack_func(n - 1); }");
         FunctionObjectRef* funcRef = FunctionObjectRef::create(state, AtomicStringRef::create(state->context(), "stack_func"), 1, argv, funcBody);
         state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("stack_func"), funcRef, true, true, true);
         return ValueRef::createUndefined();
@@ -2546,9 +2566,39 @@ TEST(DisabledStackOverflow, Basic)
         state->checkStackOverflow();
         // Block stack overflow, but should be carefully used
         // StackOverflowDisabler just unlocks the stack limit (3MB) predefined in Escargot
-        // It cannot prevent system stack overflow
+        // It cannot prevent system stack overflow, so the depth used below must stay
+        // safely inside the real native stack. That cost-per-level isn't a fixed
+        // number -- it depends on build type (Debug vs Release), optimization, and
+        // arch -- so measure it live with a small calibration run instead of guessing.
         StackOverflowDisabler disabler(state);
-        ValueRef* argv[1] = { ValueRef::create(2000) };
+
+#if defined(__linux__)
+        int topMarker;
+        const uintptr_t spAtTop = reinterpret_cast<uintptr_t>(&topMarker);
+
+        const size_t calibrationDepth = 100;
+        ValueRef* calibrationArgv[1] = { ValueRef::create((size_t)calibrationDepth) };
+        state->context()->globalObject()->getOwnProperty(state, StringRef::createFromASCII("stack_func"))->call(state, ValueRef::createUndefined(), 1, calibrationArgv);
+        const uintptr_t bytesPerLevel = (spAtTop - reinterpret_cast<uintptr_t>(g_disabledStackOverflowProbeAddress)) / calibrationDepth;
+        EXPECT_GT(bytesPerLevel, (uintptr_t)0);
+
+        // use only half of this process' real stack budget for the recursion below,
+        // which leaves a large safety margin below the point of an actual OS-level
+        // stack overflow while still going far deeper than Escargot's own soft limit
+        struct rlimit rl;
+        getrlimit(RLIMIT_STACK, &rl);
+        // RLIMIT_STACK may report "unlimited" (e.g. some CI containers); the actual
+        // backing stack region is never really unbounded, so clamp to a sane cap
+        rlim_t stackBudget = std::min<rlim_t>(rl.rlim_cur, 64 * 1024 * 1024);
+        const size_t safeDepth = (stackBudget / 2) / bytesPerLevel;
+#else
+        // RLIMIT_STACK-based calibration above is Linux-only (the only platform
+        // cctest actually runs on in CI); elsewhere fall back to a small depth that
+        // comfortably clears Escargot's soft limit but stays cheap on any real stack
+        const size_t safeDepth = 300;
+#endif
+
+        ValueRef* argv[1] = { ValueRef::create((size_t)safeDepth) };
         state->context()->globalObject()->getOwnProperty(state, StringRef::createFromASCII("stack_func"))->call(state, ValueRef::createUndefined(), 1, argv);
         return ValueRef::createUndefined();
     });
@@ -2558,8 +2608,9 @@ TEST(DisabledStackOverflow, Basic)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         state->checkStackOverflow();
-        // delete 'stack_func' property from GlobalObject
+        // delete 'stack_func' and 'stack_probe' properties from GlobalObject
         EXPECT_TRUE(state->context()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("stack_func")));
+        EXPECT_TRUE(state->context()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("stack_probe")));
         return ValueRef::createUndefined();
     });
 }

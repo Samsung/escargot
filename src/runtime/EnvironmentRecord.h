@@ -1182,7 +1182,7 @@ public:
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    virtual IdentifierRecordVector* getRecordVector()
+    virtual IdentifierRecordVector* getRecordVector() override
     {
         return &m_recordVector;
     }

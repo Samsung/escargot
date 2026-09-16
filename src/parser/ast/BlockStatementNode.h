@@ -73,7 +73,7 @@ public:
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    virtual bool isEmptyStatement(void)
+    virtual bool isEmptyStatement(void) override
     {
         StatementNode* node = firstChild();
         while (node) {

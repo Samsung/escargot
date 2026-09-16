@@ -487,7 +487,7 @@ ValueRef* NativeSpawnSync(ExecutionStateRef* state, ValueRef* thisValue, size_t 
         // deadlock this parent.
         struct pollfd fds[2];
         int nfds = 0;
-        int stdoutIdx = -1, stderrIdx = -1;
+        int stdoutIdx = -1;
         if (captureStdout) {
             stdoutIdx = nfds;
             fds[nfds].fd = stdoutPipe[0];
@@ -495,7 +495,6 @@ ValueRef* NativeSpawnSync(ExecutionStateRef* state, ValueRef* thisValue, size_t 
             nfds++;
         }
         if (captureStderr) {
-            stderrIdx = nfds;
             fds[nfds].fd = stderrPipe[0];
             fds[nfds].events = POLLIN;
             nfds++;

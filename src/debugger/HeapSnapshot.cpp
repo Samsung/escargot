@@ -105,17 +105,17 @@ void HeapSnapshot::addObjectProperties(ExecutionState* state, uint64_t& id)
             uint64_t propertyId = 0;
             if (val.isString()) {
                 propertyId = addNode(Node::string, name, id, sizeof(String));
-                addEdge(Node::Edge::property, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
+                addEdge(edgeType, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
             } else if (val.isNumber() || val.isBoolean()) {
                 propertyId = addNode(Node::number, name, id, sizeof(val.asNumber()));
-                addEdge(Node::Edge::property, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
+                addEdge(edgeType, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
             } else if (val.isSymbol()) {
                 propertyId = addNode(Node::symbol, name, id, sizeof(*val.asSymbol()));
                 std::string str = val.asSymbol()->symbolDescriptiveString()->toNonGCUTF8StringData();
-                addEdge(Node::Edge::property, owner, propertyId, str);
+                addEdge(edgeType, owner, propertyId, str);
             } else if (val.isUndefined()) {
                 propertyId = addNode(Node::hidden, name, id, sizeof(Value));
-                addEdge(Node::Edge::property, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
+                addEdge(edgeType, owner, propertyId, val.toString(*state)->toNonGCUTF8StringData());
             } else if (val.isObject()) {
                 if (m_seenObjects.find(val.asObject()) != m_seenObjects.end()) {
                     continue;
@@ -123,16 +123,16 @@ void HeapSnapshot::addObjectProperties(ExecutionState* state, uint64_t& id)
 
                 if (val.isFunctionObject()) {
                     propertyId = addNode(Node::closure, name, id, sizeof(*val.asFunctionObject()));
-                    addEdge(Node::Edge::property, owner, propertyId, "Function");
+                    addEdge(edgeType, owner, propertyId, "Function");
                 } else if (val.isBigInt()) {
                     propertyId = addNode(Node::bigint, name, id, sizeof(*val.asBigInt()));
-                    addEdge(Node::Edge::property, owner, propertyId, "BigInt");
+                    addEdge(edgeType, owner, propertyId, "BigInt");
                 } else if (val.asObject()->isArray(*state)) {
                     propertyId = addNode(Node::array, name, id, sizeof(*val.asObject()));
-                    addEdge(Node::Edge::property, owner, propertyId, "Array");
+                    addEdge(edgeType, owner, propertyId, "Array");
                 } else {
                     propertyId = addNode(Node::object, name, id, sizeof(*val.asObject()));
-                    addEdge(Node::Edge::property, owner, propertyId, "Object");
+                    addEdge(edgeType, owner, propertyId, "Object");
                 }
 
                 m_seenObjects.insert(val.asObject());

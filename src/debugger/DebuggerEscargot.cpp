@@ -399,6 +399,8 @@ bool DebuggerEscargot::doEval(ExecutionState* state, Optional<ByteCodeBlock*> by
         m_clientSourceName = new UTF16String(str, sourceNameLen);
         m_clientSourceData = new UTF16String(str + sourceNameLen + 1, size - sourceNameLen - 1);
         return false;
+    } else {
+        goto error;
     }
 
     if (type == ESCARGOT_MESSAGE_WATCH_8BIT || type == ESCARGOT_MESSAGE_WATCH_16BIT) {
