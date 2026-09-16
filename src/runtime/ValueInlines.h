@@ -22,6 +22,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/String.h"
+#include "runtime/Symbol.h"
 #include "runtime/BigInt.h"
 
 namespace Escargot {
@@ -62,20 +63,20 @@ inline Value::Value(ForceUninitializedTag)
 
 inline Value::Value()
 {
-    u.asBits.tag = UndefinedTag;
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = ValueUndefinedPayload;
 }
 
 inline Value::Value(NullInitTag)
 {
-    u.asBits.tag = NullTag;
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = ValueNullPayload;
 }
 
 inline Value::Value(UndefinedInitTag)
 {
-    u.asBits.tag = UndefinedTag;
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = ValueUndefinedPayload;
 }
 
 inline Value::Value(EmptyValueInitTag)
@@ -86,47 +87,94 @@ inline Value::Value(EmptyValueInitTag)
 
 inline Value::Value(TrueInitTag)
 {
-    u.asBits.tag = BooleanTrueTag;
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = ValueTruePayload;
 }
 
 inline Value::Value(FalseInitTag)
 {
-    u.asBits.tag = BooleanFalseTag;
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = ValueFalsePayload;
 }
 
 inline Value::Value(bool b)
 {
-    u.asBits.tag = BooleanFalseTag ^ (((uint32_t)b) << TagTypeShift);
-    u.asBits.payload = 0;
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = b ? ValueTruePayload : ValueFalsePayload;
 }
 
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
-    u.asBits.tag = PointerTag;
+    u.asBits.tag = OtherPointerTag;
     u.asBits.payload = static_cast<int32_t>(ptr);
+}
+
+inline Value::Value(FromEncodedPayloadTag, intptr_t bits)
+{
+    const uintptr_t kind = pointerKind(static_cast<uintptr_t>(bits));
+    ASSERT(kind == ObjectPointerKind || kind == OtherPointerKind);
+    u.asBits.tag = static_cast<uint32_t>(ObjectPointerTag) + static_cast<uint32_t>(kind >> 1);
+    u.asBits.payload = static_cast<int32_t>(reinterpret_cast<uintptr_t>(untagPointer(static_cast<uintptr_t>(bits))));
+}
+
+inline Value::Value(FromObjectEncodedPayloadTag, intptr_t bits)
+{
+    ASSERT(bits != ValueEmpty);
+    ASSERT(pointerKind(static_cast<uintptr_t>(bits)) == ObjectPointerKind);
+    u.asBits.tag = ObjectPointerTag;
+    u.asBits.payload = static_cast<int32_t>(bits);
 }
 
 inline Value::Value(PointerValue* ptr)
 {
-    u.asBits.tag = PointerTag;
+    // PointerValue* is an erased static type at several native/API boundaries.
+    // Preserve object semantics there; typed constructors below remain load-free.
+    ASSERT(ptr);
+    u.asBits.tag = ptr->isObject() ? static_cast<uint32_t>(ObjectPointerTag) : static_cast<uint32_t>(OtherPointerTag);
     u.asBits.payload = reinterpret_cast<int32_t>(ptr);
 }
 
 inline Value::Value(const PointerValue* ptr)
+    : Value(const_cast<PointerValue*>(ptr))
 {
-    u.asBits.tag = PointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
 }
 
-inline Value::Value(FromTagTag, uint32_t tag)
+inline Value::Value(Object* ptr)
 {
-    ASSERT(tag == BooleanFalseTag || tag == BooleanTrueTag || tag == NullTag
-           || tag == UndefinedTag || tag == EmptyValueTag);
+    u.asBits.tag = ObjectPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
 
-    u.asBits.tag = tag;
-    u.asBits.payload = 0;
+inline Value::Value(const Object* ptr)
+    : Value(const_cast<Object*>(ptr))
+{
+}
+inline Value::Value(String* ptr)
+{
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
+inline Value::Value(const String* ptr)
+    : Value(const_cast<String*>(ptr))
+{
+}
+inline Value::Value(Symbol* ptr)
+{
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
+inline Value::Value(const Symbol* ptr)
+    : Value(const_cast<Symbol*>(ptr))
+{
+}
+inline Value::Value(BigInt* ptr)
+{
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+}
+inline Value::Value(const BigInt* ptr)
+    : Value(const_cast<BigInt*>(ptr))
+{
 }
 
 inline Value::Value(EncodeAsDoubleTag, const double& d)
@@ -157,7 +205,12 @@ inline uint32_t Value::tag() const
 
 inline intptr_t Value::payload() const
 {
-    return u.asBits.payload;
+    return rawPayload();
+}
+
+inline intptr_t Value::rawPayload() const
+{
+    return static_cast<uint32_t>(u.asBits.payload);
 }
 
 ALWAYS_INLINE bool Value::isInt32() const
@@ -179,7 +232,7 @@ inline int32_t Value::asInt32() const
 inline bool Value::asBoolean() const
 {
     ASSERT(isBoolean());
-    return u.asBits.tag == BooleanTrueTag;
+    return u.asBits.tag == OtherPointerTag && rawPayload() == ValueTruePayload;
 }
 
 inline double Value::asDouble() const
@@ -200,36 +253,38 @@ ALWAYS_INLINE bool Value::isNumber() const
 
 inline bool Value::isPointerValue() const
 {
-    return (tag() == PointerTag);
+    return tag() == ObjectPointerTag || (tag() == OtherPointerTag && !isImmediatePayload(rawPayload()));
+}
+
+inline bool Value::isOpaquePointer() const
+{
+    return tag() == OtherPointerTag && !isImmediatePayload(rawPayload());
 }
 
 inline bool Value::isUndefined() const
 {
-    return tag() == UndefinedTag;
+    return tag() == OtherPointerTag && rawPayload() == ValueUndefinedPayload;
 }
 
 inline bool Value::isNull() const
 {
-    return tag() == NullTag;
+    return tag() == OtherPointerTag && rawPayload() == ValueNullPayload;
 }
 
 inline bool Value::isBoolean() const
 {
-    /* BooleanTrueTag and BooleanFalseTag are inverted values
-       of ValueTrue and ValueFalse respectively. */
-    COMPILE_ASSERT(BooleanFalseTag == (BooleanTrueTag | (1 << TagTypeShift)), "");
-
-    return (tag() | (1 << TagTypeShift)) == BooleanFalseTag;
+    const uintptr_t payload = rawPayload();
+    return tag() == OtherPointerTag && (payload == ValueFalsePayload || payload == ValueTruePayload);
 }
 
 inline bool Value::isTrue() const
 {
-    return tag() == BooleanTrueTag;
+    return tag() == OtherPointerTag && rawPayload() == ValueTruePayload;
 }
 
 inline bool Value::isFalse() const
 {
-    return tag() == BooleanFalseTag;
+    return tag() == OtherPointerTag && rawPayload() == ValueFalsePayload;
 }
 
 inline PointerValue* Value::asPointerValue() const
@@ -240,17 +295,17 @@ inline PointerValue* Value::asPointerValue() const
 
 inline bool Value::isString() const
 {
-    return isPointerValue() && asPointerValue()->isString();
+    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isString();
 }
 
 inline bool Value::isSymbol() const
 {
-    return isPointerValue() && asPointerValue()->isSymbol();
+    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isSymbol();
 }
 
 inline bool Value::isBigInt() const
 {
-    return isPointerValue() && asPointerValue()->isBigInt();
+    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isBigInt();
 }
 
 inline String* Value::asString() const
@@ -271,41 +326,31 @@ inline BigInt* Value::asBigInt() const
     return asPointerValue()->asBigInt();
 }
 
-inline bool Value::isObject() const
+inline void* Value::asOpaquePointer() const
 {
-    return isPointerValue() && asPointerValue()->isObject();
+    ASSERT(isOpaquePointer());
+    return reinterpret_cast<void*>(u.asBits.payload);
 }
 
-inline bool Value::getObjectAndStructure(Object*& object, ObjectStructure*& structure) const
+inline bool Value::isObject() const
 {
-    if (UNLIKELY(!isPointerValue())) {
-        return false;
-    }
-
-    PointerValue* pointer = asPointerValue();
-    const size_t typeTagOrStructure = pointer->getTypeTag();
-    if (UNLIKELY(typeTagOrStructure & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
-        return false;
-    }
-
-    object = reinterpret_cast<Object*>(pointer);
-    structure = reinterpret_cast<ObjectStructure*>(typeTagOrStructure);
-    return true;
+    return tag() == ObjectPointerTag;
 }
 
 inline Object* Value::asObject() const
 {
-    return asPointerValue()->asObject();
+    ASSERT(isObject());
+    return reinterpret_cast<Object*>(u.asBits.payload);
 }
 
 inline bool Value::isFunctionObject() const
 {
-    return isPointerValue() && asPointerValue()->isFunctionObject();
+    return isObject() && asPointerValue()->isFunctionObject();
 }
 
 inline bool Value::isExtendedNativeFunctionObject() const
 {
-    return isPointerValue() && asPointerValue()->isExtendedNativeFunctionObject();
+    return isObject() && asPointerValue()->isExtendedNativeFunctionObject();
 }
 
 inline FunctionObject* Value::asFunctionObject() const
@@ -356,7 +401,12 @@ inline Value::Value(FalseInitTag)
 
 inline Value::Value(FromPayloadTag, intptr_t ptr)
 {
-    u.ptr = (PointerValue*)ptr;
+    u.asPointerBits = tagPointer(reinterpret_cast<void*>(ptr), OpaquePointerKind);
+}
+
+inline Value::Value(FromEncodedPayloadTag, intptr_t bits)
+{
+    u.asPointerBits = static_cast<uintptr_t>(bits);
 }
 
 inline Value::Value(bool b)
@@ -366,12 +416,36 @@ inline Value::Value(bool b)
 
 inline Value::Value(PointerValue* ptr)
 {
-    u.ptr = ptr;
+    // PointerValue* is an erased static type at several native/API boundaries.
+    // Preserve object semantics there; typed constructors below remain load-free.
+    ASSERT(ptr);
+    u.asPointerBits = tagPointer(ptr, ptr->isObject() ? ObjectPointerKind : OtherPointerKind);
 }
 
 inline Value::Value(const PointerValue* ptr)
+    : Value(const_cast<PointerValue*>(ptr))
 {
-    u.ptr = const_cast<PointerValue*>(ptr);
+}
+
+inline Value::Value(Object* ptr) { u.asPointerBits = tagPointer(ptr, ObjectPointerKind); }
+inline Value::Value(const Object* ptr)
+    : Value(const_cast<Object*>(ptr))
+{
+}
+inline Value::Value(String* ptr) { u.asPointerBits = tagPointer(ptr, OtherPointerKind); }
+inline Value::Value(const String* ptr)
+    : Value(const_cast<String*>(ptr))
+{
+}
+inline Value::Value(Symbol* ptr) { u.asPointerBits = tagPointer(ptr, OtherPointerKind); }
+inline Value::Value(const Symbol* ptr)
+    : Value(const_cast<Symbol*>(ptr))
+{
+}
+inline Value::Value(BigInt* ptr) { u.asPointerBits = tagPointer(ptr, OtherPointerKind); }
+inline Value::Value(const BigInt* ptr)
+    : Value(const_cast<BigInt*>(ptr))
+{
 }
 
 inline int64_t reinterpretDoubleToInt64(double value)
@@ -495,7 +569,17 @@ inline BigInt* Value::asBigInt() const
 
 inline bool Value::isPointerValue() const
 {
-    return !(u.asInt64 & TagMask);
+    const uintptr_t bits = u.asPointerBits;
+    if (bits <= ValueLast || (bits & TagTypeNumber))
+        return false;
+    const uintptr_t kind = pointerKind(bits);
+    return kind == ObjectPointerKind || kind == OtherPointerKind;
+}
+
+inline bool Value::isOpaquePointer() const
+{
+    const uintptr_t bits = u.asPointerBits;
+    return bits > ValueLast && !(bits & TagTypeNumber) && pointerKind(bits) == OpaquePointerKind;
 }
 
 inline bool Value::isUndefined() const
@@ -528,34 +612,25 @@ inline bool Value::isFalse() const
 inline PointerValue* Value::asPointerValue() const
 {
     ASSERT(isPointerValue());
-    return u.ptr;
+    return reinterpret_cast<PointerValue*>(untagPointer(u.asPointerBits));
+}
+
+inline void* Value::asOpaquePointer() const
+{
+    ASSERT(isOpaquePointer());
+    return untagPointer(u.asPointerBits);
 }
 
 inline bool Value::isObject() const
 {
-    return isPointerValue() && asPointerValue()->isObject();
-}
-
-inline bool Value::getObjectAndStructure(Object*& object, ObjectStructure*& structure) const
-{
-    if (UNLIKELY(!isPointerValue())) {
-        return false;
-    }
-
-    PointerValue* pointer = asPointerValue();
-    const size_t typeTagOrStructure = pointer->getTypeTag();
-    if (UNLIKELY(typeTagOrStructure & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
-        return false;
-    }
-
-    object = reinterpret_cast<Object*>(pointer);
-    structure = reinterpret_cast<ObjectStructure*>(typeTagOrStructure);
-    return true;
+    const uintptr_t bits = u.asPointerBits;
+    return bits > ValueLast && !(bits & TagTypeNumber) && pointerKind(bits) == ObjectPointerKind;
 }
 
 inline Object* Value::asObject() const
 {
-    return asPointerValue()->asObject();
+    ASSERT(isObject());
+    return reinterpret_cast<Object*>(u.asPointerBits);
 }
 
 inline bool Value::isFunctionObject() const
@@ -575,6 +650,11 @@ inline ExtendedNativeFunctionObject* Value::asExtendedNativeFunctionObject() con
 
 inline intptr_t Value::payload() const
 {
+    return rawPayload();
+}
+
+inline intptr_t Value::rawPayload() const
+{
     return u.asInt64;
 }
 
@@ -583,6 +663,20 @@ inline intptr_t Value::payload() const
 // ==============================================================================
 // ===common architecture========================================================
 // ==============================================================================
+
+template <typename T, typename std::enable_if<std::is_convertible<T*, PointerValue*>::value && !std::is_same<PointerValue, typename std::remove_cv<T>::type>::value, int>::type>
+inline Value::Value(T* ptr)
+{
+    typedef typename std::remove_cv<T>::type RawType;
+    const uintptr_t kind = std::is_base_of<Object, RawType>::value ? ObjectPointerKind : OtherPointerKind;
+#ifdef ESCARGOT_32
+    u.asBits.tag = kind == ObjectPointerKind ? static_cast<uint32_t>(ObjectPointerTag) : static_cast<uint32_t>(OtherPointerTag);
+    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
+#else
+    u.asPointerBits = tagPointer(ptr, kind);
+#endif
+}
+
 
 inline UnconvertibleDoubleToInt32::UnconvertibleDoubleToInt32(double&& v)
     : value(std::forward<double>(v))
@@ -733,7 +827,11 @@ ALWAYS_INLINE double Value::asNumber() const
 
 inline bool Value::isPrimitive() const
 {
+#ifdef ESCARGOT_32
+    return tag() != ObjectPointerTag;
+#else
     return !isObject();
+#endif
 }
 
 inline bool Value::isCallable() const
@@ -1038,7 +1136,7 @@ inline Value Value::toCanonicalizeKeyedCollectionKey(ExecutionState&) const
 
 inline bool Value::isArrayObject() const
 {
-    return isPointerValue() && asPointerValue()->hasArrayObjectTag();
+    return isObject() && asPointerValue()->hasArrayObjectTag();
 }
 
 inline ArrayObject* Value::asArrayObject() const

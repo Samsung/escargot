@@ -33,6 +33,20 @@ inline ValueRef* toRef(const Value& v)
 inline Value toImpl(const ValueRef* v)
 {
     ASSERT(v);
+    const uintptr_t bits = pointerBits(v);
+    if (!HAS_SMI_TAG(bits) && bits > ValueLast
+#if defined(ESCARGOT_64)
+        && !(bits & TagMask)
+#endif
+    ) {
+        const uintptr_t kind = pointerKind(bits);
+        if (kind == ObjectPointerKind) {
+            PointerValue* ptr = reinterpret_cast<PointerValue*>(bits);
+            if (!ptr->isObject()) {
+                return Value(Value::FromEncodedPayload, static_cast<intptr_t>(tagPointer(ptr, OtherPointerKind)));
+            }
+        }
+    }
     return Value(EncodedValue::fromPayload(v));
 }
 

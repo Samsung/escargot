@@ -2605,7 +2605,7 @@ bool ObjectRef::defineAccessorProperty(ExecutionStateRef* state, ValueRef* prope
 bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, ValueRef* propertyName, NativeDataAccessorPropertyData* publicData, bool actsLikeJSGetterSetter)
 {
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
-        NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+        NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
         return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr, actsLikeJSGetterSetter);
 
     if (!publicData->m_isWritable) {
@@ -2616,7 +2616,7 @@ bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, Value
         };
     } else {
         innerData->m_setter = [](ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
-            NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+            NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
             return publicData->m_setter(toRef(&state), toRef(self), toRef(receiver), publicData, toRef(setterInputData));
         };
     }
@@ -4841,7 +4841,7 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
     ObjectRef::NativeDataAccessorPropertyData* publicData = new ObjectRef::NativeDataAccessorPropertyData(isWritable, isEnumerable, isConfigurable, getter, setter);
 
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(isWritable, isEnumerable, isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
-        ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+        ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
         return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr, actsLikeJSGetterSetter);
 
     if (!isWritable) {
@@ -4852,7 +4852,7 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
         };
     } else {
         innerData->m_setter = [](ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
-            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
             return publicData->m_setter(toRef(&state), toRef(self), toRef(receiver), publicData, toRef(setterInputData));
         };
     }
@@ -4863,7 +4863,7 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
 void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyData* publicData, bool actsLikeJSGetterSetter)
 {
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
-                                                                                                   ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+                                                                                                   ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
                                                                                                    return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr);
     innerData->m_actsLikeJSGetterSetter = actsLikeJSGetterSetter;
     if (!publicData->m_isWritable) {
@@ -4874,7 +4874,7 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
         };
     } else {
         innerData->m_setter = [](ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData) -> bool {
-            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
+            ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.toValue().asOpaquePointer());
             return publicData->m_setter(toRef(&state), toRef(self), toRef(receiver), publicData, toRef(setterInputData));
         };
     }

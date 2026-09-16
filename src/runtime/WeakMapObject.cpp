@@ -50,7 +50,7 @@ GC_ms_entry* WeakMapObject::markEphemerons(GC_ms_entry* markStackTop, GC_ms_entr
     for (WeakMapObjectDataItem* item : self->m_storage) {
         PointerValue* key = item->key.unwrap();
         if (key != nullptr && isMarkedHeapObject(key) && item->data.isStoredInHeap()) {
-            void* value = reinterpret_cast<void*>(item->data.payload());
+            void* value = untagPointer(static_cast<uintptr_t>(item->data.payload()));
             markStackTop = GC_MARK_AND_PUSH_BOUNDED(value, markStackTop, markStackLimit, reinterpret_cast<void**>(&item->data),
                                                     leastHeapAddr, greatestHeapAddr);
         }

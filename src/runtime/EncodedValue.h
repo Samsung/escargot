@@ -202,7 +202,11 @@ public:
 
     EncodedValue()
     {
+#ifdef ESCARGOT_32
+        m_data.payload = static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(ValueUndefinedPayload), OtherPointerKind));
+#else
         m_data.payload = (intptr_t)(ValueUndefined);
+#endif
     }
 
     explicit EncodedValue(const uint32_t from)
@@ -221,12 +225,22 @@ public:
 
     explicit EncodedValue(PointerValue* v)
     {
-        m_data.payload = (intptr_t)v;
+        fromValueForCtor(Value(v));
+    }
+
+    template <typename T, typename std::enable_if<std::is_convertible<T*, PointerValue*>::value && !std::is_same<PointerValue, typename std::remove_cv<T>::type>::value, int>::type = 0>
+    explicit EncodedValue(T* v)
+    {
+        fromValueForCtor(Value(v));
     }
 
     bool isUndefined() const
     {
+#ifdef ESCARGOT_32
+        return m_data.payload == static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(ValueUndefinedPayload), OtherPointerKind));
+#else
         return m_data.payload == (intptr_t)(ValueUndefined);
+#endif
     }
 
     bool isStoredInHeap() const
@@ -235,8 +249,12 @@ public:
             return false;
         }
 
+#ifdef ESCARGOT_32
+        return m_data.payload != ValueEmpty && !isImmediatePayload(reinterpret_cast<uintptr_t>(untagPointer(static_cast<uintptr_t>(m_data.payload))));
+#else
         PointerValue* v = (PointerValue*)m_data.payload;
         return ((size_t)v) > ValueLast;
+#endif
     }
 
     intptr_t payload() const
@@ -275,31 +293,58 @@ public:
         return toValue().equalsToByTheSameValueZeroAlgorithm(state, other.toValue());
     }
 
-    template <const bool shouldTreatEmptyAsUndefined = false>
+    template <const bool shouldTreatEmptyAsUndefined = false, const bool checkEmpty = true>
     ALWAYS_INLINE Value toValue() const
     {
-        if (HAS_SMI_TAG(m_data.payload)) {
-            int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
-            return Value(value);
-        }
-
-        void* ptr = reinterpret_cast<void*>(m_data.payload);
-        if (UNLIKELY(((size_t)ptr) <= ValueLast)) {
-            if (shouldTreatEmptyAsUndefined && UNLIKELY(ptr == ValueEmpty)) {
-                return Value();
-            }
+        const uintptr_t bits = static_cast<uintptr_t>(m_data.payload);
 #ifdef ESCARGOT_32
-            return Value(Value::FromTag, ~((uint32_t)ptr));
-#else
-            return Value(reinterpret_cast<PointerValue*>(ptr));
-#endif
+        const uintptr_t kind = pointerKind(bits);
+        if (LIKELY(kind == ObjectPointerKind)) {
+            if (checkEmpty && UNLIKELY(bits == ValueEmpty)) {
+                if (shouldTreatEmptyAsUndefined)
+                    return Value();
+                return Value(Value::EmptyValue);
+            }
+            return Value(Value::FromObjectEncodedPayload, static_cast<intptr_t>(bits));
         }
 
-        if (UNLIKELY(readPointerIsNumberEncodedValue(ptr))) {
-            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
-        } else {
-            return Value(reinterpret_cast<PointerValue*>(ptr));
+        if (LIKELY(HAS_SMI_TAG(bits))) {
+            return Value(EncodedValueImpl::PlatformSmiTagging::SmiToInt(bits));
         }
+
+        if (UNLIKELY(kind == NumberPointerKind)) {
+            return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
+        }
+        ASSERT(kind == OtherPointerKind);
+        return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+#else
+        if (LIKELY(HAS_SMI_TAG(bits))) {
+            return Value(EncodedValueImpl::PlatformSmiTagging::SmiToInt(bits));
+        }
+
+        if (checkEmpty && UNLIKELY(bits == ValueEmpty)) {
+            if (shouldTreatEmptyAsUndefined)
+                return Value();
+            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+        }
+
+        const uintptr_t kind = pointerKind(bits);
+        if (UNLIKELY(bits <= ValueLast)) {
+            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+        }
+        if (UNLIKELY(kind == NumberPointerKind)) {
+            return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
+        }
+        ASSERT(kind == ObjectPointerKind || kind == OtherPointerKind);
+        return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+#endif
+    }
+
+    // Only for structure-guarded property IC slots that cannot contain Empty.
+    ALWAYS_INLINE Value toValueKnownNotEmpty() const
+    {
+        ASSERT(!isEmpty());
+        return toValue<false, false>();
     }
 
     ALWAYS_INLINE operator Value() const
@@ -344,9 +389,13 @@ public:
 
     const EncodedValue& operator=(PointerValue* from)
     {
-        ASSERT(from);
-        m_data.payload = (intptr_t)from;
-        return *this;
+        return operator=(Value(from));
+    }
+
+    template <typename T, typename std::enable_if<std::is_convertible<T*, PointerValue*>::value && !std::is_same<PointerValue, typename std::remove_cv<T>::type>::value, int>::type = 0>
+    const EncodedValue& operator=(T* from)
+    {
+        return operator=(Value(from));
     }
 
     bool operator==(const EncodedValue& other) const
@@ -356,13 +405,27 @@ public:
 
     ALWAYS_INLINE const EncodedValue& operator=(const Value& from)
     {
-        if (from.isPointerValue()) {
 #ifdef ESCARGOT_32
-            ASSERT(!from.isEmpty());
-#endif
-            m_data.payload = (intptr_t)from.asPointerValue();
+        if (from.isEmpty()) {
+            m_data.payload = ValueEmpty;
             return *this;
         }
+        if (from.tag() == Value::ObjectPointerTag) {
+            ASSERT(!from.isEmpty());
+            m_data.payload = from.rawPayload();
+            return *this;
+        }
+        if (from.tag() == Value::OtherPointerTag) {
+            ASSERT(!from.isEmpty());
+            m_data.payload = static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(from.rawPayload()), OtherPointerKind));
+            return *this;
+        }
+#else
+        if (from.isPointerValue() || from.isOpaquePointer()) {
+            m_data.payload = from.rawPayload();
+            return *this;
+        }
+#endif
 
         int32_t i32;
         if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
@@ -378,14 +441,13 @@ public:
             intptr_t payload = m_data.payload;
 
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
-                void* v = (void*)payload;
-                if (readPointerIsNumberEncodedValue(v)) {
-                    ((NumberInEncodedValue*)m_data.payload)->setValue(mutableFrom);
+                const uintptr_t bits = static_cast<uintptr_t>(payload);
+                if (pointerKind(bits) == NumberPointerKind) {
+                    reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
                     return *this;
                 }
             }
-            m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(mutableFrom));
-            ASSERT(readPointerIsNumberEncodedValue((void*)m_data.payload));
+            m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind));
             return *this;
         }
 
@@ -398,20 +460,30 @@ public:
     }
 
 protected:
-    static ALWAYS_INLINE bool readPointerIsNumberEncodedValue(void* ptr)
-    {
-        const uint8_t* b = reinterpret_cast<const uint8_t*>(reinterpret_cast<size_t*>(ptr) + 1);
-        return *b == POINTER_VALUE_NUMBER_TAG_IN_DATA;
-    }
-
     void fromValueForCtor(const Value& from)
     {
-        if (from.isPointerValue()) {
 #ifdef ESCARGOT_32
+        if (from.isEmpty()) {
+            m_data.payload = ValueEmpty;
+            return;
+        }
+        if (from.tag() == Value::ObjectPointerTag) {
             ASSERT(!from.isEmpty());
+            m_data.payload = from.rawPayload();
+            return;
+        }
+        if (from.tag() == Value::OtherPointerTag) {
+            ASSERT(!from.isEmpty());
+            m_data.payload = static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(from.rawPayload()), OtherPointerKind));
+            return;
+        }
+#else
+        if (from.isPointerValue() || from.isOpaquePointer()) {
+            m_data.payload = from.rawPayload();
+            return;
+        }
 #endif
-            m_data.payload = (intptr_t)from.asPointerValue();
-        } else {
+        {
             int32_t i32;
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
@@ -419,7 +491,7 @@ protected:
                 if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
                     m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
                 } else {
-                    m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
+                    m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind));
                 }
             } else {
 #ifdef ESCARGOT_32
@@ -458,8 +530,8 @@ public:
 
     EncodedSmallValue(const Value& from)
     {
-        if (from.isPointerValue()) {
-            setPayload(reinterpret_cast<intptr_t>(from.asPointerValue()));
+        if (from.isPointerValue() || from.isOpaquePointer()) {
+            setPayload(from.rawPayload());
         } else {
             int32_t i32;
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
@@ -468,7 +540,7 @@ public:
                 if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
                     setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
                 } else {
-                    setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
+                    setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind)));
                 }
             } else {
                 setPayload(from.payload());
@@ -505,27 +577,30 @@ public:
     template <const bool shouldTreatEmptyAsUndefined = false>
     ALWAYS_INLINE Value toValue() const
     {
-        if (isSMI()) {
-            // we cannot use EncodedValueImpl::PlatformSmiTagging::SmiToInt
-            // here because when convert negative from int32 to intptr_t loses
-            // negative value
-            int32_t value = (int)(m_data.payload) >> 1;
-            return Value(value);
+        const uintptr_t bits = static_cast<uintptr_t>(payload());
+        if (LIKELY(HAS_SMI_TAG(bits))) {
+            // payload() sign-extends negative SMI values before this shift.
+            return Value(static_cast<int32_t>(static_cast<intptr_t>(bits) >> 1));
         }
 
-        void* ptr = reinterpret_cast<void*>(payload());
-        if (((size_t)ptr) <= ValueLast) {
-            if (shouldTreatEmptyAsUndefined && UNLIKELY(ptr == ValueEmpty)) {
+        if (UNLIKELY(bits <= ValueLast)) {
+            if (shouldTreatEmptyAsUndefined && UNLIKELY(bits == ValueEmpty))
                 return Value();
-            }
-            return Value(reinterpret_cast<PointerValue*>(ptr));
+            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
         }
 
-        if (EncodedValue::readPointerIsNumberEncodedValue(ptr)) {
-            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
-        } else {
-            return Value(reinterpret_cast<PointerValue*>(ptr));
+        const uintptr_t kind = pointerKind(bits);
+        if (UNLIKELY(kind == NumberPointerKind)) {
+            return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
         }
+        ASSERT(kind == ObjectPointerKind || kind == OtherPointerKind);
+        return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+    }
+
+    ALWAYS_INLINE Value toValueKnownNotEmpty() const
+    {
+        ASSERT(!isEmpty());
+        return toValue();
     }
 
     ALWAYS_INLINE operator Value() const
@@ -540,7 +615,13 @@ public:
 
     void operator=(PointerValue* from)
     {
-        setPayload(reinterpret_cast<intptr_t>(from));
+        operator=(Value(from));
+    }
+
+    template <typename T, typename std::enable_if<std::is_convertible<T*, PointerValue*>::value && !std::is_same<PointerValue, typename std::remove_cv<T>::type>::value, int>::type = 0>
+    void operator=(T* from)
+    {
+        operator=(Value(from));
     }
 
     bool operator==(const EncodedSmallValue& other) const
@@ -556,8 +637,8 @@ public:
 
     ALWAYS_INLINE const EncodedSmallValue& operator=(const Value& from)
     {
-        if (from.isPointerValue()) {
-            setPayload(reinterpret_cast<intptr_t>(from.asPointerValue()));
+        if (from.isPointerValue() || from.isOpaquePointer()) {
+            setPayload(from.rawPayload());
             return *this;
         }
 
@@ -574,14 +655,13 @@ public:
             }
             auto pl = payload();
             if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
-                void* v = reinterpret_cast<void*>(pl);
-                if (EncodedValue::readPointerIsNumberEncodedValue(v)) {
-                    reinterpret_cast<NumberInEncodedValue*>(v)->setValue(mutableFrom);
+                const uintptr_t bits = static_cast<uintptr_t>(pl);
+                if (pointerKind(bits) == NumberPointerKind) {
+                    reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
                     return *this;
                 }
             }
-            setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(mutableFrom)));
-            ASSERT(EncodedValue::readPointerIsNumberEncodedValue((void*)payload()));
+            setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)));
             return *this;
         }
         setPayload(from.payload());
