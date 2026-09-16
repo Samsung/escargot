@@ -122,8 +122,10 @@ public:
     {
         if (hasAtomicString()) {
             return Value((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
+        } else if (hasSymbol()) {
+            return Value((Symbol*)m_data);
         } else {
-            return Value((PointerValue*)m_data);
+            return Value((String*)m_data);
         }
     }
 

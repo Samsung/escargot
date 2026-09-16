@@ -45,7 +45,7 @@ union ValueDescriptor {
 #ifdef ESCARGOT_32
     double asDouble;
 #elif ESCARGOT_64
-    PointerValue* ptr;
+    uintptr_t asPointerBits;
 #endif
     struct {
         int32_t payload;
@@ -85,6 +85,55 @@ inline ToType bitwise_cast(FromType from)
 // Array holes, and uninitialized Values, and maps to NULL pointer.
 #define ValueEmpty 0x0u
 
+// Heap allocations used by Value are at least 8-byte aligned. Object
+// pointers stay canonical; less common pointer kinds use an even low-bit tag.
+constexpr uintptr_t PointerKindMask = 0x7;
+constexpr uintptr_t ObjectPointerKind = 0x0;
+constexpr uintptr_t OtherPointerKind = 0x4;
+// A dedicated kind avoids a heap type-tag load on every non-object decode.
+constexpr uintptr_t NumberPointerKind = 0x2;
+constexpr uintptr_t OpaquePointerKind = OtherPointerKind;
+
+#ifdef ESCARGOT_32
+// Non-empty immediates share OtherPointerTag with non-object pointers on
+// 32-bit builds. These deliberately invalid, aligned payloads are never
+// dereferenced; keeping them canonical lets EncodedValue use one Other kind.
+constexpr uintptr_t ValueFalsePayload = 0x100;
+constexpr uintptr_t ValueTruePayload = 0x108;
+constexpr uintptr_t ValueNullPayload = 0x110;
+constexpr uintptr_t ValueUndefinedPayload = 0x118;
+
+ALWAYS_INLINE bool isImmediatePayload(uintptr_t payload)
+{
+    return payload == ValueFalsePayload || payload == ValueTruePayload
+        || payload == ValueNullPayload || payload == ValueUndefinedPayload;
+}
+#endif
+
+ALWAYS_INLINE uintptr_t pointerBits(const void* ptr)
+{
+    return reinterpret_cast<uintptr_t>(ptr);
+}
+
+ALWAYS_INLINE uintptr_t pointerKind(uintptr_t bits)
+{
+    return bits & PointerKindMask;
+}
+
+ALWAYS_INLINE uintptr_t tagPointer(const void* ptr, uintptr_t kind)
+{
+    const uintptr_t bits = pointerBits(ptr);
+    ASSERT((bits & PointerKindMask) == 0);
+    ASSERT((kind & ~PointerKindMask) == 0);
+    ASSERT((kind & 1) == 0);
+    return bits | kind;
+}
+
+ALWAYS_INLINE void* untagPointer(uintptr_t bits)
+{
+    return reinterpret_cast<void*>(bits & ~PointerKindMask);
+}
+
 #ifdef ESCARGOT_64
 #define CellPayloadOffset 0
 #else
@@ -115,27 +164,23 @@ public:
      * Current allocation:
      *   0xffffffff : EmptyValueTag
      *   0xfffffffe : Int32Tag
-     *   0xfffffffd : BooleanFalseTag
-     *   0xfffffffc : PointerTag
-     *   0xfffffff9 : BooleanTrueTag
-     *   0xfffffff5 : NullTag
-     *   0xfffffff1 : UndefinedTag (LowestTag)
+     *   0xfffffffc : OtherPointerTag (non-object pointers and non-empty immediates)
+     *   0xfffffffa : ObjectPointerTag
      *
-     * Remaining slots (7 slots):
-     *   0xfffffffa, 0xfffffffb, 0xfffffff8, 0xfffffff7, 0xfffffff6, 0xfffffff4, 0xfffffff3, 0xfffffff2
+     * Remaining slots (6 slots):
+     *   0xfffffffb, 0xfffffff8, 0xfffffff7, 0xfffffff6, 0xfffffff4, 0xfffffff3, 0xfffffff2
      */
     enum : uint32_t { EmptyValueTag = ~ValueEmpty };
-    enum : uint32_t { BooleanFalseTag = ~ValueFalse };
-    enum : uint32_t { BooleanTrueTag = ~ValueTrue };
-    enum : uint32_t { NullTag = ~ValueNull };
-    enum : uint32_t { UndefinedTag = ~ValueUndefined };
-    enum : uint32_t { LowestTag = UndefinedTag };
+    enum : uint32_t { LowestTag = 0xfffffff1 };
 
     // Any value which last bit is not set
     enum { Int32Tag = 0xfffffffe - 0 };
-    enum { PointerTag = 0xfffffffe - 2 };
+    enum { OtherPointerTag = 0xfffffffe - 2 };
+    enum { ObjectPointerTag = 0xfffffffe - 4 };
 
-    COMPILE_ASSERT((size_t)LowestTag < (size_t)PointerTag, "");
+    COMPILE_ASSERT(static_cast<uint32_t>(ObjectPointerTag) + (OtherPointerKind >> 1) == static_cast<uint32_t>(OtherPointerTag), "");
+
+    COMPILE_ASSERT((size_t)LowestTag < (size_t)ObjectPointerTag, "");
 #endif
 
     enum NullInitTag { Null };
@@ -145,8 +190,13 @@ public:
     enum FalseInitTag { False };
     enum EncodeAsDoubleTag { EncodeAsDouble };
     enum ForceUninitializedTag { ForceUninitialized };
+    // The argument must be the base of an 8-byte-aligned BDWGC allocation.
     enum FromPayloadTag { FromPayload };
-    enum FromTagTag { FromTag };
+    enum FromEncodedPayloadTag { FromEncodedPayload };
+#ifdef ESCARGOT_32
+    // The argument is an already-canonical, non-null object payload.
+    enum FromObjectEncodedPayloadTag { FromObjectEncodedPayload };
+#endif
 
     Value();
     explicit Value(ForceUninitializedTag);
@@ -156,11 +206,22 @@ public:
     explicit Value(TrueInitTag);
     explicit Value(FalseInitTag);
     explicit Value(FromPayloadTag, intptr_t ptr);
+    explicit Value(FromEncodedPayloadTag, intptr_t bits);
 #ifdef ESCARGOT_32
-    explicit Value(FromTagTag, uint32_t tag);
+    explicit Value(FromObjectEncodedPayloadTag, intptr_t bits);
 #endif
     Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
+    Value(Object* ptr);
+    Value(const Object* ptr);
+    Value(String* ptr);
+    Value(const String* ptr);
+    Value(Symbol* ptr);
+    Value(const Symbol* ptr);
+    Value(BigInt* ptr);
+    Value(const BigInt* ptr);
+    template <typename T, typename std::enable_if<std::is_convertible<T*, PointerValue*>::value && !std::is_same<PointerValue, typename std::remove_cv<T>::type>::value, int>::type = 0>
+    Value(T* ptr);
 
     // Numbers
     Value(EncodeAsDoubleTag, const double&);
@@ -208,6 +269,7 @@ public:
     double asNumber() const;
     uint64_t asRawData() const;
     inline PointerValue* asPointerValue() const;
+    inline void* asOpaquePointer() const;
     inline Object* asObject() const;
     inline FunctionObject* asFunctionObject() const;
     inline ExtendedNativeFunctionObject* asExtendedNativeFunctionObject() const;
@@ -221,7 +283,6 @@ public:
     inline bool isFunctionObject() const;
     inline bool isExtendedNativeFunctionObject() const;
     inline bool isArrayObject() const;
-    inline bool getObjectAndStructure(Object*& object, ObjectStructure*& structure) const;
     inline bool isUndefined() const;
     inline bool isNull() const;
     inline bool isUndefinedOrNull() const
@@ -237,6 +298,7 @@ public:
     bool isGetterSetter() const;
     bool isCustomGetterSetter() const;
     inline bool isPointerValue() const;
+    inline bool isOpaquePointer() const;
     bool isObject() const;
     bool isCallable() const;
     bool isConstructor() const;
@@ -335,7 +397,9 @@ public:
 #define TagMask (TagTypeNumber | TagBitTypeOther)
 #endif
 
+    // Raw Value bit pattern. Untag before dereferencing a stored pointer.
     intptr_t payload() const;
+    intptr_t rawPayload() const;
     static constexpr double maximumLength();
 
     ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static bool isInt32ConvertibleDouble(const double& d);

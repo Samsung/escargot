@@ -87,7 +87,7 @@ pthread_key_t ThreadLocal::g_gcEpochKey;
 #endif
 
 #if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
-static ASCIIStringFromExternalMemory g_emptyString("");
+alignas(8) static ASCIIStringFromExternalMemory g_emptyString("");
 #endif
 
 MAY_THREAD_LOCAL size_t ThreadLocal::g_stackLimit;
@@ -566,6 +566,12 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 #endif
     // Heap is initialized for each thread
     Heap::initialize();
+    // GC_THREAD_ISOLATE owns the valid-offset table per ThreadLocal GC.
+    // Heap::initialize() creates that table; register tagged displacements
+    // before this thread performs any application allocation.
+    GC_REGISTER_DISPLACEMENT(OtherPointerKind);
+    GC_REGISTER_DISPLACEMENT(NumberPointerKind);
+    GC_REGISTER_DISPLACEMENT(GC_FINALIZED_MALLOC_USER_OFFSET + OtherPointerKind);
 
     if (!ThreadLocal::g_emptyStringInstance) {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)

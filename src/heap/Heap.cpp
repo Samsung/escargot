@@ -21,6 +21,8 @@
 
 #include "Heap.h"
 #include "LeakChecker.h"
+#include "runtime/Value.h"
+#include <gc/gc_tiny_fl.h>
 #if defined(OS_BAREMETAL)
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
@@ -30,6 +32,8 @@ namespace Escargot {
 
 void Heap::initialize()
 {
+    COMPILE_ASSERT(GC_GRANULE_BYTES >= 8, "BDWGC allocations must be 8-byte aligned");
+    COMPILE_ASSERT((GC_GRANULE_BYTES & PointerKindMask) == 0, "BDWGC granule must preserve pointer-kind bits");
     // disable data area searching in bdwgc
     GC_set_no_dls(1);
 #if defined(OS_BAREMETAL)

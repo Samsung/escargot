@@ -2547,9 +2547,7 @@ TEST(DisabledStackOverflow, Basic)
             FunctionObjectRef::NativeFunctionInfo probeInfo(AtomicStringRef::create(state->context(), "stack_probe"), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
                 int marker;
                 g_disabledStackOverflowProbeAddress = &marker;
-                return ValueRef::createUndefined();
-            },
-                                                              0, true, false);
+                return ValueRef::createUndefined(); }, 0, true, false);
             FunctionObjectRef* probeRef = FunctionObjectRef::create(state, probeInfo);
             state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("stack_probe"), probeRef, true, true, true);
         }

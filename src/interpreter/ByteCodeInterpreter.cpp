@@ -714,28 +714,29 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             Object* obj;
-            ObjectStructure* objStructure;
             {
                 const Value& receiver = registerFile[code->m_objectRegisterIndex];
-                if (UNLIKELY(!receiver.getObjectAndStructure(obj, objStructure))) {
+                if (LIKELY(receiver.isObject())) {
+                    obj = receiver.asObject();
+                } else {
                     obj = InterpreterSlowPath::fastToObject(*state, receiver);
-                    objStructure = obj->structure();
                 }
             }
 
             auto cacheData = code->m_simpleInlineCache->m_cachedStructures;
             auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
+            ObjectStructure* const objStructure = obj->structure();
             for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
                 if (cacheData[currentCacheIndex] == objStructure) {
                     ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
                     if (LIKELY(protoStructure == nullptr)) {
-                        registerFile[code->m_storeRegisterIndex] = obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]];
+                        registerFile[code->m_storeRegisterIndex] = obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]].toValueKnownNotEmpty();
                         ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                         NEXT_INSTRUCTION();
                     } else {
                         Object* protoObj = obj->getPrototypeObject(*state);
                         if (LIKELY(protoObj && protoObj->structure() == protoStructure)) {
-                            registerFile[code->m_storeRegisterIndex] = protoObj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]];
+                            registerFile[code->m_storeRegisterIndex] = protoObj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]].toValueKnownNotEmpty();
                             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                             NEXT_INSTRUCTION();
                         }
@@ -808,10 +809,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             const Value& receiver = registerFile[code->m_objectRegisterIndex];
             Object* obj;
-            ObjectStructure* objStructure;
-            if (UNLIKELY(!receiver.getObjectAndStructure(obj, objStructure))) {
+            if (LIKELY(receiver.isObject())) {
+                obj = receiver.asObject();
+            } else {
                 obj = InterpreterSlowPath::fastToObject(*state, receiver);
-                objStructure = obj->structure();
             }
 
             GetObjectInlineCacheComplexCaseData* inlineCache = code->m_complexInlineCache;
@@ -820,21 +821,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 const size_t cSiz = entry.m_cachedhiddenClassChainLength;
                 Object* cur = obj;
                 bool ok = true;
-                if (UNLIKELY(cSiz > 0 && objStructure != entry.m_cachedhiddenClassChain[0])) {
-                    ok = false;
-                }
-                for (size_t i = 1; ok && i < cSiz; i++) {
-                    cur = cur->Object::getPrototypeObject(*state);
+                for (size_t i = 0; i < cSiz; i++) {
                     if (UNLIKELY(!cur || cur->structure() != entry.m_cachedhiddenClassChain[i])) {
                         ok = false;
                         break;
+                    }
+                    if (i + 1 < cSiz) {
+                        cur = cur->Object::getPrototypeObject(*state);
                     }
                 }
                 if (LIKELY(ok)) {
                     const auto& cachedIndex = entry.m_cachedIndex;
                     if (LIKELY(cachedIndex != GetObjectInlineCacheData::CachedIndexMax)) {
                         if (LIKELY(entry.m_isPlainDataProperty)) {
-                            registerFile[code->m_storeRegisterIndex] = cur->m_values[cachedIndex];
+                            registerFile[code->m_storeRegisterIndex] = cur->m_values[cachedIndex].toValueKnownNotEmpty();
                         } else {
                             registerFile[code->m_storeRegisterIndex] = cur->getOwnNonPlainDataPropertyUtilForObject(*state, cachedIndex, receiver);
                         }
@@ -856,12 +856,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            Object* obj;
-            ObjectStructure* testItem;
-            if (LIKELY(willBeObject.getObjectAndStructure(obj, testItem))) {
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache && code->m_inlineCacheProtoTraverseMaxIndex == 0);
 
+                ObjectStructure* testItem = obj->structure();
                 const size_t cacheFillCount = inlineCache->m_cache.size();
                 // Squeezing optimization for register-starved architectures (like ARM32).
                 // Unrolling the cache loop to explicit static checks for indices 0 and 1
@@ -916,9 +916,8 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            Object* obj;
-            ObjectStructure* objStructure;
-            if (LIKELY(willBeObject.getObjectAndStructure(obj, objStructure))) {
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache);
                 const size_t checkCount = inlineCache->m_cache.size();
@@ -931,14 +930,13 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     const size_t cSiz0 = entry0.m_cachedhiddenClassChainLength;
                     Object* cur0 = obj;
                     bool ok0 = true;
-                    if (UNLIKELY(cSiz0 > 0 && objStructure != entry0.m_cachedHiddenClassChainData[0])) {
-                        ok0 = false;
-                    }
-                    for (size_t i = 1; ok0 && i < cSiz0; i++) {
-                        cur0 = cur0->Object::getPrototypeObject(*state);
+                    for (size_t i = 0; i < cSiz0; i++) {
                         if (UNLIKELY(!cur0 || cur0->structure() != entry0.m_cachedHiddenClassChainData[i])) {
                             ok0 = false;
                             break;
+                        }
+                        if (i + 1 < cSiz0) {
+                            cur0 = cur0->Object::getPrototypeObject(*state);
                         }
                     }
                     if (LIKELY(ok0)) {
@@ -962,14 +960,13 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         const size_t cSiz1 = entry1.m_cachedhiddenClassChainLength;
                         Object* cur1 = obj;
                         bool ok1 = true;
-                        if (UNLIKELY(cSiz1 > 0 && objStructure != entry1.m_cachedHiddenClassChainData[0])) {
-                            ok1 = false;
-                        }
-                        for (size_t i = 1; ok1 && i < cSiz1; i++) {
-                            cur1 = cur1->Object::getPrototypeObject(*state);
+                        for (size_t i = 0; i < cSiz1; i++) {
                             if (UNLIKELY(!cur1 || cur1->structure() != entry1.m_cachedHiddenClassChainData[i])) {
                                 ok1 = false;
                                 break;
+                            }
+                            if (i + 1 < cSiz1) {
+                                cur1 = cur1->Object::getPrototypeObject(*state);
                             }
                         }
                         if (LIKELY(ok1)) {
@@ -3696,7 +3693,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
         CreateObjectPrepare::CreateObjectData* data;
         bool isAsyncOrGenerator = byteCodeBlock->codeBlock()->isAsyncOrGenerator();
         if (isAsyncOrGenerator) {
-            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].asOpaquePointer());
         } else {
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
         }
@@ -3834,7 +3831,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
         ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter);
         CreateObjectPrepare::CreateObjectData* data;
         if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
-            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].asOpaquePointer());
         } else {
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
         }
@@ -5156,7 +5153,7 @@ NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& sta
     } else {
         enumObj = new EnumerateObjectWithIteration(state, obj);
     }
-    registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)enumObj);
+    registerFile[code->m_dataRegisterIndex] = Value(enumObj);
 }
 
 NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile)
