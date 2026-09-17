@@ -67,7 +67,10 @@ public:
     Value value() const
     {
 #ifdef ESCARGOT_32
-        Value ret;
+        // Both words are overwritten right away; the default ctor would only
+        // store an undefined pattern for nothing. (Word-wise copy, so this is
+        // endian independent.)
+        Value ret(Value::ForceUninitialized);
         uint32_t* buf = reinterpret_cast<uint32_t*>(&ret);
         buf[0] = m_buffer[0];
         buf[1] = m_buffer[2];
@@ -250,7 +253,7 @@ public:
         }
 
 #ifdef ESCARGOT_32
-        return m_data.payload != ValueEmpty && !isImmediatePayload(reinterpret_cast<uintptr_t>(untagPointer(static_cast<uintptr_t>(m_data.payload))));
+        return m_data.payload != ValueEmpty && !isEncodedImmediatePayload(static_cast<uintptr_t>(m_data.payload));
 #else
         PointerValue* v = (PointerValue*)m_data.payload;
         return ((size_t)v) > ValueLast;
@@ -316,26 +319,25 @@ public:
             return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
         }
         ASSERT(kind == OtherPointerKind);
-        return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
+        return Value(Value::FromOtherEncodedPayload, static_cast<intptr_t>(bits));
 #else
         if (LIKELY(HAS_SMI_TAG(bits))) {
             return Value(EncodedValueImpl::PlatformSmiTagging::SmiToInt(bits));
         }
 
-        if (checkEmpty && UNLIKELY(bits == ValueEmpty)) {
-            if (shouldTreatEmptyAsUndefined)
-                return Value();
-            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
-        }
-
-        const uintptr_t kind = pointerKind(bits);
-        if (UNLIKELY(bits <= ValueLast)) {
-            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
-        }
-        if (UNLIKELY(kind == NumberPointerKind)) {
+        // ValueFalse/ValueNull happen to carry NumberPointerKind, which is why
+        // the range test is needed at all -- but only inside this branch, so the
+        // dominant pointer path pays one test instead of two.
+        if (UNLIKELY(pointerKind(bits) == NumberPointerKind) && LIKELY(bits > ValueLast)) {
             return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
         }
-        ASSERT(kind == ObjectPointerKind || kind == OtherPointerKind);
+
+        // Empty decodes to the very same bit pattern through FromEncodedPayload,
+        // so it only has to be recognised when the caller wants undefined.
+        if (shouldTreatEmptyAsUndefined && checkEmpty && UNLIKELY(bits == ValueEmpty)) {
+            return Value();
+        }
+        ASSERT(bits <= ValueLast || pointerKind(bits) == ObjectPointerKind || pointerKind(bits) == OtherPointerKind);
         return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
 #endif
     }
@@ -352,32 +354,34 @@ public:
         return toValue<>();
     }
 
-    bool isInt32()
+    // const: a const slot has to be able to take the cheap int32 path instead of
+    // being forced through toValue().
+    bool isInt32() const
     {
         return HAS_SMI_TAG(m_data.payload);
     }
 
-    bool isUInt32()
+    bool isUInt32() const
     {
         // Note. use only 31 bits to represent unsigned integer value.
         // Its because we just store signed integer value.
         return isInt32() && asInt32() >= 0;
     }
 
-    int32_t asInt32()
+    int32_t asInt32() const
     {
         ASSERT(HAS_SMI_TAG(m_data.payload));
         return EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
     }
 
-    uint32_t asUInt32()
+    uint32_t asUInt32() const
     {
         ASSERT(HAS_SMI_TAG(m_data.payload));
         int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
         return (uint32_t)value;
     }
 
-    uint32_t toUInt32(ExecutionState& state)
+    uint32_t toUInt32(ExecutionState& state) const
     {
         if (LIKELY(HAS_SMI_TAG(m_data.payload))) {
             int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
@@ -405,101 +409,85 @@ public:
 
     ALWAYS_INLINE const EncodedValue& operator=(const Value& from)
     {
-#ifdef ESCARGOT_32
-        if (from.isEmpty()) {
-            m_data.payload = ValueEmpty;
+        if (LIKELY(storeNonNumber(from))) {
             return *this;
         }
-        if (from.tag() == Value::ObjectPointerTag) {
-            ASSERT(!from.isEmpty());
-            m_data.payload = from.rawPayload();
-            return *this;
-        }
-        if (from.tag() == Value::OtherPointerTag) {
-            ASSERT(!from.isEmpty());
-            m_data.payload = static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(from.rawPayload()), OtherPointerKind));
-            return *this;
-        }
-#else
-        if (from.isPointerValue() || from.isOpaquePointer()) {
-            m_data.payload = from.rawPayload();
-            return *this;
-        }
-#endif
 
+        // Only numbers are left.
         int32_t i32;
         if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
             m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
             return *this;
         }
 
-        if (from.isNumber()) {
-            Value mutableFrom(from);
-            if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
-                mutableFrom = Value(i32);
-            }
-            intptr_t payload = m_data.payload;
-
-            if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
-                const uintptr_t bits = static_cast<uintptr_t>(payload);
-                if (pointerKind(bits) == NumberPointerKind) {
-                    reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
-                    return *this;
-                }
-            }
-            m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind));
-            return *this;
+        Value mutableFrom(from);
+        if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
+            mutableFrom = Value(i32);
         }
+        const intptr_t payload = m_data.payload;
 
-#ifdef ESCARGOT_32
-        m_data.payload = ~from.tag();
-#else
-        m_data.payload = from.payload();
-#endif
+        if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
+            const uintptr_t bits = static_cast<uintptr_t>(payload);
+            if (pointerKind(bits) == NumberPointerKind) {
+                reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
+                return *this;
+            }
+        }
+        m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind));
         return *this;
     }
 
 protected:
-    void fromValueForCtor(const Value& from)
+    // Stores everything that is not a number -- pointers, opaque pointers,
+    // immediates and Empty -- and reports whether it did. Splitting it out this
+    // way keeps the four store paths (this class and EncodedSmallValue, ctor and
+    // assignment) in sync.
+    ALWAYS_INLINE bool storeNonNumber(const Value& from)
     {
 #ifdef ESCARGOT_32
-        if (from.isEmpty()) {
-            m_data.payload = ValueEmpty;
-            return;
+        // The two pointer tags are adjacent and their pointer kinds are 0 and 4,
+        // so tag -> kind is one subtract and one shift. Immediates ride along:
+        // they live under OtherPointerTag and get stored kind-tagged, which is
+        // exactly what toValue() expects to find.
+        const uint32_t tagDelta = from.tag() - static_cast<uint32_t>(Value::ObjectPointerTag);
+        if (LIKELY(tagDelta <= static_cast<uint32_t>(Value::PointerTagSpan))) {
+            ASSERT((static_cast<uintptr_t>(from.rawPayload()) & PointerKindMask) == 0);
+            m_data.payload = from.rawPayload() | static_cast<intptr_t>(tagDelta << 1);
+            return true;
         }
-        if (from.tag() == Value::ObjectPointerTag) {
-            ASSERT(!from.isEmpty());
-            m_data.payload = from.rawPayload();
-            return;
+        if (from.isNumber()) {
+            return false;
         }
-        if (from.tag() == Value::OtherPointerTag) {
-            ASSERT(!from.isEmpty());
-            m_data.payload = static_cast<intptr_t>(tagPointer(reinterpret_cast<void*>(from.rawPayload()), OtherPointerKind));
-            return;
-        }
+        // No other tag exists outside the pointer range.
+        ASSERT(from.isEmpty());
+        m_data.payload = ValueEmpty;
+        return true;
 #else
-        if (from.isPointerValue() || from.isOpaquePointer()) {
+        // Pointers, immediates and Empty are all stored as the raw bit pattern,
+        // so a single test covers them. (isOpaquePointer() used to be OR-ed into
+        // the pointer test here: OpaquePointerKind is OtherPointerKind, so
+        // isPointerValue() already answered true for it.)
+        if (LIKELY(!from.isNumber())) {
             m_data.payload = from.rawPayload();
+            return true;
+        }
+        return false;
+#endif
+    }
+
+    void fromValueForCtor(const Value& from)
+    {
+        if (LIKELY(storeNonNumber(from))) {
             return;
         }
-#endif
-        {
-            int32_t i32;
-            if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
-            } else if (from.isNumber()) {
-                if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
-                    m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
-                } else {
-                    m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind));
-                }
-            } else {
-#ifdef ESCARGOT_32
-                m_data.payload = ~from.tag();
-#else
-                m_data.payload = from.payload();
-#endif
-            }
+
+        int32_t i32;
+        if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
+            m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+        } else if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
+            m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+        } else {
+            m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind));
         }
     }
 
@@ -530,21 +518,17 @@ public:
 
     EncodedSmallValue(const Value& from)
     {
-        if (from.isPointerValue() || from.isOpaquePointer()) {
-            setPayload(from.rawPayload());
+        if (LIKELY(storeNonNumber(from))) {
+            return;
+        }
+
+        int32_t i32;
+        if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
+            setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
+        } else if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
+            setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
         } else {
-            int32_t i32;
-            if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
-                setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
-            } else if (from.isNumber()) {
-                if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
-                    setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
-                } else {
-                    setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind)));
-                }
-            } else {
-                setPayload(from.payload());
-            }
+            setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(from), NumberPointerKind)));
         }
     }
 
@@ -567,40 +551,43 @@ public:
 
     intptr_t payload() const
     {
-        // we should consider negative integer value at here
-        if (!isSMI()) {
-            return static_cast<uint32_t>(m_data.payload);
-        }
-        return m_data.payload;
+        // A SMI payload carries a sign; anything else is a 32-bit heap address
+        // or immediate that has to be zero extended. Branchless: widen the sign
+        // only when the slot is SMI-tagged *and* negative.
+        const uint32_t raw = static_cast<uint32_t>(m_data.payload);
+        const uint64_t signBit = static_cast<uint64_t>(raw & EncodedValueImpl::kSmiTag) & static_cast<uint64_t>(raw >> 31);
+        return static_cast<intptr_t>(static_cast<uint64_t>(raw) | ((0ull - signBit) << 32));
     }
 
-    template <const bool shouldTreatEmptyAsUndefined = false>
+    template <const bool shouldTreatEmptyAsUndefined = false, const bool checkEmpty = true>
     ALWAYS_INLINE Value toValue() const
     {
-        const uintptr_t bits = static_cast<uintptr_t>(payload());
-        if (LIKELY(HAS_SMI_TAG(bits))) {
-            // payload() sign-extends negative SMI values before this shift.
-            return Value(static_cast<int32_t>(static_cast<intptr_t>(bits) >> 1));
+        // Read the slot once and test the SMI tag once: going through payload()
+        // would branch on that very bit and then have it re-tested here.
+        const int32_t raw = m_data.payload;
+        if (LIKELY(raw & EncodedValueImpl::kSmiTag)) {
+            // Arithmetic shift, so a negative SMI keeps its sign.
+            return Value(static_cast<int>(raw >> 1));
         }
 
-        if (UNLIKELY(bits <= ValueLast)) {
-            if (shouldTreatEmptyAsUndefined && UNLIKELY(bits == ValueEmpty))
-                return Value();
-            return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
-        }
-
-        const uintptr_t kind = pointerKind(bits);
-        if (UNLIKELY(kind == NumberPointerKind)) {
+        const uintptr_t bits = static_cast<uint32_t>(raw);
+        // See EncodedValue::toValue(): the range test only matters for the two
+        // immediates that share NumberPointerKind.
+        if (UNLIKELY(pointerKind(bits) == NumberPointerKind) && LIKELY(bits > ValueLast)) {
             return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
         }
-        ASSERT(kind == ObjectPointerKind || kind == OtherPointerKind);
+
+        if (shouldTreatEmptyAsUndefined && checkEmpty && UNLIKELY(bits == ValueEmpty)) {
+            return Value();
+        }
+        ASSERT(bits <= ValueLast || pointerKind(bits) == ObjectPointerKind || pointerKind(bits) == OtherPointerKind);
         return Value(Value::FromEncodedPayload, static_cast<intptr_t>(bits));
     }
 
     ALWAYS_INLINE Value toValueKnownNotEmpty() const
     {
         ASSERT(!isEmpty());
-        return toValue();
+        return toValue<false, false>();
     }
 
     ALWAYS_INLINE operator Value() const
@@ -626,7 +613,10 @@ public:
 
     bool operator==(const EncodedSmallValue& other) const
     {
-        return payload() == other.payload();
+        // Raw compare: payload()'s sign extension is a pure function of these
+        // bits, so it can neither merge two different slots nor split two equal
+        // ones.
+        return m_data.payload == other.m_data.payload;
     }
 
     ALWAYS_INLINE const EncodedSmallValue& operator=(const EncodedValue& from)
@@ -637,8 +627,7 @@ public:
 
     ALWAYS_INLINE const EncodedSmallValue& operator=(const Value& from)
     {
-        if (from.isPointerValue() || from.isOpaquePointer()) {
-            setPayload(from.rawPayload());
+        if (LIKELY(storeNonNumber(from))) {
             return *this;
         }
 
@@ -648,27 +637,34 @@ public:
             return *this;
         }
 
-        if (from.isNumber()) {
-            Value mutableFrom(from);
-            if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
-                mutableFrom = Value(i32);
-            }
-            auto pl = payload();
-            if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
-                const uintptr_t bits = static_cast<uintptr_t>(pl);
-                if (pointerKind(bits) == NumberPointerKind) {
-                    reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
-                    return *this;
-                }
-            }
-            setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)));
-            return *this;
+        Value mutableFrom(from);
+        if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
+            mutableFrom = Value(i32);
         }
-        setPayload(from.payload());
+        if (!isSMI()) {
+            const uintptr_t bits = static_cast<uint32_t>(m_data.payload);
+            if (bits > static_cast<uintptr_t>(ValueLast) && pointerKind(bits) == NumberPointerKind) {
+                reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
+                return *this;
+            }
+        }
+        setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)));
         return *this;
     }
 
 private:
+    // Same contract as EncodedValue::storeNonNumber(): a compressed slot holds
+    // pointers, immediates and Empty as their raw bit pattern, so one test
+    // covers every non-number Value.
+    ALWAYS_INLINE bool storeNonNumber(const Value& from)
+    {
+        if (LIKELY(!from.isNumber())) {
+            setPayload(from.rawPayload());
+            return true;
+        }
+        return false;
+    }
+
     ALWAYS_INLINE bool isSMI() const
     {
         return HAS_SMI_TAG(m_data.payload);
