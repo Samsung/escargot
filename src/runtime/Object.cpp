@@ -1364,14 +1364,49 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
     return proto.asObject();
 }
 
+#if defined(ENABLE_TCO)
+bool Object::canBeTailCallTargetRuntime(size_t argc)
+{
+    return isScriptFunctionObject() && asScriptFunctionObject()->interpretedCodeBlock()->isTailCallTarget(argc);
+}
+#endif
+
+Value Object::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
+{
+    ASSERT(!isCallable());
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+    ASSERT_NOT_REACHED();
+
+    // never get here. but I add return statement for removing compile warning
+    return Value(Value::EmptyValue);
+}
+
+Value Object::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
+{
+    ASSERT(!isConstructor());
+    if (isFunctionObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
+    }
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+    ASSERT_NOT_REACHED();
+
+    // never get here. but I add return statement for removing compile warning
+    return Value();
+}
+
+void Object::callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+{
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-call
 Value Object::call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, Value* argv)
 {
-    if (!callee.isPointerValue()) {
+    if (!callee.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     // Return F.[[Call]](V, argumentsList).
-    return callee.asPointerValue()->call(state, thisValue, argc, argv);
+    return callee.asObject()->call(state, thisValue, argc, argv);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-construct
@@ -1385,7 +1420,7 @@ Value Object::construct(ExecutionState& state, const Value& constructor, const s
     ASSERT(constructor.isConstructor());
     ASSERT(newTarget->isConstructor());
 
-    return constructor.asPointerValue()->construct(state, argc, argv, newTarget.value());
+    return constructor.asObject()->construct(state, argc, argv, newTarget.value());
 }
 
 void Object::callConstructor(ExecutionState& state, const Value& constructor, Object* receiver, const size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1397,7 +1432,7 @@ void Object::callConstructor(ExecutionState& state, const Value& constructor, Ob
     ASSERT(constructor.isConstructor());
     ASSERT(newTarget->isConstructor());
 
-    return constructor.asPointerValue()->callConstructor(state, receiver, argc, argv, newTarget.value());
+    return constructor.asObject()->callConstructor(state, receiver, argc, argv, newTarget.value());
 }
 
 // https://www.ecma-international.org/ecma-262/#sec-setintegritylevel

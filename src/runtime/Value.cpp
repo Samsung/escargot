@@ -39,6 +39,14 @@
 
 namespace Escargot {
 
+bool Value::isCallable() const
+{
+    // Every callable is Object-derived (FunctionObject, BoundFunctionObject,
+    // WrappedFunctionObject, ProxyObject), so the cheaper object test is
+    // equivalent here -- same reasoning as isFunctionObject() below.
+    return isObject() && asObject()->isCallable();
+}
+
 bool Value::isConstructor() const
 {
     if (!isObject() || !asObject()->isConstructor()) {
@@ -371,10 +379,10 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             // If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
             // return the result of the comparison ToNumber(x) == y.
             return abstractEqualsTo(state, Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(state)));
-        } else if ((selfIsString || selfIsNumber || isSymbol() || selfIsBigInt) && (valIsPointerValue && val.asPointerValue()->isObject())) {
+        } else if ((selfIsString || selfIsNumber || isSymbol() || selfIsBigInt) && val.isObject()) {
             // If Type(x) is either String, Number, BigInt, or Symbol and Type(y) is Object, return the result of the comparison x == ? ToPrimitive(y).
             return abstractEqualsTo(state, val.toPrimitive(state));
-        } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol() || valIsBigInt)) {
+        } else if (isObject() && (valIsString || valIsNumber || val.isSymbol() || valIsBigInt)) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
             return toPrimitive(state).abstractEqualsTo(state, val);
         } else if (UNLIKELY((selfIsBigInt && valIsNumber) || (selfIsNumber && valIsBigInt))) {
@@ -423,10 +431,10 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         }
 
 #if defined(ESCARGOT_ENABLE_TEST)
-        if (UNLIKELY(selfIsUndefinedOrNull && valIsPointerValue && val.asPointerValue()->isObject() && val.asObject()->isHTMLDDA())) {
+        if (UNLIKELY(selfIsUndefinedOrNull && val.isObject() && val.asObject()->isHTMLDDA())) {
             return true;
         }
-        if (UNLIKELY(valIsUndefinedOrNull && selfIsPointerValue && asPointerValue()->isObject() && asObject()->isHTMLDDA())) {
+        if (UNLIKELY(valIsUndefinedOrNull && isObject() && asObject()->isHTMLDDA())) {
             return true;
         }
 #endif

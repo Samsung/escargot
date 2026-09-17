@@ -796,6 +796,19 @@ public:
         return true;
     }
 
+    // https://tc39.es/ecma262/#sec-iscallable , https://tc39.es/ecma262/#sec-isconstructor
+    // only Object-derived types can ever be callable/constructable, so these live here
+    // instead of on PointerValue
+    virtual bool isCallable() const
+    {
+        return false;
+    }
+
+    virtual bool isConstructor() const
+    {
+        return false;
+    }
+
     bool isConcatSpreadable(ExecutionState& state);
 
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-isextensiblie
@@ -1126,6 +1139,16 @@ public:
         // https://www.ecma-international.org/ecma-262/6.0/#sec-getfunctionrealm
         return state.context();
     }
+
+    // the default implementations below simply throw the "not callable" / "not a constructor"
+    // TypeError, so an uncallable Object needs no check at the call site
+    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv);
+    virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget);
+    virtual void callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget);
+
+#if defined(ENABLE_TCO)
+    bool canBeTailCallTargetRuntime(size_t argc);
+#endif
 
     static Value call(ExecutionState& state, const Value& callee, const Value& thisValue, const size_t argc, Value* argv);
     static Value construct(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, Optional<Object*> newTarget = NullOption);

@@ -847,14 +847,6 @@ inline bool Value::isPrimitive() const
 #endif
 }
 
-inline bool Value::isCallable() const
-{
-    // Every callable is Object-derived (FunctionObject, BoundFunctionObject,
-    // WrappedFunctionObject, ProxyObject), so the cheaper object test is
-    // equivalent here -- same reasoning as isFunctionObject() below.
-    return isObject() && asPointerValue()->isCallable();
-}
-
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 inline double Value::toNumber(ExecutionState& state) const
 {
@@ -947,9 +939,9 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
 #if defined(ESCARGOT_ENABLE_TEST)
         // Under spec compliance test environments (like test262), we must support historical
         // quirks such as IsHTMLDDA objects (e.g. document.all), where document.all == null/undefined
-        // must observably evaluate to true. Since document.all is an Object (PointerValue),
-        // we fall back to the out-of-line slow case handler to resolve this specific spec exception.
-        if (UNLIKELY(isPointerValue() || val.isPointerValue())) {
+        // must observably evaluate to true. Since document.all is an Object, we fall back to
+        // the out-of-line slow case handler to resolve this specific spec exception.
+        if (UNLIKELY(isObject() || val.isObject())) {
             return abstractEqualsToSlowCase(state, val);
         }
 #endif

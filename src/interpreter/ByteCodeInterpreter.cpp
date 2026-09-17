@@ -1081,15 +1081,15 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             Call* code = (Call*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
 
-            // if PointerValue is not callable, PointerValue::call function throws builtin error
+            // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
-            if (UNLIKELY(!callee.isPointerValue())) {
+            if (UNLIKELY(!callee.isObject())) {
                 ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
             }
 
             // Return F.[[Call]](V, argumentsList).
-            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            registerFile[code->m_resultIndex] = callee.asObject()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
 #ifdef ESCARGOT_DEBUGGER
             if (state->context()->debuggerEnabled()) {
@@ -1110,15 +1110,15 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = registerFile[code->m_receiverIndex];
 
-            // if PointerValue is not callable, PointerValue::call function throws builtin error
+            // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
-            if (UNLIKELY(!callee.isPointerValue())) {
+            if (UNLIKELY(!callee.isObject())) {
                 ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
             }
 
             // Return F.[[Call]](V, argumentsList).
-            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            registerFile[code->m_resultIndex] = callee.asObject()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
             ADD_PROGRAM_COUNTER(CallWithReceiver);
             NEXT_INSTRUCTION();
@@ -1489,14 +1489,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
 
-            // if PointerValue is not callable, PointerValue::call function throws builtin error
+            // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
-            if (UNLIKELY(!callee.isPointerValue())) {
+            if (UNLIKELY(!callee.isObject())) {
                 ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
             }
 
-            return callee.asPointerValue()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            return callee.asObject()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
         }
 #endif
 
@@ -2056,8 +2056,8 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             state->m_argc = code->m_argumentCount;
 
             // fast tail recursion
-            ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
-            ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
+            ASSERT(callee.isObject() && callee.asObject()->isScriptFunctionObject());
+            ASSERT(callee.asObject()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
             ASSERT(state->inTCO() && (state->m_argc <= TCO_ARGUMENT_COUNT_LIMIT));
 #ifndef NDEBUG
             // check this value
@@ -2106,16 +2106,16 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             const Value& calleeValue = registerFile[code->m_calleeIndex];
 
-            if (calleeValue.isPointerValue() && calleeValue.asPointerValue()->canBeTailCallTargetRuntime(code->m_argumentCount)) {
-                Value thisValue = InterpreterSlowPath::prepareTailCallOptimization(state, code, calleeValue.asPointerValue()->asScriptFunctionObject(), byteCodeBlock, programCounter, registerFile);
+            if (calleeValue.isObject() && calleeValue.asObject()->canBeTailCallTargetRuntime(code->m_argumentCount)) {
+                Value thisValue = InterpreterSlowPath::prepareTailCallOptimization(state, code, calleeValue.asObject()->asScriptFunctionObject(), byteCodeBlock, programCounter, registerFile);
                 if (!thisValue.isEmpty()) {
-                    ASSERT(byteCodeBlock == calleeValue.asPointerValue()->asScriptFunctionObject()->interpretedCodeBlock()->byteCodeBlock());
+                    ASSERT(byteCodeBlock == calleeValue.asObject()->asScriptFunctionObject()->interpretedCodeBlock()->byteCodeBlock());
                     ASSERT(programCounter == (size_t)byteCodeBlock->m_code.data());
                     ASSERT(state->m_programCounter == &programCounter);
 
                     if (UNLIKELY(!state->lexicalEnvironment())) {
                         // should allocate environment stuctures on the stack
-                        ScriptFunctionObject* callee = calleeValue.asPointerValue()->asScriptFunctionObject();
+                        ScriptFunctionObject* callee = calleeValue.asObject()->asScriptFunctionObject();
                         FunctionEnvironmentRecord* record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack<false, false>))) FunctionEnvironmentRecordOnStack<false, false>(callee);
                         LexicalEnvironment* lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, callee->outerEnvironment()
 #ifndef NDEBUG
@@ -2149,19 +2149,19 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 // should call resolveCallee because try-catch-finally block is executed in a sub-interpreter
                 // goto slow path
                 code->changeOpcode(Opcode::CallOpcode);
-                if (UNLIKELY(!callee.isPointerValue())) {
+                if (UNLIKELY(!callee.isObject())) {
                     ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
                 }
 
                 // Return F.[[Call]](V, argumentsList).
-                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+                registerFile[code->m_resultIndex] = callee.asObject()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
                 ADD_PROGRAM_COUNTER(Call);
                 NEXT_INSTRUCTION();
             }
 
-            ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
-            ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
+            ASSERT(callee.isObject() && callee.asObject()->isScriptFunctionObject());
+            ASSERT(callee.asObject()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
             ASSERT(state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size());
 
             // postpone recursion call
@@ -4745,7 +4745,7 @@ NEVER_INLINE Value InterpreterSlowPath::constructOperation(ExecutionState& state
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
-    return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
+    return constructor.asObject()->construct(state, argc, argv, constructor.asObject());
 }
 
 static Value callDynamicImportResolved(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -4824,19 +4824,19 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         ASSERT(!code->m_isOptional);
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = registerFile[code->m_receiverOrThisIndex];
-        if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
+        if (UNLIKELY(!callee.isObject() || !receiver.isObject())) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
         auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
 
-        if (callee.asPointerValue() == state.context()->globalObject()->functionApply()) {
+        if (callee.asObject() == state.context()->globalObject()->functionApply()) {
             if (!functionRecord->argumentsObject()) {
                 Value* v = ALLOCA(sizeof(Value) * state.argc(), Value);
                 if (state.argc()) {
                     memcpy(v, state.argv(), sizeof(Value) * state.argc());
                 }
-                registerFile[code->m_resultIndex] = receiver.asPointerValue()->call(state, registerFile[code->m_argumentsStartIndex], state.argc(), v);
+                registerFile[code->m_resultIndex] = receiver.asObject()->call(state, registerFile[code->m_argumentsStartIndex], state.argc(), v);
                 return;
             }
         }
@@ -4856,7 +4856,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
             }
         }
         Value argv[2] = { registerFile[code->m_argumentsStartIndex], argumentsValue };
-        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, registerFile[code->m_receiverOrThisIndex], 2, argv);
+        registerFile[code->m_resultIndex] = callee.asObject()->call(state, registerFile[code->m_receiverOrThisIndex], 2, argv);
         break;
     }
     case CallComplexCase::MayBuiltinEval: {
@@ -4912,10 +4912,10 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = code->m_receiverOrThisIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverOrThisIndex];
 
-        // if PointerValue is not callable, PointerValue::call function throws builtin error
+        // if the callee Object is not callable, Object::call function throws builtin error
         // https://www.ecma-international.org/ecma-262/6.0/#sec-call
         // If IsCallable(F) is false, throw a TypeError exception.
-        if (UNLIKELY(!callee.isPointerValue())) {
+        if (UNLIKELY(!callee.isObject())) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
@@ -4923,7 +4923,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
             ValueVector spreadArgs;
             spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
             // Return F.[[Call]](V, argumentsList).
-            registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
+            registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
         }
         break;
     }
@@ -4932,7 +4932,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = code->m_receiverOrThisIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverOrThisIndex];
 
-        if (UNLIKELY(!callee.isPointerValue())) {
+        if (UNLIKELY(!callee.isObject())) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
@@ -4940,7 +4940,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         // isSoleSpreadElement codegen) - no CreateSpreadArrayObject was built for it
         ValueVector spreadArgs;
         spreadSoleIterableArgument(state, registerFile[code->m_argumentsStartIndex], spreadArgs);
-        registerFile[code->m_resultIndex] = callee.asPointerValue()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
+        registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
         break;
     }
     case CallComplexCase::Super:
@@ -4989,7 +4989,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         Value* stackStorage = registerFile + byteCodeBlock->m_requiredOperandRegisterNumber;
         // below if-statement is not spec
         // using this value on stack is trick for callConstructor util
-        if (stackStorage[0].isPointerValue() && stackStorage[0].asPointerValue()) {
+        if (stackStorage[0].isObject() && stackStorage[0].asObject()) {
             result = stackStorage[0].asObject();
             if (registerFile[code->m_calleeIndex].isObject() && registerFile[code->m_calleeIndex].asObject()->isScriptClassConstructorFunctionObject()) {
                 Object::callConstructor(state, registerFile[code->m_calleeIndex], result.asObject(), argc, argv, newTarget);
@@ -5875,7 +5875,7 @@ NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryT
             val = state.context()->staticStrings().bigint.string();
         } else {
             ASSERT(p->isObject());
-            if (!p->isCallable()) {
+            if (!p->asObject()->isCallable()) {
                 val = state.context()->staticStrings().object.string();
 #if defined(ESCARGOT_ENABLE_TEST)
             } else if (UNLIKELY(p->asObject()->isHTMLDDA())) {
@@ -6270,15 +6270,15 @@ NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& st
     code->changeOpcode(Opcode::TailCallOpcode);
     byteCodeBlock->codeBlock()->disableTailRecursion();
 
-    // if PointerValue is not callable, PointerValue::call function throws builtin error
+    // if the callee Object is not callable, Object::call function throws builtin error
     // https://www.ecma-international.org/ecma-262/6.0/#sec-call
     // If IsCallable(F) is false, throw a TypeError exception.
-    if (UNLIKELY(!callee.isPointerValue())) {
+    if (UNLIKELY(!callee.isObject())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
-    return callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+    return callee.asObject()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
 
 NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerByteBlock, size_t& programCounter, const Value* registerFile)
@@ -6389,15 +6389,15 @@ NEVER_INLINE Value InterpreterSlowPath::tailCallSlowCase(ExecutionState& state, 
     // convert to CallReturn
     code->changeOpcode(Opcode::CallReturnOpcode);
 
-    // if PointerValue is not callable, PointerValue::call function throws builtin error
+    // if the callee Object is not callable, Object::call function throws builtin error
     // https://www.ecma-international.org/ecma-262/6.0/#sec-call
     // If IsCallable(F) is false, throw a TypeError exception.
-    if (UNLIKELY(!callee.isPointerValue())) {
+    if (UNLIKELY(!callee.isObject())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
-    return callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+    return callee.asObject()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
 
 #if defined(ENABLE_TCO_DEBUG)

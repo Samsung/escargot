@@ -435,12 +435,12 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
 
-    bool isSearchValueRegExp = searchValue.isPointerValue() && searchValue.asPointerValue()->isRegExpObject();
+    bool isSearchValueRegExp = searchValue.isObject() && searchValue.asObject()->isRegExpObject();
     // we should keep fast-path while performace issue is unresolved
     bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && searchValue.asPointerValue()->asRegExpObject()->yarrPatern()->m_captureGroupNames.size() == 0);
     if (searchValue.isObject()) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
-        if (canUseFastPath && isSearchValueRegExp && replacer.isPointerValue() && replacer.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
+        if (canUseFastPath && isSearchValueRegExp && replacer.isObject() && replacer.asObject() == state.context()->globalObject()->regexpReplaceMethod()) {
             auto exec = searchValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().exec));
             if (!exec.hasValue() || exec.value(state, searchValue) != state.context()->globalObject()->regexpExecMethod()) {
                 // this means we cannot use fast path
@@ -683,7 +683,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 
     Value separator = argv[0];
     Value limit = argv[1];
-    bool isSeparatorRegExp = separator.isPointerValue() && separator.asPointerValue()->isRegExpObject();
+    bool isSeparatorRegExp = separator.isObject() && separator.asObject()->isRegExpObject();
 
     if (separator.isObject()) {
         // Let splitter be GetMethod(separator, @@split).
@@ -692,7 +692,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         // --- Optmize path
         // if splitter is builtin RegExp.prototype.split and separator is RegExpObject
         // we can use old method(ES5) below
-        if (isSeparatorRegExp && splitter.isPointerValue() && splitter.asPointerValue() == state.context()->globalObject()->regexpSplitMethod()) {
+        if (isSeparatorRegExp && splitter.isObject() && splitter.asObject() == state.context()->globalObject()->regexpSplitMethod()) {
         } else if (!splitter.isUndefined()) {
             // If splitter is not undefined, then
             // Return Call(splitter, separator, <<O, limit>>).

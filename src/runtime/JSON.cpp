@@ -893,9 +893,9 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
 
     // 5
     if (space.isObject()) {
-        if (space.isPointerValue() && space.asPointerValue()->isNumberObject()) {
+        if (space.isObject() && space.asObject()->isNumberObject()) {
             space = Value(Value::DoubleToIntConvertibleTestNeeds, space.toNumber(state));
-        } else if (space.isPointerValue() && space.asPointerValue()->isStringObject()) {
+        } else if (space.isObject() && space.asObject()->isStringObject()) {
             space = space.toString(state);
         }
     }

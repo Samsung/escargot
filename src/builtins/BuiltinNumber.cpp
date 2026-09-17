@@ -101,7 +101,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
-    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
@@ -142,7 +142,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
-    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
@@ -184,7 +184,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
-    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
@@ -226,7 +226,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
 
     if (thisValue.isNumber()) {
         number = thisValue.asNumber();
-    } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
+    } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
