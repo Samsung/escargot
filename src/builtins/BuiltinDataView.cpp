@@ -165,7 +165,7 @@ FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_SETTER);
 
 static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
+    if (LIKELY(thisValue.isObject() && thisValue.asObject()->isDataViewObject())) {
         ArrayBuffer* buffer = thisValue.asObject()->asArrayBufferView()->buffer();
         if (buffer) {
             return Value(buffer);
@@ -177,7 +177,7 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
 
 static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
+    if (LIKELY(thisValue.isObject() && thisValue.asObject()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
         thisValue.asObject()->asDataViewObject()->throwTypeErrorIfDetached(state);
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
@@ -187,7 +187,7 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
 
 static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
+    if (LIKELY(thisValue.isObject() && thisValue.asObject()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
         thisValue.asObject()->asDataViewObject()->throwTypeErrorIfDetached(state);
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }

@@ -38,38 +38,4 @@ size_t PointerValue::g_objectRareDataTag;
 DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DEFINE_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef DEFINE_SCRIPTSIMPLEFUNCTION_TAGS
 
-#if defined(ENABLE_TCO)
-bool PointerValue::canBeTailCallTargetRuntime(size_t argc)
-{
-    return isScriptFunctionObject() && asScriptFunctionObject()->interpretedCodeBlock()->isTailCallTarget(argc);
-}
-#endif
-
-Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
-{
-    ASSERT(!isCallable());
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
-    ASSERT_NOT_REACHED();
-
-    // never get here. but I add return statement for removing compile warning
-    return Value(Value::EmptyValue);
-}
-
-Value PointerValue::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
-{
-    ASSERT(!isConstructor());
-    if (isFunctionObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
-    }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
-    ASSERT_NOT_REACHED();
-
-    // never get here. but I add return statement for removing compile warning
-    return Value();
-}
-
-void PointerValue::callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
-{
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
-}
 } // namespace Escargot

@@ -224,7 +224,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // and stays unreachable from user code until it is returned, so the elements
         // can be collected in a local buffer and stored in one go. that keeps the
         // storage growth amortized instead of re-fitting it on every element
-        bool buffered = (C.isPointerValue() && C.asPointerValue() == state.context()->globalObject()->array());
+        bool buffered = (C.isObject() && C.asObject() == state.context()->globalObject()->array());
         if (LIKELY(buffered && !mapping)) {
             // copying a pristine fast-mode array element by element is what the
             // builtin ArrayIterator would do, so it can be done in one bulk copy

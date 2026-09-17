@@ -675,15 +675,12 @@ public:
     }
 #endif
 
-    virtual bool isCallable() const
-    {
-        return false;
-    }
-
-    virtual bool isConstructor() const
-    {
-        return false;
-    }
+    // NOTE: the callable/constructable protocol -- isCallable(), isConstructor(),
+    // call(), construct(), callConstructor() and canBeTailCallTargetRuntime() --
+    // lives on Object, not here. Only Object-derived types can ever implement it,
+    // so asking a bare PointerValue is meaningless and costs every caller the more
+    // expensive isPointerValue() test (plus a pointer untagging) where the cheaper
+    // isObject()/asObject() pair would do.
 
     virtual void addFinalizer(FinalizerFunction fn, void* data)
     {
@@ -694,10 +691,6 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
-
-#if defined(ENABLE_TCO)
-    bool canBeTailCallTargetRuntime(size_t argc);
-#endif
 
     String* asString()
     {
@@ -1227,10 +1220,6 @@ protected:
         // rewrite vtable address
         *((size_t*)(this)) = tag;
     }
-
-    virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv);
-    virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget);
-    virtual void callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget);
 
     // tag values for fast type check
     // these values actually have unique virtual table address of each object class

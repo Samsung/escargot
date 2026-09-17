@@ -193,10 +193,10 @@ void IteratorObject::tryMarkFastBuiltinIterator(ExecutionState& state, IteratorR
         return;
     }
     Value nextMethod = record->m_nextMethod;
-    if (!nextMethod.isPointerValue()) {
+    if (!nextMethod.isObject()) {
         return;
     }
-    PointerValue* nm = nextMethod.asPointerValue();
+    Object* nm = nextMethod.asObject();
     IteratorObject* io = record->m_iteratorSlot.value()->asIteratorObject();
     GlobalObject* g = state.context()->globalObject();
     bool fast = false;
@@ -237,7 +237,7 @@ Optional<ArrayObject*> IteratorObject::tryFastArrayIterationSource(ExecutionStat
         return NullOption;
     }
     Value iterFn = iterProp.value(state, g->arrayPrototype());
-    if (!iterFn.isPointerValue() || iterFn.asPointerValue() != g->arrayPrototypeValues()) {
+    if (!iterFn.isObject() || iterFn.asObject() != g->arrayPrototypeValues()) {
         return NullOption;
     }
     // %ArrayIteratorPrototype%.next must still be the builtin
@@ -246,7 +246,7 @@ Optional<ArrayObject*> IteratorObject::tryFastArrayIterationSource(ExecutionStat
         return NullOption;
     }
     Value nextFn = nextProp.value(state, g->arrayIteratorPrototype());
-    if (!nextFn.isPointerValue() || nextFn.asPointerValue() != g->arrayIteratorPrototypeNext()) {
+    if (!nextFn.isObject() || nextFn.asObject() != g->arrayIteratorPrototypeNext()) {
         return NullOption;
     }
     return arr;
@@ -275,7 +275,7 @@ Optional<SetObject*> IteratorObject::tryFastSetIterationSource(ExecutionState& s
         return NullOption;
     }
     Value iterFn = iterProp.value(state, g->setPrototypeObject());
-    if (!iterFn.isPointerValue() || iterFn.asPointerValue() != g->setPrototypeValues()) {
+    if (!iterFn.isObject() || iterFn.asObject() != g->setPrototypeValues()) {
         return NullOption;
     }
     // %SetIteratorPrototype%.next must still be the builtin
@@ -284,7 +284,7 @@ Optional<SetObject*> IteratorObject::tryFastSetIterationSource(ExecutionState& s
         return NullOption;
     }
     Value nextFn = nextProp.value(state, g->setIteratorPrototype());
-    if (!nextFn.isPointerValue() || nextFn.asPointerValue() != g->setIteratorPrototypeNext()) {
+    if (!nextFn.isObject() || nextFn.asObject() != g->setIteratorPrototypeNext()) {
         return NullOption;
     }
     return set;

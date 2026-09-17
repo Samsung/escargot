@@ -164,7 +164,7 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, ErrorCode code, const
 
 static Value builtinErrorObjectStackInfoGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
+    if (!(LIKELY(thisValue.isObject() && thisValue.asObject()->isErrorObject()))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get Error.prototype.stack called on incompatible receiver");
     }
 

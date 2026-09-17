@@ -3912,10 +3912,10 @@ PointerValueRef* ValueRef::asPointerValue()
 ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv)
 {
     auto impl = toImpl(this);
-    if (UNLIKELY(!impl.isPointerValue())) {
+    if (UNLIKELY(!impl.isObject())) {
         ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
-    PointerValue* o = impl.asPointerValue();
+    Object* o = impl.asObject();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
@@ -3926,10 +3926,10 @@ ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const siz
 ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv)
 {
     auto impl = toImpl(this);
-    if (UNLIKELY(!impl.isPointerValue())) {
+    if (UNLIKELY(!impl.isObject())) {
         ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
-    PointerValue* o = impl.asPointerValue();
+    Object* o = impl.asObject();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
