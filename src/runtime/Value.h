@@ -48,8 +48,17 @@ union ValueDescriptor {
     uintptr_t asPointerBits;
 #endif
     struct {
+#if defined(ESCARGOT_LITTLE_ENDIAN)
         int32_t payload;
         uint32_t tag;
+#else
+        // The tag must stay in the high half on both endians: it overlaps the
+        // sign/exponent half of asDouble (that is what makes the tag range
+        // work), and keeping the halves at fixed positions lets every immediate
+        // test be a single 64-bit compare against a valueBits() constant.
+        uint32_t tag;
+        int32_t payload;
+#endif
     } asBits;
 };
 
@@ -103,10 +112,37 @@ constexpr uintptr_t ValueTruePayload = 0x108;
 constexpr uintptr_t ValueNullPayload = 0x110;
 constexpr uintptr_t ValueUndefinedPayload = 0x118;
 
+// Bit 3 selects within a pair (false/true, null/undefined), bit 4 selects the
+// pair itself. Masking the don't-care bit out turns every "is it one of these
+// payloads" test below into a single compare.
+constexpr unsigned ImmediatePayloadSelectShift = 3;
+constexpr uintptr_t ImmediatePayloadSelectBit = 1u << ImmediatePayloadSelectShift;
+constexpr uintptr_t ImmediatePayloadPairBit = 0x10;
+constexpr uintptr_t ImmediatePayloadMask = ImmediatePayloadPairBit | ImmediatePayloadSelectBit;
+
+COMPILE_ASSERT(ValueTruePayload == (ValueFalsePayload | ImmediatePayloadSelectBit), "");
+COMPILE_ASSERT(ValueNullPayload == (ValueFalsePayload | ImmediatePayloadPairBit), "");
+COMPILE_ASSERT(ValueUndefinedPayload == (ValueNullPayload | ImmediatePayloadSelectBit), "");
+
 ALWAYS_INLINE bool isImmediatePayload(uintptr_t payload)
 {
-    return payload == ValueFalsePayload || payload == ValueTruePayload
-        || payload == ValueNullPayload || payload == ValueUndefinedPayload;
+    return (payload & ~ImmediatePayloadMask) == ValueFalsePayload;
+}
+
+// EncodedValue keeps immediates as tagPointer(payload, OtherPointerKind), so
+// the kind bits can be folded into the mask and the untag skipped.
+ALWAYS_INLINE bool isEncodedImmediatePayload(uintptr_t bits)
+{
+    return (bits & ~(ImmediatePayloadMask | PointerKindMask)) == ValueFalsePayload;
+}
+
+// The whole bit pattern of a Value, composed from its {tag, payload} pair. The
+// tag always occupies the high half (see ValueDescriptor), which turns the
+// immediate tests into one 64-bit compare instead of a tag compare followed by
+// a payload compare.
+constexpr uint64_t valueBits(uint32_t tag, uint32_t payload)
+{
+    return (static_cast<uint64_t>(tag) << 32) | static_cast<uint64_t>(payload);
 }
 #endif
 
@@ -158,29 +194,65 @@ public:
     /*
      * [32-bit Value Tagging Layout & Remaining Slots]
      * Tag range: [LowestTag (0xfffffff1), 0xffffffff] (total 15 slots)
-     * - Any tag < 0xfffffff1 is considered a Double value.
-     * - Any tag >= 0xfffffff1 is an immediate value.
+     * - Any tag < LowestTag is considered a Double value.
+     * - Any tag >= LowestTag is an immediate value.
      *
      * Current allocation:
      *   0xffffffff : EmptyValueTag
-     *   0xfffffffe : Int32Tag
      *   0xfffffffc : OtherPointerTag (non-object pointers and non-empty immediates)
+     *   0xfffffffb : reserved. Keeping it unallocated leaves the two pointer
+     *                tags in one unsigned range, so isPointerValue() stays a
+     *                single range check.
      *   0xfffffffa : ObjectPointerTag
+     *   0xfffffff2 : Int32Tag. Sitting directly on top of the double range
+     *                collapses isNumber() into one unsigned compare
+     *                (tag() <= Int32Tag), so any tag added later has to stay
+     *                above it.
+     *   0xfffffff1 : reserved. It falls inside the isNumber() range above, so
+     *                it must not be handed to a non-number tag.
      *
-     * Remaining slots (6 slots):
-     *   0xfffffffb, 0xfffffff8, 0xfffffff7, 0xfffffff6, 0xfffffff4, 0xfffffff3, 0xfffffff2
+     * Remaining slots (9 slots):
+     *   0xfffffffe, 0xfffffffd, 0xfffffff9, 0xfffffff8, 0xfffffff7,
+     *   0xfffffff6, 0xfffffff5, 0xfffffff4, 0xfffffff3
      */
     enum : uint32_t { EmptyValueTag = ~ValueEmpty };
     enum : uint32_t { LowestTag = 0xfffffff1 };
 
     // Any value which last bit is not set
-    enum { Int32Tag = 0xfffffffe - 0 };
+    enum { Int32Tag = 0xfffffffe - 12 };
     enum { OtherPointerTag = 0xfffffffe - 2 };
     enum { ObjectPointerTag = 0xfffffffe - 4 };
 
     COMPILE_ASSERT(static_cast<uint32_t>(ObjectPointerTag) + (OtherPointerKind >> 1) == static_cast<uint32_t>(OtherPointerTag), "");
 
     COMPILE_ASSERT((size_t)LowestTag < (size_t)ObjectPointerTag, "");
+    // isNumber() relies on Int32Tag being the lowest immediate tag.
+    COMPILE_ASSERT((size_t)LowestTag <= (size_t)Int32Tag, "");
+    COMPILE_ASSERT((size_t)Int32Tag < (size_t)ObjectPointerTag, "");
+
+    // Distance between the two pointer tags. It doubles as the tag -> pointer
+    // kind conversion factor (OtherPointerKind >> 1), which keeps both the
+    // isPointerValue() range check and the EncodedValue store path branch-free.
+    enum : uint32_t { PointerTagSpan = static_cast<uint32_t>(OtherPointerTag) - static_cast<uint32_t>(ObjectPointerTag) };
+    COMPILE_ASSERT(PointerTagSpan << 1 == OtherPointerKind, "");
+
+    // Whole-Value bit patterns of the immediates, so that testing for one is a
+    // single 64-bit compare.
+    enum : uint64_t {
+        UndefinedValueBits = valueBits(OtherPointerTag, ValueUndefinedPayload),
+        NullValueBits = valueBits(OtherPointerTag, ValueNullPayload),
+        TrueValueBits = valueBits(OtherPointerTag, ValueTruePayload),
+        FalseValueBits = valueBits(OtherPointerTag, ValueFalsePayload),
+        // Bit 3 of the payload selects within a pair (false/true, null/undefined).
+        ImmediateSelectValueBit = valueBits(0, ImmediatePayloadSelectBit),
+        // Tag plus the sign bit of the payload: an int32 is a uint32 iff masking
+        // with this yields the bare Int32Tag.
+        UInt32ValueBitsMask = valueBits(0xffffffffu, 0x80000000u),
+        UInt32ValueBits = valueBits(Int32Tag, 0),
+    };
+
+    COMPILE_ASSERT(TrueValueBits == (FalseValueBits | ImmediateSelectValueBit), "");
+    COMPILE_ASSERT(UndefinedValueBits == (NullValueBits | ImmediateSelectValueBit), "");
 #endif
 
     enum NullInitTag { Null };
@@ -196,6 +268,9 @@ public:
 #ifdef ESCARGOT_32
     // The argument is an already-canonical, non-null object payload.
     enum FromObjectEncodedPayloadTag { FromObjectEncodedPayload };
+    // The argument carries OtherPointerKind; skips recomputing the kind when
+    // the caller has already established it.
+    enum FromOtherEncodedPayloadTag { FromOtherEncodedPayload };
 #endif
 
     Value();
@@ -209,6 +284,7 @@ public:
     explicit Value(FromEncodedPayloadTag, intptr_t bits);
 #ifdef ESCARGOT_32
     explicit Value(FromObjectEncodedPayloadTag, intptr_t bits);
+    explicit Value(FromOtherEncodedPayloadTag, intptr_t bits);
 #endif
     Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
@@ -285,10 +361,7 @@ public:
     inline bool isArrayObject() const;
     inline bool isUndefined() const;
     inline bool isNull() const;
-    inline bool isUndefinedOrNull() const
-    {
-        return isUndefined() || isNull();
-    }
+    inline bool isUndefinedOrNull() const;
     bool isBoolean() const;
     bool isNumber() const;
     bool isString() const;
@@ -299,6 +372,11 @@ public:
     bool isCustomGetterSetter() const;
     inline bool isPointerValue() const;
     inline bool isOpaquePointer() const;
+#ifdef ESCARGOT_64
+    // Pointer stored with OtherPointerKind: String, Symbol, BigInt or an opaque
+    // pointer. Never an Object, and never an immediate.
+    bool hasOtherPointerKind() const;
+#endif
     bool isObject() const;
     bool isCallable() const;
     bool isConstructor() const;
@@ -392,6 +470,10 @@ public:
 // If all bits in the mask are set, this indicates an integer number,
 // if any but not all are set this value is a double precision number.
 #define TagTypeNumber 0xffff000000000000ll
+// Shift that moves the number tag down to the low 16 bits. The number
+// predicates read the tag as `bits >> NumberTagShift` instead of masking with
+// TagTypeNumber so that no 64-bit immediate is needed.
+#define NumberTagShift 48
 
 // TagMask is used to check for all types of immediate values (either number or 'other').
 #define TagMask (TagTypeNumber | TagBitTypeOther)

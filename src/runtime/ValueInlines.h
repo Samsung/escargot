@@ -61,46 +61,42 @@ inline Value::Value(ForceUninitializedTag)
 {
 }
 
+// Immediates are written as one 64-bit store: the tag and the payload are both
+// compile-time constants, so there is no reason to store the halves separately.
 inline Value::Value()
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = ValueUndefinedPayload;
+    u.asInt64 = static_cast<int64_t>(UndefinedValueBits);
 }
 
 inline Value::Value(NullInitTag)
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = ValueNullPayload;
+    u.asInt64 = static_cast<int64_t>(NullValueBits);
 }
 
 inline Value::Value(UndefinedInitTag)
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = ValueUndefinedPayload;
+    u.asInt64 = static_cast<int64_t>(UndefinedValueBits);
 }
 
 inline Value::Value(EmptyValueInitTag)
 {
-    u.asBits.tag = EmptyValueTag;
-    u.asBits.payload = 0;
+    u.asInt64 = static_cast<int64_t>(valueBits(EmptyValueTag, 0));
 }
 
 inline Value::Value(TrueInitTag)
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = ValueTruePayload;
+    u.asInt64 = static_cast<int64_t>(TrueValueBits);
 }
 
 inline Value::Value(FalseInitTag)
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = ValueFalsePayload;
+    u.asInt64 = static_cast<int64_t>(FalseValueBits);
 }
 
 inline Value::Value(bool b)
 {
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = b ? ValueTruePayload : ValueFalsePayload;
+    // Only the select bit differs between the two boolean patterns.
+    u.asInt64 = static_cast<int64_t>(FalseValueBits | (static_cast<uint64_t>(b) * ImmediateSelectValueBit));
 }
 
 inline Value::Value(FromPayloadTag, intptr_t ptr)
@@ -123,6 +119,13 @@ inline Value::Value(FromObjectEncodedPayloadTag, intptr_t bits)
     ASSERT(pointerKind(static_cast<uintptr_t>(bits)) == ObjectPointerKind);
     u.asBits.tag = ObjectPointerTag;
     u.asBits.payload = static_cast<int32_t>(bits);
+}
+
+inline Value::Value(FromOtherEncodedPayloadTag, intptr_t bits)
+{
+    ASSERT(pointerKind(static_cast<uintptr_t>(bits)) == OtherPointerKind);
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = static_cast<int32_t>(static_cast<uintptr_t>(bits) & ~PointerKindMask);
 }
 
 inline Value::Value(PointerValue* ptr)
@@ -232,7 +235,8 @@ inline int32_t Value::asInt32() const
 inline bool Value::asBoolean() const
 {
     ASSERT(isBoolean());
-    return u.asBits.tag == OtherPointerTag && rawPayload() == ValueTruePayload;
+    // Only bit 3 differs between the two boolean payloads.
+    return (rawPayload() & ImmediatePayloadSelectBit) != 0;
 }
 
 inline double Value::asDouble() const
@@ -248,12 +252,20 @@ inline bool Value::isEmpty() const
 
 ALWAYS_INLINE bool Value::isNumber() const
 {
-    return isInt32() || isDouble();
+    // Int32Tag is the lowest immediate tag and every double sits below it, so
+    // both kinds of number are covered by a single unsigned compare.
+    return tag() <= static_cast<uint32_t>(Int32Tag);
 }
 
 inline bool Value::isPointerValue() const
 {
-    return tag() == ObjectPointerTag || (tag() == OtherPointerTag && !isImmediatePayload(rawPayload()));
+    // The two pointer tags are two apart by construction (see the
+    // COMPILE_ASSERT in Value.h) and the slot in between stays reserved, so
+    // both -- and nothing else -- fall in a single unsigned range. Heap
+    // pointers can never take one of the immediate payloads, which lets the
+    // immediate test be shared by both tags instead of branching on the tag
+    // twice.
+    return (tag() - static_cast<uint32_t>(ObjectPointerTag)) <= static_cast<uint32_t>(PointerTagSpan) && !isImmediatePayload(rawPayload());
 }
 
 inline bool Value::isOpaquePointer() const
@@ -261,30 +273,37 @@ inline bool Value::isOpaquePointer() const
     return tag() == OtherPointerTag && !isImmediatePayload(rawPayload());
 }
 
+// Tag and payload are both fixed for an immediate, so these are single 64-bit
+// compares rather than a tag test followed by a payload test. The pair tests
+// mask the select bit out first, exactly like the 64-bit build does.
 inline bool Value::isUndefined() const
 {
-    return tag() == OtherPointerTag && rawPayload() == ValueUndefinedPayload;
+    return static_cast<uint64_t>(u.asInt64) == UndefinedValueBits;
 }
 
 inline bool Value::isNull() const
 {
-    return tag() == OtherPointerTag && rawPayload() == ValueNullPayload;
+    return static_cast<uint64_t>(u.asInt64) == NullValueBits;
+}
+
+inline bool Value::isUndefinedOrNull() const
+{
+    return (static_cast<uint64_t>(u.asInt64) | ImmediateSelectValueBit) == UndefinedValueBits;
 }
 
 inline bool Value::isBoolean() const
 {
-    const uintptr_t payload = rawPayload();
-    return tag() == OtherPointerTag && (payload == ValueFalsePayload || payload == ValueTruePayload);
+    return (static_cast<uint64_t>(u.asInt64) | ImmediateSelectValueBit) == TrueValueBits;
 }
 
 inline bool Value::isTrue() const
 {
-    return tag() == OtherPointerTag && rawPayload() == ValueTruePayload;
+    return static_cast<uint64_t>(u.asInt64) == TrueValueBits;
 }
 
 inline bool Value::isFalse() const
 {
-    return tag() == OtherPointerTag && rawPayload() == ValueFalsePayload;
+    return static_cast<uint64_t>(u.asInt64) == FalseValueBits;
 }
 
 inline PointerValue* Value::asPointerValue() const
@@ -295,17 +314,17 @@ inline PointerValue* Value::asPointerValue() const
 
 inline bool Value::isString() const
 {
-    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isString();
+    return tag() == OtherPointerTag && !isImmediatePayload(rawPayload()) && asPointerValue()->isString();
 }
 
 inline bool Value::isSymbol() const
 {
-    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isSymbol();
+    return tag() == OtherPointerTag && !isImmediatePayload(rawPayload()) && asPointerValue()->isSymbol();
 }
 
 inline bool Value::isBigInt() const
 {
-    return isPointerValue() && tag() == OtherPointerTag && asPointerValue()->isBigInt();
+    return tag() == OtherPointerTag && !isImmediatePayload(rawPayload()) && asPointerValue()->isBigInt();
 }
 
 inline String* Value::asString() const
@@ -341,21 +360,6 @@ inline Object* Value::asObject() const
 {
     ASSERT(isObject());
     return reinterpret_cast<Object*>(u.asBits.payload);
-}
-
-inline bool Value::isFunctionObject() const
-{
-    return isObject() && asPointerValue()->isFunctionObject();
-}
-
-inline bool Value::isExtendedNativeFunctionObject() const
-{
-    return isObject() && asPointerValue()->isExtendedNativeFunctionObject();
-}
-
-inline FunctionObject* Value::asFunctionObject() const
-{
-    return asPointerValue()->asFunctionObject();
 }
 
 #else
@@ -482,20 +486,22 @@ inline bool Value::operator!=(const Value& other) const
     return u.asInt64 != other.u.asInt64;
 }
 
+// The number predicates below shift the tag down instead of reading it through
+// `(unsigned short*)&u.asInt64`. Taking the address of the payload makes the
+// Value addressable, which can spill a Value the interpreter was holding in a
+// register; ARM has no memory-operand compare, so the load-halfword form was
+// never cheaper there either. The shift form is also endian-independent (no
+// #if) and free of the strict-aliasing violation.
 ALWAYS_INLINE bool Value::isInt32() const
 {
-#ifdef ESCARGOT_LITTLE_ENDIAN
-    ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short*)&u.asInt64;
-    return firstByte[3] == 0xffff;
-#else
-    return (u.asInt64 & TagTypeNumber) == TagTypeNumber;
-#endif
+    return (static_cast<uint64_t>(u.asInt64) >> NumberTagShift) == 0xffff;
 }
 
 inline bool Value::isDouble() const
 {
-    return isNumber() && !isInt32();
+    // One read of the number tag: non-zero means number, all-ones means int32.
+    const uint64_t t = static_cast<uint64_t>(u.asInt64) >> NumberTagShift;
+    return t && t != 0xffff;
 }
 
 inline int32_t Value::asInt32() const
@@ -525,28 +531,30 @@ inline bool Value::isEmpty() const
 
 ALWAYS_INLINE bool Value::isNumber() const
 {
-#ifdef ESCARGOT_LITTLE_ENDIAN
-    ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short*)&u.asInt64;
-    return firstByte[3];
-#else
-    return u.asInt64 & TagTypeNumber;
-#endif
+    return (static_cast<uint64_t>(u.asInt64) >> NumberTagShift) != 0;
+}
+
+// String/Symbol/BigInt are always stored with OtherPointerKind, so gating on the
+// kind is both cheaper than isPointerValue() and rejects objects without loading
+// their type tag at all. Mirrors what the 32-bit build does with OtherPointerTag.
+ALWAYS_INLINE bool Value::hasOtherPointerKind() const
+{
+    return (u.asPointerBits & (static_cast<uintptr_t>(TagTypeNumber) | PointerKindMask)) == OtherPointerKind;
 }
 
 inline bool Value::isString() const
 {
-    return isPointerValue() && asPointerValue()->isString();
+    return hasOtherPointerKind() && asPointerValue()->isString();
 }
 
 inline bool Value::isSymbol() const
 {
-    return isPointerValue() && asPointerValue()->isSymbol();
+    return hasOtherPointerKind() && asPointerValue()->isSymbol();
 }
 
 inline bool Value::isBigInt() const
 {
-    return isPointerValue() && asPointerValue()->isBigInt();
+    return hasOtherPointerKind() && asPointerValue()->isBigInt();
 }
 
 inline String* Value::asString() const
@@ -567,19 +575,22 @@ inline BigInt* Value::asBigInt() const
     return asPointerValue()->asBigInt();
 }
 
+// Every immediate has TagBitTypeOther set and every number has a non-zero
+// number tag, so the two pointer kinds in use (Object = 0, Other = 4) are
+// exactly the patterns that clear TagMask -- no kind compare needed. Empty is
+// the only non-pointer that survives the mask, hence the extra test.
 inline bool Value::isPointerValue() const
 {
     const uintptr_t bits = u.asPointerBits;
-    if (bits <= ValueLast || (bits & TagTypeNumber))
-        return false;
-    const uintptr_t kind = pointerKind(bits);
-    return kind == ObjectPointerKind || kind == OtherPointerKind;
+    return bits != ValueEmpty && !(bits & TagMask);
 }
 
 inline bool Value::isOpaquePointer() const
 {
-    const uintptr_t bits = u.asPointerBits;
-    return bits > ValueLast && !(bits & TagTypeNumber) && pointerKind(bits) == OpaquePointerKind;
+    // OpaquePointerKind is OtherPointerKind, so this cannot distinguish an
+    // opaque pointer from a String/Symbol/BigInt -- it never could.
+    COMPILE_ASSERT(OpaquePointerKind == OtherPointerKind, "");
+    return hasOtherPointerKind();
 }
 
 inline bool Value::isUndefined() const
@@ -590,6 +601,13 @@ inline bool Value::isUndefined() const
 inline bool Value::isNull() const
 {
     return u.asInt64 == ValueNull;
+}
+
+inline bool Value::isUndefinedOrNull() const
+{
+    COMPILE_ASSERT(ValueUndefined == (ValueNull | (1 << TagTypeShift)), "");
+
+    return (u.asInt64 | (1 << TagTypeShift)) == ValueUndefined;
 }
 
 inline bool Value::isBoolean() const
@@ -623,29 +641,17 @@ inline void* Value::asOpaquePointer() const
 
 inline bool Value::isObject() const
 {
+    // Same folding as isPointerValue(), with the kind pinned to Object. Empty is
+    // again the only leftover: 0x8 is the one other pattern that would pass the
+    // mask while being <= ValueLast, and no Value ever holds it.
     const uintptr_t bits = u.asPointerBits;
-    return bits > ValueLast && !(bits & TagTypeNumber) && pointerKind(bits) == ObjectPointerKind;
+    return bits != ValueEmpty && !(bits & (static_cast<uintptr_t>(TagTypeNumber) | PointerKindMask));
 }
 
 inline Object* Value::asObject() const
 {
     ASSERT(isObject());
     return reinterpret_cast<Object*>(u.asPointerBits);
-}
-
-inline bool Value::isFunctionObject() const
-{
-    return isPointerValue() && asPointerValue()->isFunctionObject();
-}
-
-inline FunctionObject* Value::asFunctionObject() const
-{
-    return asPointerValue()->asFunctionObject();
-}
-
-inline ExtendedNativeFunctionObject* Value::asExtendedNativeFunctionObject() const
-{
-    return asPointerValue()->asExtendedNativeFunctionObject();
 }
 
 inline intptr_t Value::payload() const
@@ -810,7 +816,14 @@ inline Value::Value(unsigned long long i)
 
 inline bool Value::isUInt32() const
 {
-    return isInt32() && asInt32() >= 0;
+    // The int32 tag and the sign bit of the payload live in one word, so the
+    // array-index fast paths (toIndex32/tryToUseAsIndex*) pay a single
+    // mask-and-compare instead of a tag test plus a sign test.
+#ifdef ESCARGOT_32
+    return (static_cast<uint64_t>(u.asInt64) & UInt32ValueBitsMask) == UInt32ValueBits;
+#else
+    return (static_cast<uint64_t>(u.asInt64) & (static_cast<uint64_t>(TagTypeNumber) | 0x80000000ull)) == static_cast<uint64_t>(TagTypeNumber);
+#endif
 }
 
 inline uint32_t Value::asUInt32() const
@@ -836,10 +849,10 @@ inline bool Value::isPrimitive() const
 
 inline bool Value::isCallable() const
 {
-    if (UNLIKELY(!isPointerValue() || !asPointerValue()->isCallable())) {
-        return false;
-    }
-    return true;
+    // Every callable is Object-derived (FunctionObject, BoundFunctionObject,
+    // WrappedFunctionObject, ProxyObject), so the cheaper object test is
+    // equivalent here -- same reasoning as isFunctionObject() below.
+    return isObject() && asPointerValue()->isCallable();
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
@@ -856,10 +869,12 @@ inline double Value::toNumber(ExecutionState& state) const
         }
     }
 #else
-    if (LIKELY(isInt32()))
-        return FastI2D(asInt32());
-    else if (isDouble())
-        return asDouble();
+    // One tag read splits int32 from double: Int32Tag sits directly on top of
+    // the double range (see the layout note in Value.h).
+    const uint32_t numberTag = tag();
+    if (LIKELY(numberTag <= static_cast<uint32_t>(Int32Tag))) {
+        return numberTag == static_cast<uint32_t>(Int32Tag) ? FastI2D(asInt32()) : asDouble();
+    }
 #endif
     else if (isUndefined())
         return std::numeric_limits<double>::quiet_NaN();
@@ -881,9 +896,7 @@ inline std::pair<Value, bool> Value::toNumeric(ExecutionState& state) const // <
         return std::make_pair(*this, false);
     }
 #else
-    if (LIKELY(isInt32())) {
-        return std::make_pair(*this, false);
-    } else if (isDouble()) {
+    if (LIKELY(isNumber())) {
         return std::make_pair(*this, false);
     }
 #endif
@@ -960,12 +973,15 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
         return true;
     }
 
-    if (isPointerValue() != val.isPointerValue()) {
-        return false;
-    }
-
+    // Numbers first: if both sides are numbers neither can be a pointer, so the
+    // pointer-ness test below could never have fired -- and it is the more
+    // expensive of the two.
     if (isNumber() && val.isNumber()) {
         return asNumber() == val.asNumber();
+    }
+
+    if (isPointerValue() != val.isPointerValue()) {
+        return false;
     }
 
     if (isObject() && val.isObject()) {
@@ -1142,6 +1158,28 @@ inline bool Value::isArrayObject() const
 inline ArrayObject* Value::asArrayObject() const
 {
     return asPointerValue()->asArrayObject();
+}
+
+// Every object-derived type is stored with the object tag/kind, so gating these
+// on isObject() instead of isPointerValue() is both cheaper and equivalent.
+inline bool Value::isFunctionObject() const
+{
+    return isObject() && asPointerValue()->isFunctionObject();
+}
+
+inline bool Value::isExtendedNativeFunctionObject() const
+{
+    return isObject() && asPointerValue()->isExtendedNativeFunctionObject();
+}
+
+inline FunctionObject* Value::asFunctionObject() const
+{
+    return asPointerValue()->asFunctionObject();
+}
+
+inline ExtendedNativeFunctionObject* Value::asExtendedNativeFunctionObject() const
+{
+    return asPointerValue()->asExtendedNativeFunctionObject();
 }
 
 } // namespace Escargot
