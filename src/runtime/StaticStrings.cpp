@@ -136,6 +136,14 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");
     INIT_STATIC_STRING(WebAssemblyDotTable, "WebAssembly.Table");
 #endif
+
+#if defined(ESCARGOT_DEBUGGER)
+    INIT_STATIC_STRING(sectionPrototype, "[[Prototype]]");
+    INIT_STATIC_STRING(sectionEntries, "[[Entries]]");
+    INIT_STATIC_STRING(key, "key");
+#else
+#endif
+
 #undef INIT_STATIC_STRING
 
 #define INIT_STATIC_NUMBER(num) numbers[num].initStaticString(atomicStringMap, new ASCIIString(#num, sizeof(#num) - 1));

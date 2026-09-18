@@ -59,6 +59,11 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    const WeakSetObjectData& storage()
+    {
+        return m_storage;
+    }
+
 private:
     // returns index into m_storage or SIZE_MAX; builds the hash index once the
     // storage outgrows KeyedCollectionHashIndex::buildThreshold

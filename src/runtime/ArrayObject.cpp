@@ -918,6 +918,11 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     }
 }
 
+ObjectPropertyValue* ArrayObject::storage() const
+{
+    return m_fastModeData;
+}
+
 ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
     : ArrayObject(state, state.context()->globalObject()->objectPrototype())
 {
