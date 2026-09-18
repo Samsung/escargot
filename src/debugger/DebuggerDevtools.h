@@ -49,7 +49,17 @@ typedef enum StopReason {
 } StopReason;
 
 typedef HashMap<AtomicString, Value, std::hash<AtomicString>, std::equal_to<AtomicString>, GCUtil::gc_malloc_allocator<std::pair<AtomicString const, Value>>> PropertyNameValueMap;
-typedef Vector<PropertyNameValueMap*, GCUtil::gc_malloc_allocator<PropertyNameValueMap*>> PropertyNameValueMapVector;
+typedef struct {
+    PropertyNameValueMap* properties;
+    PropertyNameValueMap* internalProperties;
+} PropertyMaps;
+typedef Vector<PropertyMaps, GCUtil::gc_malloc_allocator<PropertyMaps>> PropertyNameValueMapVector;
+
+typedef struct {
+    std::string type;
+    std::string subType;
+    std::string description;
+} ObjectDescription;
 
 class DebuggerDevtools : public DebuggerTcp {
 public:
@@ -102,8 +112,11 @@ private:
     void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, StopReason stopReason = BREAKPOINT, const Value* exceptionValue = nullptr);
 
 
-    uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap);
-    rapidjson::Value jsValueToJsonValueObj(ExecutionState* state, Value value, rapidjson::MemoryPoolAllocator<>& allocator, const std::string& name);
+    uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap);
+    static ObjectDescription generateObjectDescription(ExecutionState* state, Object* object);
+    static ObjectDescription generateDescription(ExecutionState* state, const Value& object);
+    static rapidjson::Value generatePreview(ExecutionState* state, const Value& value, const ObjectDescription& description, rapidjson::MemoryPoolAllocator<>& allocator);
+    rapidjson::Value jsValueToJsonValueObj(ExecutionState* state, const Value& value, rapidjson::MemoryPoolAllocator<>& allocator);
 
     static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)
     {
