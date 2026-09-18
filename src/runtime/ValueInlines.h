@@ -226,6 +226,13 @@ ALWAYS_INLINE bool Value::isDouble() const
     return tag() < LowestTag;
 }
 
+ALWAYS_INLINE bool Value::isNaNDouble() const
+{
+    // The immediate tags also sit in the NaN space, so the double range check
+    // comes first.
+    return isDouble() && isNaNValueBits(tag(), rawPayload());
+}
+
 inline int32_t Value::asInt32() const
 {
     ASSERT(isInt32());
@@ -502,6 +509,14 @@ inline bool Value::isDouble() const
     // One read of the number tag: non-zero means number, all-ones means int32.
     const uint64_t t = static_cast<uint64_t>(u.asInt64) >> NumberTagShift;
     return t && t != 0xffff;
+}
+
+ALWAYS_INLINE bool Value::isNaNDouble() const
+{
+    // A double is NaN iff its magnitude bits sit above the +Inf pattern. Done
+    // on the decoded bit pattern, so no FP register is involved.
+    const uint64_t bits = static_cast<uint64_t>(u.asInt64) - static_cast<uint64_t>(DoubleEncodeOffset);
+    return isDouble() && (bits & 0x7fffffffffffffffull) > 0x7ff0000000000000ull;
 }
 
 inline int32_t Value::asInt32() const
@@ -921,18 +936,100 @@ inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredT
     }
 }
 
+#ifdef ESCARGOT_32
+// Both equality functions dispatch on the tag halves alone. Every shape ends up
+// on the same short path (a tag compare plus a payload compare), the operands
+// are never read as one 64-bit unit -- which is what used to make the compiler
+// keep a stack image of both, since the same bytes are also an FP operand --
+// and isPointerValue()/isNumber() drop out of the hot path entirely.
+inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) const
+{
+    const uint32_t lt = u.asBits.tag;
+    const uint32_t rt = val.u.asBits.tag;
+
+    if (LIKELY(lt == rt)) {
+        if (u.asBits.payload == val.u.asBits.payload) {
+            // Identical bits are equal to themselves, except a double holding NaN.
+            return LIKELY(lt >= LowestTag) || !isNaNValueBits(lt, rawPayload());
+        }
+        if (LIKELY(lt != static_cast<uint32_t>(OtherPointerTag))) {
+            // Same tag, different payload: distinct int32s, distinct objects and
+            // distinct doubles are all unequal -- the +-0 pair differs in the
+            // tag, not the payload.
+            return false;
+        }
+        // Only the kinds sharing OtherPointerTag can still match by content. An
+        // object can never be one of them, so here null/undefined is loosely
+        // equal to nothing but itself and the IsHTMLDDA quirk cannot apply.
+        const bool selfIsNullish = isNullishPayload(rawPayload());
+        const bool valIsNullish = isNullishPayload(val.rawPayload());
+        if (UNLIKELY(selfIsNullish || valIsNullish)) {
+            return selfIsNullish && valIsNullish;
+        }
+        return abstractEqualsToSlowCase(state, val);
+    }
+
+    // Different tags mean different types -- except that Number spans the whole
+    // double range plus Int32Tag.
+    if (UNLIKELY(isNumber() && val.isNumber())) {
+        return numberEqualsToSlowCase(val);
+    }
+
+    if (isUndefinedOrNull() || val.isUndefinedOrNull()) {
+        // Two nullish Values would have shared OtherPointerTag, so the other
+        // side is of some other type here.
+#if defined(ESCARGOT_ENABLE_TEST)
+        // Under spec compliance test environments (like test262), we must support historical
+        // quirks such as IsHTMLDDA objects (e.g. document.all), where document.all == null/undefined
+        // must observably evaluate to true. Since document.all is an Object, we fall back to
+        // the out-of-line slow case handler to resolve this specific spec exception.
+        if (UNLIKELY(isObject() || val.isObject())) {
+            return abstractEqualsToSlowCase(state, val);
+        }
+#endif
+        return false;
+    }
+
+    return abstractEqualsToSlowCase(state, val);
+}
+
+inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
+{
+    const uint32_t lt = u.asBits.tag;
+    const uint32_t rt = val.u.asBits.tag;
+
+    if (LIKELY(lt == rt)) {
+        if (u.asBits.payload == val.u.asBits.payload) {
+            // Identical bits are equal to themselves, except a double holding NaN.
+            return LIKELY(lt >= LowestTag) || !isNaNValueBits(lt, rawPayload());
+        }
+        if (LIKELY(lt != static_cast<uint32_t>(OtherPointerTag))) {
+            // See abstractEqualsTo() above.
+            return false;
+        }
+        // Strings and BigInts compare by content; for the remaining
+        // OtherPointerTag mixes (symbol, opaque pointer, boolean, null,
+        // undefined) the slow case falls through to false.
+        return equalsToSlowCase(state, val);
+    }
+
+    // Different tags mean different types, which for strict equality is the
+    // answer -- except that Number spans the whole double range plus Int32Tag.
+    if (UNLIKELY(isNumber() && val.isNumber())) {
+        return numberEqualsToSlowCase(val);
+    }
+    return false;
+}
+#else
 inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) const
 {
     if (u.asInt64 == val.u.asInt64) {
-        if (UNLIKELY(isDouble())) {
-            double d = asDouble();
-            return !std::isnan(d);
-        }
-        return true;
+        // Identical bits mean equal, except for NaN.
+        return !isNaNDouble();
     }
 
     if (isNumber() && val.isNumber()) {
-        return asNumber() == val.asNumber();
+        return numberEqualsToSlowCase(val);
     }
 
     if (isUndefinedOrNull() || val.isUndefinedOrNull()) {
@@ -958,18 +1055,15 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
 inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 {
     if (u.asInt64 == val.u.asInt64) {
-        if (UNLIKELY(isDouble())) {
-            double d = asDouble();
-            return !std::isnan(d);
-        }
-        return true;
+        // Identical bits mean equal, except for NaN.
+        return !isNaNDouble();
     }
 
     // Numbers first: if both sides are numbers neither can be a pointer, so the
     // pointer-ness test below could never have fired -- and it is the more
     // expensive of the two.
     if (isNumber() && val.isNumber()) {
-        return asNumber() == val.asNumber();
+        return numberEqualsToSlowCase(val);
     }
 
     if (isPointerValue() != val.isPointerValue()) {
@@ -982,6 +1076,7 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 
     return equalsToSlowCase(state, val);
 }
+#endif
 
 inline bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& state, const Value& val) const
 {

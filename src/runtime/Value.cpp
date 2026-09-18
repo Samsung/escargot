@@ -442,6 +442,14 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
     return false;
 }
 
+bool Value::numberEqualsToSlowCase(const Value& val) const
+{
+    ASSERT(isNumber() && val.isNumber());
+    // NaN needs no special case here: the caller only gets here when the two
+    // Values differ bitwise, and a NaN never compares equal to anything.
+    return asNumber() == val.asNumber();
+}
+
 bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
 {
     if (!val.isPointerValue()) {
