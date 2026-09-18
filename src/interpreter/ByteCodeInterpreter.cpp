@@ -786,7 +786,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
             ObjectStructure* const objStructure = obj->structure();
             for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
-                if (cacheData[currentCacheIndex] == objStructure) {
+                // LIKELY: a structure compare is a pointer equality, which GCC statically
+                // predicts false, so without the hint this hit body -- index load, value load,
+                // register store, dispatch -- is laid out far outside interpret()'s entry trace
+                // and a cache *hit* pays a taken branch to reach it. The hint keeps the first
+                // iteration's hit inline and moves the loop back edge out instead, which is the
+                // right priority: slot 0 holds either the structure that made the callsite hot
+                // or, once the buffer has wrapped, the most recently cached one.
+                if (LIKELY(cacheData[currentCacheIndex] == objStructure)) {
                     ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
                     if (LIKELY(protoStructure == nullptr)) {
                         registerFile[code->m_storeRegisterIndex] = obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]].toValueKnownNotEmpty();
@@ -928,7 +935,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 // and bound check instructions, keeping the main interpreter loop lightning fast.
                 if (LIKELY(cacheFillCount > 0)) {
                     const auto& item0 = inlineCache->m_cache[0];
-                    if (item0.m_cachedHiddenClass == testItem) {
+                    // LIKELY for the same reason as the Get-IC probes: an unhinted pointer
+                    // equality is predicted false, which exiles the whole store body from
+                    // interpret()'s entry trace and makes a monomorphic store hit jump away.
+                    if (LIKELY(item0.m_cachedHiddenClass == testItem)) {
                         if (LIKELY(item0.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
                             if (LIKELY(item0.m_isPlainDataProperty)) {
                                 obj->m_values[item0.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
