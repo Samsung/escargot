@@ -1010,6 +1010,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(SwitchOnInt32)
+            :
+        {
+            SwitchOnInt32* code = (SwitchOnInt32*)programCounter;
+            const Value& discriminant = registerFile[code->m_discriminantIndex];
+            if (LIKELY(discriminant.isInt32())) {
+                // one unsigned compare covers both ends of the table range
+                const uint32_t index = static_cast<uint32_t>(discriminant.asInt32()) - static_cast<uint32_t>(code->m_min);
+                programCounter = LIKELY(index < code->m_entryCount) ? code->table()[index] : code->m_defaultPosition;
+                NEXT_INSTRUCTION();
+            }
+            JUMP_INSTRUCTION(SwitchOnInt32SlowCase);
+        }
+
         DEFINE_OPCODE(JumpIfNotFulfilled)
             :
         {
@@ -1940,6 +1954,37 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 record.asPointerValue()->asIteratorRecord()->recycle(*state);
             }
             ADD_PROGRAM_COUNTER(ReleaseIteratorRecord);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(SwitchOnInt32SlowCase)
+            :
+        {
+            // a number that is not stored as an int32 still has to hit its case: 1.0 === 1
+            SwitchOnInt32* code = (SwitchOnInt32*)programCounter;
+            const Value& discriminant = registerFile[code->m_discriminantIndex];
+            size_t target = code->m_defaultPosition;
+            if (discriminant.isNumber()) {
+                const double number = discriminant.asNumber();
+                int32_t asInt32;
+                // isInt32ConvertibleDouble rejects -0, which is still strict-equal to 0
+                if (Value::isInt32ConvertibleDouble(number, asInt32) || (number == 0.0)) {
+                    const uint32_t index = static_cast<uint32_t>(asInt32) - static_cast<uint32_t>(code->m_min);
+                    if (index < code->m_entryCount) {
+                        target = code->table()[index];
+                    }
+                }
+            }
+            programCounter = target;
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(SwitchOnValue)
+            :
+        {
+            SwitchOnValue* code = (SwitchOnValue*)programCounter;
+            const size_t target = code->find(registerFile[code->m_discriminantIndex]);
+            programCounter = (target == SIZE_MAX) ? code->m_defaultPosition : target;
             NEXT_INSTRUCTION();
         }
 

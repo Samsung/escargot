@@ -150,6 +150,8 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfUndefinedOrNull)                          \
     F(JumpIfNotFulfilled)                             \
     F(JumpIfEqual)                                    \
+    F(SwitchOnInt32)                                  \
+    F(SwitchOnValue)                                  \
     F(Call)                                           \
     F(CallWithReceiver)                               \
     F(GetParameter)                                   \
@@ -219,6 +221,7 @@ enum Opcode {
     // special opcode only used in interpreter
     GetObjectOpcodeSlowCaseOpcode,
     SetObjectOpcodeSlowCaseOpcode,
+    SwitchOnInt32SlowCaseOpcode,
 };
 
 struct OpcodeTable {
@@ -2075,6 +2078,98 @@ public:
 #endif
 };
 
+// `switch` whose case tests are all int32 literals packed in a dense range.
+// The jump target table is stored as tail data right behind the bytecode: the
+// target for `m_min + i` sits at index i, and every slot no case claimed holds
+// m_defaultPosition, so one bounds check is the whole dispatch.
+class SwitchOnInt32 : public ByteCode {
+public:
+    SwitchOnInt32(const ByteCodeLOC& loc, const size_t discriminantIndex, int32_t min, uint32_t entryCount)
+        : ByteCode(Opcode::SwitchOnInt32Opcode, loc)
+        , m_discriminantIndex(discriminantIndex)
+        , m_min(min)
+        , m_entryCount(entryCount)
+        , m_defaultPosition(SIZE_MAX)
+    {
+    }
+
+    ByteCodeRegisterIndex m_discriminantIndex;
+    int32_t m_min;
+    uint32_t m_entryCount;
+    size_t m_defaultPosition;
+
+    size_t* table() { return reinterpret_cast<size_t*>(this + 1); }
+    const size_t* table() const { return reinterpret_cast<const size_t*>(this + 1); }
+    size_t tailDataLength() const { return m_entryCount * sizeof(size_t); }
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("switch on int32 r%u in [%d, %d] (default %zu)", m_discriminantIndex, (int)m_min,
+               (int)(m_min + (int64_t)m_entryCount - 1), dumpJumpPosition(m_defaultPosition));
+    }
+#endif
+};
+
+struct SwitchOnValueEntry {
+    size_t m_position;
+    Value m_key;
+    // one of SwitchOnValue::KeyKind
+    uint32_t m_keyKind;
+};
+
+// `switch` whose case tests are all literals but do not form a dense int32
+// range - string cases, sparse or non-integral numbers, or a mix of those. The
+// lookup table is an open addressed hash map stored as tail data; m_capacity is
+// a power of two and always leaves at least one free slot, so probing ends.
+class SwitchOnValue : public ByteCode {
+public:
+    enum KeyKind : uint32_t {
+        KeyKindEmpty = 0,
+        KeyKindInt32,
+        KeyKindDouble,
+        KeyKindString,
+        KeyKindFalse,
+        KeyKindTrue,
+        KeyKindNull,
+        KeyKindUndefined,
+        // no literal case test can ever be strict-equal to such a discriminant
+        KeyKindUnsupported,
+    };
+
+    SwitchOnValue(const ByteCodeLOC& loc, const size_t discriminantIndex, uint32_t capacity)
+        : ByteCode(Opcode::SwitchOnValueOpcode, loc)
+        , m_discriminantIndex(discriminantIndex)
+        , m_capacity(capacity)
+        , m_defaultPosition(SIZE_MAX)
+    {
+    }
+
+    ByteCodeRegisterIndex m_discriminantIndex;
+    uint32_t m_capacity;
+    size_t m_defaultPosition;
+
+    SwitchOnValueEntry* table() { return reinterpret_cast<SwitchOnValueEntry*>(this + 1); }
+    const SwitchOnValueEntry* table() const { return reinterpret_cast<const SwitchOnValueEntry*>(this + 1); }
+    size_t tailDataLength() const { return m_capacity * sizeof(SwitchOnValueEntry); }
+
+    // rewrites `key` into the canonical form the generator and the interpreter
+    // agree on: a double that is exactly an int32 - and -0, which is
+    // strict-equal to 0 - becomes an int32
+    static KeyKind classifyKey(Value& key);
+    static uint32_t hashKey(KeyKind kind, const Value& key);
+    static bool keyEquals(KeyKind kind, const Value& a, const Value& b);
+    // SIZE_MAX when the discriminant matches no case
+    size_t find(const Value& discriminant) const;
+    // fills a free slot and returns its index, or SIZE_MAX when an equal key is
+    // already present (a duplicate case test, which is unreachable)
+    size_t insert(KeyKind kind, const Value& key);
+
+#ifndef NDEBUG
+    void dump();
+#endif
+};
+
 class ControlFlowRecord : public gc {
     friend class InterpreterSlowPath;
 
@@ -3758,6 +3853,16 @@ public:
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, void* bi, Node* node);
 
     void pushPauseStatementExtraData(ByteCodeGenerateContext* context);
+
+    // appends zero filled bytes right behind the bytecode that was pushed last;
+    // used by the bytecodes carrying a variable length table in the code stream
+    size_t pushTailData(size_t length)
+    {
+        size_t start = m_code.size();
+        m_code.resizeWithUninitializedValues(start + length);
+        memset(m_code.data() + start, 0, length);
+        return start;
+    }
 
     InterpretedCodeBlock* codeBlock() { return m_codeBlock; }
     template <typename CodeType>
