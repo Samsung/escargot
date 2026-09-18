@@ -129,6 +129,14 @@ ALWAYS_INLINE bool isImmediatePayload(uintptr_t payload)
     return (payload & ~ImmediatePayloadMask) == ValueFalsePayload;
 }
 
+// True for the null and undefined payloads only. Callers that already know the
+// tag is OtherPointerTag use this instead of isUndefinedOrNull() so that the
+// answer costs two integer ops on the payload half alone.
+ALWAYS_INLINE bool isNullishPayload(uintptr_t payload)
+{
+    return (payload | ImmediatePayloadSelectBit) == ValueUndefinedPayload;
+}
+
 // EncodedValue keeps immediates as tagPointer(payload, OtherPointerKind), so
 // the kind bits can be folded into the mask and the untag skipped.
 ALWAYS_INLINE bool isEncodedImmediatePayload(uintptr_t bits)
@@ -143,6 +151,15 @@ ALWAYS_INLINE bool isEncodedImmediatePayload(uintptr_t bits)
 constexpr uint64_t valueBits(uint32_t tag, uint32_t payload)
 {
     return (static_cast<uint64_t>(tag) << 32) | static_cast<uint64_t>(payload);
+}
+
+// True iff the {tag, payload} pair is a double holding NaN: its magnitude bits
+// sit above the +Inf pattern. The caller must have established that the tag is
+// in the double range -- the immediate tags live in the NaN space too.
+ALWAYS_INLINE bool isNaNValueBits(uint32_t tag, uintptr_t payload)
+{
+    const uint32_t absHigh = tag & 0x7fffffffu;
+    return absHigh > 0x7ff00000u || (absHigh == 0x7ff00000u && payload != 0);
 }
 #endif
 
@@ -335,6 +352,10 @@ public:
     bool isInt32() const;
     bool isUInt32() const;
     bool isDouble() const;
+    // True iff this is a double holding NaN. Decided from the raw bits, never
+    // through asDouble(): callers that only need the NaN answer must not be
+    // forced to touch an FP register (see equalsTo()).
+    bool isNaNDouble() const;
     bool isTrue() const;
     bool isFalse() const;
 
@@ -431,6 +452,11 @@ public:
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
     inline bool equalsTo(ExecutionState& ec, const Value& val) const;
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
+    // Both sides are numbers but not bitwise identical. Kept out of line
+    // because it is the only part of equalsTo()/abstractEqualsTo() that needs
+    // an FP register; inlining it makes the compiler hold an FP image of both
+    // operands across the whole function.
+    NEVER_INLINE bool numberEqualsToSlowCase(const Value& val) const;
     bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
     inline bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
     bool equalsToByTheSameValueZeroAlgorithmSlowCase(ExecutionState& ec, const Value& val) const;
