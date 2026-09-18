@@ -128,6 +128,8 @@ public:
         return m_arrayLength;
     }
 
+    ObjectPropertyValue* storage() const;
+
     ALWAYS_INLINE bool isLengthPropertyWritableDirect() const
     {
         return isLengthPropertyWritable();
