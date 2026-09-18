@@ -709,6 +709,65 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
         }
 
+/* Shared body of the Simple-tier get handlers: resolve the receiver to an Object and load the
+   cache base pointers + the receiver structure to compare against. */
+#define GET_OBJECT_SIMPLE_IC_PROLOGUE()                                                \
+    GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;        \
+    Object* obj;                                                                       \
+    {                                                                                  \
+        const Value& receiver = registerFile[code->m_objectRegisterIndex];             \
+        if (LIKELY(receiver.isObject())) {                                             \
+            obj = receiver.asObject();                                                 \
+        } else {                                                                       \
+            obj = InterpreterSlowPath::fastToObject(*state, receiver);                 \
+        }                                                                              \
+    }                                                                                  \
+    GetObjectInlineCacheSimpleCaseData* const inlineCache = code->m_simpleInlineCache; \
+    ObjectStructure* const objStructure = obj->structure();
+
+/* One probe against a compile-time-constant slot index. On a hit the value is stored and the
+   interpreter moves on; a miss jumps to the label at the end of this expansion, so the probes
+   below just chain, each one falling into the next.
+
+   The LIKELY on the structure compare is load-bearing, not decoration: it is a pointer equality,
+   which GCC statically predicts FALSE (PRED_POINTER), and without the hint the whole hit body --
+   index load, value load, register store and dispatch -- gets moved out of interpret()'s entry
+   trace, so an inline cache *hit* ends up paying a taken branch into a block several KB away.
+   With the hint the first probe's hit is straight-line code and the later probe moves out
+   instead, which is the right priority: slots fill in insertion order, so slot 0 holds the
+   structure that made the callsite hot.
+
+   Both the own-property and the prototype hit converge on a single store/dispatch tail via
+   `holder`, instead of emitting that tail (and its dispatch site) twice per probe. */
+#define GET_OBJECT_SIMPLE_IC_PROBE_SLOT(IDX)                                                                                   \
+    if (LIKELY(inlineCache->m_cachedStructures[IDX] == objStructure)) {                                                        \
+        ObjectStructure* protoStructure = inlineCache->m_cachedProtoStructures[IDX];                                           \
+        Object* holder = obj;                                                                                                  \
+        if (UNLIKELY(protoStructure != nullptr)) {                                                                             \
+            Object* protoObj = obj->getPrototypeObject(*state);                                                                \
+            if (UNLIKELY(!protoObj || protoObj->structure() != protoStructure)) {                                              \
+                goto SimpleInlineCacheProbeMiss##IDX;                                                                          \
+            }                                                                                                                  \
+            holder = protoObj;                                                                                                 \
+        }                                                                                                                      \
+        registerFile[code->m_storeRegisterIndex] = holder->m_values[inlineCache->m_cachedIndexes[IDX]].toValueKnownNotEmpty(); \
+        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);                                                                         \
+        NEXT_INSTRUCTION();                                                                                                    \
+    }                                                                                                                          \
+    SimpleInlineCacheProbeMiss##IDX:
+
+        DEFINE_OPCODE(GetObjectPreComputedCaseSimpleInlineCache2)
+            :
+        {
+            GET_OBJECT_SIMPLE_IC_PROLOGUE();
+            GET_OBJECT_SIMPLE_IC_PROBE_SLOT(0);
+            GET_OBJECT_SIMPLE_IC_PROBE_SLOT(1);
+            JUMP_INSTRUCTION(GetObjectPreComputedCase);
+        }
+
+#undef GET_OBJECT_SIMPLE_IC_PROLOGUE
+#undef GET_OBJECT_SIMPLE_IC_PROBE_SLOT
+
         DEFINE_OPCODE(GetObjectPreComputedCaseSimpleInlineCache)
             :
         {
@@ -3202,7 +3261,6 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             code->m_simpleInlineCache = new GetObjectInlineCacheSimpleCaseData(propertyName);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Simple;
             block->m_otherLiteralData.push_back(code->m_simpleInlineCache);
-            code->changeOpcode(Opcode::GetObjectPreComputedCaseSimpleInlineCacheOpcode);
         }
 
         auto inlineCache = code->m_simpleInlineCache;
@@ -3213,7 +3271,8 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                 break;
             }
         }
-        if (targetIndex == GetObjectInlineCacheSimpleCaseData::inlineBufferSize) {
+        const bool bufferWasFull = (targetIndex == GetObjectInlineCacheSimpleCaseData::inlineBufferSize);
+        if (bufferWasFull) {
             for (size_t i = GetObjectInlineCacheSimpleCaseData::inlineBufferSize - 1; i > 0; i--) {
                 inlineCache->m_cachedStructures[i] = inlineCache->m_cachedStructures[i - 1];
                 inlineCache->m_cachedProtoStructures[i] = inlineCache->m_cachedProtoStructures[i - 1];
@@ -3224,6 +3283,14 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         inlineCache->m_cachedStructures[targetIndex] = cachedhiddenClassChain[0];
         inlineCache->m_cachedProtoStructures[targetIndex] = (cachedhiddenClassChain.size() == 2) ? cachedhiddenClassChain[1] : nullptr;
         inlineCache->m_cachedIndexes[targetIndex] = cachedIndex;
+
+        // Retag to the unrolled 2-slot handler while the callsite still fits in it. Slots are
+        // filled in order, so the entry just written at targetIndex makes the count
+        // targetIndex + 1 -- except after the shift above, which keeps the buffer full (and puts
+        // the newest entry in slot 0, so the generic handler's loop still probes MRU-first).
+        code->changeOpcode((LIKELY(!bufferWasFull) && targetIndex <= 1)
+                               ? Opcode::GetObjectPreComputedCaseSimpleInlineCache2Opcode
+                               : Opcode::GetObjectPreComputedCaseSimpleInlineCacheOpcode);
 
         registerFile[code->m_storeRegisterIndex] = obj->m_values[cachedIndex];
     } else {

@@ -124,6 +124,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetObject)                                      \
     F(SetObjectOperation)                             \
     F(GetObjectPreComputedCase)                       \
+    F(GetObjectPreComputedCaseSimpleInlineCache2)     \
     F(GetObjectPreComputedCaseSimpleInlineCache)      \
     F(GetObjectPreComputedCaseLength)                 \
     F(GetObjectPreComputedCaseComplexInlineCache)     \
@@ -1582,11 +1583,28 @@ public:
 #endif
 };
 
+// Simple-tier dispatch tag for callsites with at most 2 live cache entries. Its handler probes
+// slots 0 and 1 with compile-time-constant indices: no loop counter, no bound check, no
+// per-iteration addressing (both structure arrays become immediate-offset loads), and a separate
+// branch-predictor entry per slot instead of one shared loop-back branch. Entries fill
+// m_cachedStructures[] in order (0, 1, 2, ...), so the live entry count is known whenever the
+// slow path inserts one and it retags the callsite -- see the retag at the end of
+// `InterpreterSlowPath::getObjectPrecomputedCaseOperation`'s Simple branch. One tag covers both
+// live counts 1 and 2: a 1-entry site has nullptr in slot 1, which never matches a real
+// structure, so probing it is a guaranteed miss rather than a separate opcode. Sites with more
+// than 2 entries (and the full-buffer shift case) stay on the generic rolled-loop opcode below.
+// Runtime-retagged only, same convention as Length/Complex -- same-size requirement applies,
+// see COMPILE_ASSERT.
+class GetObjectPreComputedCaseSimpleInlineCache2 : public GetObjectPreComputedCase {
+public:
+};
+
 class GetObjectPreComputedCaseSimpleInlineCache : public GetObjectPreComputedCase {
 public:
 };
 
 COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseSimpleInlineCache) == sizeof(GetObjectPreComputedCase), "");
+COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseSimpleInlineCache2) == sizeof(GetObjectPreComputedCase), "");
 
 // Dedicated dispatch tag for `.length` reads (Array/String) -- see the
 // `m_isLength` fast path inside `InterpreterSlowPath::getObjectPrecomputedCaseOperation`,
