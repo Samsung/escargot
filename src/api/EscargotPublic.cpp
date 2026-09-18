@@ -87,7 +87,7 @@ inline OptionalRef<ValueRef> toOptionalValue(const Value& v)
 inline Value toImpl(const OptionalRef<ValueRef>& v)
 {
     if (LIKELY(v.hasValue())) {
-        return Value(EncodedValue::fromPayload(v.value()));
+        return toImpl(v.value());
     }
     return Value(Value::EmptyValue);
 }
