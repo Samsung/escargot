@@ -645,6 +645,38 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 code += bc->m_tailDataLength;
                 break;
             }
+            case SwitchOnInt32Opcode: {
+                // the jump table holds relative positions only, nothing to relocate
+                SwitchOnInt32* bc = static_cast<SwitchOnInt32*>(currentCode);
+                code += bc->tailDataLength();
+                break;
+            }
+            case SwitchOnValueOpcode: {
+                SwitchOnValue* bc = static_cast<SwitchOnValue*>(currentCode);
+                SwitchOnValueEntry* entries = bc->table();
+                // one reloc info per string key, in slot order; the reader walks
+                // the slots in the same order to find them again
+                for (uint32_t i = 0; i < bc->m_capacity; i++) {
+                    if (entries[i].m_keyKind != SwitchOnValue::KeyKindString) {
+                        continue;
+                    }
+                    String* string = entries[i].m_key.asString();
+                    if (UNLIKELY(!string->length())) {
+                        relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, SIZE_MAX));
+                    } else {
+                        size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
+                        if (stringIndex != VectorUtil::invalidIndex) {
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
+                        } else {
+                            ASSERT(string->isAtomicStringSource());
+                            stringIndex = m_stringTable->add(AtomicString(context, string));
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
+                        }
+                    }
+                }
+                code += bc->tailDataLength();
+                break;
+            }
             case ExecutionResumeOpcode:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
@@ -1035,6 +1067,10 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
         size_t cokvoKeyIndex = 0;
         size_t cokvoLastCodeOffset = SIZE_MAX;
 
+        // track slot index for SwitchOnValue string keys
+        uint32_t switchKeySlotIndex = 0;
+        size_t switchKeyLastCodeOffset = SIZE_MAX;
+
         for (size_t i = 0; i < relocInfoVector.size(); i++) {
             ByteCodeRelocInfo& info = relocInfoVector[i];
             ByteCode* currentCode = reinterpret_cast<ByteCode*>(code + info.codeOffset);
@@ -1252,6 +1288,34 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 }
                 bc->m_keys[cokvoKeyIndex] = m_stringTable->get(info.dataOffset);
                 cokvoKeyIndex++;
+                break;
+            }
+            case SwitchOnValueOpcode: {
+                SwitchOnValue* bc = static_cast<SwitchOnValue*>(currentCode);
+                if (info.codeOffset != switchKeyLastCodeOffset) {
+                    switchKeySlotIndex = 0;
+                    switchKeyLastCodeOffset = info.codeOffset;
+                }
+                // the writer walked the slots in this same order
+                while ((switchKeySlotIndex < bc->m_capacity) && (bc->table()[switchKeySlotIndex].m_keyKind != SwitchOnValue::KeyKindString)) {
+                    switchKeySlotIndex++;
+                }
+                if (switchKeySlotIndex >= bc->m_capacity) {
+                    throw CodeCacheReader::Error("out of range");
+                }
+
+                if (info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING) {
+                    bc->table()[switchKeySlotIndex].m_key = Value(m_stringTable->get(info.dataOffset).string());
+                } else {
+                    ASSERT(info.relocType == ByteCodeRelocType::RELOC_STRING);
+                    if (UNLIKELY(info.dataOffset == SIZE_MAX)) {
+                        bc->table()[switchKeySlotIndex].m_key = Value(String::emptyString());
+                    } else {
+                        ASSERT(info.dataOffset < stringLiteralData.size());
+                        bc->table()[switchKeySlotIndex].m_key = Value(stringLiteralData[info.dataOffset]);
+                    }
+                }
+                switchKeySlotIndex++;
                 break;
             }
             default:

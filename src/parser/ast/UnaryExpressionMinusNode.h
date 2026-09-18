@@ -33,6 +33,7 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::UnaryExpressionMinus; }
+    Node* argument() { return m_argument; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         size_t srcIndex = m_argument->getRegister(codeBlock, context);

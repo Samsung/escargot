@@ -75,6 +75,10 @@ void ByteCode::dumpCode(const uint8_t* byteCodeStart, const size_t endPos)
             }
         } else if (curCode->m_orgOpcode == FinalizeDisposableOpcode) {
             curPos += static_cast<FinalizeDisposable*>(curCode)->m_tailDataLength;
+        } else if (curCode->m_orgOpcode == SwitchOnInt32Opcode) {
+            curPos += static_cast<SwitchOnInt32*>(curCode)->tailDataLength();
+        } else if (curCode->m_orgOpcode == SwitchOnValueOpcode) {
+            curPos += static_cast<SwitchOnValue*>(curCode)->tailDataLength();
         }
 
         curPos += byteCodeLengths[curCode->m_orgOpcode];
@@ -96,7 +100,123 @@ void SetGlobalVariable::dump()
 {
     printf("set global variable global.%s <- r%u", m_slot->m_propertyName.string()->toUTF8StringData().data(), m_registerIndex);
 }
+
+void SwitchOnValue::dump()
+{
+    printf("switch on value r%u (%u slots, default %zu)", m_discriminantIndex, m_capacity, dumpJumpPosition(m_defaultPosition));
+}
 #endif
+
+SwitchOnValue::KeyKind SwitchOnValue::classifyKey(Value& key)
+{
+    if (key.isInt32()) {
+        return KeyKindInt32;
+    }
+    if (key.isNumber()) {
+        const double d = key.asNumber();
+        int32_t asInt32;
+        // isInt32ConvertibleDouble rejects -0, which is still strict-equal to 0
+        if (Value::isInt32ConvertibleDouble(d, asInt32) || (d == 0.0)) {
+            key = Value(asInt32);
+            return KeyKindInt32;
+        }
+        return KeyKindDouble;
+    }
+    if (key.isString()) {
+        return KeyKindString;
+    }
+    if (key.isBoolean()) {
+        return key.asBoolean() ? KeyKindTrue : KeyKindFalse;
+    }
+    if (key.isNull()) {
+        return KeyKindNull;
+    }
+    if (key.isUndefined()) {
+        return KeyKindUndefined;
+    }
+    return KeyKindUnsupported;
+}
+
+uint32_t SwitchOnValue::hashKey(KeyKind kind, const Value& key)
+{
+    switch (kind) {
+    case KeyKindInt32: {
+        // murmur3 finalizer
+        uint32_t h = static_cast<uint32_t>(key.asInt32());
+        h ^= h >> 16;
+        h *= 0x85ebca6bu;
+        h ^= h >> 13;
+        return h;
+    }
+    case KeyKindDouble: {
+        const uint64_t bits = bitwise_cast<uint64_t>(key.asNumber());
+        return static_cast<uint32_t>(bits) ^ static_cast<uint32_t>(bits >> 32);
+    }
+    case KeyKindString:
+        return static_cast<uint32_t>(key.asString()->hashValue());
+    default:
+        return static_cast<uint32_t>(kind) * 0x9e3779b9u;
+    }
+}
+
+bool SwitchOnValue::keyEquals(KeyKind kind, const Value& a, const Value& b)
+{
+    switch (kind) {
+    case KeyKindInt32:
+        return a.asInt32() == b.asInt32();
+    case KeyKindDouble:
+        // NaN never reaches the table, so bit patterns and numeric equality agree
+        return a.asNumber() == b.asNumber();
+    case KeyKindString: {
+        String* left = a.asString();
+        String* right = b.asString();
+        return (left == right) || left->equals(right);
+    }
+    default:
+        // the kind alone identifies true, false, null and undefined
+        return true;
+    }
+}
+
+size_t SwitchOnValue::find(const Value& discriminant) const
+{
+    Value key = discriminant;
+    const KeyKind kind = classifyKey(key);
+    if (UNLIKELY(kind == KeyKindUnsupported)) {
+        return SIZE_MAX;
+    }
+
+    const uint32_t mask = m_capacity - 1;
+    uint32_t index = hashKey(kind, key) & mask;
+    const SwitchOnValueEntry* entries = table();
+    while (entries[index].m_keyKind != KeyKindEmpty) {
+        if ((entries[index].m_keyKind == static_cast<uint32_t>(kind)) && keyEquals(kind, entries[index].m_key, key)) {
+            return entries[index].m_position;
+        }
+        index = (index + 1) & mask;
+    }
+    return SIZE_MAX;
+}
+
+size_t SwitchOnValue::insert(KeyKind kind, const Value& key)
+{
+    ASSERT(kind != KeyKindEmpty && kind != KeyKindUnsupported);
+
+    const uint32_t mask = m_capacity - 1;
+    uint32_t index = hashKey(kind, key) & mask;
+    SwitchOnValueEntry* entries = table();
+    while (entries[index].m_keyKind != KeyKindEmpty) {
+        if ((entries[index].m_keyKind == static_cast<uint32_t>(kind)) && keyEquals(kind, entries[index].m_key, key)) {
+            return SIZE_MAX;
+        }
+        index = (index + 1) & mask;
+    }
+
+    entries[index].m_keyKind = kind;
+    entries[index].m_key = key;
+    entries[index].m_position = SIZE_MAX;
+    return index;
+}
 
 ByteCodeBlock::ByteCodeBlock()
     : m_shouldClearStack(false)

@@ -937,6 +937,30 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             code += cd->m_tailDataLength;
             break;
         }
+        case SwitchOnInt32Opcode: {
+            SwitchOnInt32* cd = (SwitchOnInt32*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_discriminantIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            cd->m_defaultPosition = cd->m_defaultPosition + codeBase;
+            size_t* table = cd->table();
+            for (uint32_t i = 0; i < cd->m_entryCount; i++) {
+                table[i] = table[i] + codeBase;
+            }
+            code += cd->tailDataLength();
+            break;
+        }
+        case SwitchOnValueOpcode: {
+            SwitchOnValue* cd = (SwitchOnValue*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_discriminantIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            cd->m_defaultPosition = cd->m_defaultPosition + codeBase;
+            SwitchOnValueEntry* table = cd->table();
+            for (uint32_t i = 0; i < cd->m_capacity; i++) {
+                if (table[i].m_keyKind != SwitchOnValue::KeyKindEmpty) {
+                    table[i].m_position = table[i].m_position + codeBase;
+                }
+            }
+            code += cd->tailDataLength();
+            break;
+        }
         case LoadArgumentsElementOpcode: {
             LoadArgumentsElement* cd = (LoadArgumentsElement*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_indexRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
