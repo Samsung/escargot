@@ -544,7 +544,7 @@ Object::Object(ExecutionState& state, size_t propertyCount,
             hasSymbolPropertyName = true;
         }
 
-        if (keyVector->at(i).m_propertyName.isPlainString() && keyVector->at(i).m_propertyName.hasAtomicString()) {
+        if (keyVector->at(i).m_propertyName.isPlainString() && !keyVector->at(i).m_propertyName.hasAtomicString()) {
             hasNonAtomicPropertyName = true;
         }
     }
