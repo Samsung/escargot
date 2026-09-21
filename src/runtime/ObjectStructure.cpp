@@ -397,6 +397,187 @@ ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure(
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
 }
 
+uint8_t PropertyNameMapWithCache::entryWidth(size_t count)
+{
+    // Zero marks an empty bucket; all live entries store propertyIndex + 1.
+    if (count <= UINT8_MAX) {
+        return sizeof(uint8_t);
+    }
+    if (count <= UINT16_MAX) {
+        return sizeof(uint16_t);
+    }
+    ASSERT(count <= UINT32_MAX);
+    return sizeof(uint32_t);
+}
+
+PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureItemVector& properties)
+{
+    rebuild(properties);
+}
+
+size_t PropertyNameMapWithCache::hash(const ObjectStructurePropertyName& name) const
+{
+    // Atomic names normally use pointer identity. If a template contributed
+    // non-atomic strings, hash all strings by content so equal names agree.
+    size_t value;
+    if (LIKELY(!m_hasNonAtomicNames)) {
+        // Atomic-string hashing is pointer identity, and symbols already use
+        // their raw pointer. Clearing the atomic-string tag produces exactly
+        // the same input without repeating the type dispatch in hashValue().
+        value = name.rawValue() & ~static_cast<size_t>(OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
+    } else {
+        value = name.isPlainString() ? name.plainString()->hashValue() : name.rawValue();
+    }
+    // Mix aligned pointers before masking off the low bits. Use 32-bit
+    // arithmetic here to keep this inexpensive on ARM32 as well.
+    uint32_t mixed = static_cast<uint32_t>(value ^ (value >> 16));
+    mixed *= 0x9e3779b9U;
+    return mixed ^ (mixed >> 16);
+}
+
+template <typename Entry>
+void PropertyNameMapWithCache::insertEntry(const ObjectStructurePropertyName& name, size_t index)
+{
+    auto entries = static_cast<Entry*>(m_entries);
+    if (m_denseCapacity) {
+        uint32_t numeric = name.tryToUseAsIndexProperty();
+        if (numeric < m_denseCapacity) {
+            entries[m_capacity + numeric] = static_cast<Entry>(index + 1);
+            return;
+        }
+    }
+    size_t slot = hash(name) & (m_capacity - 1);
+    while (entries[slot]) {
+        slot = (slot + 1) & (m_capacity - 1);
+    }
+    entries[slot] = static_cast<Entry>(index + 1);
+    m_occupied++;
+}
+
+template <typename Entry>
+size_t PropertyNameMapWithCache::findEntry(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties) const
+{
+    auto entries = static_cast<const Entry*>(m_entries);
+    if (m_denseCapacity) {
+        uint32_t numeric = name.tryToUseAsIndexProperty();
+        if (numeric < m_denseCapacity) {
+            auto entry = entries[m_capacity + numeric];
+            return entry ? static_cast<size_t>(entry) - 1 : SIZE_MAX;
+        }
+    }
+    size_t slot = hash(name) & (m_capacity - 1);
+    while (auto entry = entries[slot]) {
+        size_t index = static_cast<size_t>(entry) - 1;
+        const auto& candidate = properties[index].m_propertyName;
+        if (candidate.rawValue() == name.rawValue()
+            || (m_hasNonAtomicNames && name.isPlainString() && candidate == name)) {
+            return index;
+        }
+        slot = (slot + 1) & (m_capacity - 1);
+    }
+    return SIZE_MAX;
+}
+
+void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properties)
+{
+    m_size = properties.size();
+    m_entryWidth = entryWidth(m_size);
+    m_hasNonAtomicNames = false;
+
+    // A bounded low-index region, enabled only when at least half full.
+    // A sparse key such as "4294967294" must never size this allocation.
+    size_t denseCapacity = 16;
+    while (denseCapacity < m_size) {
+        denseCapacity *= 2;
+    }
+    size_t denseCount = 0;
+    for (size_t i = 0; i < m_size; i++) {
+        const auto& name = properties[i].m_propertyName;
+        m_hasNonAtomicNames |= !name.hasAtomicString() && name.isPlainString();
+        denseCount += name.tryToUseAsIndexProperty() < denseCapacity;
+    }
+    if (denseCount < denseCapacity / 2) {
+        denseCapacity = 0;
+        denseCount = 0;
+    }
+    m_denseCapacity = denseCapacity;
+    m_capacity = 4;
+    while (m_size - denseCount > m_capacity - std::max(m_capacity / 4, static_cast<size_t>(1))) {
+        m_capacity *= 2;
+    }
+
+    void* oldEntries = m_entries;
+    size_t bytes = (m_capacity + m_denseCapacity) * m_entryWidth;
+    m_entries = GC_MALLOC_ATOMIC(bytes);
+    memset(m_entries, 0, bytes);
+    m_occupied = 0;
+    for (size_t i = 0; i < m_size; i++) {
+        const auto& name = properties[i].m_propertyName;
+        if (m_entryWidth == sizeof(uint8_t)) {
+            insertEntry<uint8_t>(name, i);
+        } else if (m_entryWidth == sizeof(uint16_t)) {
+            insertEntry<uint16_t>(name, i);
+        } else {
+            insertEntry<uint32_t>(name, i);
+        }
+    }
+    if (oldEntries) {
+        GC_FREE(oldEntries);
+    }
+    if (m_size) {
+        m_lastName = properties[m_size - 1].m_propertyName;
+        m_lastIndex = m_size - 1;
+    }
+}
+
+void PropertyNameMapWithCache::insert(const ObjectStructureItemVector& properties)
+{
+    ASSERT(properties.size() == m_size + 1);
+    const auto& name = properties[properties.size() - 1].m_propertyName;
+    bool dense = m_denseCapacity && name.tryToUseAsIndexProperty() < m_denseCapacity;
+    if (entryWidth(properties.size()) != m_entryWidth
+        || (!dense && m_occupied + 1 > m_capacity - std::max(m_capacity / 4, static_cast<size_t>(1)))
+        || (!m_hasNonAtomicNames && !name.hasAtomicString() && name.isPlainString())) {
+        rebuild(properties);
+        return;
+    }
+    if (m_entryWidth == sizeof(uint8_t)) {
+        insertEntry<uint8_t>(name, m_size);
+    } else if (m_entryWidth == sizeof(uint16_t)) {
+        insertEntry<uint16_t>(name, m_size);
+    } else {
+        insertEntry<uint32_t>(name, m_size);
+    }
+    m_lastName = name;
+    m_lastIndex = m_size++;
+}
+
+size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties)
+{
+    if (name == m_lastName) {
+        return m_lastIndex;
+    }
+    m_lastName = name;
+    // A non-atomic query can compare equal to an atomic stored name even
+    // though its hash is content-based. This uncommon path must still work.
+    if (UNLIKELY(!m_hasNonAtomicNames && !name.hasAtomicString() && name.isPlainString())) {
+        m_lastIndex = SIZE_MAX;
+        for (size_t i = 0; i < properties.size(); i++) {
+            if (properties[i].m_propertyName == name) {
+                m_lastIndex = i;
+                break;
+            }
+        }
+    } else if (m_entryWidth == sizeof(uint8_t)) {
+        m_lastIndex = findEntry<uint8_t>(name, properties);
+    } else if (m_entryWidth == sizeof(uint16_t)) {
+        m_lastIndex = findEntry<uint16_t>(name, properties);
+    } else {
+        m_lastIndex = findEntry<uint32_t>(name, properties);
+    }
+    return m_lastIndex;
+}
+
 void* ObjectStructureWithMap::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -417,7 +598,7 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithMap::
     if (!m_propertyNameMap) {
         m_propertyNameMap = createPropertyNameMap(m_properties);
     }
-    auto idx = m_propertyNameMap->find(s);
+    auto idx = m_propertyNameMap->find(s, *m_properties);
     if (idx == SIZE_MAX) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructureItem*>());
     }
@@ -456,7 +637,7 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
         newProperties->push_back(newItem);
         m_properties = nullptr;
         if (m_propertyNameMap) {
-            m_propertyNameMap->insert(name, newProperties->size() - 1);
+            m_propertyNameMap->insert(*newProperties);
             ASSERT(m_propertyNameMap->size() == newProperties->size());
             newPropertyNameMap = m_propertyNameMap;
             m_propertyNameMap = nullptr;
