@@ -110,7 +110,7 @@ public:
 #endif
 #else
 #ifndef ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 512
+#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 64
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE
 #define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 36
@@ -361,65 +361,38 @@ private:
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
 COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
 
-class PropertyNameMapWithCache : protected PropertyNameMap, public gc {
-    struct CacheItem {
-        ObjectStructurePropertyName m_name;
-        size_t m_index;
-        CacheItem()
-            : m_name()
-            , m_index(SIZE_MAX)
-        {
-        }
-    };
-
+// An index into the insertion-ordered properties, not a second copy of the
+// keys. The bucket storage contains only integers and is not scanned by GC.
+class PropertyNameMapWithCache : public gc {
 public:
-    PropertyNameMapWithCache()
-        : PropertyNameMap()
-    {
-    }
-
-    void reserve(size_t t)
-    {
-        PropertyNameMap::reserve(t);
-    }
+    explicit PropertyNameMapWithCache(const ObjectStructureItemVector& properties);
 
     size_t size() const
     {
-        return PropertyNameMap::size();
+        return m_size;
     }
 
-    void insert(const ObjectStructurePropertyName& name, size_t idx)
-    {
-        m_lastItem.m_name = name;
-        m_lastItem.m_index = idx;
-        PropertyNameMap::insert(std::make_pair(name, idx));
-    }
-
-    size_t find(const ObjectStructurePropertyName& name)
-    {
-        if (name == m_lastItem.m_name) {
-#ifndef NDEBUG
-            auto iter = PropertyNameMap::find(name);
-            if (iter == end()) {
-                ASSERT(m_lastItem.m_index == SIZE_MAX);
-            } else {
-                ASSERT(m_lastItem.m_index == m_lastItem.m_index);
-            }
-#endif
-            return m_lastItem.m_index;
-        }
-        m_lastItem.m_name = name;
-        auto iter = PropertyNameMap::find(name);
-        if (iter == end()) {
-            m_lastItem.m_index = SIZE_MAX;
-            return SIZE_MAX;
-        }
-        m_lastItem.m_index = iter->second;
-        return iter->second;
-    }
+    void insert(const ObjectStructureItemVector& properties);
+    size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties);
 
 private:
-    CacheItem m_lastItem;
+    static uint8_t entryWidth(size_t count);
+    size_t hash(const ObjectStructurePropertyName& name) const;
+    void rebuild(const ObjectStructureItemVector& properties);
+    template <typename Entry>
+    void insertEntry(const ObjectStructurePropertyName& name, size_t index);
+    template <typename Entry>
+    size_t findEntry(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties) const;
+
+    void* m_entries{ nullptr };
+    size_t m_capacity{ 0 };
+    size_t m_denseCapacity{ 0 };
+    size_t m_occupied{ 0 };
+    size_t m_size{ 0 };
+    ObjectStructurePropertyName m_lastName;
+    size_t m_lastIndex{ SIZE_MAX };
+    uint8_t m_entryWidth{ 1 };
+    bool m_hasNonAtomicNames{ false };
 };
 
 class ObjectStructureWithMap : public ObjectStructure {
@@ -477,17 +450,9 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    template <typename SourceVectorType>
-    static PropertyNameMapWithCache* createPropertyNameMap(SourceVectorType* from)
+    static PropertyNameMapWithCache* createPropertyNameMap(ObjectStructureItemVector* from)
     {
-        PropertyNameMapWithCache* map = new PropertyNameMapWithCache();
-
-        map->reserve(from->size());
-        for (size_t i = 0; i < from->size(); i++) {
-            map->insert((*from)[i].m_propertyName, i);
-        }
-
-        return map;
+        return new PropertyNameMapWithCache(*from);
     }
 
 private:
