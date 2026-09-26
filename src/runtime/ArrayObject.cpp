@@ -918,9 +918,13 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     }
 }
 
-ObjectPropertyValue* ArrayObject::storage() const
+const ObjectPropertyValue* ArrayObject::storage() const
 {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return m_fastModeData.data();
+#else
     return m_fastModeData;
+#endif
 }
 
 ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)

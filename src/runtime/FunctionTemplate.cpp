@@ -191,14 +191,14 @@ Object* FunctionTemplate::instantiate(Context* ctx, bool addToContextCache)
             m_prototypeTemplate->set(ctx->staticStrings().constructor.string(), Value(), true, false, true);
         }
 
-        ObjectPropertyValue baseValues[3];
+        BasePropertyValue baseValues[3];
         baseValues[0] = functionPrototype = m_prototypeTemplate->instantiate(ctx);
         baseValues[1] = Value(m_argumentCount);
         baseValues[2] = m_name.string();
         constructObjectPropertyValues(ctx, baseValues, 3, objectPropertyValues);
     } else {
         // [length, name]
-        ObjectPropertyValue baseValues[2];
+        BasePropertyValue baseValues[2];
         baseValues[0] = Value(m_argumentCount);
         baseValues[1] = m_name.string();
         constructObjectPropertyValues(ctx, baseValues, 2, objectPropertyValues);

@@ -128,7 +128,7 @@ public:
         return m_arrayLength;
     }
 
-    ObjectPropertyValue* storage() const;
+    const ObjectPropertyValue* storage() const;
 
     ALWAYS_INLINE bool isLengthPropertyWritableDirect() const
     {
@@ -160,7 +160,7 @@ public:
 #endif
     }
 
-    ALWAYS_INLINE EncodedValue* fastModeDataRaw()
+    ALWAYS_INLINE ObjectPropertyValue* fastModeDataRaw()
     {
         ASSERT(isFastModeArray());
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)

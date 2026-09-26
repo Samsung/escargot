@@ -438,6 +438,11 @@ public:
         return m_buffer;
     }
 
+    const T* data() const
+    {
+        return m_buffer;
+    }
+
     // used for specific case
     // should not have any valid data
     void reset(T* resetData)

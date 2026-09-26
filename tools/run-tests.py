@@ -67,10 +67,13 @@ def run(args, cwd=None, env=None, stdout=None, checkresult=True, report=False):
             print(COLOR_BLUE + var + '=' + val + ' \\' + COLOR_RESET)
     print(COLOR_BLUE + ' '.join(args) + COLOR_RESET)
 
+    full_env = dict(os.environ)
     if env is not None:
-        full_env = dict(os.environ)
         full_env.update(env)
-        env = full_env
+    compat_dir = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'python-compat')
+    existing_pythonpath = full_env.get('PYTHONPATH')
+    full_env['PYTHONPATH'] = compat_dir + (os.pathsep + existing_pythonpath if existing_pythonpath else '')
+    env = full_env
 
     proc = Popen(args, cwd=cwd, env=env, stdout=PIPE if report else stdout)
 
