@@ -70,6 +70,7 @@ MAY_THREAD_LOCAL bool ThreadLocal::inited;
 size_t ThreadLocal::g_stackLimitTlsOffset;
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+size_t ThreadLocal::g_cageBaseTlsOffset;
 size_t ThreadLocal::g_emptyStringTlsOffset;
 #endif
 size_t ThreadLocal::g_gcEpochTlsOffset;
@@ -79,6 +80,8 @@ ptrdiff_t ThreadLocal::g_stackLimitKeyOffset;
 pthread_key_t ThreadLocal::g_stackLimitKey;
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+ptrdiff_t ThreadLocal::g_cageBaseKeyOffset;
+pthread_key_t ThreadLocal::g_cageBaseKey;
 ptrdiff_t ThreadLocal::g_emptyStringKeyOffset;
 pthread_key_t ThreadLocal::g_emptyStringKey;
 #endif
@@ -92,6 +95,7 @@ alignas(8) static ASCIIStringFromExternalMemory g_emptyString("");
 
 MAY_THREAD_LOCAL size_t ThreadLocal::g_stackLimit;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+MAY_THREAD_LOCAL uintptr_t ThreadLocal::g_cageBase;
 MAY_THREAD_LOCAL String* ThreadLocal::g_emptyStringInstance;
 #else
 String* ThreadLocal::g_emptyStringInstance;
@@ -151,6 +155,7 @@ GlobalDeleteChecker::~GlobalDeleteChecker()
     // call GC_deinit for releasing bdwgc's vdb resource
     GC_deinit();
 
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     for (size_t i = 0; i < m_mappedMemoriesSize; i++) {
         auto e = m_mappedMemories[i];
 #if defined(OS_WINDOWS)
@@ -159,6 +164,7 @@ GlobalDeleteChecker::~GlobalDeleteChecker()
         munmap(e.first, e.second);
 #endif
     }
+#endif
 
     free(m_mappedMemories);
 }
@@ -537,6 +543,7 @@ void ThreadLocal::initializeTlsKeySlotOffsets()
     char* baseAddr = tlsBaseAddress();
     g_stackLimitKeyOffset = createAndProbeTlsKey(&g_stackLimitKey, baseAddr);
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    g_cageBaseKeyOffset = createAndProbeTlsKey(&g_cageBaseKey, baseAddr);
     g_emptyStringKeyOffset = createAndProbeTlsKey(&g_emptyStringKey, baseAddr);
 #endif
     g_gcEpochKeyOffset = createAndProbeTlsKey(&g_gcEpochKey, baseAddr);
@@ -566,6 +573,10 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 #endif
     // Heap is initialized for each thread
     Heap::initialize();
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    g_cageBase = GC_get_cage_base();
+    ESCARGOT_RELEASE_ASSERT(g_cageBase && !(g_cageBase & 0xffffffffULL));
+#endif
     // GC_THREAD_ISOLATE owns the valid-offset table per ThreadLocal GC.
     // Heap::initialize() creates that table; register tagged displacements
     // before this thread performs any application allocation.
@@ -604,6 +615,12 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     }
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (!g_cageBaseTlsOffset) {
+        g_cageBaseTlsOffset = reinterpret_cast<uintptr_t>(&g_cageBase) - tlsBase;
+    } else {
+        auto newDistance = reinterpret_cast<uintptr_t>(&g_cageBase) - tlsBase;
+        ESCARGOT_RELEASE_ASSERT(newDistance == g_cageBaseTlsOffset);
+    }
     if (!g_emptyStringTlsOffset) {
         g_emptyStringTlsOffset = reinterpret_cast<uintptr_t>(&g_emptyStringInstance) - tlsBase;
     } else {
@@ -633,6 +650,10 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_stackLimitKey, baseAddr, g_stackLimitKeyOffset));
     *reinterpret_cast<size_t**>(baseAddr + g_stackLimitKeyOffset) = &g_stackLimit;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_cageBaseKey, baseAddr, g_cageBaseKeyOffset));
+    // The cage base is constant until finalize(), so keep the value itself in
+    // the key slot and avoid an emulated TLS lookup on every decoded pointer.
+    ESCARGOT_RELEASE_ASSERT(pthread_setspecific(g_cageBaseKey, reinterpret_cast<void*>(g_cageBase)) == 0);
     ESCARGOT_RELEASE_ASSERT(verifyPthreadKeySlotOffset(g_emptyStringKey, baseAddr, g_emptyStringKeyOffset));
     *reinterpret_cast<String***>(baseAddr + g_emptyStringKeyOffset) = &g_emptyStringInstance;
 #endif
@@ -789,6 +810,13 @@ void ThreadLocal::finalize()
 
     // g_gcEpoch
     g_gcEpoch = 0;
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+    ESCARGOT_RELEASE_ASSERT(pthread_setspecific(g_cageBaseKey, nullptr) == 0);
+#endif
+    g_cageBase = 0;
+#endif
 
     inited = false;
 }
