@@ -290,7 +290,7 @@ GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
     const char* end = ((char*)addr) + GC_size(addr);
 
     constexpr size_t batchSize = 32;
-    GC_mark_pair buffer[batchSize];
+    GC_mark_pair_32bit buffer[batchSize];
     int count = 0;
 
     char* ptr = (char*)start;
@@ -298,23 +298,22 @@ GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
 
     for (; ptr < limit; ptr += 4) {
         EncodedSmallValue* current = (EncodedSmallValue*)ptr;
-        const auto& payload = current->payload();
-        if (payload > ValueLast && ((payload & 1) == 0)) {
-            GC_word* to = reinterpret_cast<GC_word*>(payload);
-            buffer[count].from = (GC_word*)ptr;
-            buffer[count].to = to;
+        const uint32_t offset = current->compressedPayload();
+        if (offset > ValueLast && ((offset & 1) == 0)) {
+            buffer[count].from = reinterpret_cast<const unsigned int*>(ptr);
+            buffer[count].offset = offset;
             count++;
             if (count == batchSize) {
-                mark_stack_ptr = GC_mark_and_push_ptrs(mark_stack_ptr, mark_stack_limit,
-                                                       buffer, batchSize);
+                mark_stack_ptr = GC_mark_and_push_32bit(mark_stack_ptr, mark_stack_limit,
+                                                        buffer, batchSize);
                 count = 0;
             }
         }
     }
 
     if (count > 0) {
-        mark_stack_ptr = GC_mark_and_push_ptrs(mark_stack_ptr, mark_stack_limit,
-                                               buffer, count);
+        mark_stack_ptr = GC_mark_and_push_32bit(mark_stack_ptr, mark_stack_limit,
+                                                buffer, count);
     }
 
     return mark_stack_ptr;
