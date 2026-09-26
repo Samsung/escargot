@@ -22,6 +22,7 @@
 using namespace Escargot;
 
 #include "gtest/gtest.h"
+#include "gc/gc_mark.h"
 
 #include <algorithm>
 #include <vector>
@@ -2980,6 +2981,20 @@ TEST(Debugger, ObjectStore)
 
 #endif /* ESCARGOT_DEBUGGER */
 
+#if defined(__GNUC__)
+__attribute__((noinline))
+#endif
+static void
+clearWeakTestStack()
+{
+    // Reuse the stack occupied by Evaluator::execute before checking weak roots.
+    volatile char cleared[128 * 1024];
+    for (size_t i = 0; i < sizeof(cleared); ++i) {
+        cleared[i] = 0;
+    }
+    GC_clear_stack(nullptr);
+}
+
 TEST(WeakPtr, Basic)
 {
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
@@ -3001,10 +3016,12 @@ TEST(WeakPtr, Basic)
     Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* weak2) -> ValueRef* {
         *weak2 = ObjectRef::create(state);
         weak2->setWeak();
-        return weak2->get(); }, &weak2);
+        return ValueRef::createUndefined(); }, &weak2);
 
     EXPECT_TRUE(weak.get() != nullptr);
     EXPECT_TRUE(weak2.get() != nullptr);
+
+    clearWeakTestStack();
 
     for (size_t i = 0; i < 100; i++) {
         PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
@@ -3027,16 +3044,17 @@ TEST(WeakPtr, WeakSet)
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
-    PersistentRefHolder<ValueRef> weakTarget = SymbolRef::create(StringRef::createFromUTF8("asdf"));
-    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* s) -> ValueRef* {
-        auto ws = WeakSetObjectRef::create(state);
-        EXPECT_TRUE(ws->add(state, s));
-        return ws; }, weakTarget.get());
+    PersistentRefHolder<ValueRef> weakTarget;
+    PersistentRefHolder<WeakSetObjectRef> weakSet;
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ValueRef>* target, PersistentRefHolder<WeakSetObjectRef>* set) -> ValueRef* {
+        target->reset(SymbolRef::create(StringRef::createFromUTF8("asdf")));
+        set->reset(WeakSetObjectRef::create(state));
+        EXPECT_TRUE(set->get()->add(state, target->get()));
+        target->setWeak();
+        return ValueRef::createUndefined(); }, &weakTarget, &weakSet);
 
-    // clear stack
-    Evaluator::execute(context.get(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* { return ValueRef::create(100); }, StringRef::createFromUTF8("qwer"));
-
-    weakTarget.setWeak();
+    // Clear stale references left in the evaluator's returned stack frames.
+    clearWeakTestStack();
 
     for (size_t i = 0; i < 100; i++) {
         PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
@@ -3058,18 +3076,20 @@ TEST(WeakPtr, WeakMap)
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
-    PersistentRefHolder<ValueRef> weakTarget = SymbolRef::create(StringRef::createFromUTF8("asdf"));
-    PersistentRefHolder<ValueRef> weakTargetValue = SymbolRef::create(StringRef::createFromUTF8("asdf"));
-    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* s, ValueRef* s2) -> ValueRef* {
-        auto ws = WeakMapObjectRef::create(state);
-        ws->set(state, s, s2);
-        return ws; }, weakTarget.get(), weakTargetValue.get());
+    PersistentRefHolder<ValueRef> weakTarget;
+    PersistentRefHolder<ValueRef> weakTargetValue;
+    PersistentRefHolder<WeakMapObjectRef> weakMap;
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ValueRef>* target, PersistentRefHolder<ValueRef>* value, PersistentRefHolder<WeakMapObjectRef>* map) -> ValueRef* {
+        target->reset(SymbolRef::create(StringRef::createFromUTF8("asdf")));
+        value->reset(SymbolRef::create(StringRef::createFromUTF8("asdf")));
+        map->reset(WeakMapObjectRef::create(state));
+        map->get()->set(state, target->get(), value->get());
+        target->setWeak();
+        value->setWeak();
+        return ValueRef::createUndefined(); }, &weakTarget, &weakTargetValue, &weakMap);
 
-    // clear stack
-    Evaluator::execute(context.get(), [](ExecutionStateRef* state, StringRef* s, StringRef* s2) -> ValueRef* { return ValueRef::create(100); }, StringRef::createFromUTF8("qwer"), StringRef::createFromUTF8("qwer"));
-
-    weakTarget.setWeak();
-    weakTargetValue.setWeak();
+    // Clear stale references left in the evaluator's returned stack frames.
+    clearWeakTestStack();
 
     for (size_t i = 0; i < 100; i++) {
         PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
@@ -3106,7 +3126,7 @@ TEST(WeakPtr, WeakMapValueDoesNotRetainKey)
         weakKey->setWeak();
         return ValueRef::createUndefined(); }, &weakMap, &weakKey);
 
-    Evaluator::execute(context.get(), [](ExecutionStateRef*, StringRef*) -> ValueRef* { return ValueRef::createUndefined(); }, StringRef::createFromASCII("clear stack"));
+    clearWeakTestStack();
     for (size_t i = 0; i < 100; i++) {
         PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
     }
@@ -3116,6 +3136,50 @@ TEST(WeakPtr, WeakMapValueDoesNotRetainKey)
 
     EXPECT_EQ(weakKey.get(), nullptr);
 }
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT) && defined(__x86_64__) && defined(__GLIBC__)
+static volatile int packedRegisterRootFinalized;
+
+static void packedRegisterRootFinalizer(void*, void*)
+{
+    ++packedRegisterRootFinalized;
+}
+
+__attribute__((noinline)) static uint64_t makePackedRegisterRoot()
+{
+    void* object = GC_MALLOC(64);
+    GC_register_finalizer_no_order(object, packedRegisterRootFinalizer, nullptr, nullptr, nullptr);
+    const uintptr_t base = GC_get_cage_base();
+    EXPECT_EQ(base & 0xffffffffULL, 0u);
+    EXPECT_GE(uintptr_t(object), base);
+    EXPECT_LT(uintptr_t(object) - base, 1ULL << 32);
+    return (uint64_t(uint32_t(uintptr_t(object) - base)) << 32) | 1;
+}
+
+__attribute__((noinline)) static int collectWithPackedRegisterRoot(uint64_t packed)
+{
+    register uint64_t root __asm__("rbx") = packed;
+    __asm__ __volatile__("" : "+r"(root) : : "memory");
+    for (int i = 0; i < 5; ++i) {
+        GC_gcollect();
+        GC_invoke_finalizers();
+    }
+    __asm__ __volatile__("" : "+r"(root) : : "memory");
+    return packedRegisterRootFinalized;
+}
+
+TEST(WeakPtr, CompressedPointerInRegisterHighHalf)
+{
+    GC_INIT();
+    packedRegisterRootFinalized = 0;
+    uint64_t packed = makePackedRegisterRoot();
+    clearWeakTestStack();
+    for (int i = 0; i < 13; ++i) {
+        GC_clear_stack(nullptr);
+    }
+    EXPECT_EQ(collectWithPackedRegisterRoot(packed), 0);
+}
+#endif
 
 static void finalizerTester(void* obj, void* data)
 {

@@ -272,7 +272,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
     if (fp) {
         StringRef* src = StringRef::emptyString();
         std::string utf8Str;
-        std::basic_string<unsigned char, std::char_traits<unsigned char>> str;
+        std::vector<unsigned char> str;
         char buf[512];
         bool hasNonLatin1Content = false;
         size_t readLen;
@@ -286,7 +286,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
                         fseek(fp, 0, SEEK_SET);
                         break;
                     }
-                    str += ch;
+                    str.push_back(ch);
                 }
             } else {
                 utf8Str.append(buf, readLen);
@@ -299,20 +299,20 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
                 if (hasNonLatin1Content) {
                     src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), utf8Str.data(), utf8Str.length(), false);
                 } else {
-                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.length());
+                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.size());
                 }
             } else {
                 if (hasNonLatin1Content) {
                     src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
                 } else {
-                    src = StringRef::createFromLatin1(str.data(), str.length());
+                    src = StringRef::createFromLatin1(str.data(), str.size());
                 }
             }
         } else {
             if (hasNonLatin1Content) {
                 src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
             } else {
-                src = StringRef::createFromLatin1(str.data(), str.length());
+                src = StringRef::createFromLatin1(str.data(), str.size());
             }
         }
         return src;

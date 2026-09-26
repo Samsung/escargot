@@ -141,7 +141,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
     return s;
 }
 
-void Template::constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues)
+void Template::constructObjectPropertyValues(Context* ctx, const BasePropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues)
 {
     size_t propertyCount = m_properties.size() + baseItemCount;
     objectPropertyValues.resizeWithUninitializedValues(0, propertyCount);
