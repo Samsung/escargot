@@ -1599,10 +1599,16 @@ jobs:
   # release-78.1-from-source Linux legs elsewhere in this file -- this
   # validates the new mechanism, it doesn't replace them. Linux prototype for
   # eventually reusing the same mechanism on targets with no usable system
-  # ICU (e.g. iOS). Scoped to test262-strict's intl402/Date/Temporal subset
-  # (see the "Run test262" step below for why) instead of the full suite.
+  # ICU (e.g. iOS). The compressed rows cover both language behavior and the
+  # extended API's GC tests in the otherwise uncovered 32-in-64 mode.
   build-test-on-vendored-icu-linux:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - {pointer_mode: full64, force_large: 'ON', extended_api: 'OFF', cctest: 'OFF'}
+          - {pointer_mode: compressed32, force_large: 'OFF', extended_api: 'OFF', cctest: 'OFF'}
+          - {pointer_mode: compressed32-api, force_large: 'OFF', extended_api: 'ON', cctest: 'ON'}
     steps:
     - uses: Wandalen/wretry.action@v3
       with:
@@ -1616,6 +1622,14 @@ jobs:
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
+    - name: Init vendor tests for compressed pointers
+      if: matrix.force_large == 'OFF'
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init --checkout --force -- test/vendortest third_party/googletest && break
+          echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
+          sleep 10
+        done
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -1623,10 +1637,11 @@ jobs:
     - name: Build (vendored, statically-linked ICU)
       env:
         # UBSan -- see build-on-x64-release's comment (Release only).
-        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_UBSAN=ON
+        BUILD_OPTIONS: -DCMAKE_BUILD_TYPE=release -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON -DESCARGOT_TEST=ON -DENABLE_SHELL=ON -GNinja -DESCARGOT_UBSAN=ON -DESCARGOT_BUILD_64BIT_FORCE_LARGE=${{ matrix.force_large }} -DESCARGOT_USE_EXTENDED_API=${{ matrix.extended_api }} -DESCARGOT_BUILD_CCTEST=${{ matrix.cctest }}
       run: |
         cmake -H. -Bout/vendored-icu $BUILD_OPTIONS
-        ninja -Cout/vendored-icu
+        cmake --build out/vendored-icu --target vendored-icu-build --parallel "$(nproc)"
+        cmake --build out/vendored-icu --parallel "$(nproc)"
     - name: Verify ICU is statically linked (no libicu*.so pulled in)
       run: |
         if ldd out/vendored-icu/escargot | grep -qi libicu; then
@@ -1634,15 +1649,27 @@ jobs:
           ldd out/vendored-icu/escargot >&2
           exit 1
         fi
-    # Scoped to the ICU-touching corners of test262 (strict mode only) rather
-    # than the full suite: every other CI leg in this file already runs full
-    # test262 against a non-vendored build, so this job's job is validating
-    # the ICU integration itself, not re-covering the whole language again.
+    # The full64 and compressed32 rows check language behavior. Extended API
+    # permits a mutable global prototype, so its row runs C++ tests below.
     - name: Run test262 (intl402/Date/Temporal, strict only)
+      if: matrix.cctest == 'OFF'
       env:
         GC_FREE_SPACE_DIVISOR: 1
       run: |
         python3 tools/run-tests.py --engine="$GITHUB_WORKSPACE/out/vendored-icu/escargot" test262-strict --test262-extra-arg="intl402 built-ins/Date built-ins/Temporal"
+    - name: Run compressed-pointer language and GC regression tests
+      if: matrix.pointer_mode == 'compressed32'
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: |
+        python3 tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/vendored-icu/escargot" new-es regression-tests test262
+    - name: Run compressed-pointer C++ API and GC tests
+      if: matrix.cctest == 'ON'
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+      run: |
+        out/vendored-icu/cctest --gtest_output=xml:/tmp/escargot-compressed-cctest.xml
+        python3 -c "import xml.etree.ElementTree as ET; r = ET.parse('/tmp/escargot-compressed-cctest.xml').getroot(); assert int(r.get('tests', '0')) > 0 and int(r.get('failures', '0')) == 0 and int(r.get('errors', '0')) == 0"
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15

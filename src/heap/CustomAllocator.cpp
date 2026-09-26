@@ -306,7 +306,7 @@ GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
             count++;
             if (count == batchSize) {
                 mark_stack_ptr = GC_mark_and_push_ptrs(mark_stack_ptr, mark_stack_limit,
-                                                       buffer, BATCH_SIZE);
+                                                       buffer, batchSize);
                 count = 0;
             }
         }

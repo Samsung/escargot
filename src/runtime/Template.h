@@ -106,6 +106,13 @@ public:
     }
 
 protected:
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // Keep full pointers in stack locals until values reach compressed heap slots.
+    using BasePropertyValue = Value;
+#else
+    using BasePropertyValue = ObjectPropertyValue;
+#endif
+
     struct CachedObjectStructure {
         ObjectStructure* m_objectStructure;
         bool m_inlineCacheable;
@@ -119,7 +126,7 @@ protected:
 
     void addNativeDataAccessorProperties(Template* other);
     CachedObjectStructure constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount);
-    void constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues);
+    void constructObjectPropertyValues(Context* ctx, const BasePropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues);
     void postProcessing(Object* instantiatedObject);
 
     Template()
