@@ -92,14 +92,18 @@ inline Value toImpl(const OptionalRef<ValueRef>& v)
     return Value(Value::EmptyValue);
 }
 
-inline ValueVectorRef* toRef(const EncodedValueVector* v)
+// Public value vectors can carry opaque ValueRef payloads supplied by callers.
+// Keep their full width; internal value vectors can use compressed slots.
+using PublicValueVector = Vector<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>>;
+
+inline ValueVectorRef* toRef(const PublicValueVector* v)
 {
-    return reinterpret_cast<ValueVectorRef*>(const_cast<EncodedValueVector*>(v));
+    return reinterpret_cast<ValueVectorRef*>(const_cast<PublicValueVector*>(v));
 }
 
-inline EncodedValueVector* toImpl(ValueVectorRef* v)
+inline PublicValueVector* toImpl(ValueVectorRef* v)
 {
-    return reinterpret_cast<EncodedValueVector*>(v);
+    return reinterpret_cast<PublicValueVector*>(v);
 }
 
 inline AtomicStringRef* toRef(const AtomicString& v)
@@ -2249,7 +2253,7 @@ ScriptParserRef* ContextRef::scriptParser()
 
 ValueVectorRef* ValueVectorRef::create(size_t size)
 {
-    return toRef(new EncodedValueVector(size));
+    return toRef(new PublicValueVector(size));
 }
 
 size_t ValueVectorRef::size()
@@ -2259,12 +2263,12 @@ size_t ValueVectorRef::size()
 
 void ValueVectorRef::pushBack(ValueRef* val)
 {
-    toImpl(this)->pushBack(EncodedValueVectorElement::fromPayload(val));
+    toImpl(this)->pushBack(EncodedValue::fromPayload(val));
 }
 
 void ValueVectorRef::insert(size_t pos, ValueRef* val)
 {
-    toImpl(this)->insert(pos, EncodedValueVectorElement::fromPayload(val));
+    toImpl(this)->insert(pos, EncodedValue::fromPayload(val));
 }
 
 void ValueVectorRef::erase(size_t pos)
@@ -2284,7 +2288,7 @@ ValueRef* ValueVectorRef::at(const size_t idx)
 
 void ValueVectorRef::set(const size_t idx, ValueRef* newValue)
 {
-    toImpl(this)->data()[idx] = EncodedValueVectorElement::fromPayload(newValue);
+    toImpl(this)->data()[idx] = EncodedValue::fromPayload(newValue);
 }
 
 void ValueVectorRef::resize(size_t newSize)

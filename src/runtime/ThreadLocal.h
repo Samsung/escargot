@@ -133,6 +133,7 @@ class ThreadLocal {
     static size_t g_stackLimitTlsOffset;
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static size_t g_cageBaseTlsOffset;
     static size_t g_emptyStringTlsOffset;
 #endif
     static size_t g_gcEpochTlsOffset;
@@ -143,6 +144,8 @@ class ThreadLocal {
     static ptrdiff_t g_stackLimitKeyOffset;
     static pthread_key_t g_stackLimitKey;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static ptrdiff_t g_cageBaseKeyOffset;
+    static pthread_key_t g_cageBaseKey;
     // the empty string needs a key (and thus a slot) of its own: the word next
     // to another key's slot belongs to that key's neighbor in libc's key array,
     // not to us
@@ -157,6 +160,7 @@ class ThreadLocal {
     // Global data per thread
     static MAY_THREAD_LOCAL size_t g_stackLimit;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static MAY_THREAD_LOCAL uintptr_t g_cageBase;
     static MAY_THREAD_LOCAL String* g_emptyStringInstance;
 #else
     static String* g_emptyStringInstance;
@@ -258,6 +262,20 @@ class ThreadLocal {
 #endif
 
 public:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static ALWAYS_INLINE uintptr_t cageBase()
+    {
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+        return readTlsValue(g_cageBaseTlsOffset);
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+        auto base = tlsBaseAddress();
+        void** slot = reinterpret_cast<void**>(base + g_cageBaseKeyOffset);
+        return reinterpret_cast<uintptr_t>(*slot);
+#else
+        return g_cageBase;
+#endif
+    }
+#endif
     static void initialize(uint32_t optionFromGlobal = 0);
     static void finalize();
     static bool isInited()

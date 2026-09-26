@@ -85,7 +85,7 @@ jobs:
           mkdir -p build/android/escargot/build/native_nondk
           cd build/android/escargot/build/native_nondk
           cmake -DCMAKE_SYSTEM_NAME=Linux -DESCARGOT_BUILD_SHARED_LIBS=OFF \
-                -DESCARGOT_BUILD_64BIT_FORCE_LARGE=ON -DESCARGOT_SHADOWREALM=ON \
+                -DESCARGOT_SHADOWREALM=ON \
                 -DUNDER_NDK=OFF ../../src/main/cpp
           make -j$(nproc)
           ls -la libescargot-jni.so

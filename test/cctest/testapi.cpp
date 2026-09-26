@@ -3149,7 +3149,11 @@ __attribute__((noinline)) static uint64_t makePackedRegisterRoot()
 {
     void* object = GC_MALLOC(64);
     GC_register_finalizer_no_order(object, packedRegisterRootFinalizer, nullptr, nullptr, nullptr);
-    return (uint64_t(uint32_t(uintptr_t(object))) << 32) | 1;
+    const uintptr_t base = GC_get_cage_base();
+    EXPECT_EQ(base & 0xffffffffULL, 0u);
+    EXPECT_GE(uintptr_t(object), base);
+    EXPECT_LT(uintptr_t(object) - base, 1ULL << 32);
+    return (uint64_t(uint32_t(uintptr_t(object) - base)) << 32) | 1;
 }
 
 __attribute__((noinline)) static int collectWithPackedRegisterRoot(uint64_t packed)

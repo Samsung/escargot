@@ -502,6 +502,11 @@ private:
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 class EncodedSmallValue {
+    static ALWAYS_INLINE uintptr_t cageBase()
+    {
+        return ThreadLocal::cageBase();
+    }
+
 public:
     enum EmptyValueInitTag { EmptyValue };
     COMPILE_ASSERT(EncodedSmallValue::EmptyValue == 0, "");
@@ -556,11 +561,32 @@ public:
         // only when the slot is SMI-tagged *and* negative.
         const uint32_t raw = static_cast<uint32_t>(m_data.payload);
         const uint64_t signBit = static_cast<uint64_t>(raw & EncodedValueImpl::kSmiTag) & static_cast<uint64_t>(raw >> 31);
+        if (raw > ValueLast && !(raw & EncodedValueImpl::kSmiTag)) {
+            return static_cast<intptr_t>(cageBase() + raw);
+        }
         return static_cast<intptr_t>(static_cast<uint64_t>(raw) | ((0ull - signBit) << 32));
+    }
+
+    uint32_t compressedPayload() const
+    {
+        return static_cast<uint32_t>(m_data.payload);
     }
 
     template <const bool shouldTreatEmptyAsUndefined = false, const bool checkEmpty = true>
     ALWAYS_INLINE Value toValue() const
+    {
+        const int32_t raw = m_data.payload;
+        if (LIKELY(raw & EncodedValueImpl::kSmiTag)) {
+            return Value(static_cast<int>(raw >> 1));
+        }
+        if (UNLIKELY(static_cast<uint32_t>(raw) <= ValueLast)) {
+            return toValueWithBase<shouldTreatEmptyAsUndefined, checkEmpty>(0);
+        }
+        return toValueWithBase<shouldTreatEmptyAsUndefined, checkEmpty>(cageBase());
+    }
+
+    template <const bool shouldTreatEmptyAsUndefined = false, const bool checkEmpty = true>
+    ALWAYS_INLINE Value toValueWithBase(uintptr_t base) const
     {
         // Read the slot once and test the SMI tag once: going through payload()
         // would branch on that very bit and then have it re-tested here.
@@ -570,10 +596,12 @@ public:
             return Value(static_cast<int>(raw >> 1));
         }
 
-        const uintptr_t bits = static_cast<uint32_t>(raw);
-        // See EncodedValue::toValue(): the range test only matters for the two
-        // immediates that share NumberPointerKind.
-        if (UNLIKELY(pointerKind(bits) == NumberPointerKind) && LIKELY(bits > ValueLast)) {
+        const uintptr_t offset = static_cast<uint32_t>(raw);
+        const bool isPointer = offset > ValueLast;
+        const uintptr_t bits = isPointer ? base + offset : offset;
+        // The cage base is 4 GiB aligned, so its low kind bits are already
+        // present in the compressed slot. Reuse the offset range check here.
+        if (UNLIKELY(isPointer && pointerKind(offset) == NumberPointerKind)) {
             return reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->value();
         }
 
@@ -641,12 +669,11 @@ public:
         if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
             mutableFrom = Value(i32);
         }
-        if (!isSMI()) {
-            const uintptr_t bits = static_cast<uint32_t>(m_data.payload);
-            if (bits > static_cast<uintptr_t>(ValueLast) && pointerKind(bits) == NumberPointerKind) {
-                reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
-                return *this;
-            }
+        const uintptr_t offset = static_cast<uint32_t>(m_data.payload);
+        if (offset > ValueLast && pointerKind(offset) == NumberPointerKind) {
+            const uintptr_t bits = cageBase() + offset;
+            reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
+            return *this;
         }
         setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)));
         return *this;
@@ -665,13 +692,15 @@ private:
         return false;
     }
 
-    ALWAYS_INLINE bool isSMI() const
-    {
-        return HAS_SMI_TAG(m_data.payload);
-    }
-
     ALWAYS_INLINE void setPayload(intptr_t v)
     {
+        if (!HAS_SMI_TAG(v) && static_cast<uintptr_t>(v) > ValueLast) {
+            const uintptr_t base = cageBase();
+            const uintptr_t offset = static_cast<uintptr_t>(v) - base;
+            // An address below the cage wraps and fails this same range check.
+            RELEASE_ASSERT(offset <= std::numeric_limits<uint32_t>::max());
+            v = static_cast<intptr_t>(offset);
+        }
 #ifndef NDEBUG
         if (HAS_SMI_TAG(v)) {
             // value may be negative integer

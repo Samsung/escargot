@@ -5,7 +5,7 @@ plugins {
 }
 
 ext {
-    force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "ON")
+    force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "OFF")
     // CI's build-test-on-android job pairs each matrix leg's tested emulator
     // ABI with its corresponding real-device ABI (x86+armeabi-v7a,
     // x86_64+arm64-v8a) instead of this library's native build
