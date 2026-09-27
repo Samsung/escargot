@@ -50,7 +50,7 @@
 namespace Escargot {
 
 class ExecutionState;
-class Uint8ArrayObject;
+class TypedArrayObject;
 
 enum class Base64EncodeOption {
     URL = 1 << 0,

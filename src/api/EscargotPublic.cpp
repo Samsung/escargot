@@ -3768,7 +3768,7 @@ ESCARGOT_POINTERVALUE_CHILD_REF_LIST(DEFINE_VALUEREF_POINTERVALUE_IS_AS);
                                                                                                               \
     Name##ArrayObjectRef* ValueRef::as##Name##ArrayObject()                                                   \
     {                                                                                                         \
-        return toRef((Name##ArrayObject*)(toImpl(this).asPointerValue()->asTypedArrayObject()));              \
+        return reinterpret_cast<Name##ArrayObjectRef*>(toImpl(this).asPointerValue()->asTypedArrayObject());  \
     }
 
 FOR_EACH_TYPEDARRAY_TYPES(DEFINE_VALUEREF_TYPEDARRAY_IS_AS);
@@ -4502,73 +4502,73 @@ DataViewObjectRef* DataViewObjectRef::create(ExecutionStateRef* state)
 Int8ArrayObjectRef* Int8ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Int8ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Int8ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Int8));
 }
 
 Uint8ArrayObjectRef* Uint8ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Uint8ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Uint8ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Uint8));
 }
 
 Int16ArrayObjectRef* Int16ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Int16ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Int16ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Int16));
 }
 
 Uint16ArrayObjectRef* Uint16ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Uint16ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Uint16ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Uint16));
 }
 
 Uint32ArrayObjectRef* Uint32ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Uint32ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Uint32ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Uint32));
 }
 
 Int32ArrayObjectRef* Int32ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Int32ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Int32ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Int32));
 }
 
 Float16ArrayObjectRef* Float16ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Float16ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Float16ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Float16));
 }
 
 Float32ArrayObjectRef* Float32ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Float32ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Float32ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Float32));
 }
 
 Float64ArrayObjectRef* Float64ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Float64ArrayObject(*toImpl(state)));
+    return reinterpret_cast<Float64ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Float64));
 }
 
 BigInt64ArrayObjectRef* BigInt64ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new BigInt64ArrayObject(*toImpl(state)));
+    return reinterpret_cast<BigInt64ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::BigInt64));
 }
 
 BigUint64ArrayObjectRef* BigUint64ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new BigUint64ArrayObject(*toImpl(state)));
+    return reinterpret_cast<BigUint64ArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::BigUint64));
 }
 
 Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
-    return toRef(new Uint8ClampedArrayObject(*toImpl(state)));
+    return reinterpret_cast<Uint8ClampedArrayObjectRef*>(new TypedArrayObject(*toImpl(state), TypedArrayType::Uint8Clamped));
 }
 
 PromiseObjectRef* PromiseObjectRef::create(ExecutionStateRef* state)

@@ -165,6 +165,22 @@ public:
     {
     }
 
+protected:
+    ArrayBufferView()
+        : DerivedObject()
+        , m_buffer(nullptr)
+        , m_cachedRawBufferAddress(nullptr)
+        , m_byteLength(0)
+        , m_byteOffset(0)
+        , m_arrayLength(0)
+        , m_originalByteLength(0)
+        , m_originalByteOffset(0)
+        , m_auto(false)
+        , m_wasResetByInvalidByteLength(false)
+    {
+    }
+
+public:
     ALWAYS_INLINE ArrayBuffer* buffer() { return m_buffer; }
     ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
     ALWAYS_INLINE size_t byteOffset() { return m_byteOffset; }

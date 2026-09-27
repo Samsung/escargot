@@ -372,8 +372,7 @@ static void initializeTypedArrayFromArrayLike(ExecutionState& state, TypedArrayO
     }
 }
 
-template <typename TA>
-static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinConcreteTypedArrayConstructor(ExecutionState& state, size_t argc, Value* argv, Optional<Object*> newTarget, TypedArrayType type)
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
@@ -382,7 +381,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
 
     if (argc == 0) {
         // $22.2.4.1 TypedArray ()
-        return TA::allocateTypedArray(state, newTarget.value(), 0);
+        return TypedArrayObject::allocateTypedArray(state, newTarget.value(), type, 0);
     }
 
     const Value& firstArg = argv[0];
@@ -392,12 +391,12 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
             return Value();
         }
-        return TA::allocateTypedArray(state, newTarget.value(), elemlen);
+        return TypedArrayObject::allocateTypedArray(state, newTarget.value(), type, elemlen);
     }
 
     ASSERT(firstArg.isObject());
     Object* argObj = firstArg.asObject();
-    TypedArrayObject* obj = TA::allocateTypedArray(state, newTarget.value());
+    TypedArrayObject* obj = TypedArrayObject::allocateTypedArray(state, newTarget.value(), type);
 
     if (argObj->isTypedArrayObject()) {
         initializeTypedArrayFromTypedArray(state, obj, argObj->asTypedArrayObject());
@@ -416,6 +415,12 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
     }
 
     return obj;
+}
+
+template <TypedArrayType type>
+static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return builtinConcreteTypedArrayConstructor(state, argc, argv, newTarget, type);
 }
 
 // https://tc39.es/ecma262/#sec-%typedarray%.prototype.copywithin
@@ -2081,7 +2086,7 @@ static Value builtinUint8ArrayFromHex(ExecutionState& state, Value thisValue, si
     }
 
     size_t resultLength = bad.length / 2;
-    Uint8ArrayObject* obj = new Uint8ArrayObject(state);
+    TypedArrayObject* obj = new TypedArrayObject(state, TypedArrayType::Uint8);
     ArrayBufferObject* abo = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), resultLength);
     obj->setBuffer(abo, 0, resultLength, resultLength);
 
@@ -2151,7 +2156,7 @@ static Value builtinUint8ArrayFromBase64(ExecutionState& state, Value thisValue,
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Failed to decode Base64 string");
     }
 
-    Uint8ArrayObject* obj = new Uint8ArrayObject(state);
+    TypedArrayObject* obj = new TypedArrayObject(state, TypedArrayType::Uint8);
     auto& v = std::get<3>(result);
     ArrayBuffer* abo = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), v.size());
     obj->setBuffer(abo, 0, v.size(), v.size());
@@ -2336,11 +2341,11 @@ static Value builtinUint8ArrayToBase64(ExecutionState& state, Value thisValue, s
     return base64EncodeToString(ta->rawBuffer(), ta->arrayLength(), option, &state);
 }
 
-template <typename TA, int elementSize>
+template <TypedArrayType type, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<TA>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
+    NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<type>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     taConstructor->setGlobalIntrinsicObject(state);
 
     *proto = m_objectPrototype;
@@ -2487,8 +2492,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     m_typedArray = typedArrayFunction;
     m_typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
-#define INSTALL_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                      \
-    m_##type##Array = installTypedArray<TYPE##ArrayObject, siz>(state, strings->TYPE##Array, &m_##type##ArrayPrototype, typedArrayFunction); \
+#define INSTALL_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                         \
+    m_##type##Array = installTypedArray<TypedArrayType::TYPE, siz>(state, strings->TYPE##Array, &m_##type##ArrayPrototype, typedArrayFunction); \
     m_##type##ArrayPrototype = m_##type##Array->getFunctionPrototype(state).asObject();
 
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)

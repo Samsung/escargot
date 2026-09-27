@@ -36,6 +36,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/SetObject.h"
 #include "runtime/TypedArrayObject.h"
+#include "runtime/TypedArrayInlines.h"
 #include "runtime/VMInstance.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/GeneratorObject.h"
@@ -363,7 +364,7 @@ ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(Exec
     return true;
 }
 
-Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
+ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
     CageBaseRegisterScope cageBaseRegisterScope;
@@ -737,7 +738,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     // For Object or other types, fall through to slow case to avoid side effects
                 }
             } else if (willBeObject.isObject()) {
-                registerFile[code->m_storeRegisterIndex] = willBeObject.asObject()->getIndexedPropertyValue(*state, property, willBeObject);
+                Object* obj = willBeObject.asObject();
+                if (UNLIKELY(obj->hasTypedArrayObjectTag())) {
+                    TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
+                    uint32_t idx = property.isUInt32() ? property.asUInt32()
+                        : property.isString()          ? property.asString()->tryToUseAsIndex32()
+                                                       : Value::InvalidIndex32Value;
+                    // Buffer updates clear the cached address on detach or out-of-bounds.
+                    if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && arr->rawBuffer())) {
+                        registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
+                        ADD_PROGRAM_COUNTER(GetObject);
+                        NEXT_INSTRUCTION();
+                    }
+                }
+                registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(*state, property, willBeObject);
                 ADD_PROGRAM_COUNTER(GetObject);
                 NEXT_INSTRUCTION();
             }
@@ -771,6 +785,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                         }
                     }
                     // For Object or other types, fall through to slow case to avoid side effects
+                }
+            } else if (UNLIKELY(willBeObject.isObject() && willBeObject.asObject()->hasTypedArrayObjectTag())) {
+                TypedArrayObject* arr = static_cast<TypedArrayObject*>(willBeObject.asObject());
+                uint32_t idx = property.isUInt32() ? property.asUInt32()
+                    : property.isString()          ? property.asString()->tryToUseAsIndex32()
+                                                   : Value::InvalidIndex32Value;
+                const Value& value = registerFile[code->m_loadRegisterIndex];
+                if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && arr->rawBuffer() && value.isPrimitive())) {
+                    arr->setDirectTypedArrayElement(*state, idx, value);
+                    ADD_PROGRAM_COUNTER(SetObjectOperation);
+                    NEXT_INSTRUCTION();
                 }
             }
             JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);

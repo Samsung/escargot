@@ -52,22 +52,31 @@ public:
     }
 };
 
-class TypedArrayObject : public ArrayBufferView {
+class TypedArrayObject final : public ArrayBufferView {
 public:
-    virtual bool isTypedArrayObject() const override
+    TypedArrayObject()
+        : ArrayBufferView()
+        , m_type(TypedArrayType::Int8)
     {
-        return true;
+    }
+    explicit TypedArrayObject(ExecutionState& state, TypedArrayType type);
+    TypedArrayObject(ExecutionState& state, Object* proto, TypedArrayType type);
+    static TypedArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, TypedArrayType type, size_t length = std::numeric_limits<size_t>::max());
+
+    TypedArrayType typedArrayType() const
+    {
+        return m_type;
     }
 
-    virtual TypedArrayType typedArrayType()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
-    virtual String* typedArrayName(ExecutionState& state)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+    String* typedArrayName(ExecutionState& state);
+    virtual size_t elementSize() override;
+    using Object::getIndexedProperty;
+    using Object::setIndexedProperty;
+    virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;
+    virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;
+    virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;
+    Value getDirectTypedArrayElement(ExecutionState& state, uint32_t index);
+    void setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value);
 
     virtual bool hasOwnEnumeration() const override
     {
@@ -120,55 +129,14 @@ public:
 
     static ArrayBuffer* validateTypedArray(ExecutionState& state, const Value& O, bool checkDetachedError = true);
 
-protected:
-    explicit TypedArrayObject(ExecutionState& state, Object* proto)
-        : ArrayBufferView(state, proto)
-    {
-    }
-
+private:
+    TypedArrayType m_type;
     // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
     inline ObjectGetResult integerIndexedElementGet(ExecutionState& state, double index);
     // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementset
     inline bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value);
 };
 
-#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                            \
-    class TYPE##ArrayObject : public TypedArrayObject {                                                                                            \
-    public:                                                                                                                                        \
-        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                          \
-            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                    \
-        {                                                                                                                                          \
-        }                                                                                                                                          \
-        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                           \
-            : TypedArrayObject(state, proto)                                                                                                       \
-        {                                                                                                                                          \
-        }                                                                                                                                          \
-        static TypedArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length = std::numeric_limits<size_t>::max()); \
-        virtual TypedArrayType typedArrayType() override                                                                                           \
-        {                                                                                                                                          \
-            return TypedArrayType::TYPE;                                                                                                           \
-        }                                                                                                                                          \
-        virtual String* typedArrayName(ExecutionState& state) override                                                                             \
-        {                                                                                                                                          \
-            return state.context()->staticStrings().TYPE##Array.string();                                                                          \
-        }                                                                                                                                          \
-        virtual size_t elementSize() override                                                                                                      \
-        {                                                                                                                                          \
-            return siz;                                                                                                                            \
-        }                                                                                                                                          \
-        virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;                  \
-        virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;         \
-        virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;                       \
-                                                                                                                                                   \
-    private:                                                                                                                                       \
-        template <const bool isLittleEndian = true>                                                                                                \
-        inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex);                                                            \
-        template <const bool isLittleEndian = true>                                                                                                \
-        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val);                                             \
-    };
-
-FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)
-#undef DECLARE_TYPEDARRAY
 } // namespace Escargot
 
 #endif
