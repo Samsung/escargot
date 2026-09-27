@@ -32,6 +32,16 @@ struct TypedArrayAdaptor {
     {
         return Adapter::toNative(state, val);
     }
+
+    ALWAYS_INLINE static Type toNativeFromInt32(ExecutionState& state, int32_t value)
+    {
+        return Adapter::toNativeFromInt32(state, value);
+    }
+
+    ALWAYS_INLINE static Type toNativeFromDouble(ExecutionState& state, double value)
+    {
+        return Adapter::toNativeFromDouble(state, value);
+    }
 };
 
 template <typename TypeArg>
@@ -56,7 +66,7 @@ struct IntegralTypedArrayAdapter {
     {
         return static_cast<TypeArg>(value);
     }
-    static TypeArg toNativeFromDouble(ExecutionState& state, double value)
+    ALWAYS_INLINE static TypeArg toNativeFromDouble(ExecutionState& state, double value)
     {
         // Speculative fast-path cast: value can be far outside int32_t's
         // range here (e.g. a large Atomics operand), which is UB for a
@@ -141,7 +151,7 @@ struct Uint8ClampedAdaptor {
         return static_cast<Type>(value);
     }
 
-    static Type toNativeFromDouble(ExecutionState& state, double value)
+    ALWAYS_INLINE static Type toNativeFromDouble(ExecutionState& state, double value)
     {
         if (std::isnan(value)) {
             return 0;
@@ -152,7 +162,12 @@ struct Uint8ClampedAdaptor {
         if (value > 255) {
             return 255;
         }
-        return static_cast<Type>(lrint(value));
+        int32_t integer = static_cast<int32_t>(value);
+        double fraction = value - integer;
+        if (fraction > 0.5 || (fraction == 0.5 && (integer & 1))) {
+            integer++;
+        }
+        return static_cast<Type>(integer);
     }
 };
 
@@ -233,6 +248,35 @@ struct TypedArrayHelper {
         return readRawBytesAs<Float64Adaptor::Type>(rawBytes);
 #endif
     }
+
+    // Read through bytes so ARM32 never emits a float load that requires an
+    // aligned address. This can be inlined into TypedArray indexed access;
+    // DataView keeps its existing byte-granular read path.
+    ALWAYS_INLINE static uint32_t readFloat32BitsInline(const uint8_t* rawBytes)
+    {
+#if defined(ESCARGOT_LITTLE_ENDIAN)
+        return static_cast<uint32_t>(rawBytes[0])
+            | (static_cast<uint32_t>(rawBytes[1]) << 8)
+            | (static_cast<uint32_t>(rawBytes[2]) << 16)
+            | (static_cast<uint32_t>(rawBytes[3]) << 24);
+#else
+        return (static_cast<uint32_t>(rawBytes[0]) << 24)
+            | (static_cast<uint32_t>(rawBytes[1]) << 16)
+            | (static_cast<uint32_t>(rawBytes[2]) << 8)
+            | static_cast<uint32_t>(rawBytes[3]);
+#endif
+    }
+
+    ALWAYS_INLINE static uint64_t readFloat64BitsInline(const uint8_t* rawBytes)
+    {
+#if defined(ESCARGOT_LITTLE_ENDIAN)
+        return static_cast<uint64_t>(readFloat32BitsInline(rawBytes))
+            | (static_cast<uint64_t>(readFloat32BitsInline(rawBytes + 4)) << 32);
+#else
+        return (static_cast<uint64_t>(readFloat32BitsInline(rawBytes)) << 32)
+            | static_cast<uint64_t>(readFloat32BitsInline(rawBytes + 4));
+#endif
+    }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigInt64Adaptor::Type readInt64(uint8_t* rawBytes)
     {
 #if defined(CPU_ARM32)
@@ -260,77 +304,113 @@ struct TypedArrayHelper {
 #endif
     }
 
-    static Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes)
+    template <bool indexed, unsigned elementShift>
+    ALWAYS_INLINE static uint8_t* elementAddress(uint8_t* rawBytes, uint32_t index)
+    {
+        return rawBytes + (indexed ? (static_cast<size_t>(index) << elementShift) : 0);
+    }
+
+    NEVER_INLINE static Value readFloat16Value(uint8_t* rawBytes)
+    {
+        return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(rawBytes)));
+    }
+
+    template <bool inlineFloatRead = false, bool indexed = false>
+    ALWAYS_INLINE static Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes, uint32_t index = 0)
     {
         switch (type) {
         case TypedArrayType::Int8:
-            return Value(*reinterpret_cast<Int8Adaptor::Type*>(rawBytes));
+            return Value(*reinterpret_cast<Int8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)));
         case TypedArrayType::Uint8:
-            return Value(*reinterpret_cast<Uint8Adaptor::Type*>(rawBytes));
+            return Value(*reinterpret_cast<Uint8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)));
         case TypedArrayType::Uint8Clamped:
-            return Value(*reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes));
+            return Value(*reinterpret_cast<Uint8ClampedAdaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)));
         case TypedArrayType::Int16:
-            return Value(readRawBytesAs<Int16Adaptor::Type>(rawBytes));
+            return Value(readRawBytesAs<Int16Adaptor::Type>(elementAddress<indexed, 1>(rawBytes, index)));
         case TypedArrayType::Uint16:
-            return Value(readRawBytesAs<Uint16Adaptor::Type>(rawBytes));
+            return Value(readRawBytesAs<Uint16Adaptor::Type>(elementAddress<indexed, 1>(rawBytes, index)));
         case TypedArrayType::Int32:
-            return Value(readRawBytesAs<Int32Adaptor::Type>(rawBytes));
+            return Value(readRawBytesAs<Int32Adaptor::Type>(elementAddress<indexed, 2>(rawBytes, index)));
         case TypedArrayType::Uint32:
-            return Value(readRawBytesAs<Uint32Adaptor::Type>(rawBytes));
+            return Value(readRawBytesAs<Uint32Adaptor::Type>(elementAddress<indexed, 2>(rawBytes, index)));
         case TypedArrayType::Float16:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(rawBytes)));
+            if (inlineFloatRead) {
+                return readFloat16Value(elementAddress<indexed, 1>(rawBytes, index));
+            }
+            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(elementAddress<indexed, 1>(rawBytes, index))));
         case TypedArrayType::Float32:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(rawBytes));
+            if (inlineFloatRead) {
+                return Value(Value::DoubleToIntConvertibleTestNeeds, bitwise_cast<float>(readFloat32BitsInline(elementAddress<indexed, 2>(rawBytes, index))));
+            }
+            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(elementAddress<indexed, 2>(rawBytes, index)));
         case TypedArrayType::Float64:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat64(rawBytes));
+            if (inlineFloatRead) {
+                return Value(Value::DoubleToIntConvertibleTestNeeds, bitwise_cast<double>(readFloat64BitsInline(elementAddress<indexed, 3>(rawBytes, index))));
+            }
+            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat64(elementAddress<indexed, 3>(rawBytes, index)));
         case TypedArrayType::BigInt64:
-            return Value(new BigInt(readInt64(rawBytes)));
+            return Value(new BigInt(readInt64(elementAddress<indexed, 3>(rawBytes, index))));
         case TypedArrayType::BigUint64:
-            return Value(new BigInt(readUint64(rawBytes)));
+            return Value(new BigInt(readUint64(elementAddress<indexed, 3>(rawBytes, index))));
         default:
             RELEASE_ASSERT_NOT_REACHED();
             return Value();
         }
     }
 
-    static void numberToRawBytes(ExecutionState& state, TypedArrayType type, const Value& val, uint8_t* rawBytes)
+    template <typename Adaptor, bool inlineNumericConversion>
+    ALWAYS_INLINE static typename Adaptor::Type toNativeElement(ExecutionState& state, const Value& val)
+    {
+        if (inlineNumericConversion) {
+            if (val.isInt32()) {
+                return Adaptor::toNativeFromInt32(state, val.asInt32());
+            }
+            if (val.isDouble()) {
+                return Adaptor::toNativeFromDouble(state, val.asDouble());
+            }
+        }
+        return Adaptor::toNative(state, val);
+    }
+
+    template <bool inlineNumericConversion = false, bool indexed = false>
+    ALWAYS_INLINE static void numberToRawBytes(ExecutionState& state, TypedArrayType type, const Value& val, uint8_t* rawBytes, uint32_t index = 0)
     {
         switch (type) {
         case TypedArrayType::Int8:
-            *reinterpret_cast<Int8Adaptor::Type*>(rawBytes) = Int8Adaptor::toNative(state, val);
+            *reinterpret_cast<Int8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Int8Adaptor, inlineNumericConversion>(state, val);
             break;
         case TypedArrayType::Uint8:
-            *reinterpret_cast<Uint8Adaptor::Type*>(rawBytes) = Uint8Adaptor::toNative(state, val);
+            *reinterpret_cast<Uint8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8Adaptor, inlineNumericConversion>(state, val);
             break;
         case TypedArrayType::Uint8Clamped:
-            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(rawBytes) = Uint8ClampedAdaptor::toNative(state, val);
+            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8ClampedAdaptor, inlineNumericConversion>(state, val);
             break;
         case TypedArrayType::Int16:
-            writeRawBytesAs(rawBytes, Int16Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Int16Adaptor, inlineNumericConversion>(state, val));
             break;
         case TypedArrayType::Uint16:
-            writeRawBytesAs(rawBytes, Uint16Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Uint16Adaptor, inlineNumericConversion>(state, val));
             break;
         case TypedArrayType::Int32:
-            writeRawBytesAs(rawBytes, Int32Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Int32Adaptor, inlineNumericConversion>(state, val));
             break;
         case TypedArrayType::Uint32:
-            writeRawBytesAs(rawBytes, Uint32Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Uint32Adaptor, inlineNumericConversion>(state, val));
             break;
         case TypedArrayType::Float16:
-            writeRawBytesAs(rawBytes, Float16Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), Float16Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Float32:
-            writeRawBytesAs(rawBytes, Float32Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), Float32Adaptor::toNative(state, val));
             break;
         case TypedArrayType::Float64:
-            writeRawBytesAs(rawBytes, Float64Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), Float64Adaptor::toNative(state, val));
             break;
         case TypedArrayType::BigInt64:
-            writeRawBytesAs(rawBytes, BigInt64Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), BigInt64Adaptor::toNative(state, val));
             break;
         case TypedArrayType::BigUint64:
-            writeRawBytesAs(rawBytes, BigUint64Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), BigUint64Adaptor::toNative(state, val));
             break;
         default:
             RELEASE_ASSERT_NOT_REACHED();
@@ -354,5 +434,17 @@ struct TypedArrayHelper {
 #undef DEFINE_TYPE
     }
 };
+
+ALWAYS_INLINE Value TypedArrayObject::getDirectTypedArrayElement(ExecutionState& state, uint32_t index)
+{
+    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    return TypedArrayHelper::rawBytesToNumber<true, true>(state, m_type, rawBuffer(), index);
+}
+
+ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value)
+{
+    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer() && value.isPrimitive());
+    TypedArrayHelper::numberToRawBytes<true, true>(state, m_type, value, rawBuffer(), index);
+}
 } // namespace Escargot
 #endif

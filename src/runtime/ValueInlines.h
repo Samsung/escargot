@@ -743,7 +743,7 @@ inline Value::Value(NegativeInfinityInitTag)
     *this = Value(EncodeAsDouble, -std::numeric_limits<double>::infinity());
 }
 
-inline Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
+ALWAYS_INLINE Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
 {
     int32_t asInt32;
     if (UNLIKELY(isInt32ConvertibleDouble(d, asInt32))) {

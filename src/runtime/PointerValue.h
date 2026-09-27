@@ -213,6 +213,11 @@ public:
         return hasVTag(g_arrayObjectTag);
     }
 
+    inline bool hasTypedArrayObjectTag() const
+    {
+        return hasVTag(g_typedArrayObjectTag);
+    }
+
     // type check by virtual function call
     virtual bool isFunctionObject() const
     {
@@ -359,9 +364,9 @@ public:
         return false;
     }
 
-    virtual bool isTypedArrayObject() const
+    inline bool isTypedArrayObject() const
     {
-        return false;
+        return hasTypedArrayObjectTag();
     }
 
     virtual bool isArrayBuffer() const
@@ -1226,6 +1231,7 @@ protected:
     static size_t g_objectTag;
     static size_t g_prototypeObjectTag;
     static size_t g_arrayObjectTag;
+    static size_t g_typedArrayObjectTag;
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_scriptFunctionObjectTag;
     static size_t g_objectRareDataTag;

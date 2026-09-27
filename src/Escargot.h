@@ -196,6 +196,22 @@
 #endif
 #endif
 
+#ifndef ATTRIBUTE_NO_JUMP_TABLES
+#if defined(COMPILER_GCC)
+#define ATTRIBUTE_NO_JUMP_TABLES __attribute__((optimize("no-jump-tables")))
+#elif defined(COMPILER_CLANG)
+// LLVM's no-jump-tables IR attribute is normally set by a compiler flag.
+// Use a source attribute only if this Clang provides one.
+#if __has_attribute(no_jump_tables)
+#define ATTRIBUTE_NO_JUMP_TABLES __attribute__((no_jump_tables))
+#else
+#define ATTRIBUTE_NO_JUMP_TABLES
+#endif
+#else
+#define ATTRIBUTE_NO_JUMP_TABLES
+#endif
+#endif
+
 // #define OS(NAME) (defined OS_##NAME && OS_##NAME)
 
 #ifdef _WIN32

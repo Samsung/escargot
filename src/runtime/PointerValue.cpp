@@ -28,6 +28,7 @@ namespace Escargot {
 size_t PointerValue::g_objectTag;
 size_t PointerValue::g_prototypeObjectTag;
 size_t PointerValue::g_arrayObjectTag;
+size_t PointerValue::g_typedArrayObjectTag;
 size_t PointerValue::g_arrayPrototypeObjectTag;
 size_t PointerValue::g_scriptFunctionObjectTag;
 size_t PointerValue::g_objectRareDataTag;

@@ -22,6 +22,7 @@
 #include "runtime/Platform.h"
 #include "runtime/PointerValue.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/TypedArrayObject.h"
 #include "runtime/PrototypeObject.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptSimpleFunctionObject.h"
@@ -85,6 +86,7 @@ void Global::initialize(Platform* platform)
     PointerValue::g_objectTag = Object().getVTag();
     PointerValue::g_prototypeObjectTag = PrototypeObject().getVTag();
     PointerValue::g_arrayObjectTag = ArrayObject().getVTag();
+    PointerValue::g_typedArrayObjectTag = TypedArrayObject().getVTag();
     PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getVTag();
     PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getVTag();
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getVTag();

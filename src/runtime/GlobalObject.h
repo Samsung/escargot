@@ -27,6 +27,7 @@
 namespace Escargot {
 
 class FunctionObject;
+enum class TypedArrayType : unsigned;
 
 #define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, objName) \
     F(arrayBuffer, FunctionObject, objName)          \
@@ -506,7 +507,7 @@ private:
     GLOBALOBJECT_BUILTIN_OBJECT_LIST(DECLARE_BUILTIN_MEMBER_FUNC, )
 #undef DECLARE_BUILTIN_MEMBER_FUNC
 
-    template <typename TA, int elementSize>
+    template <TypedArrayType type, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
 };
 } // namespace Escargot
