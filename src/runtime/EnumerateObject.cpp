@@ -144,6 +144,18 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
 
     m_hiddenClass = m_object->structure();
 
+    // Ordinary Object::enumeration already yields canonical index order,
+    // followed by strings and symbols. Keep the sorting fallback only for
+    // exotic enumerators that synthesize their own keys.
+    if (!m_object->hasOwnEnumeration()) {
+        m_object->enumeration(state, [](ExecutionState& state, Object*, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            if (desc.isEnumerable()) {
+                static_cast<EncodedValueTightVector*>(data)->pushBack(name.toPropertyKeyValue(state));
+            }
+            return true; }, &keys, false);
+        return;
+    }
+
     struct Properties {
         std::multiset<Value::ValueIndex, std::less<Value::ValueIndex>> indexes;
         VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
@@ -269,7 +281,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
         }
 
     } else {
-        if (m_object->hasOwnEnumeration() || m_object->structure()->hasIndexPropertyName()) {
+        if (m_object->hasOwnEnumeration()) {
             struct Properties {
                 std::multiset<Value::ValueIndex, std::less<Value::ValueIndex>> indexes;
                 VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
@@ -299,10 +311,8 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
         } else {
             m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 EncodedValueTightVector* keys = reinterpret_cast<EncodedValueTightVector*>(data);
-                auto value = name.toPlainValue();
                 if (desc.isEnumerable()) {
-                    ASSERT(!name.isIndexString() || value.toIndex(state) == Value::InvalidIndexValue);
-                    keys->pushBack(value);
+                    keys->pushBack(name.toPropertyKeyValue(state));
                 }
                 return true; }, &keys);
         }

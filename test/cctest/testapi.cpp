@@ -1930,8 +1930,8 @@ TEST(EnumerateObjectOwnProperties, Basic1)
         EXPECT_TRUE(strings->size() == 2);
         EXPECT_TRUE(symbols->size() == 1);
 
-        EXPECT_TRUE(indexes[0] == 100);
-        EXPECT_TRUE(indexes[1] == 10);
+        EXPECT_EQ(indexes[0], 10u);
+        EXPECT_EQ(indexes[1], 100u);
         EXPECT_TRUE(strings->at(0)->equalsTo(state, StringRef::createFromASCII("a_enum")));
         EXPECT_TRUE(strings->at(1)->equalsTo(state, StringRef::createFromASCII("-20")));
         EXPECT_TRUE(symbols->at(0)->asSymbol()->descriptionString()->equalsTo(state, StringRef::createFromASCII("sym_enum")));

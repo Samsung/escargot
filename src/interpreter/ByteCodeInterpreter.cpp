@@ -1016,8 +1016,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item0.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                             }
                         } else {
+                            ObjectStructure* previousStructure = obj->m_structure;
+                            size_t previousPropertyCount = previousStructure->propertyCount();
                             obj->m_structure = item0.m_cachedHiddenClassChainData[1];
-                            obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                            size_t newPropertyIndex = obj->m_structure->findProperty(code->m_propertyName).first;
+                            ASSERT(newPropertyIndex != SIZE_MAX);
+                            obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                         }
                         ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                         NEXT_INSTRUCTION();
@@ -1032,8 +1036,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
                             } else {
+                                ObjectStructure* previousStructure = obj->m_structure;
+                                size_t previousPropertyCount = previousStructure->propertyCount();
                                 obj->m_structure = item1.m_cachedHiddenClassChainData[1];
-                                obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                                size_t newPropertyIndex = obj->m_structure->findProperty(code->m_propertyName).first;
+                                ASSERT(newPropertyIndex != SIZE_MAX);
+                                obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                             }
                             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                             NEXT_INSTRUCTION();
@@ -1083,8 +1091,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry0.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                             }
                         } else {
+                            ObjectStructure* previousStructure = obj->m_structure;
+                            size_t previousPropertyCount = previousStructure->propertyCount();
                             obj->m_structure = entry0.m_cachedHiddenClassChainData[cSiz0];
-                            obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                            size_t newPropertyIndex = obj->m_structure->findProperty(code->m_propertyName).first;
+                            ASSERT(newPropertyIndex != SIZE_MAX);
+                            obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                         }
                         ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                         NEXT_INSTRUCTION();
@@ -1113,8 +1125,12 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
                             } else {
+                                ObjectStructure* previousStructure = obj->m_structure;
+                                size_t previousPropertyCount = previousStructure->propertyCount();
                                 obj->m_structure = entry1.m_cachedHiddenClassChainData[cSiz1];
-                                obj->m_values.push_back(registerFile[code->m_loadRegisterIndex], obj->m_structure->propertyCount());
+                                size_t newPropertyIndex = obj->m_structure->findProperty(code->m_propertyName).first;
+                                ASSERT(newPropertyIndex != SIZE_MAX);
+                                obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                             }
                             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
                             NEXT_INSTRUCTION();
@@ -2852,7 +2868,7 @@ NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state
         ObjectStructure* cStructure = newChain[0];
         auto property = cStructure->findProperty(ObjectStructurePropertyName(state.context()->staticStrings().prototype));
         if (property.first != SIZE_MAX && property.first <= std::numeric_limits<uint16_t>::max()
-            && property.second->m_descriptor.isDataProperty()) {
+            && property.second->isDataProperty()) {
             for (size_t i = 0; i < newChain.size(); i++) {
                 ObjectStructure* structure = newChain[i];
                 code->m_cachedHasInstanceChain[i] = structure;
@@ -2863,9 +2879,9 @@ NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state
             }
             code->m_cachedHasInstanceChainLength = newChain.size();
             code->m_cachedPrototypeIndex = property.first;
-            bool isPlainDataProperty = property.second->m_descriptor.isPlainDataProperty();
+            bool isPlainDataProperty = property.second->isPlainDataProperty();
             code->m_canReadPrototypeDirectly = isPlainDataProperty
-                || property.second->m_descriptor.nativeGetterSetterData()->m_getter == VMInstance::functionPrototypeNativeGetter;
+                || property.second->nativeGetterSetterData()->m_getter == VMInstance::functionPrototypeNativeGetter;
             code->m_cacheState = BinaryInstanceOfOperation::CacheState::Ready;
             code->changeOpcode(Opcode::BinaryInstanceOfOperationInlineCacheOpcode);
 
@@ -3326,7 +3342,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                 goto GiveUp;
             }
             cachedIndex = result.first;
-            isPlainDataProperty = result.second->m_descriptor.isPlainDataProperty();
+            isPlainDataProperty = result.second->isPlainDataProperty();
             break;
         }
 
@@ -3539,8 +3555,12 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
                 ASSERT((originalObject->structure()->propertyCount() + 1) == item.m_cachedHiddenClassChainData[cachedClassChainLength]->propertyCount());
                 ASSERT(item.m_cachedHiddenClassChainData[cachedClassChainLength]->findProperty(code->m_propertyName).first == (item.m_cachedHiddenClassChainData[cachedClassChainLength]->propertyCount() - 1));
                 // next object structure save in `item.m_cachedHiddenClassChainData[cachedClassChainLength]`
+                ObjectStructure* previousStructure = originalObject->m_structure;
+                size_t previousPropertyCount = previousStructure->propertyCount();
                 originalObject->m_structure = item.m_cachedHiddenClassChainData[cachedClassChainLength];
-                originalObject->m_values.push_back(value, originalObject->m_structure->propertyCount());
+                size_t newPropertyIndex = originalObject->m_structure->findProperty(code->m_propertyName).first;
+                ASSERT(newPropertyIndex != SIZE_MAX);
+                originalObject->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, value);
             }
             return;
         }
@@ -3602,7 +3622,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         // plain-data-and-writable) -- Object::setOwnPropertyThrowsExceptionWhenStrictMode()
         // already dispatches correctly by kind given just the index, so a cache hit on any of
         // these needs no findProperty() call, same as the plain-data case.
-        const bool isPlainDataProperty = findResult.second->m_descriptor.isPlainDataProperty() && findResult.second->m_descriptor.isWritable();
+        const bool isPlainDataProperty = findResult.second->isPlainDataProperty() && findResult.second->isWritable();
 
         // set own property
         ObjectStructure* beforeStructure = originalObject->structure();
@@ -3623,9 +3643,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 #ifndef NDEBUG
         ASSERT(originalObject->structure() == beforeStructure); // ObjectStructure should not be changed
         ASSERT(originalObject->structure()->findProperty(code->m_propertyName).first == findResult.first);
-        const auto& propertyData = originalObject->structure()->readProperty(findResult.first);
-        const auto& desc = propertyData.m_descriptor;
-        ASSERT(propertyData.m_propertyName == code->m_propertyName);
+        const auto& desc = originalObject->structure()->propertyDescriptor(findResult.first);
+        ASSERT(!originalObject->structure()->isIndexProperty(findResult.first));
+        ASSERT(originalObject->structure()->nonIndexPropertyName(findResult.first) == code->m_propertyName);
         ASSERT(isPlainDataProperty == (desc.isPlainDataProperty() && desc.isWritable()));
 #endif
 
@@ -3693,7 +3713,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
         // check invalid case
         auto propertyResult = originalObject->structure()->findProperty(code->m_propertyName);
-        if (UNLIKELY(!originalObject->structure()->inTransitionMode() || propertyResult.first == SIZE_MAX || !propertyResult.second->m_descriptor.isWritable())) {
+        if (UNLIKELY(!originalObject->structure()->inTransitionMode() || propertyResult.first == SIZE_MAX || !propertyResult.second->isWritable())) {
             // clear cache
             // giveup w/o set call
             inlineCache->m_cache.clear();
@@ -3707,7 +3727,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 #ifndef NDEBUG
         auto findResult = originalObject->structure()->findProperty(code->m_propertyName);
         ASSERT(findResult.first == (originalObject->structure()->propertyCount() - 1));
-        ASSERT(findResult.second->m_descriptor.isPlainDataProperty() && findResult.second->m_descriptor.isWritable());
+        ASSERT(findResult.second->isPlainDataProperty() && findResult.second->isWritable());
 #endif
 
         // set new cache item
@@ -3822,8 +3842,8 @@ NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState
             return Value(Value::EmptyValue);
         }
     } else {
-        const ObjectStructureItem* item = findResult.second.value();
-        if (!item->m_descriptor.isPlainDataProperty() || !item->m_descriptor.isWritable()) {
+        const ObjectStructurePropertyDescriptor* descriptor = findResult.second.value();
+        if (!descriptor->isPlainDataProperty() || !descriptor->isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;
             slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
@@ -3869,8 +3889,8 @@ NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState&
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
     } else {
-        const ObjectStructureItem* item = findResult.second.value();
-        if (!item->m_descriptor.isPlainDataProperty() || !item->m_descriptor.isWritable()) {
+        const ObjectStructurePropertyDescriptor* descriptor = findResult.second.value();
+        if (!descriptor->isPlainDataProperty() || !descriptor->isWritable()) {
             slot->m_cachedStructure = nullptr;
             slot->m_cachedAddress = nullptr;
             slot->m_lexicalIndexCache = std::numeric_limits<size_t>::max();
@@ -3930,7 +3950,19 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
                 }
             }
         }
-        obj->m_values.reset(data->m_values.takeBuffer());
+        if (!data->m_wasStructureComputed && obj->m_structure->hasPartitionedNonIndexProperties()) {
+            size_t propertyCount = data->m_properties.size();
+            EncodedValueVector reorderedValues;
+            reorderedValues.resizeWithUninitializedValues(propertyCount);
+            for (size_t i = 0; i < propertyCount; i++) {
+                size_t valueIndex = obj->m_structure->findProperty(data->m_properties[i].m_propertyName).first;
+                ASSERT(valueIndex != SIZE_MAX);
+                reorderedValues[valueIndex] = data->m_values[i];
+            }
+            obj->m_values.reset(reorderedValues.takeBuffer());
+        } else {
+            obj->m_values.reset(data->m_values.takeBuffer());
+        }
 
         if (UNLIKELY(data->m_needsToUseBigPropertyFilterOnInterpreter)) {
             if (data->m_bigFilter) {
@@ -3982,7 +4014,12 @@ NEVER_INLINE void InterpreterSlowPath::createOnlyKeyValueObjectOperation(Executi
     // Set the values from registers directly into the object's property storage!
     obj->preparePropertyStorage(keyCount);
     for (size_t i = 0; i < keyCount; i++) {
-        obj->uncheckedSetOwnDataProperty(i, registerFile[code->m_valueRegisterIndices[i]]);
+        size_t valueIndex = i;
+        if (obj->m_structure->hasPartitionedNonIndexProperties()) {
+            valueIndex = obj->m_structure->findProperty(ObjectStructurePropertyName(code->m_keys[i])).first;
+            ASSERT(valueIndex != SIZE_MAX);
+        }
+        obj->uncheckedSetOwnDataProperty(valueIndex, registerFile[code->m_valueRegisterIndices[i]]);
     }
 
     registerFile[code->m_registerIndex] = obj;
@@ -4025,6 +4062,9 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
         registerFile[code->m_objectIndex] = data->m_target;
         if (data->m_wasStructureComputed) {
             data->m_target->m_structure = code->m_cachedObjectStructure.value();
+            if (data->m_target->m_structure->hasPartitionedNonIndexProperties()) {
+                data->m_values.resizeWithUninitializedValues(data->m_target->m_structure->propertyCount());
+            }
         }
         if (UNLIKELY(data->m_needsToUsePropertyFilterOnInterpreter)) {
             if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
@@ -4071,7 +4111,13 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
         }
 
         if (data->m_wasStructureComputed) {
-            data->m_values.pushBack(newValue);
+            if (data->m_target->m_structure->hasPartitionedNonIndexProperties()) {
+                size_t valueIndex = data->m_target->m_structure->findProperty(propertyName).first;
+                ASSERT(valueIndex != SIZE_MAX);
+                data->m_values[valueIndex] = newValue;
+            } else {
+                data->m_values.pushBack(newValue);
+            }
             return;
         }
 
@@ -5560,8 +5606,12 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(
     } else {
         const size_t minCacheFillCount = 2;
         if (object->structure() == code->m_inlineCachedStructureBefore) {
-            object->m_values.push_back(v, code->m_inlineCachedStructureAfter->propertyCount());
+            ObjectStructure* previousStructure = object->m_structure;
+            size_t previousPropertyCount = previousStructure->propertyCount();
             object->m_structure = code->m_inlineCachedStructureAfter;
+            size_t newPropertyIndex = object->m_structure->findProperty(code->m_propertyName).first;
+            ASSERT(newPropertyIndex != SIZE_MAX);
+            object->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, v);
         } else if (code->m_missCount > minCacheFillCount) {
             // cache miss
             object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
@@ -5811,8 +5861,13 @@ NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& 
         } else {
             gs = new JSGetterSetter(Value(Value::EmptyValue), fn);
         }
-        object->m_values.push_back(Value(gs), code->m_inlineCachedStructureAfter->propertyCount());
+        ObjectStructure* previousStructure = object->m_structure;
+        size_t previousPropertyCount = previousStructure->propertyCount();
         object->m_structure = code->m_inlineCachedStructureAfter;
+        Value propertyName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
+        size_t newPropertyIndex = object->m_structure->findProperty(ObjectStructurePropertyName(state, propertyName)).first;
+        ASSERT(newPropertyIndex != SIZE_MAX);
+        object->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, Value(gs));
     } else if (code->m_missCount > minCacheFillCount) {
         // cache miss
         defineObjectGetterSetterOperation(state, code, byteCodeBlock, registerFile, object);

@@ -190,7 +190,7 @@ public:
     inline uint32_t uintValue() const
     {
         ASSERT(isUIntType());
-        return (m_uintData >> OBJECT_PROPERTY_NAME_UINT32_VIAS);
+        return m_uintData >> OBJECT_PROPERTY_NAME_UINT32_VIAS;
     }
 
     const ObjectStructurePropertyName& objectStructurePropertyName() const
@@ -864,11 +864,12 @@ public:
     Optional<Value> readConstructorSlotWithoutState()
     {
         size_t l = m_structure->propertyCount();
-        const ObjectStructureItem* items = m_structure->properties();
 
         for (size_t i = 0; i < l; i++) {
-            if (items[i].m_propertyName.isPlainString() && items[i].m_propertyName.plainString()->equals("constructor")) {
-                if (items[i].m_descriptor.isDataProperty()) {
+            if (!m_structure->isIndexProperty(i)
+                && m_structure->nonIndexPropertyName(i).isPlainString()
+                && m_structure->nonIndexPropertyName(i).plainString()->equals("constructor")) {
+                if (m_structure->propertyDescriptor(i).isDataProperty()) {
                     return Value(m_values[i]);
                 }
                 break;
@@ -1202,13 +1203,13 @@ public:
 
     ALWAYS_INLINE Value uncheckedGetOwnDataProperty(size_t idx)
     {
-        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
+        ASSERT(m_structure->propertyDescriptor(idx).isDataProperty());
         return m_values[idx];
     }
 
     ALWAYS_INLINE void uncheckedSetOwnDataProperty(size_t idx, const Value& newValue)
     {
-        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
+        ASSERT(m_structure->propertyDescriptor(idx).isDataProperty());
         m_values[idx] = newValue;
     }
 
@@ -1334,6 +1335,71 @@ protected:
     Object* m_prototype;
     ObjectPropertyValueVector m_values;
 
+    ALWAYS_INLINE ObjectStructureFindResult findPropertyInStructure(const ObjectPropertyName& propertyName)
+    {
+        if (LIKELY(propertyName.isUIntType())) {
+            return m_structure->findIndexProperty(propertyName.uintValue());
+        }
+        if (UNLIKELY(m_structure->hasIndexPropertyName())) {
+            uint32_t index = propertyName.objectStructurePropertyName().tryToUseAsIndexProperty();
+            if (index != Value::InvalidIndexPropertyValue) {
+                return m_structure->findIndexProperty(index);
+            }
+        }
+        return m_structure->findNonIndexProperty(propertyName.objectStructurePropertyName());
+    }
+
+    ALWAYS_INLINE ObjectStructure* addPropertyToStructure(const ObjectPropertyName& propertyName, const ObjectStructurePropertyDescriptor& descriptor)
+    {
+        uint32_t index = propertyName.tryToUseAsIndexProperty();
+        if (LIKELY(index != Value::InvalidIndexPropertyValue)) {
+            return m_structure->addIndexProperty(index, descriptor);
+        }
+        return m_structure->addNonIndexProperty(propertyName.objectStructurePropertyName(), descriptor);
+    }
+
+    ALWAYS_INLINE size_t newPropertyIndexAfterAdd(const ObjectPropertyName& propertyName, size_t previousPropertyCount)
+    {
+        if (LIKELY(!m_structure->hasPartitionedNonIndexProperties())) {
+            return previousPropertyCount;
+        }
+        uint32_t index = propertyName.tryToUseAsIndexProperty();
+        if (index != Value::InvalidIndexPropertyValue) {
+            return m_structure->findIndexProperty(index).first;
+        }
+        if (propertyName.isStringType()) {
+            return m_structure->stringPropertyCount() - 1;
+        }
+        return m_structure->namedPropertyCount() - 1;
+    }
+
+    void addValueForNewProperty(ObjectStructure* previousStructure, size_t previousPropertyCount, size_t newPropertyIndex, const Value& value)
+    {
+        ASSERT(newPropertyIndex <= previousPropertyCount);
+        if (UNLIKELY(m_structure->hasPartitionedNonIndexProperties() && !previousStructure->hasPartitionedNonIndexProperties())) {
+            ObjectPropertyValueVector reorderedValues;
+            reorderedValues.resizeWithUninitializedValues(0, previousPropertyCount + 1);
+            for (size_t i = 0; i < previousPropertyCount; i++) {
+                ObjectStructureFindResult result;
+                if (previousStructure->isIndexProperty(i)) {
+                    result = m_structure->findIndexProperty(previousStructure->indexPropertyName(i));
+                } else {
+                    result = m_structure->findProperty(previousStructure->nonIndexPropertyName(i));
+                }
+                ASSERT(result.first != SIZE_MAX);
+                reorderedValues[result.first] = m_values[i];
+            }
+            reorderedValues[newPropertyIndex] = value;
+            m_values = std::move(reorderedValues);
+            return;
+        }
+        if (newPropertyIndex < previousPropertyCount) {
+            m_values.insert(newPropertyIndex, value, previousPropertyCount);
+        } else {
+            m_values.pushBack(value, previousPropertyCount + 1);
+        }
+    }
+
     COMPILE_ASSERT(sizeof(TightVectorWithNoSize<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>>) == sizeof(size_t) * 1, "");
 
     ObjectStructure* structure() const
@@ -1348,37 +1414,37 @@ protected:
 
     ALWAYS_INLINE Value getOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
-        ASSERT(m_structure->readProperty(idx).m_descriptor.isDataProperty());
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+        const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
+        ASSERT(descriptor.isDataProperty());
+        if (LIKELY(descriptor.isPlainDataProperty())) {
             return m_values[idx];
         } else {
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
+            return descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
         }
     }
 
-    ALWAYS_INLINE bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructureItem& item, const Value& newValue, const Value& receiver)
+    ALWAYS_INLINE bool setOwnDataPropertyUtilForObjectInner(ExecutionState& state, size_t idx, const ObjectStructurePropertyDescriptor& descriptor, const Value& newValue, const Value& receiver)
     {
-        if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+        if (LIKELY(descriptor.isPlainDataProperty())) {
             m_values[idx] = newValue;
             return true;
         } else {
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
             EncodedValue t = m_values[idx];
-            bool ret = item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, t, newValue);
+            bool ret = descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, t, newValue);
             m_values[idx] = t;
             return ret;
 #else
-            return item.m_descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, m_values[idx], newValue);
+            return descriptor.nativeGetterSetterData()->m_setter(state, this, receiver, m_values[idx], newValue);
 #endif
         }
     }
 
     ALWAYS_INLINE bool setOwnDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (LIKELY(item.m_descriptor.isWritable())) {
-            return setOwnDataPropertyUtilForObjectInner(state, idx, item, newValue, receiver);
+        const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
+        if (LIKELY(descriptor.isWritable())) {
+            return setOwnDataPropertyUtilForObjectInner(state, idx, descriptor, newValue, receiver);
         } else {
             return false;
         }
@@ -1387,12 +1453,12 @@ protected:
     Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver);
     Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (LIKELY(item.m_descriptor.isDataProperty())) {
-            if (LIKELY(item.m_descriptor.isPlainDataProperty())) {
+        const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
+        if (LIKELY(descriptor.isDataProperty())) {
+            if (LIKELY(descriptor.isPlainDataProperty())) {
                 return m_values[idx];
             } else {
-                return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
+                return descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
             }
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
@@ -1401,10 +1467,10 @@ protected:
 
     NEVER_INLINE Value getOwnNonPlainDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (LIKELY(item.m_descriptor.isDataProperty())) {
-            ASSERT(!item.m_descriptor.isPlainDataProperty());
-            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
+        const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
+        if (LIKELY(descriptor.isDataProperty())) {
+            ASSERT(!descriptor.isPlainDataProperty());
+            return descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
         }
@@ -1413,8 +1479,8 @@ protected:
     bool setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver);
     ALWAYS_INLINE bool setOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
-        const ObjectStructureItem& item = m_structure->readProperty(idx);
-        if (LIKELY(item.m_descriptor.isDataProperty())) {
+        const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
+        if (LIKELY(descriptor.isDataProperty())) {
             return setOwnDataPropertyUtilForObject(state, idx, newValue, receiver);
         } else {
             return setOwnPropertyUtilForObjectAccCase(state, idx, newValue, receiver);
@@ -1424,9 +1490,9 @@ protected:
     ALWAYS_INLINE void setOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, size_t idx, const Value& newValue, const Value& receiver)
     {
         if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue, receiver) && state.inStrictMode())) {
-            const ObjectStructureItem& item = m_structure->readProperty(idx);
+            const ObjectStructurePropertyDescriptor& descriptor = m_structure->propertyDescriptor(idx);
             Object* tagObject = receiver.isObject() ? receiver.asObject() : this;
-            throwCannotWriteError(state, tagObject, item.m_propertyName, !item.m_descriptor.isDataProperty());
+            throwCannotWriteError(state, tagObject, m_structure->propertyName(state, idx), !descriptor.isDataProperty());
         }
     }
 

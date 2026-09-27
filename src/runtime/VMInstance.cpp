@@ -548,12 +548,14 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
                                                                                  ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
 
     m_defaultStructureForMappedArgumentsObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
-    m_defaultStructureForMappedArgumentsObject = m_defaultStructureForMappedArgumentsObject->addProperty(ObjectStructurePropertyName(stateForInit, globalSymbols().iterator), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForMappedArgumentsObject = m_defaultStructureForMappedArgumentsObject->addProperty(m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForMappedArgumentsObject = m_defaultStructureForMappedArgumentsObject->addProperty(ObjectStructurePropertyName(stateForInit, globalSymbols().iterator), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForMappedArgumentsObject->markReferencedByInlineCache();
 
     m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
-    m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(ObjectStructurePropertyName(stateForInit, globalSymbols().iterator), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(m_staticStrings.callee, ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::NotPresent)));
+    m_defaultStructureForUnmappedArgumentsObject = m_defaultStructureForUnmappedArgumentsObject->addProperty(ObjectStructurePropertyName(stateForInit, globalSymbols().iterator), ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    m_defaultStructureForUnmappedArgumentsObject->markReferencedByInlineCache();
 
     m_defaultPrivateMemberStructure = new ObjectPrivateMemberStructure();
 
@@ -730,19 +732,35 @@ public:
     {
     }
 
-    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override
+    virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override
     {
         return std::make_pair(0, nullptr);
     }
 
-    virtual const ObjectStructureItem& readProperty(size_t idx) override
+    virtual ObjectStructureFindResult findIndexProperty(uint32_t) override
     {
-        return m_properties[idx];
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }
 
-    virtual const ObjectStructureItem* properties() const override
+    virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override
     {
-        return m_properties;
+        return m_properties[valueIndex].m_descriptor;
+    }
+
+    virtual bool isIndexProperty(size_t) const override
+    {
+        return false;
+    }
+
+    virtual uint32_t indexPropertyName(size_t) const override
+    {
+        ASSERT_NOT_REACHED();
+        return Value::InvalidIndexPropertyValue;
+    }
+
+    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override
+    {
+        return m_properties[valueIndex].m_propertyName;
     }
 
     virtual size_t propertyCount() const override
@@ -750,7 +768,17 @@ public:
         return m_propertyCount;
     }
 
+    virtual size_t namedPropertyCount() const override
+    {
+        return m_propertyCount;
+    }
+
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override
+    {
+        return nullptr;
+    }
+
+    virtual ObjectStructure* addIndexProperty(uint32_t, const ObjectStructurePropertyDescriptor&) override
     {
         return nullptr;
     }
