@@ -221,6 +221,8 @@ public:
         bool m_isMutable : 1;
         bool m_isUsing : 1;
         bool m_isGlobalLexicalVariable : 1;
+        // the binding lives in the indexed heap storage of a FunctionEnvironmentRecordOnHeap
+        bool m_isFunctionHeapStorage : 1;
         enum DeclarationType ENSURE_ENUM_UNSIGNED {
             VarDeclared,
             LexicallyDeclared,
@@ -239,6 +241,7 @@ public:
             , m_isMutable(false)
             , m_isUsing(false)
             , m_isGlobalLexicalVariable(false)
+            , m_isFunctionHeapStorage(false)
             , m_type(VarDeclared)
             , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
             , m_upperIndex(SIZE_MAX)

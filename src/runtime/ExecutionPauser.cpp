@@ -151,7 +151,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
             LexicalEnvironment* env;
             if (originalState->resolveCallee() && originalState->resolveCallee()->isScriptFunctionObject()) {
-                env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
+                env = new LexicalEnvironment(FunctionEnvironmentRecordOnHeap<false, false>::create(originalState->resolveCallee()->asScriptFunctionObject()), nullptr
 #ifndef NDEBUG
                                              ,
                                              true
@@ -159,7 +159,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
                 );
             } else {
                 // top-level-await
-                env = new LexicalEnvironment(new FunctionEnvironmentRecordOnHeap<false, false>(self->m_sourceObject->asScriptAsyncFunctionObject()), nullptr
+                env = new LexicalEnvironment(FunctionEnvironmentRecordOnHeap<false, false>::create(self->m_sourceObject->asScriptAsyncFunctionObject()), nullptr
 #ifndef NDEBUG
                                              ,
                                              true

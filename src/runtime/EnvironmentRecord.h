@@ -812,8 +812,33 @@ public:
     FunctionEnvironmentRecord(ScriptFunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_indexedHeapStorage(nullptr)
+#endif
     {
     }
+
+    // Non-virtual access to the indexed binding storage of FunctionEnvironmentRecordOnHeap.
+    ALWAYS_INLINE EncodedValueVectorElement* heapStorageData()
+    {
+        ASSERT(isFunctionEnvironmentRecordOnHeap());
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_indexedHeapStorage;
+#else
+        return reinterpret_cast<EncodedValueVectorElement*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord));
+#endif
+    }
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    void initializeIndexedHeapStorage(size_t count)
+    {
+        if (count) {
+            EncodedValueVector storage;
+            storage.resize(count, EncodedValueVectorElement());
+            m_indexedHeapStorage = storage.takeBuffer();
+        }
+    }
+#endif
 
     ScriptFunctionObject::ThisMode thisMode()
     {
@@ -918,6 +943,10 @@ private:
         ScriptFunctionObject* m_functionObject;
         ArgumentsObject* m_argumentsObject;
     };
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // Compressed values need the collector's EncodedSmallValue vector kind.
+    EncodedValueVectorElement* m_indexedHeapStorage;
+#endif
 };
 
 template <bool canBindThisValue, bool hasNewTarget>
@@ -974,12 +1003,28 @@ public:
     }
 };
 
+// On 32-bit builds the binding storage is a tail array, followed by the
+// this/new.target piece. Compressed values on 64-bit builds need a separately
+// allocated vector so the collector can trace the 32-bit pointer payloads.
+// Both layouts let LoadByHeapIndex read a binding without touching the vtable.
 template <bool canBindThisValue, bool hasNewTarget>
-class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
+class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
 
 public:
-    FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function);
+    typedef FunctionEnvironmentRecordPiece<canBindThisValue, hasNewTarget> Piece;
+
+    static FunctionEnvironmentRecordOnHeap* create(ScriptFunctionObject* function);
+
+    static constexpr size_t heapStorageOffset()
+    {
+        return sizeof(FunctionEnvironmentRecord);
+    }
+
+    ALWAYS_INLINE EncodedValueVectorElement* heapStorage()
+    {
+        return FunctionEnvironmentRecord::heapStorageData();
+    }
 
     virtual bool isFunctionEnvironmentRecordOnHeap() override
     {
@@ -988,21 +1033,21 @@ public:
 
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
-        m_heapStorage[idx] = v;
+        heapStorage()[idx] = v;
     }
 
     virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
     {
-        return m_heapStorage[idx];
+        return heapStorage()[idx];
     }
 
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+        const auto& v = functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return EnvironmentRecord::GetBindingValueResult(m_heapStorage[v[i].m_indexForIndexedStorage]);
+                return EnvironmentRecord::GetBindingValueResult(heapStorage()[v[i].m_indexForIndexedStorage]);
             }
         }
         return EnvironmentRecord::GetBindingValueResult();
@@ -1010,7 +1055,7 @@ public:
 
     virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+        const auto& v = functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -1028,103 +1073,70 @@ public:
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
-        m_heapStorage[idx] = v;
+        heapStorage()[idx] = v;
     }
 
     virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
-        m_heapStorage[idx] = v;
+        heapStorage()[idx] = v;
     }
 
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+        const auto& v = functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                m_heapStorage[v[i].m_indexForIndexedStorage] = V;
+                heapStorage()[v[i].m_indexForIndexedStorage] = V;
                 return;
             }
         }
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-private:
-    EncodedValueTightVector m_heapStorage;
-};
-
-template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
-class FunctionEnvironmentRecordOnHeapWithInlineStorage : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
-    friend class LexicalEnvironment;
-
-public:
-    FunctionEnvironmentRecordOnHeapWithInlineStorage(ScriptFunctionObject* function);
-
-    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
+    void bindThisValue(ExecutionState& state, const Value& thisValue) override
     {
-        m_inlineStorage[idx] = v;
+        piece()->bindThisValue(state, thisValue);
     }
 
-    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
+    Value getThisBinding(ExecutionState& state) override
     {
-        return m_inlineStorage[idx];
+        return piece()->getThisBinding(state);
     }
 
-    virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
+    Object* newTarget() override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
-
-        for (size_t i = 0; i < v.size(); i++) {
-            if (v[i].m_name == name) {
-                return EnvironmentRecord::GetBindingValueResult(m_inlineStorage[v[i].m_indexForIndexedStorage]);
-            }
-        }
-        return EnvironmentRecord::GetBindingValueResult();
+        return piece()->newTarget();
     }
 
-    virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
+    void setNewTarget(Object* newTarget) override
     {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
-
-        for (size_t i = 0; i < v.size(); i++) {
-            if (v[i].m_name == name) {
-                return EnvironmentRecord::BindingSlot(this, v[i].m_indexForIndexedStorage, false);
-            }
-        }
-        return EnvironmentRecord::BindingSlot(this, SIZE_MAX, false);
-    }
-
-    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
-    {
-        return false;
-    }
-
-    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
-    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
-    {
-        m_inlineStorage[idx] = v;
-    }
-
-    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
-    {
-        m_inlineStorage[idx] = v;
-    }
-
-    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
-    {
-        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
-
-        for (size_t i = 0; i < v.size(); i++) {
-            if (v[i].m_name == name) {
-                m_inlineStorage[v[i].m_indexForIndexedStorage] = V;
-                return;
-            }
-        }
-        RELEASE_ASSERT_NOT_REACHED();
+        piece()->setNewTarget(newTarget);
     }
 
 private:
-    EncodedValue m_inlineStorage[inlineStorageSize];
+    explicit FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function)
+        : FunctionEnvironmentRecord(function)
+    {
+    }
+
+    // size of the whole record including the tail storage and the tail piece
+    static size_t allocationSize(size_t heapStorageCount)
+    {
+        return pieceOffset(heapStorageCount) + (std::is_empty<Piece>::value ? 0 : sizeof(Piece));
+    }
+
+    static size_t pieceOffset(size_t heapStorageCount)
+    {
+        size_t offset = heapStorageOffset();
+#if !defined(ESCARGOT_64) || !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        offset += heapStorageCount * sizeof(EncodedValueVectorElement);
+#endif
+        return (offset + alignof(Piece) - 1) & ~(alignof(Piece) - 1);
+    }
+
+    // rarely used compared to the storage, so paying an indirection to find the codeBlock is fine
+    Piece* piece();
 };
 
 template <bool canBindThisValue, bool hasNewTarget>

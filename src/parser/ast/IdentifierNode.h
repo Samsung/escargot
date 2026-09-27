@@ -238,8 +238,13 @@ public:
                         // m_isResultSaved should be false for global undefined
                         ASSERT(context->m_codeBlock->context()->staticStrings().undefined != m_name);
                         codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this->m_loc.index);
-                    } else {
+                    } else if (LIKELY(info.m_isFunctionHeapStorage) && LIKELY(info.m_upperIndex <= 2)) {
                         codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this->m_loc.index);
+                    } else {
+                        // also covers the rare info.m_isFunctionHeapStorage && upperIndex > 2 case:
+                        // route through the virtual-call path instead of growing LoadByHeapIndex's
+                        // handler with a hop-loop for a depth profiling shows is <2.5% of hits
+                        codeBlock->pushCode(LoadByHeapIndexComplexCase(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this->m_loc.index);
                     }
                 }
             }

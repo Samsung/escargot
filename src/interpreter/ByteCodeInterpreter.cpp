@@ -1274,16 +1274,52 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+        DEFINE_OPCODE(GetParameter)
+            :
+        {
+            GetParameter* code = (GetParameter*)programCounter;
+            if (code->m_paramIndex < state->argc()) {
+                registerFile[code->m_registerIndex] = state->argv()[code->m_paramIndex];
+            } else {
+                registerFile[code->m_registerIndex] = Value();
+            }
+            ADD_PROGRAM_COUNTER(GetParameter);
+            NEXT_INSTRUCTION();
+        }
+
         DEFINE_OPCODE(LoadByHeapIndex)
             :
         {
             LoadByHeapIndex* code = (LoadByHeapIndex*)programCounter;
+            ASSERT(code->m_upperIndex <= 2);
+            LexicalEnvironment* upperEnv = state->lexicalEnvironment();
+            switch (code->m_upperIndex) {
+            case 2:
+                upperEnv = upperEnv->outerEnvironment();
+                FALLTHROUGH;
+            case 1:
+                upperEnv = upperEnv->outerEnvironment();
+                FALLTHROUGH;
+            default:
+                break;
+            }
+            // the binding is known to live in the tail storage of a FunctionEnvironmentRecordOnHeap,
+            // so it is read without the getHeapValueByIndex virtual call
+            registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->heapStorageData()[code->m_index];
+            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(LoadByHeapIndexComplexCase)
+            :
+        {
+            LoadByHeapIndexComplexCase* code = (LoadByHeapIndexComplexCase*)programCounter;
             LexicalEnvironment* upperEnv = state->lexicalEnvironment();
             for (size_t i = 0; i < code->m_upperIndex; i++) {
                 upperEnv = upperEnv->outerEnvironment();
             }
             registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->getHeapValueByIndex(*state, code->m_index);
-            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
+            ADD_PROGRAM_COUNTER(LoadByHeapIndexComplexCase);
             NEXT_INSTRUCTION();
         }
 
@@ -1449,19 +1485,6 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseNotOperationSlowCase(*state, val);
             }
             ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(GetParameter)
-            :
-        {
-            GetParameter* code = (GetParameter*)programCounter;
-            if (code->m_paramIndex < state->argc()) {
-                registerFile[code->m_registerIndex] = state->argv()[code->m_paramIndex];
-            } else {
-                registerFile[code->m_registerIndex] = Value();
-            }
-            ADD_PROGRAM_COUNTER(GetParameter);
             NEXT_INSTRUCTION();
         }
 

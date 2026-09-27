@@ -179,6 +179,7 @@ struct GlobalVariableAccessCacheItem;
     F(ObjectDefineGetterSetter)                       \
     F(CallComplexCase)                                \
     F(BindingRestElement)                             \
+    F(LoadByHeapIndexComplexCase)                     \
     F(MetaPropertyOperation)                          \
     F(BlockOperation)                                 \
     F(ReplaceBlockLexicalEnvironmentOperation)        \
@@ -438,6 +439,8 @@ public:
 
 BYTECODE_SIZE_CHECK_IN_32BIT(InitializeByName, sizeof(size_t) * 3);
 
+// the target binding is known to live in the tail storage of a FunctionEnvironmentRecordOnHeap,
+// so the interpreter reads it without going through EnvironmentRecord::getHeapValueByIndex
 class LoadByHeapIndex : public ByteCode {
 public:
     LoadByHeapIndex(const ByteCodeLOC& loc, const size_t registerIndex, const size_t upperIndex, const size_t index)
@@ -455,6 +458,28 @@ public:
     void dump()
     {
         printf("load r%u <- heap[%u][%u]", m_registerIndex, m_upperIndex, m_index);
+    }
+#endif
+};
+
+// every other environment record kind(block scope with TDZ check, module, ...) comes here
+class LoadByHeapIndexComplexCase : public ByteCode {
+public:
+    LoadByHeapIndexComplexCase(const ByteCodeLOC& loc, const size_t registerIndex, const size_t upperIndex, const size_t index)
+        : ByteCode(Opcode::LoadByHeapIndexComplexCaseOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_upperIndex(upperIndex)
+        , m_index(index)
+    {
+    }
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_upperIndex;
+    ByteCodeRegisterIndex m_index;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("load r%u <- heap[%u][%u] (complex)", m_registerIndex, m_upperIndex, m_index);
     }
 #endif
 };
