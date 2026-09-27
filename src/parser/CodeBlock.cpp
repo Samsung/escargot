@@ -908,6 +908,8 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                 info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
                 info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
                 info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;
+                // a module keeps its top level bindings in a ModuleEnvironmentRecord instead
+                info.m_isFunctionHeapStorage = !blk->isGlobalCodeBlock();
                 return info;
             }
         }

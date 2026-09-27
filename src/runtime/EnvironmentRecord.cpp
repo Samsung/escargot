@@ -283,44 +283,41 @@ void DeclarativeEnvironmentRecordNotIndexed::initializeBinding(ExecutionState& s
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
-FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function)
-    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
-    , m_heapStorage(function->interpretedCodeBlock()->identifierOnHeapCount())
+FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>* FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::create(ScriptFunctionObject* function)
 {
+    const size_t heapStorageCount = function->interpretedCodeBlock()->identifierOnHeapCount();
+    // the piece needs no explicit construction because GC_MALLOC clears the memory and
+    // that is exactly its initial state(empty this value, null new.target)
+    auto self = new (GC_MALLOC(allocationSize(heapStorageCount))) FunctionEnvironmentRecordOnHeap(function);
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    self->initializeIndexedHeapStorage(heapStorageCount);
+#else
+    EncodedValueVectorElement* storage = self->heapStorage();
+    for (size_t i = 0; i < heapStorageCount; i++) {
+        storage[i] = EncodedValueVectorElement();
+    }
+#endif
+    return self;
+}
+
+template <bool canBindThisValue, bool hasNewTarget>
+FunctionEnvironmentRecordPiece<canBindThisValue, hasNewTarget>* FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::piece()
+{
+    return reinterpret_cast<Piece*>(reinterpret_cast<uintptr_t>(this) + pieceOffset(functionObject()->interpretedCodeBlock()->identifierOnHeapCount()));
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
 void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
 {
     // Storing to const variable check only (TDZ check is already done by bytecode generation)
-    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+    const auto& recordInfo = functionObject()->interpretedCodeBlock()->identifierInfos();
     if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
         if (state.inStrictMode()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
         }
         return;
     }
-    m_heapStorage[slot.m_index] = v;
-}
-
-template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
-FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValue, hasNewTarget, inlineStorageSize>::FunctionEnvironmentRecordOnHeapWithInlineStorage(ScriptFunctionObject* function)
-    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
-{
-}
-
-template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
-void FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValue, hasNewTarget, inlineStorageSize>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
-{
-    // Storing to const variable check only (TDZ check is already done by bytecode generation)
-    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
-    if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
-        if (state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
-        }
-        return;
-    }
-    m_inlineStorage[slot.m_index] = v;
+    heapStorage()[slot.m_index] = v;
 }
 
 template <bool canBindThisValue, bool hasNewTarget>
@@ -432,20 +429,18 @@ template class FunctionEnvironmentRecordOnStack<false, false>;
 template class FunctionEnvironmentRecordOnStack<true, true>;
 template class FunctionEnvironmentRecordOnStack<false, true>;
 
-template class FunctionEnvironmentRecordOnHeap<false, false>;
-template class FunctionEnvironmentRecordOnHeap<true, true>;
-template class FunctionEnvironmentRecordOnHeap<false, true>;
+// the tail storage offset must be shared by every combination, otherwise
+// FunctionEnvironmentRecord::heapStorageData() reads the wrong place
+#define CHECK_FE_ON_HEAP_LAYOUT(canBindThisValue, hasNewTarget)                                                                                           \
+    COMPILE_ASSERT((sizeof(FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>) == sizeof(FunctionEnvironmentRecord)), "");                   \
+    COMPILE_ASSERT((FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::heapStorageOffset() % alignof(EncodedValueVectorElement) == 0), ""); \
+    template class FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>;
 
-#define DEFINE_FE_WITH_INLINE_STORAGE(num)                                              \
-    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<false, false, num>; \
-    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<true, true, num>;   \
-    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<false, true, num>;
+CHECK_FE_ON_HEAP_LAYOUT(false, false)
+CHECK_FE_ON_HEAP_LAYOUT(true, true)
+CHECK_FE_ON_HEAP_LAYOUT(false, true)
+#undef CHECK_FE_ON_HEAP_LAYOUT
 
-DEFINE_FE_WITH_INLINE_STORAGE(1)
-DEFINE_FE_WITH_INLINE_STORAGE(2)
-DEFINE_FE_WITH_INLINE_STORAGE(3)
-DEFINE_FE_WITH_INLINE_STORAGE(4)
-DEFINE_FE_WITH_INLINE_STORAGE(5)
 
 template class FunctionEnvironmentRecordNotIndexed<false, false>;
 template class FunctionEnvironmentRecordNotIndexed<true, true>;

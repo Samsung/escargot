@@ -434,6 +434,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
+        case LoadByHeapIndexComplexCaseOpcode: {
+            LoadByHeapIndexComplexCase* cd = (LoadByHeapIndexComplexCase*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
         case StoreByHeapIndexOpcode: {
             StoreByHeapIndex* cd = (StoreByHeapIndex*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);

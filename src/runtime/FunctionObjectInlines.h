@@ -248,20 +248,7 @@ public:
     static NEVER_INLINE FunctionEnvironmentRecord* createFunctionEnvironmentRecord(ExecutionState& state, FunctionObjectType* self, InterpretedCodeBlock* codeBlock)
     {
         if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
-            switch (codeBlock->identifierOnHeapCount()) {
-            case 1:
-                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 1>(self);
-            case 2:
-                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 2>(self);
-            case 3:
-                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 3>(self);
-            case 4:
-                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 4>(self);
-            case 5:
-                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 5>(self);
-            default:
-                return new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
-            }
+            return FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>::create(self);
         } else {
             if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
                 return new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
