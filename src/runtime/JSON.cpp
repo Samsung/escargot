@@ -423,7 +423,9 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                 context->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().source),
                                            ObjectPropertyDescriptor(sourceValue, ObjectPropertyDescriptor::AllPresent));
             }
-            Value arguments[] = { name.toPlainValue(), val, context };
+            // Internal index keys may stay numeric, but the reviver observes
+            // an ECMAScript property key and therefore must receive a String.
+            Value arguments[] = { name.toPropertyKeyValue(state), val, context };
             return Object::call(state, reviver, holder, 3, arguments);
         };
         return Walk(root, ObjectPropertyName(state, String::emptyString()), parseResult);

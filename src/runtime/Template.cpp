@@ -166,6 +166,26 @@ void Template::constructObjectPropertyValues(Context* ctx, const BasePropertyVal
             objectPropertyValues[i] = new JSGetterSetter(getter, setter);
         }
     }
+
+    ObjectStructure* structure = m_cachedObjectStructure.m_objectStructure;
+    if (structure && structure->hasPartitionedNonIndexProperties()) {
+        ObjectPropertyValueVector reorderedValues;
+        reorderedValues.resizeWithUninitializedValues(0, propertyCount);
+        for (size_t i = 0; i < baseItemCount; i++) {
+            reorderedValues[i] = objectPropertyValues[i];
+        }
+        for (size_t i = baseItemCount; i < propertyCount; i++) {
+            size_t propertyIndex = i - baseItemCount;
+            Value propertyNameValue = m_properties[propertyIndex].first.toValue();
+            ObjectStructurePropertyName propertyName = propertyNameValue.isString()
+                ? ObjectStructurePropertyName(AtomicString(ctx, propertyNameValue.asString()))
+                : ObjectStructurePropertyName(propertyNameValue.asSymbol());
+            size_t valueIndex = structure->findProperty(propertyName).first;
+            ASSERT(valueIndex != SIZE_MAX);
+            reorderedValues[valueIndex] = objectPropertyValues[i];
+        }
+        objectPropertyValues = std::move(reorderedValues);
+    }
 }
 
 void Template::postProcessing(Object* instantiatedObject)

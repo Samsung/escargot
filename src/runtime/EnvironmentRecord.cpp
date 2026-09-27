@@ -155,7 +155,7 @@ void GlobalEnvironmentRecord::initializeBinding(ExecutionState& state, const Ato
     if (findResult.first == SIZE_MAX) {
         m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
     } else {
-        auto desc = findResult.second->m_descriptor;
+        auto desc = *findResult.second.value();
         if (desc.isDataProperty()) {
             if (desc.isConfigurable() || !desc.isEnumerable()) {
                 m_globalObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));

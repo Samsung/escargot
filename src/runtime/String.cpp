@@ -1028,7 +1028,7 @@ String* String::fromUint32(uint32_t v)
         *ptr = '0';
     } else {
         while (v > 0) {
-            *(--ptr) = '0' + (v);
+            *(--ptr) = '0' + (v % 10);
             v /= 10;
         }
     }

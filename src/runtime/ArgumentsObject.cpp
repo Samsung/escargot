@@ -105,10 +105,10 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
             index--;
         }
 
-        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
         // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = sourceFunctionObject;
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = sourceFunctionObject;
+        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = state.context()->globalObject()->arrayPrototypeValues();
     } else {
         m_structure = state.context()->defaultStructureForUnmappedArgumentsObject();
 
@@ -128,11 +128,11 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
             index++;
         }
 
-        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = state.context()->globalObject()->arrayPrototypeValues();
         auto thrower = state.context()->globalObject()->throwerGetterSetterData();
         // Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
-        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = Value(thrower);
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = Value(thrower);
+        // Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+        m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2] = state.context()->globalObject()->arrayPrototypeValues();
     }
 }
 

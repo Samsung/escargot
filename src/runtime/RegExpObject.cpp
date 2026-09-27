@@ -209,7 +209,7 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
             }
 
             if (name->equals(state.context()->staticStrings().lastIndex.string())) {
-                if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
+                if (!structure()->propertyDescriptor((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).isWritable()) {
                     m_hasNonWritableLastIndexRegExpObject = true;
                 }
             }

@@ -42,7 +42,7 @@ COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (OBJECT_PROPERTY_NAME_ATOMIC_
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS <= (1 << 3), "");
 
 ObjectStructurePropertyName::ObjectStructurePropertyName()
-    : m_data(((size_t)AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)
+    : m_data(reinterpret_cast<size_t>(AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)
 {
 }
 
@@ -61,7 +61,7 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
 {
     Value value = valueIn.toPrimitive(state, Value::PreferString);
     if (UNLIKELY(value.isSymbol())) {
-        m_data = (size_t)value.asSymbol();
+        m_data = reinterpret_cast<size_t>(value.asSymbol());
         return;
     }
 
@@ -75,7 +75,7 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
 
     const auto& data = string->bufferAccessData();
     if (data.length == 0) {
-        m_data = ((size_t)AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        m_data = reinterpret_cast<size_t>(AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         return;
     }
     bool needsRemainNormalString = false;
@@ -85,12 +85,12 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
     }
 
     if (UNLIKELY(needsRemainNormalString)) {
-        m_data = (size_t)string;
+        m_data = reinterpret_cast<size_t>(string);
     } else {
         if (c < ESCARGOT_ASCII_TABLE_MAX && (data.length == 1)) {
-            m_data = ((size_t)state.context()->staticStrings().asciiTable[c].string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
+            m_data = reinterpret_cast<size_t>(state.context()->staticStrings().asciiTable[c].string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         } else {
-            m_data = ((size_t)AtomicString(state, string).string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
+            m_data = reinterpret_cast<size_t>(AtomicString(state, string).string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         }
     }
 }
@@ -544,12 +544,22 @@ Object::Object(ExecutionState& state, size_t propertyCount,
             hasSymbolPropertyName = true;
         }
 
-        if (keyVector->at(i).m_propertyName.isPlainString() && !keyVector->at(i).m_propertyName.hasAtomicString()) {
+        if (keyVector->at(i).m_propertyName.hasNonAtomicString()) {
             hasNonAtomicPropertyName = true;
         }
     }
 
-    if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+    if (hasIndexPropertyName || hasSymbolPropertyName) {
+        m_structure = new ObjectStructureWithIndexProperties(*keyVector);
+        ObjectPropertyValueVector reorderedValues;
+        reorderedValues.resizeWithUninitializedValues(0, propertyCount);
+        for (size_t i = 0; i < propertyCount; i++) {
+            size_t valueIndex = m_structure->findProperty((*keyVector)[i].m_propertyName).first;
+            ASSERT(valueIndex != SIZE_MAX);
+            reorderedValues[valueIndex] = m_values[i];
+        }
+        m_values = std::move(reorderedValues);
+    } else if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         m_structure = new ObjectStructureWithMap(hasIndexPropertyName,
                                                  hasSymbolPropertyName, hasEnumerableProperty, std::move(*keyVector));
     } else {
@@ -787,14 +797,28 @@ bool Object::prototypeChainMayHaveIndexedProperty(Optional<Object*> proto)
 
 ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+    bool profileIndexed = propertyName.isUIntType();
+    ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
+#endif
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+        OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetMiss, propertyName.uintValue(), m_structure->propertyCount());
+#endif
         return ObjectGetResult();
     }
-    ObjectStructurePropertyName P = propertyName.toObjectStructurePropertyName(state);
-    auto findResult = m_structure->findProperty(P);
+    auto findResult = findPropertyInStructure(propertyName);
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+    if (profileIndexed) {
+        if (findResult.first != SIZE_MAX) {
+            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetHit, propertyName.uintValue(), m_structure->propertyCount());
+        } else {
+            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetMiss, propertyName.uintValue(), m_structure->propertyCount());
+        }
+    }
+#endif
     if (LIKELY(findResult.first != SIZE_MAX)) {
-        const ObjectStructureItem* item = findResult.second.value();
-        const auto& desc = item->m_descriptor;
+        const auto& desc = *findResult.second.value();
         auto presentAttributes = desc.descriptorData().presentAttributes();
         if (desc.isDataProperty()) {
             if (LIKELY(!desc.isNativeAccessorProperty())) {
@@ -817,8 +841,21 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
     // TODO Return true, if every field in Desc is absent.
     // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
-    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
-    auto findResult = m_structure->findProperty(propertyName);
+    auto findResult = findPropertyInStructure(P);
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+    if (P.isUIntType()) {
+        ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
+        if (findResult.first == SIZE_MAX) {
+            if (desc.isDataWritableEnumerableConfigurable()) {
+                OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, AddDefaultData, P.uintValue(), m_structure->propertyCount());
+            } else {
+                OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, AddCustomDescriptor, P.uintValue(), m_structure->propertyCount());
+            }
+        } else {
+            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, Update, P.uintValue(), m_structure->propertyCount());
+        }
+    }
+#endif
     if (findResult.first == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
         if (UNLIKELY(!isExtensible(state))) {
@@ -826,21 +863,24 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
         }
 
         auto structureBefore = m_structure;
-        m_structure = m_structure->addProperty(propertyName, desc.toObjectStructurePropertyDescriptor());
+        size_t previousPropertyCount = structureBefore->propertyCount();
+        m_structure = addPropertyToStructure(P, desc.toObjectStructurePropertyDescriptor());
         ASSERT(structureBefore != m_structure);
+        size_t newPropertyIndex = newPropertyIndexAfterAdd(P, previousPropertyCount);
+        ASSERT(newPropertyIndex != SIZE_MAX);
         if (LIKELY(desc.isDataProperty())) {
             const Value& val = desc.isValuePresent() ? desc.value() : Value();
-            m_values.pushBack(val, m_structure->propertyCount());
+            addValueForNewProperty(structureBefore, previousPropertyCount, newPropertyIndex, val);
         } else {
-            m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());
+            addValueForNewProperty(structureBefore, previousPropertyCount, newPropertyIndex, Value(new JSGetterSetter(desc.getterSetter())));
         }
 
         // ASSERT(m_values.size() == m_structure->propertyCount());
         return true;
     } else {
         size_t idx = findResult.first;
-        const ObjectStructureItem* item = findResult.second.value();
-        auto current = item->m_descriptor;
+        const ObjectStructurePropertyDescriptor* item = findResult.second.value();
+        auto current = *item;
 
         // If the [[Configurable]] field of current is false then
         if (!current.isConfigurable()) {
@@ -855,7 +895,7 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
         }
 
         bool shouldDelete = false;
-        Value v = current.isNativeAccessorProperty() ? this->get(state, ObjectPropertyName(state, propertyName)).value(state, this) : Value(m_values[idx]);
+        Value v = current.isNativeAccessorProperty() ? this->get(state, P).value(state, this) : Value(m_values[idx]);
         ObjectPropertyDescriptor newDesc = ObjectPropertyDescriptor::fromObjectStructurePropertyDescriptor(current, v);
 
         // If IsGenericDescriptor(Desc) is true, then
@@ -888,16 +928,16 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
                 newDesc = ObjectPropertyDescriptor(desc.isValuePresent() ? desc.value() : Value(), (ObjectPropertyDescriptor::PresentAttribute)f);
             }
             // Else, if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both true, then
-        } else if (item->m_descriptor.isDataProperty() && desc.isDataDescriptor()) {
+        } else if (item->isDataProperty() && desc.isDataDescriptor()) {
             // If the [[Configurable]] field of current is false, then
-            if (!item->m_descriptor.isConfigurable()) {
+            if (!item->isConfigurable()) {
                 // Reject, if the [[Writable]] field of current is false and the [[Writable]] field of Desc is true.
-                if (!item->m_descriptor.isWritable() && desc.isWritable()) {
+                if (!item->isWritable() && desc.isWritable()) {
                     return false;
                 }
                 // If the [[Writable]] field of current is false, then
                 // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                if (!item->m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                if (!item->isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
                     return false;
                 }
             }
@@ -969,16 +1009,16 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
             }
         } else {
             auto oldDesc = findResult.second.value();
-            if (newDesc.isDataDescriptor() && oldDesc->m_descriptor.isNativeAccessorProperty()) {
+            if (newDesc.isDataDescriptor() && oldDesc->isNativeAccessorProperty()) {
                 auto newNative = new ObjectPropertyNativeGetterSetterData(newDesc.isWritable(), newDesc.isEnumerable(), newDesc.isConfigurable(),
-                                                                          oldDesc->m_descriptor.nativeGetterSetterData()->m_getter, oldDesc->m_descriptor.nativeGetterSetterData()->m_setter);
+                                                                          oldDesc->nativeGetterSetterData()->m_getter, oldDesc->nativeGetterSetterData()->m_setter);
                 m_structure = m_structure->replacePropertyDescriptor(idx, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(newNative));
             } else {
                 m_structure = m_structure->replacePropertyDescriptor(idx, newDesc.toObjectStructurePropertyDescriptor());
             }
 
             if (newDesc.isDataDescriptor()) {
-                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->readProperty(idx), newDesc.value(), Value(this));
+                return setOwnDataPropertyUtilForObjectInner(state, idx, m_structure->propertyDescriptor(idx), newDesc.value(), Value(this));
             } else {
                 m_values[idx] = Value(new JSGetterSetter(newDesc.getterSetter()));
             }
@@ -1005,21 +1045,34 @@ void Object::directDefineOwnProperty(ExecutionState& state, const ObjectProperty
     ASSERT(!hasOwnProperty(state, P));
     ASSERT(isExtensible(state));
 
-    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
-    m_structure = m_structure->addProperty(propertyName, desc.toObjectStructurePropertyDescriptor());
+    ObjectStructure* previousStructure = m_structure;
+    size_t previousPropertyCount = previousStructure->propertyCount();
+    m_structure = addPropertyToStructure(P, desc.toObjectStructurePropertyDescriptor());
+    size_t newPropertyIndex = newPropertyIndexAfterAdd(P, previousPropertyCount);
+    ASSERT(newPropertyIndex != SIZE_MAX);
     if (LIKELY(desc.isDataProperty())) {
         const Value& val = desc.isValuePresent() ? desc.value() : Value();
-        m_values.pushBack(val, m_structure->propertyCount());
+        addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, val);
     } else {
-        m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());
+        addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, Value(new JSGetterSetter(desc.getterSetter())));
     }
 }
 
 bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto result = getOwnProperty(state, P);
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+    if (P.isUIntType()) {
+        ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
+        if (result.hasValue()) {
+            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, DeleteHit, P.uintValue(), m_structure->propertyCount());
+        } else {
+            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, DeleteMiss, P.uintValue(), m_structure->propertyCount());
+        }
+    }
+#endif
     if (result.hasValue() && result.isConfigurable()) {
-        deleteOwnProperty(state, m_structure->findProperty(P.toObjectStructurePropertyName(state)).first);
+        deleteOwnProperty(state, findPropertyInStructure(P).first);
         return true;
     } else if (result.hasValue() && !result.isConfigurable()) {
         return false;
@@ -1029,28 +1082,86 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
 
 void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
-    const ObjectStructureItem* propertiesVector;
-    propertiesVector = m_structure->properties();
-    size_t cnt = m_structure->propertyCount();
-    bool inTransitionMode = m_structure->inTransitionMode();
-    if (!inTransitionMode) {
-        auto newData = ALLOCA(sizeof(ObjectStructureItem) * cnt, ObjectStructureItem);
-        // cnt == 0 (an object with no properties) makes propertiesVector a
-        // null pointer (m_structure->properties() on an empty structure);
-        // memcpy's source is declared nonnull, so calling it unconditionally
-        // is UB even though the length is 0. Skip the copy instead.
-        if (cnt) {
-            memcpy(newData, propertiesVector, sizeof(ObjectStructureItem) * cnt);
+    struct IndexEnumerationItem {
+        uint32_t index;
+        ObjectStructurePropertyDescriptor descriptor;
+    };
+
+    ObjectStructure* structure = m_structure;
+    if (LIKELY(!structure->hasPartitionedNonIndexProperties())) {
+        size_t propertyCount = structure->propertyCount();
+        const ObjectStructureItem* items = structure->nonIndexPropertiesData();
+        if (!structure->inTransitionMode()) {
+            auto snapshot = ALLOCA(sizeof(ObjectStructureItem) * propertyCount, ObjectStructureItem);
+            if (propertyCount) {
+                memcpy(snapshot, items, sizeof(ObjectStructureItem) * propertyCount);
+            }
+            items = snapshot;
         }
-        propertiesVector = newData;
+        for (size_t i = 0; i < propertyCount; i++) {
+            const ObjectStructureItem& item = items[i];
+            if (item.m_propertyName.isSymbol()) {
+                continue;
+            }
+            if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
+                return;
+            }
+        }
+        if (!shouldSkipSymbolKey && structure->hasSymbolPropertyName()) {
+            for (size_t i = 0; i < propertyCount; i++) {
+                const ObjectStructureItem& item = items[i];
+                if (!item.m_propertyName.isSymbol()) {
+                    continue;
+                }
+                if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
+                    return;
+                }
+            }
+        }
+        return;
     }
-    for (size_t i = 0; i < cnt; i++) {
-        const ObjectStructureItem& item = propertiesVector[i];
-        if (shouldSkipSymbolKey && item.m_propertyName.isSymbol()) {
+
+    size_t namedCount = structure->namedPropertyCount();
+    size_t stringCount = structure->hasPartitionedNonIndexProperties() ? structure->stringPropertyCount() : namedCount;
+    size_t indexCount = structure->indexPropertyCount();
+    auto indexItems = ALLOCA(sizeof(IndexEnumerationItem) * indexCount, IndexEnumerationItem);
+    auto indexOrdinals = ALLOCA(sizeof(uint32_t) * indexCount, uint32_t);
+    auto namedItems = ALLOCA(sizeof(ObjectStructureItem) * namedCount, ObjectStructureItem);
+
+    structure->fillIndexPropertyOrdinalsInOrder(indexOrdinals);
+    for (size_t i = 0; i < indexCount; i++) {
+        size_t valueIndex = namedCount + indexOrdinals[i];
+        indexItems[i] = { structure->indexPropertyName(valueIndex), structure->propertyDescriptor(valueIndex) };
+    }
+    for (size_t i = 0; i < namedCount; i++) {
+        namedItems[i] = ObjectStructureItem(structure->nonIndexPropertyName(i), structure->propertyDescriptor(i));
+    }
+
+    for (size_t i = 0; i < indexCount; i++) {
+        ObjectPropertyName propertyName(state, indexItems[i].index);
+        if (!callback(state, this, propertyName, indexItems[i].descriptor, data)) {
+            return;
+        }
+    }
+    for (size_t i = 0; i < stringCount; i++) {
+        const ObjectStructureItem& item = namedItems[i];
+        if (!structure->hasPartitionedNonIndexProperties() && item.m_propertyName.isSymbol()) {
             continue;
         }
         if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
-            break;
+            return;
+        }
+    }
+    if (!shouldSkipSymbolKey && structure->hasSymbolPropertyName()) {
+        size_t symbolStart = structure->hasPartitionedNonIndexProperties() ? stringCount : 0;
+        for (size_t i = symbolStart; i < namedCount; i++) {
+            const ObjectStructureItem& item = namedItems[i];
+            if (!structure->hasPartitionedNonIndexProperties() && !item.m_propertyName.isSymbol()) {
+                continue;
+            }
+            if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
+                return;
+            }
         }
     }
 }
@@ -1091,13 +1202,11 @@ struct CompareIndexItem {
 };
 
 template <typename ResultType, typename ResultBinder>
-static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
+static ResultType objectOwnPropertyKeysCanonicalized(ExecutionState& state, Object* self)
 {
-    // TODO turn-on gc if replace std::multiset to another gc-well-supported type
-    GCDisabler disableGC;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Properties {
-        std::multiset<IndexItem, CompareIndexItem, GCUtil::gc_malloc_allocator<IndexItem>> indexes;
+        VectorWithInlineStorage<16, IndexItem, GCUtil::gc_malloc_allocator<IndexItem>> indexes;
         VectorWithInlineStorage<32, std::pair<String*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<String*, ObjectStructurePropertyDescriptor>>> strings;
         VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
     } properties;
@@ -1108,7 +1217,7 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
 
             auto indexProperty = name.tryToUseAsIndexProperty();
             if (indexProperty != Value::InvalidIndexPropertyValue) {
-                properties->indexes.insert(std::make_pair(indexProperty, desc));
+                properties->indexes.push_back(std::make_pair(indexProperty, desc));
             } else {
                 const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
 
@@ -1124,6 +1233,10 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
         },
         &properties, false);
 
+    if (properties.indexes.size() > 1) {
+        std::sort(properties.indexes.begin(), properties.indexes.end(), CompareIndexItem());
+    }
+
     ResultType result(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
 
     ResultBinder b;
@@ -1138,6 +1251,28 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
         result[idx++] = b(v.first, v.second);
     }
 
+    return result;
+}
+
+template <typename ResultType, typename ResultBinder>
+static ResultType objectOwnPropertyKeysInEnumerationOrder(ExecutionState& state, Object* self)
+{
+    struct ResultData {
+        ResultType* result;
+        ResultBinder binder;
+    };
+
+    ResultType result;
+    ResultData data{ &result, ResultBinder() };
+    self->enumeration(
+        state, [](ExecutionState& state, Object*, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* rawData) -> bool {
+            ResultData* data = static_cast<ResultData*>(rawData);
+            Value key = name.toPropertyKeyValue(state);
+            ASSERT(key.isString() || key.isSymbol());
+            data->result->pushBack(data->binder(key.asPointerValue(), desc));
+            return true;
+        },
+        &data, false);
     return result;
 }
 
@@ -1160,12 +1295,18 @@ public:
 Object::OwnPropertyKeyAndDescVector Object::ownPropertyKeysFastPath(ExecutionState& state)
 {
     ASSERT(canUseOwnPropertyKeysFastPath());
-    return objectOwnPropertyKeys<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
+    if (hasOwnEnumeration()) {
+        return objectOwnPropertyKeysCanonicalized<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
+    }
+    return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
 }
 
 Object::OwnPropertyKeyVector Object::ownPropertyKeys(ExecutionState& state)
 {
-    return objectOwnPropertyKeys<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
+    if (canUseOwnPropertyKeysFastPath() && !hasOwnEnumeration()) {
+        return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
+    }
+    return objectOwnPropertyKeysCanonicalized<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
@@ -1227,11 +1368,9 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             if (UNLIKELY(isEverSetAsPrototypeObject() && !isIndexedPropertyDirtyAsPrototype() && propertyName.isIndexString())) {
                 state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
             }
-            ObjectStructurePropertyName propertyStructureName = propertyName.toObjectStructurePropertyName(state);
-            auto findResult = m_structure->findProperty(propertyStructureName);
+            auto findResult = findPropertyInStructure(propertyName);
             ASSERT(findResult.first != SIZE_MAX);
-            const ObjectStructureItem* item = findResult.second.value();
-            return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, v, receiver.asObject());
+            return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *findResult.second.value(), v, receiver.asObject());
         }
 
         // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
@@ -1785,13 +1924,11 @@ void Object::redefineOwnProperty(ExecutionState& state, const ObjectPropertyName
     ASSERT(desc.isWritable());
     ASSERT(desc.isConfigurable());
 
-    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
-    auto findResult = m_structure->findProperty(propertyName);
+    auto findResult = findPropertyInStructure(P);
     ASSERT(findResult.first != SIZE_MAX);
 
     size_t idx = findResult.first;
-    const ObjectStructureItem* item = findResult.second.value();
-    auto current = item->m_descriptor;
+    auto current = *findResult.second.value();
     ASSERT(current.isDataProperty());
     ASSERT(current.isWritable());
     ASSERT(current.isConfigurable());
@@ -2022,8 +2159,12 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
     ASSERT(!hasOwnProperty(state, P));
     ASSERT(isExtensible(state));
 
-    m_structure = m_structure->addProperty(P.toObjectStructurePropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
-    m_values.pushBack(objectInternalData, m_structure->propertyCount());
+    ObjectStructure* previousStructure = m_structure;
+    size_t previousPropertyCount = previousStructure->propertyCount();
+    m_structure = addPropertyToStructure(P, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
+    size_t newPropertyIndex = newPropertyIndexAfterAdd(P, previousPropertyCount);
+    ASSERT(newPropertyIndex != SIZE_MAX);
+    addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, objectInternalData);
 
     if (UNLIKELY(data->m_actsLikeJSGetterSetter)) {
         markAsNonInlineCachable();

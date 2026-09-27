@@ -514,6 +514,14 @@ public:
         pushBack(val, newSize);
     }
 
+    void insert(size_t pos, const T& val, size_t currentSize)
+    {
+        ASSERT(pos <= currentSize);
+        expandBuffer(currentSize + 1);
+        memmove(m_buffer + pos + 1, m_buffer + pos, sizeof(T) * (currentSize - pos));
+        m_buffer[pos] = val;
+    }
+
     T& operator[](const size_t idx)
     {
         return m_buffer[idx];

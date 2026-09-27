@@ -29,19 +29,44 @@ class Template;
 
 #define OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
+#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
+enum class ObjectStructureIndexedProfileOwner : uint8_t {
+    Ordinary,
+    Array,
+    Other,
+};
+
+enum class ObjectStructureIndexedProfileEvent : uint8_t {
+    GetHit,
+    GetMiss,
+    AddDefaultData,
+    AddCustomDescriptor,
+    Update,
+    DeleteHit,
+    DeleteMiss,
+};
+
+void recordObjectStructureIndexedProfileEvent(ObjectStructureIndexedProfileOwner owner, ObjectStructureIndexedProfileEvent event, uint32_t index, size_t propertyCount);
+#define OBJECT_STRUCTURE_INDEXED_PROFILE(owner, event, index, propertyCount) recordObjectStructureIndexedProfileEvent(owner, ObjectStructureIndexedProfileEvent::event, index, propertyCount)
+#else
+#define OBJECT_STRUCTURE_INDEXED_PROFILE(owner, event, index, propertyCount) \
+    do {                                                                     \
+    } while (0)
+#endif
+
 class ObjectStructurePropertyName {
     friend Template;
 
 public:
     ObjectStructurePropertyName(const AtomicString& atomicString)
     {
-        m_data = ((size_t)atomicString.string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        m_data = reinterpret_cast<size_t>(atomicString.string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         ASSERT(m_data);
     }
 
     ObjectStructurePropertyName(Symbol* symbol)
     {
-        m_data = (size_t)symbol;
+        m_data = reinterpret_cast<size_t>(symbol);
     }
 
     ObjectStructurePropertyName();
@@ -56,7 +81,7 @@ public:
         } else if (hasSymbol()) {
             return m_data;
         }
-        return ((String*)m_data)->hashValue();
+        return reinterpret_cast<String*>(m_data)->hashValue();
     }
 
     ALWAYS_INLINE friend bool operator==(const ObjectStructurePropertyName& a, const ObjectStructurePropertyName& b);
@@ -70,7 +95,7 @@ public:
         if (hasAtomicString()) {
             return false;
         }
-        PointerValue* pa = (PointerValue*)m_data;
+        PointerValue* pa = reinterpret_cast<PointerValue*>(m_data);
         if (UNLIKELY(pa->isSymbol())) {
             return true;
         }
@@ -80,6 +105,11 @@ public:
     ALWAYS_INLINE bool hasAtomicString() const
     {
         return LIKELY(m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
+    }
+
+    ALWAYS_INLINE bool hasNonAtomicString() const
+    {
+        return !hasAtomicString() && !hasSymbol();
     }
 
     bool isPlainString() const
@@ -96,21 +126,21 @@ public:
     {
         ASSERT(isPlainString());
         if (hasAtomicString()) {
-            return ((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
+            return reinterpret_cast<String*>(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
         }
-        return ((String*)m_data);
+        return reinterpret_cast<String*>(m_data);
     }
 
     Symbol* symbol() const
     {
         ASSERT(isSymbol());
-        return ((Symbol*)m_data);
+        return reinterpret_cast<Symbol*>(m_data);
     }
 
     AtomicString asAtomicString() const
     {
         ASSERT(hasAtomicString());
-        return AtomicString(((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)));
+        return AtomicString(reinterpret_cast<String*>(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
     }
 
     bool isIndexString() const
@@ -121,11 +151,11 @@ public:
     Value toValue() const
     {
         if (hasAtomicString()) {
-            return Value((String*)(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
+            return Value(reinterpret_cast<String*>(m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
         } else if (hasSymbol()) {
-            return Value((Symbol*)m_data);
+            return Value(reinterpret_cast<Symbol*>(m_data));
         } else {
-            return Value((String*)m_data);
+            return Value(reinterpret_cast<String*>(m_data));
         }
     }
 
@@ -168,7 +198,7 @@ public:
         if (isPlainString()) {
             return plainString();
         }
-        return ((Symbol*)m_data)->symbolDescriptiveString();
+        return reinterpret_cast<Symbol*>(m_data)->symbolDescriptiveString();
     }
 
     size_t rawValue() const
@@ -186,7 +216,7 @@ protected:
     ALWAYS_INLINE bool hasSymbol() const
     {
         ASSERT(!hasAtomicString());
-        PointerValue* pa = (PointerValue*)m_data;
+        PointerValue* pa = reinterpret_cast<PointerValue*>(m_data);
         if (UNLIKELY(pa->isSymbol())) {
             return true;
         }
