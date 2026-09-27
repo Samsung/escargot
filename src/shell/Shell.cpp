@@ -563,6 +563,8 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
 {
     std::string script = argv[0]->toString(state)->toStdUTF8String();
 
+    // Register the worker before it can look itself up in workerThreads.
+    std::lock_guard<std::mutex> guard(workerMutex);
     std::thread worker([](std::string script) {
         Globals::initializeThread();
 
@@ -653,10 +655,7 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
     },
                        script);
 
-    {
-        std::lock_guard<std::mutex> guard(workerMutex);
-        workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
-    }
+    workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
 
     return ValueRef::createUndefined();
 }
