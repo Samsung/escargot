@@ -403,7 +403,7 @@ class TestCase(object):
       return params.get(key, match.group(0))
     return placeHolderPattern.sub(GetParameter, template)
 
-  def Execute(self, command):
+  def Execute(self, command, attempt, retry_count):
     if IsWindows():
       args = '%s' % command
     else:
@@ -425,13 +425,32 @@ class TestCase(object):
       )
 
       is_timeout_expired = False
-      try:
-        code = process.wait(60 * 5)
-      except subprocess.TimeoutExpired:
-        is_timeout_expired = True
-        process.kill()
-        process.wait()
-        code = -1
+      started = time.monotonic()
+      slow_reported = False
+      while True:
+        elapsed = time.monotonic() - started
+        remaining = 60 * 5 - elapsed
+        if remaining <= 0:
+          code = process.poll()
+          if code is None:
+            is_timeout_expired = True
+            process.kill()
+            process.wait()
+            code = -1
+          break
+        try:
+          code = process.wait(min(10 if not slow_reported else 30, remaining))
+          break
+        except subprocess.TimeoutExpired:
+          slow_reported = True
+          print("test262 slow: %s in %s, attempt %d/%d, %.0fs elapsed (pid %d)" %
+                (self.GetName(), self.GetMode(), attempt, retry_count,
+                 time.monotonic() - started, process.pid), file=sys.stderr, flush=True)
+
+      if slow_reported:
+        print("test262 slow finished: %s in %s, attempt %d/%d, %.1fs elapsed, exit %d" %
+              (self.GetName(), self.GetMode(), attempt, retry_count,
+               time.monotonic() - started, code), file=sys.stderr, flush=True)
 
       out = stdout.Read()
       err = stderr.Read()
@@ -487,7 +506,7 @@ class TestCase(object):
       retry_count = 10
 
     while count < retry_count:
-      (code, out, err) = self.Execute(command)
+      (code, out, err) = self.Execute(command, count + 1, retry_count)
       result = TestResult(code, out, err, self)
       if not result.HasUnexpectedOutcome():
         break
@@ -838,11 +857,14 @@ class TestSuite(object):
 
     resultTemp = [None] * len(cases)
 
-    for index, exit_code, stdout, stderr, escargot_data in casesResult:
+    for completed, (index, exit_code, stdout, stderr, escargot_data) in enumerate(casesResult, 1):
       case = cases[index]
       if escargot_data is not None:
         case.escargot_data = escargot_data
       resultTemp[index] = TestResult(exit_code, stdout, stderr, case)
+      if completed % 1000 == 0:
+        print("test262 progress: %d/%d cases completed" % (completed, len(cases)),
+              file=sys.stderr, flush=True)
 
     pool.close()
     pool.join()
