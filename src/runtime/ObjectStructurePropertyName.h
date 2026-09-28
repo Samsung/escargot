@@ -29,30 +29,6 @@ class Template;
 
 #define OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-enum class ObjectStructureIndexedProfileOwner : uint8_t {
-    Ordinary,
-    Array,
-    Other,
-};
-
-enum class ObjectStructureIndexedProfileEvent : uint8_t {
-    GetHit,
-    GetMiss,
-    AddDefaultData,
-    AddCustomDescriptor,
-    Update,
-    DeleteHit,
-    DeleteMiss,
-};
-
-void recordObjectStructureIndexedProfileEvent(ObjectStructureIndexedProfileOwner owner, ObjectStructureIndexedProfileEvent event, uint32_t index, size_t propertyCount);
-#define OBJECT_STRUCTURE_INDEXED_PROFILE(owner, event, index, propertyCount) recordObjectStructureIndexedProfileEvent(owner, ObjectStructureIndexedProfileEvent::event, index, propertyCount)
-#else
-#define OBJECT_STRUCTURE_INDEXED_PROFILE(owner, event, index, propertyCount) \
-    do {                                                                     \
-    } while (0)
-#endif
 
 class ObjectStructurePropertyName {
     friend Template;

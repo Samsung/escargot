@@ -32,15 +32,6 @@ class ObjectStructure;
 
 using ObjectStructureFindResult = std::pair<size_t, Optional<const ObjectStructurePropertyDescriptor*>>;
 
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-enum class ObjectStructureProfileKind : uint8_t {
-    WithoutTransition,
-    WithTransition,
-    WithMap,
-};
-
-void recordObjectStructureProfileCreation(ObjectStructureProfileKind kind, size_t propertyCount);
-#endif
 
 struct ObjectStructureItem : public gc {
     ObjectStructureItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
@@ -378,9 +369,6 @@ public:
             m_lastFoundPropertyName = m_properties->back().m_propertyName;
             setLastFoundPropertyIndex(propertyCount - 1);
         }
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithoutTransition, propertyCount);
-#endif
     }
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
@@ -431,9 +419,6 @@ public:
         , m_properties(std::move(properties))
         , m_transitionTableVectorBuffer(nullptr)
     {
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithTransition, m_properties.size());
-#endif
     }
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
@@ -521,9 +506,6 @@ public:
         , m_properties(properties)
         , m_propertyNameMap(map)
     {
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithMap, m_properties->size());
-#endif
     }
 
     template <typename SourceProperties>
@@ -538,9 +520,6 @@ public:
         newProperties->at(properties.size()) = newItem;
 
         m_properties = newProperties;
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithMap, m_properties->size());
-#endif
     }
 
     ObjectStructureWithMap(bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty, const ObjectStructureItemTightVector& properties)
@@ -553,9 +532,6 @@ public:
         memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
 
         m_properties = newProperties;
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithMap, m_properties->size());
-#endif
     }
 
     template <typename ItemVector>
@@ -564,9 +540,6 @@ public:
                           hasSymbolPropertyName, hasEnumerableProperty)
     {
         m_properties = new ObjectStructureItemVector(std::move(properties));
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        recordObjectStructureProfileCreation(ObjectStructureProfileKind::WithMap, m_properties->size());
-#endif
     }
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
