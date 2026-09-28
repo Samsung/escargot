@@ -797,26 +797,10 @@ bool Object::prototypeChainMayHaveIndexedProperty(Optional<Object*> proto)
 
 ObjectGetResult Object::getOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-    bool profileIndexed = propertyName.isUIntType();
-    ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
-#endif
     if (propertyName.isUIntType() && !m_structure->hasIndexPropertyName()) {
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-        OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetMiss, propertyName.uintValue(), m_structure->propertyCount());
-#endif
         return ObjectGetResult();
     }
     auto findResult = findPropertyInStructure(propertyName);
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-    if (profileIndexed) {
-        if (findResult.first != SIZE_MAX) {
-            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetHit, propertyName.uintValue(), m_structure->propertyCount());
-        } else {
-            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, GetMiss, propertyName.uintValue(), m_structure->propertyCount());
-        }
-    }
-#endif
     if (LIKELY(findResult.first != SIZE_MAX)) {
         const auto& desc = *findResult.second.value();
         auto presentAttributes = desc.descriptorData().presentAttributes();
@@ -842,20 +826,6 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
     // TODO Return true, if every field in Desc also occurs in current and the value of every field in Desc is the same value as the corresponding field in current when compared using the SameValue algorithm (9.12).
 
     auto findResult = findPropertyInStructure(P);
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-    if (P.isUIntType()) {
-        ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
-        if (findResult.first == SIZE_MAX) {
-            if (desc.isDataWritableEnumerableConfigurable()) {
-                OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, AddDefaultData, P.uintValue(), m_structure->propertyCount());
-            } else {
-                OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, AddCustomDescriptor, P.uintValue(), m_structure->propertyCount());
-            }
-        } else {
-            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, Update, P.uintValue(), m_structure->propertyCount());
-        }
-    }
-#endif
     if (findResult.first == SIZE_MAX) {
         // 3. If current is undefined and extensible is false, then Reject.
         if (UNLIKELY(!isExtensible(state))) {
@@ -1061,16 +1031,6 @@ void Object::directDefineOwnProperty(ExecutionState& state, const ObjectProperty
 bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto result = getOwnProperty(state, P);
-#if defined(ESCARGOT_OBJECT_STRUCTURE_PROFILE)
-    if (P.isUIntType()) {
-        ObjectStructureIndexedProfileOwner profileOwner = isArrayObject() ? ObjectStructureIndexedProfileOwner::Array : (isOrdinary() ? ObjectStructureIndexedProfileOwner::Ordinary : ObjectStructureIndexedProfileOwner::Other);
-        if (result.hasValue()) {
-            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, DeleteHit, P.uintValue(), m_structure->propertyCount());
-        } else {
-            OBJECT_STRUCTURE_INDEXED_PROFILE(profileOwner, DeleteMiss, P.uintValue(), m_structure->propertyCount());
-        }
-    }
-#endif
     if (result.hasValue() && result.isConfigurable()) {
         deleteOwnProperty(state, findPropertyInStructure(P).first);
         return true;
