@@ -29,7 +29,6 @@ class Template;
 
 #define OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
-
 class ObjectStructurePropertyName {
     friend Template;
 

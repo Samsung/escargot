@@ -32,7 +32,6 @@ class ObjectStructure;
 
 using ObjectStructureFindResult = std::pair<size_t, Optional<const ObjectStructurePropertyDescriptor*>>;
 
-
 struct ObjectStructureItem : public gc {
     ObjectStructureItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
@@ -134,7 +133,7 @@ public:
 #define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 2048
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 12
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 128
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE
 #define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE 32
@@ -144,7 +143,7 @@ public:
 #define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 64
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 36
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 128
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE
 #define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE 32
@@ -152,6 +151,10 @@ public:
 #endif
 
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE < 65536, "");
+
+#ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE 48
+#endif
 
 class ObjectStructure : public gc {
 public:
@@ -194,8 +197,14 @@ public:
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const = 0;
     virtual bool isIndexProperty(size_t valueIndex) const = 0;
     virtual uint32_t indexPropertyName(size_t valueIndex) const = 0;
+    // Value indexes span the string and symbol buffers; array indexes have a
+    // separate accessor. Each data accessor returns only its own key domain.
     virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const = 0;
-    virtual const ObjectStructureItem* nonIndexPropertiesData() const
+    virtual Optional<const ObjectStructureItem*> stringPropertiesData() const
+    {
+        return nullptr;
+    }
+    virtual Optional<const ObjectStructureItem*> symbolPropertiesData() const
     {
         return nullptr;
     }
@@ -236,8 +245,8 @@ public:
 
     virtual size_t stringPropertyCount() const
     {
-        ASSERT_NOT_REACHED();
-        return 0;
+        ASSERT(!hasSymbolPropertyName());
+        return propertyCount();
     }
 
     virtual ObjectStructure* convertToNonTransitionStructure()
@@ -297,6 +306,17 @@ public:
     }
 
 protected:
+    template <typename Properties>
+    static void assertPropertyDomain(const Properties& properties, bool isSymbol)
+    {
+#ifndef NDEBUG
+        for (const auto& item : properties) {
+            ASSERT(item.m_propertyName.isSymbol() == isSymbol);
+            ASSERT(item.m_propertyName.tryToUseAsIndexProperty() == Value::InvalidIndexPropertyValue);
+        }
+#endif
+    }
+
     ObjectStructure(bool hasIndexPropertyName,
                     bool hasSymbolPropertyName, bool hasEnumerableProperty)
         : m_doesTransitionTableUseMap(false)
@@ -363,6 +383,8 @@ public:
                           hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_properties(properties)
     {
+        ASSERT(!hasSymbolPropertyName);
+        assertPropertyDomain(*m_properties.value(), false);
         size_t propertyCount = m_properties->size();
         ASSERT(propertyCount < 65535);
         if (LIKELY(propertyCount)) {
@@ -377,7 +399,7 @@ public:
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
     virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructureItem* nonIndexPropertiesData() const override;
+    virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
@@ -407,18 +429,23 @@ public:
     }
 
 private:
-    ObjectStructureItemVector* m_properties;
+    Optional<ObjectStructureItemVector*> m_properties;
     ObjectStructurePropertyName m_lastFoundPropertyName;
 };
 
 class ObjectStructureWithTransition : public ObjectStructure {
 public:
+    static ObjectStructureWithTransition* create(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+                                                 bool hasNonAtomicPropertyName, bool hasEnumerableProperty);
+
     ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : ObjectStructure(hasIndexPropertyName,
                           hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_properties(std::move(properties))
         , m_transitionTableVectorBuffer(nullptr)
     {
+        ASSERT(!hasIndexPropertyName);
+        assertPropertyDomain(m_properties, false);
     }
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
@@ -427,7 +454,7 @@ public:
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
     virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructureItem* nonIndexPropertiesData() const override;
+    virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
@@ -454,11 +481,60 @@ private:
         return size_t(1) << (base + 1);
     }
 
+protected:
+    virtual Optional<const ObjectStructureItemTightVector*> symbolProperties() const
+    {
+        return nullptr;
+    }
+
     ObjectStructureItemTightVector m_properties;
     union {
-        ObjectStructureTransitionVectorItem* m_transitionTableVectorBuffer;
+        Optional<ObjectStructureTransitionVectorItem*> m_transitionTableVectorBuffer;
         ObjectStructureTransitionTableMap* m_transitionTableMap;
     };
+};
+
+// Keep symbol keys in their own buffer while sharing the transition machinery.
+class ObjectStructureWithTransitionAndSymbols : public ObjectStructureWithTransition {
+public:
+    ObjectStructureWithTransitionAndSymbols(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+                                            bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
+        : ObjectStructureWithTransition(std::move(strings), false, !symbols.empty(), hasNonAtomicPropertyName, hasEnumerableProperty)
+        , m_symbolProperties(std::move(symbols))
+    {
+        assertPropertyDomain(m_symbolProperties, true);
+    }
+
+    virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
+    virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
+    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual Optional<const ObjectStructureItem*> symbolPropertiesData() const override
+    {
+        return m_symbolProperties.data();
+    }
+    virtual size_t propertyCount() const override
+    {
+        return m_properties.size() + m_symbolProperties.size();
+    }
+    virtual bool hasPartitionedNonIndexProperties() const override
+    {
+        return hasSymbolPropertyName();
+    }
+    virtual size_t stringPropertyCount() const override
+    {
+        return m_properties.size();
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+protected:
+    virtual Optional<const ObjectStructureItemTightVector*> symbolProperties() const override
+    {
+        return &m_symbolProperties;
+    }
+
+    ObjectStructureItemTightVector m_symbolProperties;
 };
 
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
@@ -469,6 +545,7 @@ COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
 class PropertyNameMapWithCache : public gc {
 public:
     explicit PropertyNameMapWithCache(const ObjectStructureItemVector& properties);
+    explicit PropertyNameMapWithCache(const ObjectStructureItemTightVector& properties);
 
     size_t size() const
     {
@@ -477,17 +554,21 @@ public:
 
     void insert(const ObjectStructureItemVector& properties);
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties);
+    size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemTightVector& properties);
 
 private:
     static uint8_t entryWidth(size_t count);
     size_t hash(const ObjectStructurePropertyName& name) const;
-    void rebuild(const ObjectStructureItemVector& properties);
+    template <typename Properties>
+    void rebuild(const Properties& properties);
+    template <typename Properties>
+    size_t findInProperties(const ObjectStructurePropertyName& name, const Properties& properties);
     template <typename Entry>
     void insertEntry(const ObjectStructurePropertyName& name, size_t index);
-    template <typename Entry>
-    size_t findEntry(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties) const;
+    template <typename Entry, typename Properties>
+    size_t findEntry(const ObjectStructurePropertyName& name, const Properties& properties) const;
 
-    void* m_entries{ nullptr };
+    Optional<void*> m_entries;
     size_t m_capacity{ 0 };
     size_t m_denseCapacity{ 0 };
     size_t m_occupied{ 0 };
@@ -498,6 +579,26 @@ private:
     bool m_hasNonAtomicNames{ false };
 };
 
+// Small structures retain their compact layout. Large key domains lazily
+// allocate bucket indexes into the existing, separately stored keys.
+class ObjectStructureWithTransitionWithMap : public ObjectStructureWithTransitionAndSymbols {
+public:
+    ObjectStructureWithTransitionWithMap(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+                                         bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
+        : ObjectStructureWithTransitionAndSymbols(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty)
+    {
+    }
+
+    virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& name) override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+private:
+    Optional<PropertyNameMapWithCache*> m_stringMap;
+    Optional<PropertyNameMapWithCache*> m_symbolMap;
+};
+
 class ObjectStructureWithMap : public ObjectStructure {
 public:
     ObjectStructureWithMap(ObjectStructureItemVector* properties, Optional<PropertyNameMapWithCache*> map, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty)
@@ -506,6 +607,8 @@ public:
         , m_properties(properties)
         , m_propertyNameMap(map)
     {
+        ASSERT(!hasSymbolPropertyName);
+        assertPropertyDomain(*m_properties.value(), false);
     }
 
     template <typename SourceProperties>
@@ -520,6 +623,8 @@ public:
         newProperties->at(properties.size()) = newItem;
 
         m_properties = newProperties;
+        ASSERT(!hasSymbolPropertyName);
+        assertPropertyDomain(*m_properties.value(), false);
     }
 
     ObjectStructureWithMap(bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty, const ObjectStructureItemTightVector& properties)
@@ -532,6 +637,8 @@ public:
         memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
 
         m_properties = newProperties;
+        ASSERT(!hasSymbolPropertyName);
+        assertPropertyDomain(*m_properties.value(), false);
     }
 
     template <typename ItemVector>
@@ -540,6 +647,8 @@ public:
                           hasSymbolPropertyName, hasEnumerableProperty)
     {
         m_properties = new ObjectStructureItemVector(std::move(properties));
+        ASSERT(!hasSymbolPropertyName);
+        assertPropertyDomain(*m_properties.value(), false);
     }
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
@@ -548,7 +657,7 @@ public:
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
     virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructureItem* nonIndexPropertiesData() const override;
+    virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
@@ -565,7 +674,7 @@ public:
     }
 
 private:
-    ObjectStructureItemVector* m_properties;
+    Optional<ObjectStructureItemVector*> m_properties;
     Optional<PropertyNameMapWithCache*> m_propertyNameMap;
 };
 
@@ -599,7 +708,7 @@ private:
     void insertOrder(const ObjectStructureIndexPropertyVector& properties, uint32_t ordinal);
 
     Vector<IndexPropertyOrderChunk*, GCUtil::gc_malloc_allocator<IndexPropertyOrderChunk*>> m_orderChunks;
-    uint32_t* m_entries{ nullptr };
+    Optional<uint32_t*> m_entries;
     size_t m_capacity{ 0 };
     size_t m_size{ 0 };
 };
@@ -696,16 +805,16 @@ public:
 
     ObjectStructureWithIndexProperties(ObjectStructureItemVector* namedProperties,
                                        ObjectStructureItemVector* symbolProperties,
-                                       ObjectStructureIndexPropertyVector* indexProperties,
+                                       Optional<ObjectStructureIndexPropertyVector*> indexProperties,
                                        const InlineIndexProperties& inlineIndexProperties,
-                                       ObjectStructureIndexDescriptorVector* indexDescriptors,
+                                       Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors,
                                        Optional<PropertyNameMapWithCache*> namedMap,
                                        Optional<IndexPropertyMapWithCache*> indexMap);
     ObjectStructureWithIndexProperties(ObjectStructureItemVector* namedProperties,
                                        ObjectStructureItemVector* symbolProperties,
-                                       ObjectStructureIndexPropertyVector* indexProperties,
+                                       Optional<ObjectStructureIndexPropertyVector*> indexProperties,
                                        const InlineIndexProperties& inlineIndexProperties,
-                                       ObjectStructureIndexDescriptorVector* indexDescriptors,
+                                       Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors,
                                        Optional<PropertyNameMapWithCache*> namedMap,
                                        Optional<IndexPropertyMapWithCache*> indexMap,
                                        bool hasNonAtomicPropertyName,
@@ -718,6 +827,14 @@ public:
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
     virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override
+    {
+        return m_namedProperties->data();
+    }
+    virtual Optional<const ObjectStructureItem*> symbolPropertiesData() const override
+    {
+        return m_symbolProperties->data();
+    }
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
     virtual void fillIndexPropertyOrdinalsInOrder(uint32_t* ordinals) const override;
@@ -769,15 +886,15 @@ private:
     void sortIndexProperties();
     void finishConstruction();
 
-    ObjectStructureItemVector* m_namedProperties;
-    ObjectStructureItemVector* m_symbolProperties;
+    Optional<ObjectStructureItemVector*> m_namedProperties;
+    Optional<ObjectStructureItemVector*> m_symbolProperties;
     // One- and two-key numeric structures keep their sorted keys in the
     // structure itself. The external atomic vector starts at the third key.
     InlineIndexProperties m_inlineIndexProperties;
-    ObjectStructureIndexPropertyVector* m_indexProperties;
-    // Null means every numeric property has the common plain-data W/E/C
+    Optional<ObjectStructureIndexPropertyVector*> m_indexProperties;
+    // An absent vector means every numeric property has the common plain-data W/E/C
     // descriptor. Materialize the parallel vector only for an exception.
-    ObjectStructureIndexDescriptorVector* m_indexDescriptors;
+    Optional<ObjectStructureIndexDescriptorVector*> m_indexDescriptors;
     Optional<PropertyNameMapWithCache*> m_namedPropertyMap;
     Optional<IndexPropertyMapWithCache*> m_indexPropertyMap;
 };
