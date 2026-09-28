@@ -1040,6 +1040,30 @@ bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     return true;
 }
 
+template <typename Callback>
+static NEVER_INLINE void enumeratePartitionedTransition(ExecutionState& state, Object* self, ObjectStructure* structure,
+                                                        Callback callback, Optional<void*> data, bool shouldSkipSymbolKey)
+{
+    size_t stringCount = structure->stringPropertyCount();
+    auto strings = structure->stringPropertiesData();
+    for (size_t i = 0; i < stringCount; i++) {
+        const auto& item = strings.value()[i];
+        if (!callback(state, self, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data.unwrap())) {
+            return;
+        }
+    }
+    if (!shouldSkipSymbolKey) {
+        size_t symbolCount = structure->propertyCount() - stringCount;
+        auto symbols = structure->symbolPropertiesData();
+        for (size_t i = 0; i < symbolCount; i++) {
+            const auto& item = symbols.value()[i];
+            if (!callback(state, self, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data.unwrap())) {
+                return;
+            }
+        }
+    }
+}
+
 void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
 {
     struct IndexEnumerationItem {
@@ -1048,41 +1072,31 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     };
 
     ObjectStructure* structure = m_structure;
+    if (UNLIKELY(structure->hasPartitionedNonIndexProperties() && structure->inTransitionMode())) {
+        enumeratePartitionedTransition(state, this, structure, callback, data, shouldSkipSymbolKey);
+        return;
+    }
     if (LIKELY(!structure->hasPartitionedNonIndexProperties())) {
         size_t propertyCount = structure->propertyCount();
-        const ObjectStructureItem* items = structure->nonIndexPropertiesData();
+        auto items = structure->stringPropertiesData();
         if (!structure->inTransitionMode()) {
             auto snapshot = ALLOCA(sizeof(ObjectStructureItem) * propertyCount, ObjectStructureItem);
             if (propertyCount) {
-                memcpy(snapshot, items, sizeof(ObjectStructureItem) * propertyCount);
+                memcpy(snapshot, items.value(), sizeof(ObjectStructureItem) * propertyCount);
             }
             items = snapshot;
         }
         for (size_t i = 0; i < propertyCount; i++) {
-            const ObjectStructureItem& item = items[i];
-            if (item.m_propertyName.isSymbol()) {
-                continue;
-            }
+            const ObjectStructureItem& item = items.value()[i];
             if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
                 return;
-            }
-        }
-        if (!shouldSkipSymbolKey && structure->hasSymbolPropertyName()) {
-            for (size_t i = 0; i < propertyCount; i++) {
-                const ObjectStructureItem& item = items[i];
-                if (!item.m_propertyName.isSymbol()) {
-                    continue;
-                }
-                if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
-                    return;
-                }
             }
         }
         return;
     }
 
     size_t namedCount = structure->namedPropertyCount();
-    size_t stringCount = structure->hasPartitionedNonIndexProperties() ? structure->stringPropertyCount() : namedCount;
+    size_t stringCount = structure->stringPropertyCount();
     size_t indexCount = structure->indexPropertyCount();
     auto indexItems = ALLOCA(sizeof(IndexEnumerationItem) * indexCount, IndexEnumerationItem);
     auto indexOrdinals = ALLOCA(sizeof(uint32_t) * indexCount, uint32_t);
@@ -1105,20 +1119,13 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     }
     for (size_t i = 0; i < stringCount; i++) {
         const ObjectStructureItem& item = namedItems[i];
-        if (!structure->hasPartitionedNonIndexProperties() && item.m_propertyName.isSymbol()) {
-            continue;
-        }
         if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
             return;
         }
     }
     if (!shouldSkipSymbolKey && structure->hasSymbolPropertyName()) {
-        size_t symbolStart = structure->hasPartitionedNonIndexProperties() ? stringCount : 0;
-        for (size_t i = symbolStart; i < namedCount; i++) {
+        for (size_t i = stringCount; i < namedCount; i++) {
             const ObjectStructureItem& item = namedItems[i];
-            if (!structure->hasPartitionedNonIndexProperties() && !item.m_propertyName.isSymbol()) {
-                continue;
-            }
             if (!callback(state, this, ObjectPropertyName(state, item.m_propertyName), item.m_descriptor, data)) {
                 return;
             }
@@ -1215,8 +1222,30 @@ static ResultType objectOwnPropertyKeysCanonicalized(ExecutionState& state, Obje
 }
 
 template <typename ResultType, typename ResultBinder>
-static ResultType objectOwnPropertyKeysInEnumerationOrder(ExecutionState& state, Object* self)
+static ResultType objectOwnPropertyKeysInEnumerationOrder(ExecutionState& state, Object* self, ObjectStructure* structure)
 {
+    if (structure->inTransitionMode()) {
+        // Transition buffers are immutable and already follow key order.
+        ResultType result;
+        result.reserve(structure->propertyCount());
+        ResultBinder binder;
+        auto strings = structure->stringPropertiesData();
+        size_t stringCount = structure->stringPropertyCount();
+        for (size_t i = 0; i < stringCount; i++) {
+            const auto& item = strings.value()[i];
+            result.pushBack(binder(item.m_propertyName.plainString(), item.m_descriptor));
+        }
+        if (structure->hasSymbolPropertyName()) {
+            auto symbols = structure->symbolPropertiesData();
+            size_t symbolCount = structure->propertyCount() - stringCount;
+            for (size_t i = 0; i < symbolCount; i++) {
+                const auto& item = symbols.value()[i];
+                result.pushBack(binder(item.m_propertyName.symbol(), item.m_descriptor));
+            }
+        }
+        return result;
+    }
+
     struct ResultData {
         ResultType* result;
         ResultBinder binder;
@@ -1258,13 +1287,13 @@ Object::OwnPropertyKeyAndDescVector Object::ownPropertyKeysFastPath(ExecutionSta
     if (hasOwnEnumeration()) {
         return objectOwnPropertyKeysCanonicalized<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
     }
-    return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this);
+    return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyAndDescVector, OwnPropertyKeyAndDescResultResultBinder>(state, this, m_structure);
 }
 
 Object::OwnPropertyKeyVector Object::ownPropertyKeys(ExecutionState& state)
 {
     if (canUseOwnPropertyKeysFastPath() && !hasOwnEnumeration()) {
-        return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
+        return objectOwnPropertyKeysInEnumerationOrder<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this, m_structure);
     }
     return objectOwnPropertyKeysCanonicalized<Object::OwnPropertyKeyVector, OwnPropertyKeyResultResultBinder>(state, this);
 }
@@ -2356,6 +2385,22 @@ ValueVectorWithInlineStorage Object::enumerableOwnProperties(ExecutionState& sta
 {
     // https://www.ecma-international.org/ecma-262/8.0/#sec-enumerableownproperties
     if (object->canUseOwnPropertyKeysFastPath()) {
+        auto structure = object->structure();
+        if (kind == EnumerableOwnPropertiesType::Key && !object->hasOwnEnumeration() && structure->inTransitionMode()) {
+            // Collect enumerable strings directly; key enumeration invokes no
+            // getters and needs neither a descriptor snapshot nor symbol keys.
+            ValueVectorWithInlineStorage properties;
+            size_t stringCount = structure->stringPropertyCount();
+            properties.reserve(stringCount);
+            auto strings = structure->stringPropertiesData();
+            for (size_t i = 0; i < stringCount; i++) {
+                const auto& item = strings.value()[i];
+                if (item.m_descriptor.isEnumerable()) {
+                    properties.pushBack(Value(item.m_propertyName.plainString()));
+                }
+            }
+            return properties;
+        }
         // FAST PATH
         Object::OwnPropertyKeyAndDescVector ownKeysAndDesc = object->ownPropertyKeysFastPath(state);
 

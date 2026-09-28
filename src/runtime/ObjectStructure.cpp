@@ -24,7 +24,6 @@
 
 namespace Escargot {
 
-
 void* ObjectStructureItemVector::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -104,16 +103,32 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
         hasEnumerableProperty |= properties[i].m_descriptor.isEnumerable();
     }
 
-    // Any Symbol-bearing structure uses the partitioned representation too.
-    // This keeps the physical value/key order identical to ECMAScript's
-    // numeric -> string -> symbol enumeration domains even when there is no
-    // numeric property yet.
-    if (hasIndexStringAsPropertyName || hasSymbol) {
+    if (hasIndexStringAsPropertyName || (hasSymbol && (!preferTransition || !isTransitionModeAvailable(properties.size())))) {
         return new ObjectStructureWithIndexProperties(properties);
     } else if (!isTransitionModeAvailable(properties.size())) {
         return new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(properties));
     } else if (preferTransition) {
-        return new ObjectStructureWithTransition(std::move(properties), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
+        if (hasSymbol) {
+            ObjectStructureItemTightVector strings;
+            ObjectStructureItemTightVector symbols;
+            size_t stringCount = 0;
+            for (size_t i = 0; i < properties.size(); i++) {
+                stringCount += !properties[i].m_propertyName.isSymbol();
+            }
+            strings.resizeWithUninitializedValues(stringCount);
+            symbols.resizeWithUninitializedValues(properties.size() - stringCount);
+            size_t stringIndex = 0;
+            size_t symbolIndex = 0;
+            for (size_t i = 0; i < properties.size(); i++) {
+                if (properties[i].m_propertyName.isSymbol()) {
+                    symbols[symbolIndex++] = properties[i];
+                } else {
+                    strings[stringIndex++] = properties[i];
+                }
+            }
+            return ObjectStructureWithTransition::create(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+        }
+        return ObjectStructureWithTransition::create(std::move(properties), ObjectStructureItemTightVector(), hasNonAtomicPropertyName, hasEnumerableProperty);
     } else {
         return new ObjectStructureWithoutTransition(new ObjectStructureItemVector(std::move(properties)), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
     }
@@ -122,15 +137,12 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
 ObjectStructureFindResult ObjectStructureWithoutTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     size_t size = m_properties->size();
-    OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
     if (m_properties->size() && m_lastFoundPropertyName == s) {
         uint16_t lastIndex = lastFoundPropertyIndex();
         if (lastIndex == std::numeric_limits<uint16_t>::max()) {
-            OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, false, true, profileComparisons));
             return std::make_pair(std::numeric_limits<size_t>::max(), Optional<const ObjectStructurePropertyDescriptor*>());
         }
-        OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, true, true, profileComparisons));
-        return std::make_pair(lastIndex, &(*m_properties)[lastIndex].m_descriptor);
+        return std::make_pair(lastIndex, &(*m_properties.value())[lastIndex].m_descriptor);
     }
     m_lastFoundPropertyName = s;
     setLastFoundPropertyIndex(std::numeric_limits<uint16_t>::max());
@@ -138,47 +150,31 @@ ObjectStructureFindResult ObjectStructureWithoutTransition::findProperty(const O
     if (LIKELY(s.hasAtomicString())) {
         if (LIKELY(!m_hasNonAtomicPropertyName)) {
             for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-                if ((*m_properties)[i].m_propertyName.rawValue() == s.rawValue()) {
+                if ((*m_properties.value())[i].m_propertyName.rawValue() == s.rawValue()) {
                     setLastFoundPropertyIndex(i);
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, true, false, profileComparisons));
-                    return std::make_pair(i, &(*m_properties)[i].m_descriptor);
+                    return std::make_pair(i, &(*m_properties.value())[i].m_descriptor);
                 }
             }
         } else {
             AtomicString as = s.asAtomicString();
             for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-                if ((*m_properties)[i].m_propertyName == as) {
+                if ((*m_properties.value())[i].m_propertyName == as) {
                     setLastFoundPropertyIndex(i);
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, true, false, profileComparisons));
-                    return std::make_pair(i, &(*m_properties)[i].m_descriptor);
+                    return std::make_pair(i, &(*m_properties.value())[i].m_descriptor);
                 }
             }
         }
     } else if (s.isSymbol()) {
-        if (m_hasSymbolPropertyName) {
-            for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-                if ((*m_properties)[i].m_propertyName == s) {
-                    setLastFoundPropertyIndex(i);
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, true, false, profileComparisons));
-                    return std::make_pair(i, &(*m_properties)[i].m_descriptor);
-                }
-            }
-        }
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     } else {
         for (size_t i = 0; i < size; i++) {
-            OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-            if ((*m_properties)[i].m_propertyName == s) {
+            if ((*m_properties.value())[i].m_propertyName == s) {
                 setLastFoundPropertyIndex(i);
-                OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, true, false, profileComparisons));
-                return std::make_pair(i, &(*m_properties)[i].m_descriptor);
+                return std::make_pair(i, &(*m_properties.value())[i].m_descriptor);
             }
         }
     }
 
-    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithoutTransition, size, s, false, false, profileComparisons));
     return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
 }
 
@@ -208,7 +204,7 @@ const ObjectStructurePropertyName& ObjectStructureWithoutTransition::nonIndexPro
     return m_properties->at(valueIndex).m_propertyName;
 }
 
-const ObjectStructureItem* ObjectStructureWithoutTransition::nonIndexPropertiesData() const
+Optional<const ObjectStructureItem*> ObjectStructureWithoutTransition::stringPropertiesData() const
 {
     return m_properties->data();
 }
@@ -225,14 +221,13 @@ size_t ObjectStructureWithoutTransition::namedPropertyCount() const
 
 ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithoutTransition, m_properties->size(), 'a'));
     ObjectStructureItem newItem(name, desc);
     uint32_t index = name.tryToUseAsIndexProperty();
     if (index != Value::InvalidIndexPropertyValue) {
         return addIndexProperty(index, desc);
     }
     if (name.isSymbol()) {
-        ObjectStructureItemVector properties(*m_properties, newItem);
+        ObjectStructureItemVector properties(*m_properties.value(), newItem);
         return new ObjectStructureWithIndexProperties(properties);
     }
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
@@ -243,10 +238,10 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
     ObjectStructure* newStructure;
     ObjectStructureItemVector* propertiesForNewStructure;
     if (m_isReferencedByInlineCache) {
-        propertiesForNewStructure = new ObjectStructureItemVector(*m_properties, newItem);
+        propertiesForNewStructure = new ObjectStructureItemVector(*m_properties.value(), newItem);
     } else {
         m_properties->push_back(newItem);
-        propertiesForNewStructure = m_properties;
+        propertiesForNewStructure = m_properties.value();
         m_properties = nullptr;
     }
 
@@ -261,12 +256,11 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
 
 ObjectStructure* ObjectStructureWithoutTransition::addIndexProperty(uint32_t index, const ObjectStructurePropertyDescriptor& desc)
 {
-    return new ObjectStructureWithIndexProperties(*m_properties, index, desc);
+    return new ObjectStructureWithIndexProperties(*m_properties.value(), index, desc);
 }
 
 ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithoutTransition, m_properties->size(), 'r'));
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
     newProperties->resizeFitWithUninitializedValues(ps - 1);
@@ -279,12 +273,12 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
             continue;
-        hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
-        hasSymbol = hasSymbol | (*m_properties)[i].m_propertyName.isSymbol();
-        hasNonAtomicName = hasNonAtomicName | (*m_properties)[i].m_propertyName.hasNonAtomicString();
-        hasEnumerableProperty = hasEnumerableProperty | (*m_properties)[i].m_descriptor.isEnumerable();
-        (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
-        (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
+        hasIndexString = hasIndexString | (*m_properties.value())[i].m_propertyName.isIndexString();
+        hasSymbol = hasSymbol | (*m_properties.value())[i].m_propertyName.isSymbol();
+        hasNonAtomicName = hasNonAtomicName | (*m_properties.value())[i].m_propertyName.hasNonAtomicString();
+        hasEnumerableProperty = hasEnumerableProperty | (*m_properties.value())[i].m_descriptor.isEnumerable();
+        (*newProperties)[newIdx].m_propertyName = (*m_properties.value())[i].m_propertyName;
+        (*newProperties)[newIdx].m_descriptor = (*m_properties.value())[i].m_descriptor;
         newIdx++;
     }
 
@@ -297,11 +291,10 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 
 ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithoutTransition, m_properties->size(), 'p'));
-    ObjectStructureItemVector* newProperties = m_properties;
+    ObjectStructureItemVector* newProperties = m_properties.value();
 
     if (m_isReferencedByInlineCache) {
-        newProperties = new ObjectStructureItemVector(*m_properties);
+        newProperties = new ObjectStructureItemVector(*m_properties.value());
     } else {
         m_properties = nullptr;
     }
@@ -324,6 +317,41 @@ void* ObjectStructureWithTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+ObjectStructureWithTransition* ObjectStructureWithTransition::create(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+                                                                     bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
+{
+    if (strings.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE
+        || symbols.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE) {
+        return new ObjectStructureWithTransitionWithMap(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+    }
+    if (!symbols.empty()) {
+        return new ObjectStructureWithTransitionAndSymbols(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+    }
+    return new ObjectStructureWithTransition(std::move(strings), false, false, hasNonAtomicPropertyName, hasEnumerableProperty);
+}
+
+namespace {
+
+// Present the two key domains without materializing a mixed key buffer.
+class TransitionPropertyView {
+public:
+    explicit TransitionPropertyView(const ObjectStructure& structure)
+        : m_structure(structure)
+    {
+    }
+
+    size_t size() const { return m_structure.propertyCount(); }
+    ObjectStructureItem operator[](size_t index) const
+    {
+        return ObjectStructureItem(m_structure.nonIndexPropertyName(index), m_structure.propertyDescriptor(index));
+    }
+
+private:
+    const ObjectStructure& m_structure;
+};
+
+} // namespace
+
 ObjectStructureFindResult ObjectStructureWithTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     size_t size = m_properties.size();
@@ -331,43 +359,28 @@ ObjectStructureFindResult ObjectStructureWithTransition::findProperty(const Obje
     if (LIKELY(s.hasAtomicString())) {
         if (LIKELY(!m_hasNonAtomicPropertyName)) {
             for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
                 if (m_properties[i].m_propertyName.rawValue() == s.rawValue()) {
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithTransition, size, s, true, false, profileComparisons));
                     return std::make_pair(i, &m_properties[i].m_descriptor);
                 }
             }
         } else {
             AtomicString as = s.asAtomicString();
             for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
                 if (m_properties[i].m_propertyName == as) {
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithTransition, size, s, true, false, profileComparisons));
                     return std::make_pair(i, &m_properties[i].m_descriptor);
                 }
             }
         }
     } else if (s.isSymbol()) {
-        if (m_hasSymbolPropertyName) {
-            for (size_t i = 0; i < size; i++) {
-                OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-                if (m_properties[i].m_propertyName == s) {
-                    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithTransition, size, s, true, false, profileComparisons));
-                    return std::make_pair(i, &m_properties[i].m_descriptor);
-                }
-            }
-        }
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     } else {
         for (size_t i = 0; i < size; i++) {
-            OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
             if (m_properties[i].m_propertyName == s) {
-                OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithTransition, size, s, true, false, profileComparisons));
                 return std::make_pair(i, &m_properties[i].m_descriptor);
             }
         }
     }
 
-    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithTransition, size, s, false, false, profileComparisons));
     return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
 }
 
@@ -397,7 +410,7 @@ const ObjectStructurePropertyName& ObjectStructureWithTransition::nonIndexProper
     return m_properties[valueIndex].m_propertyName;
 }
 
-const ObjectStructureItem* ObjectStructureWithTransition::nonIndexPropertiesData() const
+Optional<const ObjectStructureItem*> ObjectStructureWithTransition::stringPropertiesData() const
 {
     return m_properties.data();
 }
@@ -409,30 +422,24 @@ size_t ObjectStructureWithTransition::propertyCount() const
 
 size_t ObjectStructureWithTransition::namedPropertyCount() const
 {
-    return m_properties.size();
+    return propertyCount();
 }
 
 ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithTransition, m_properties.size(), 'a'));
     if (m_doesTransitionTableUseMap) {
         auto iter = m_transitionTableMap->find(ObjectStructureTransitionMapItem(name, desc));
         if (iter != m_transitionTableMap->end()) {
-            OBJECT_STRUCTURE_PROFILE(recordTransitionLookup(true, true, 0));
             return iter->second;
         }
-        OBJECT_STRUCTURE_PROFILE(recordTransitionLookup(true, false, 0));
     } else {
         size_t len = m_transitionTableVectorBufferSize;
         for (size_t i = 0; i < len; i++) {
-            OBJECT_STRUCTURE_PROFILE_VALUE(profileTransitionComparisons++);
-            const auto& item = m_transitionTableVectorBuffer[i];
+            const auto& item = m_transitionTableVectorBuffer.value()[i];
             if (item.m_descriptor == desc && item.m_propertyName == name) {
-                OBJECT_STRUCTURE_PROFILE(recordTransitionLookup(false, true, profileTransitionComparisons));
                 return item.m_structure;
             }
         }
-        OBJECT_STRUCTURE_PROFILE(recordTransitionLookup(false, false, profileTransitionComparisons));
     }
 
     ObjectStructureItem newItem(name, desc);
@@ -440,27 +447,36 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
     if (index != Value::InvalidIndexPropertyValue) {
         return addIndexProperty(index, desc);
     }
-    if (name.isSymbol()) {
-        OBJECT_STRUCTURE_PROFILE(recordTransitionExit());
-        ObjectStructureItemVector properties(m_properties, newItem);
-        return new ObjectStructureWithIndexProperties(properties);
-    }
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
     bool hasSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : name.hasNonAtomicString();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
     ObjectStructure* newObjectStructure;
 
-    size_t nextSize = m_properties.size() + 1;
-    // ObjectStructureWithTransition cannot directly convert to ObjectStructureWithMap by just adding one property
-    ASSERT(nextSize < ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE);
+    size_t nextSize = propertyCount() + 1;
     if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE || nameIsIndexString) {
-        OBJECT_STRUCTURE_PROFILE(recordTransitionExit());
+        if (hasSymbol) {
+            auto* partitioned = new ObjectStructureWithIndexProperties(TransitionPropertyView(*this));
+            return partitioned->addNonIndexProperty(name, desc);
+        }
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
+        if (nextSize > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+            newObjectStructure = new ObjectStructureWithMap(newProperties, nullptr, nameIsIndexString, hasSymbol, hasEnumerableProperty);
+        } else {
+            newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
+        }
     } else {
-        ObjectStructureItemTightVector newProperties(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
+        if (hasSymbol) {
+            ObjectStructureItemTightVector strings = name.isSymbol() ? ObjectStructureItemTightVector(m_properties) : ObjectStructureItemTightVector(m_properties, newItem);
+            auto oldSymbols = symbolProperties();
+            ObjectStructureItemTightVector emptySymbols;
+            const auto& symbols = oldSymbols ? *oldSymbols.value() : emptySymbols;
+            ObjectStructureItemTightVector newSymbols = name.isSymbol() ? ObjectStructureItemTightVector(symbols, newItem) : ObjectStructureItemTightVector(symbols);
+            newObjectStructure = create(std::move(strings), std::move(newSymbols), hasNonAtomicName, hasEnumerableProperty);
+        } else {
+            ObjectStructureItemTightVector newProperties(m_properties, newItem);
+            newObjectStructure = create(std::move(newProperties), ObjectStructureItemTightVector(), hasNonAtomicName, hasEnumerableProperty);
+        }
         ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
 
         if (m_doesTransitionTableUseMap) {
@@ -468,16 +484,15 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
                                                         newTransitionItem.m_structure));
         } else {
             if (m_transitionTableVectorBufferSize + 1 > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE) {
-                OBJECT_STRUCTURE_PROFILE(recordTransitionVectorToMap());
                 ObjectStructureTransitionTableMap* transitionTableMap = new (GC) ObjectStructureTransitionTableMap();
                 for (size_t i = 0; i < m_transitionTableVectorBufferSize; i++) {
-                    transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(m_transitionTableVectorBuffer[i].m_propertyName, m_transitionTableVectorBuffer[i].m_descriptor),
-                                                              m_transitionTableVectorBuffer[i].m_structure));
+                    transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(m_transitionTableVectorBuffer.value()[i].m_propertyName, m_transitionTableVectorBuffer.value()[i].m_descriptor),
+                                                              m_transitionTableVectorBuffer.value()[i].m_structure));
                 }
                 transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
                                                           newTransitionItem.m_structure));
 
-                GC_FREE(m_transitionTableVectorBuffer);
+                GC_FREE(m_transitionTableVectorBuffer.value());
                 m_doesTransitionTableUseMap = true;
                 m_transitionTableMap = transitionTableMap;
                 m_transitionTableVectorBufferCapacity = 0;
@@ -485,9 +500,9 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
             } else {
                 if (m_transitionTableVectorBufferCapacity <= (size_t)(m_transitionTableVectorBufferSize + 1)) {
                     m_transitionTableVectorBufferCapacity = std::min(computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1), (size_t)std::numeric_limits<uint8_t>::max());
-                    m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC_NO_SHRINK(m_transitionTableVectorBuffer, sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
+                    m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC_NO_SHRINK(m_transitionTableVectorBuffer.unwrap(), sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
                 }
-                m_transitionTableVectorBuffer[m_transitionTableVectorBufferSize] = newTransitionItem;
+                m_transitionTableVectorBuffer.value()[m_transitionTableVectorBufferSize] = newTransitionItem;
                 m_transitionTableVectorBufferSize++;
             }
         }
@@ -498,13 +513,14 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
 
 ObjectStructure* ObjectStructureWithTransition::addIndexProperty(uint32_t index, const ObjectStructurePropertyDescriptor& desc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordTransitionExit());
-    return new ObjectStructureWithIndexProperties(m_properties, index, desc);
+    return new ObjectStructureWithIndexProperties(TransitionPropertyView(*this), index, desc);
 }
 
 ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithTransition, m_properties.size(), 'r'));
+    if (m_hasSymbolPropertyName) {
+        return convertToNonTransitionStructure()->removeProperty(pIndex);
+    }
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     newProperties->resizeFitWithUninitializedValues(m_properties.size() - 1);
     size_t pc = m_properties.size();
@@ -526,22 +542,80 @@ ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
         newIdx++;
     }
 
+    if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        return new ObjectStructureWithMap(newProperties, nullptr, hasIndexString, hasSymbol, hasEnumerableProperty);
+    }
     return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithTransition, m_properties.size(), 'p'));
+    if (m_hasSymbolPropertyName) {
+        return convertToNonTransitionStructure()->replacePropertyDescriptor(idx, newDesc);
+    }
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
     newProperties->at(idx).m_descriptor = newDesc;
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : newDesc.isEnumerable();
+    if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        return new ObjectStructureWithMap(newProperties, nullptr, m_hasIndexPropertyName, m_hasSymbolPropertyName, hasEnumerableProperty);
+    }
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure()
 {
+    if (m_hasSymbolPropertyName) {
+        return new ObjectStructureWithIndexProperties(TransitionPropertyView(*this));
+    }
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
+    if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        return new ObjectStructureWithMap(newProperties, nullptr, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
+    }
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+}
+
+void* ObjectStructureWithTransitionAndSymbols::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word objBitmap[GC_BITMAP_SIZE(ObjectStructureWithTransitionAndSymbols)] = { 0 };
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_properties));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_symbolProperties));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_transitionTableVectorBuffer));
+        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectStructureWithTransitionAndSymbols));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+ObjectStructureFindResult ObjectStructureWithTransitionAndSymbols::findProperty(const ObjectStructurePropertyName& s)
+{
+    if (!s.isSymbol()) {
+        return ObjectStructureWithTransition::findProperty(s);
+    }
+    for (size_t i = 0; i < m_symbolProperties.size(); i++) {
+        if (m_symbolProperties[i].m_propertyName.rawValue() == s.rawValue()) {
+            return std::make_pair(m_properties.size() + i, &m_symbolProperties[i].m_descriptor);
+        }
+    }
+    return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
+}
+
+const ObjectStructurePropertyDescriptor& ObjectStructureWithTransitionAndSymbols::propertyDescriptor(size_t valueIndex) const
+{
+    if (valueIndex < m_properties.size()) {
+        return m_properties[valueIndex].m_descriptor;
+    }
+    return m_symbolProperties[valueIndex - m_properties.size()].m_descriptor;
+}
+
+const ObjectStructurePropertyName& ObjectStructureWithTransitionAndSymbols::nonIndexPropertyName(size_t valueIndex) const
+{
+    if (valueIndex < m_properties.size()) {
+        return m_properties[valueIndex].m_propertyName;
+    }
+    return m_symbolProperties[valueIndex - m_properties.size()].m_propertyName;
 }
 
 uint8_t PropertyNameMapWithCache::entryWidth(size_t count)
@@ -562,20 +636,23 @@ PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureItemVect
     rebuild(properties);
 }
 
+PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureItemTightVector& properties)
+{
+    rebuild(properties);
+}
+
 size_t PropertyNameMapWithCache::hash(const ObjectStructurePropertyName& name) const
 {
     // Atomic names normally use pointer identity. If a template contributed
     // non-atomic strings, hash all strings by content so equal names agree.
     size_t value;
     if (LIKELY(!m_hasNonAtomicNames)) {
-        OBJECT_STRUCTURE_PROFILE(recordMapHash(false));
         // Atomic strings use exact pointers. Symbols use tagged pointers and
         // numeric names use their immediate representation, all of which are
         // stable identity values without repeating the type dispatch.
         value = name.rawValue();
     } else {
-        OBJECT_STRUCTURE_PROFILE(recordMapHash(name.isPlainString()));
-        value = name.hasNonAtomicString() ? name.plainString()->hashValue() : name.rawValue();
+        value = name.isPlainString() ? name.plainString()->hashValue() : name.rawValue();
     }
     // Mix aligned pointers before masking off the low bits. Use 32-bit
     // arithmetic here to keep this inexpensive on ARM32 as well.
@@ -587,9 +664,8 @@ size_t PropertyNameMapWithCache::hash(const ObjectStructurePropertyName& name) c
 template <typename Entry>
 void PropertyNameMapWithCache::insertEntry(const ObjectStructurePropertyName& name, size_t index)
 {
-    auto entries = static_cast<Entry*>(m_entries);
+    auto entries = static_cast<Entry*>(m_entries.value());
     if (m_denseCapacity) {
-        OBJECT_STRUCTURE_PROFILE(recordMapIndexConversion());
         uint32_t numeric = name.tryToUseAsIndexProperty();
         if (numeric < m_denseCapacity) {
             entries[m_capacity + numeric] = static_cast<Entry>(index + 1);
@@ -598,48 +674,41 @@ void PropertyNameMapWithCache::insertEntry(const ObjectStructurePropertyName& na
     }
     size_t slot = hash(name) & (m_capacity - 1);
     while (entries[slot]) {
-        OBJECT_STRUCTURE_PROFILE_VALUE(profileProbes++);
         slot = (slot + 1) & (m_capacity - 1);
     }
-    OBJECT_STRUCTURE_PROFILE(recordMapInsertProbes(profileProbes));
     entries[slot] = static_cast<Entry>(index + 1);
     m_occupied++;
 }
 
-template <typename Entry>
-size_t PropertyNameMapWithCache::findEntry(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties) const
+template <typename Entry, typename Properties>
+size_t PropertyNameMapWithCache::findEntry(const ObjectStructurePropertyName& name, const Properties& properties) const
 {
-    auto entries = static_cast<const Entry*>(m_entries);
+    auto entries = static_cast<const Entry*>(m_entries.value());
     if (m_denseCapacity) {
-        OBJECT_STRUCTURE_PROFILE(recordMapIndexConversion());
         uint32_t numeric = name.tryToUseAsIndexProperty();
         if (numeric < m_denseCapacity) {
             auto entry = entries[m_capacity + numeric];
-            OBJECT_STRUCTURE_PROFILE(recordMapDenseFind(entry != 0));
             return entry ? static_cast<size_t>(entry) - 1 : SIZE_MAX;
         }
     }
     size_t slot = hash(name) & (m_capacity - 1);
     while (auto entry = entries[slot]) {
-        OBJECT_STRUCTURE_PROFILE_VALUE(profileProbes++);
         size_t index = static_cast<size_t>(entry) - 1;
         const auto& candidate = properties[index].m_propertyName;
         if (candidate.rawValue() == name.rawValue()
             || (m_hasNonAtomicNames && name.isPlainString() && candidate == name)) {
-            OBJECT_STRUCTURE_PROFILE(recordMapHashFind(true, profileProbes));
             return index;
         }
         slot = (slot + 1) & (m_capacity - 1);
     }
-    OBJECT_STRUCTURE_PROFILE(recordMapHashFind(false, profileProbes));
     return SIZE_MAX;
 }
 
-void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properties)
+template <typename Properties>
+void PropertyNameMapWithCache::rebuild(const Properties& properties)
 {
     m_size = properties.size();
     m_entryWidth = entryWidth(m_size);
-    m_hasNonAtomicNames = false;
 
     // A bounded low-index region, enabled only when at least half full.
     // A sparse key such as "4294967294" must never size this allocation.
@@ -651,7 +720,6 @@ void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properti
     for (size_t i = 0; i < m_size; i++) {
         const auto& name = properties[i].m_propertyName;
         m_hasNonAtomicNames |= name.hasNonAtomicString();
-        OBJECT_STRUCTURE_PROFILE(recordMapIndexConversion());
         denseCount += name.tryToUseAsIndexProperty() < denseCapacity;
     }
     if (denseCount < denseCapacity / 2) {
@@ -664,11 +732,10 @@ void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properti
         m_capacity *= 2;
     }
 
-    void* oldEntries = m_entries;
+    auto oldEntries = m_entries;
     size_t bytes = (m_capacity + m_denseCapacity) * m_entryWidth;
-    OBJECT_STRUCTURE_PROFILE(recordMapBuild(m_size, bytes, oldEntries != nullptr, m_denseCapacity != 0, m_hasNonAtomicNames));
     m_entries = GC_MALLOC_ATOMIC(bytes);
-    memset(m_entries, 0, bytes);
+    memset(m_entries.value(), 0, bytes);
     m_occupied = 0;
     for (size_t i = 0; i < m_size; i++) {
         const auto& name = properties[i].m_propertyName;
@@ -681,7 +748,7 @@ void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properti
         }
     }
     if (oldEntries) {
-        GC_FREE(oldEntries);
+        GC_FREE(oldEntries.value());
     }
     if (m_size) {
         m_lastName = properties[m_size - 1].m_propertyName;
@@ -691,12 +758,8 @@ void PropertyNameMapWithCache::rebuild(const ObjectStructureItemVector& properti
 
 void PropertyNameMapWithCache::insert(const ObjectStructureItemVector& properties)
 {
-    OBJECT_STRUCTURE_PROFILE(recordMapInsert());
     ASSERT(properties.size() == m_size + 1);
     const auto& name = properties[properties.size() - 1].m_propertyName;
-    if (m_denseCapacity) {
-        OBJECT_STRUCTURE_PROFILE(recordMapIndexConversion());
-    }
     bool dense = m_denseCapacity && name.tryToUseAsIndexProperty() < m_denseCapacity;
     if (entryWidth(properties.size()) != m_entryWidth
         || (!dense && m_occupied + 1 > m_capacity - std::max(m_capacity / 4, static_cast<size_t>(1)))
@@ -717,24 +780,28 @@ void PropertyNameMapWithCache::insert(const ObjectStructureItemVector& propertie
 
 size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties)
 {
+    return findInProperties(name, properties);
+}
+
+size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureItemTightVector& properties)
+{
+    return findInProperties(name, properties);
+}
+
+template <typename Properties>
+size_t PropertyNameMapWithCache::findInProperties(const ObjectStructurePropertyName& name, const Properties& properties)
+{
     if (name == m_lastName) {
-        OBJECT_STRUCTURE_PROFILE(recordMapLastCache());
         return m_lastIndex;
     }
-    m_lastName = name;
-    // A non-atomic query can compare equal to an atomic stored name even
-    // though its hash is content-based. This uncommon path must still work.
+    // Switch to content hashes once a non-atomic query appears, so equal
+    // atomic and non-atomic strings share buckets without a linear fallback.
     if (UNLIKELY(!m_hasNonAtomicNames && name.hasNonAtomicString())) {
-        m_lastIndex = SIZE_MAX;
-        for (size_t i = 0; i < properties.size(); i++) {
-            OBJECT_STRUCTURE_PROFILE_VALUE(profileComparisons++);
-            if (properties[i].m_propertyName == name) {
-                m_lastIndex = i;
-                break;
-            }
-        }
-        OBJECT_STRUCTURE_PROFILE(recordMapLinearFallback(profileComparisons));
-    } else if (m_entryWidth == sizeof(uint8_t)) {
+        m_hasNonAtomicNames = true;
+        rebuild(properties);
+    }
+    m_lastName = name;
+    if (m_entryWidth == sizeof(uint8_t)) {
         m_lastIndex = findEntry<uint8_t>(name, properties);
     } else if (m_entryWidth == sizeof(uint16_t)) {
         m_lastIndex = findEntry<uint16_t>(name, properties);
@@ -742,6 +809,44 @@ size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, c
         m_lastIndex = findEntry<uint32_t>(name, properties);
     }
     return m_lastIndex;
+}
+
+void* ObjectStructureWithTransitionWithMap::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word objBitmap[GC_BITMAP_SIZE(ObjectStructureWithTransitionWithMap)] = { 0 };
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_properties));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_symbolProperties));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_transitionTableVectorBuffer));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_stringMap));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_symbolMap));
+        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectStructureWithTransitionWithMap));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+ObjectStructureFindResult ObjectStructureWithTransitionWithMap::findProperty(const ObjectStructurePropertyName& name)
+{
+    bool isSymbol = name.isSymbol();
+    const auto& properties = isSymbol ? m_symbolProperties : m_properties;
+    if (properties.empty()) {
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
+    }
+    if (properties.size() < ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE) {
+        return ObjectStructureWithTransitionAndSymbols::findProperty(name);
+    }
+    auto& map = isSymbol ? m_symbolMap : m_stringMap;
+    if (!map) {
+        map = new PropertyNameMapWithCache(properties);
+    }
+    size_t index = map->find(name, properties);
+    if (index == SIZE_MAX) {
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
+    }
+    return std::make_pair(index + (isSymbol ? m_properties.size() : 0), &properties[index].m_descriptor);
 }
 
 void* ObjectStructureWithMap::operator new(size_t size)
@@ -761,16 +866,16 @@ void* ObjectStructureWithMap::operator new(size_t size)
 
 ObjectStructureFindResult ObjectStructureWithMap::findProperty(const ObjectStructurePropertyName& s)
 {
-    if (!m_propertyNameMap) {
-        OBJECT_STRUCTURE_PROFILE(recordMapLazyBuild());
-        m_propertyNameMap = createPropertyNameMap(m_properties);
-    }
-    auto idx = m_propertyNameMap->find(s, *m_properties);
-    if (idx == SIZE_MAX) {
-        OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithMap, m_properties->size(), s, false, false, 0));
+    if (s.isSymbol()) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }
-    OBJECT_STRUCTURE_PROFILE(recordFind(ObjectStructureProfileKind::WithMap, m_properties->size(), s, true, false, 0));
+    if (!m_propertyNameMap) {
+        m_propertyNameMap = createPropertyNameMap(m_properties.value());
+    }
+    auto idx = m_propertyNameMap->find(s, *m_properties.value());
+    if (idx == SIZE_MAX) {
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
+    }
     return std::make_pair(idx, &(m_properties->data()[idx].m_descriptor));
 }
 
@@ -800,7 +905,7 @@ const ObjectStructurePropertyName& ObjectStructureWithMap::nonIndexPropertyName(
     return m_properties->at(valueIndex).m_propertyName;
 }
 
-const ObjectStructureItem* ObjectStructureWithMap::nonIndexPropertiesData() const
+Optional<const ObjectStructureItem*> ObjectStructureWithMap::stringPropertiesData() const
 {
     return m_properties->data();
 }
@@ -817,14 +922,13 @@ size_t ObjectStructureWithMap::namedPropertyCount() const
 
 ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithMap, m_properties->size(), 'a'));
     ObjectStructureItem newItem(name, desc);
     uint32_t index = name.tryToUseAsIndexProperty();
     if (index != Value::InvalidIndexPropertyValue) {
         return addIndexProperty(index, desc);
     }
     if (name.isSymbol()) {
-        ObjectStructureItemVector properties(*m_properties, newItem);
+        ObjectStructureItemVector properties(*m_properties.value(), newItem);
         return new ObjectStructureWithIndexProperties(properties);
     }
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
@@ -835,9 +939,9 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
     Optional<PropertyNameMapWithCache*> newPropertyNameMap;
 
     if (m_isReferencedByInlineCache) {
-        newProperties = new ObjectStructureItemVector(*m_properties, newItem);
+        newProperties = new ObjectStructureItemVector(*m_properties.value(), newItem);
     } else {
-        newProperties = m_properties;
+        newProperties = m_properties.value();
         newProperties->push_back(newItem);
         m_properties = nullptr;
         if (m_propertyNameMap) {
@@ -854,12 +958,11 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
 
 ObjectStructure* ObjectStructureWithMap::addIndexProperty(uint32_t index, const ObjectStructurePropertyDescriptor& desc)
 {
-    return new ObjectStructureWithIndexProperties(*m_properties, index, desc);
+    return new ObjectStructureWithIndexProperties(*m_properties.value(), index, desc);
 }
 
 ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithMap, m_properties->size(), 'r'));
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
     newProperties->resizeFitWithUninitializedValues(ps - 1);
@@ -872,12 +975,12 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
             continue;
-        hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
-        hasSymbol = hasSymbol | (*m_properties)[i].m_propertyName.isSymbol();
-        hasEnumerableProperty = hasEnumerableProperty | (*m_properties)[i].m_descriptor.isEnumerable();
-        hasNonAtomicName = hasNonAtomicName | (*m_properties)[i].m_propertyName.hasNonAtomicString();
-        (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
-        (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
+        hasIndexString = hasIndexString | (*m_properties.value())[i].m_propertyName.isIndexString();
+        hasSymbol = hasSymbol | (*m_properties.value())[i].m_propertyName.isSymbol();
+        hasEnumerableProperty = hasEnumerableProperty | (*m_properties.value())[i].m_descriptor.isEnumerable();
+        hasNonAtomicName = hasNonAtomicName | (*m_properties.value())[i].m_propertyName.hasNonAtomicString();
+        (*newProperties)[newIdx].m_propertyName = (*m_properties.value())[i].m_propertyName;
+        (*newProperties)[newIdx].m_descriptor = (*m_properties.value())[i].m_descriptor;
         newIdx++;
     }
 
@@ -894,12 +997,11 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
-    OBJECT_STRUCTURE_PROFILE(recordOperation(ObjectStructureProfileKind::WithMap, m_properties->size(), 'p'));
-    ObjectStructureItemVector* newProperties = m_properties;
+    ObjectStructureItemVector* newProperties = m_properties.value();
     auto newPropertyNameMap = m_propertyNameMap;
 
     if (m_isReferencedByInlineCache) {
-        newProperties = new ObjectStructureItemVector(*m_properties);
+        newProperties = new ObjectStructureItemVector(*m_properties.value());
         newPropertyNameMap = nullptr;
     } else {
         m_properties = nullptr;
@@ -1007,11 +1109,11 @@ void IndexPropertyMapWithCache::insertHashEntry(uint32_t index, size_t ordinal)
     mixed *= 0x9e3779b9U;
     mixed ^= mixed >> 16;
     size_t slot = mixed & (m_capacity - 1);
-    while (m_entries[slot]) {
+    while (m_entries.value()[slot]) {
         slot = (slot + 1) & (m_capacity - 1);
     }
     ASSERT(ordinal < UINT32_MAX);
-    m_entries[slot] = static_cast<uint32_t>(ordinal + 1);
+    m_entries.value()[slot] = static_cast<uint32_t>(ordinal + 1);
 }
 
 void IndexPropertyMapWithCache::rebuildHash(const ObjectStructureIndexPropertyVector& properties)
@@ -1020,16 +1122,16 @@ void IndexPropertyMapWithCache::rebuildHash(const ObjectStructureIndexPropertyVe
     while (properties.size() > capacity - capacity / 4) {
         capacity *= 2;
     }
-    uint32_t* oldEntries = m_entries;
+    auto oldEntries = m_entries;
     m_capacity = capacity;
     m_size = properties.size();
     m_entries = static_cast<uint32_t*>(GC_MALLOC_ATOMIC(sizeof(uint32_t) * m_capacity));
-    memset(m_entries, 0, sizeof(uint32_t) * m_capacity);
+    memset(m_entries.value(), 0, sizeof(uint32_t) * m_capacity);
     for (size_t i = 0; i < properties.size(); i++) {
         insertHashEntry(properties[i], i);
     }
     if (oldEntries) {
-        GC_FREE(oldEntries);
+        GC_FREE(oldEntries.value());
     }
 }
 
@@ -1039,7 +1141,7 @@ size_t IndexPropertyMapWithCache::find(uint32_t index, const ObjectStructureInde
     mixed *= 0x9e3779b9U;
     mixed ^= mixed >> 16;
     size_t slot = mixed & (m_capacity - 1);
-    while (uint32_t entry = m_entries[slot]) {
+    while (uint32_t entry = m_entries.value()[slot]) {
         size_t ordinal = static_cast<size_t>(entry) - 1;
         if (properties[ordinal] == index) {
             return ordinal;
@@ -1078,7 +1180,7 @@ size_t ObjectStructureWithIndexProperties::indexPropertyStorageSize() const
 uint32_t ObjectStructureWithIndexProperties::indexPropertyAt(size_t ordinal) const
 {
     ASSERT(ordinal < indexPropertyStorageSize());
-    return m_indexProperties ? (*m_indexProperties)[ordinal] : m_inlineIndexProperties.m_keys[ordinal];
+    return m_indexProperties ? (*m_indexProperties.value())[ordinal] : m_inlineIndexProperties.m_keys[ordinal];
 }
 
 void ObjectStructureWithIndexProperties::appendIndexProperty(uint32_t index, const ObjectStructurePropertyDescriptor& descriptor)
@@ -1110,7 +1212,7 @@ void ObjectStructureWithIndexProperties::sortIndexProperties()
         if (m_inlineIndexProperties.m_size == 2 && m_inlineIndexProperties.m_keys[0] > m_inlineIndexProperties.m_keys[1]) {
             std::swap(m_inlineIndexProperties.m_keys[0], m_inlineIndexProperties.m_keys[1]);
             if (m_indexDescriptors) {
-                std::swap((*m_indexDescriptors)[0], (*m_indexDescriptors)[1]);
+                std::swap((*m_indexDescriptors.value())[0], (*m_indexDescriptors.value())[1]);
             }
         }
         return;
@@ -1126,7 +1228,7 @@ void ObjectStructureWithIndexProperties::sortIndexProperties()
         ordinals[i] = static_cast<uint32_t>(i);
     }
     std::sort(ordinals.begin(), ordinals.end(), [this](uint32_t a, uint32_t b) {
-        return (*m_indexProperties)[a] < (*m_indexProperties)[b];
+        return (*m_indexProperties.value())[a] < (*m_indexProperties.value())[b];
     });
 
     auto* sortedProperties = new ObjectStructureIndexPropertyVector();
@@ -1134,8 +1236,8 @@ void ObjectStructureWithIndexProperties::sortIndexProperties()
     sortedProperties->reserve(m_indexProperties->size());
     sortedDescriptors->reserve(m_indexDescriptors->size());
     for (uint32_t ordinal : ordinals) {
-        sortedProperties->push_back((*m_indexProperties)[ordinal]);
-        sortedDescriptors->push_back((*m_indexDescriptors)[ordinal]);
+        sortedProperties->push_back((*m_indexProperties.value())[ordinal]);
+        sortedDescriptors->push_back((*m_indexDescriptors.value())[ordinal]);
     }
     m_indexProperties = sortedProperties;
     m_indexDescriptors = sortedDescriptors;
@@ -1147,12 +1249,13 @@ void ObjectStructureWithIndexProperties::finishConstruction()
     m_hasSymbolPropertyName = !m_symbolProperties->empty();
     m_hasNonAtomicPropertyName = false;
     m_hasEnumerableProperty = false;
-    for (const auto& item : *m_namedProperties) {
+    for (const auto& item : *m_namedProperties.value()) {
         ASSERT(!item.m_propertyName.isSymbol());
+        ASSERT(item.m_propertyName.tryToUseAsIndexProperty() == Value::InvalidIndexPropertyValue);
         m_hasNonAtomicPropertyName |= item.m_propertyName.hasNonAtomicString();
         m_hasEnumerableProperty |= item.m_descriptor.isEnumerable();
     }
-    for (const auto& item : *m_symbolProperties) {
+    for (const auto& item : *m_symbolProperties.value()) {
         ASSERT(item.m_propertyName.isSymbol());
         m_hasEnumerableProperty |= item.m_descriptor.isEnumerable();
     }
@@ -1160,22 +1263,22 @@ void ObjectStructureWithIndexProperties::finishConstruction()
         if (!m_indexDescriptors) {
             m_hasEnumerableProperty = true;
         } else {
-            for (const auto& descriptor : *m_indexDescriptors) {
+            for (const auto& descriptor : *m_indexDescriptors.value()) {
                 m_hasEnumerableProperty |= descriptor.isEnumerable();
             }
         }
     }
     if (indexPropertyStorageSize() > 8 && !m_indexPropertyMap) {
         ASSERT(m_indexProperties);
-        m_indexPropertyMap = new IndexPropertyMapWithCache(*m_indexProperties);
+        m_indexPropertyMap = new IndexPropertyMapWithCache(*m_indexProperties.value());
     }
 }
 
 ObjectStructureWithIndexProperties::ObjectStructureWithIndexProperties(ObjectStructureItemVector* namedProperties,
                                                                        ObjectStructureItemVector* symbolProperties,
-                                                                       ObjectStructureIndexPropertyVector* indexProperties,
+                                                                       Optional<ObjectStructureIndexPropertyVector*> indexProperties,
                                                                        const InlineIndexProperties& inlineIndexProperties,
-                                                                       ObjectStructureIndexDescriptorVector* indexDescriptors,
+                                                                       Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors,
                                                                        Optional<PropertyNameMapWithCache*> namedMap,
                                                                        Optional<IndexPropertyMapWithCache*> indexMap)
     : ObjectStructure(indexProperties ? !indexProperties->empty() : inlineIndexProperties.m_size != 0, false, false, false)
@@ -1192,9 +1295,9 @@ ObjectStructureWithIndexProperties::ObjectStructureWithIndexProperties(ObjectStr
 
 ObjectStructureWithIndexProperties::ObjectStructureWithIndexProperties(ObjectStructureItemVector* namedProperties,
                                                                        ObjectStructureItemVector* symbolProperties,
-                                                                       ObjectStructureIndexPropertyVector* indexProperties,
+                                                                       Optional<ObjectStructureIndexPropertyVector*> indexProperties,
                                                                        const InlineIndexProperties& inlineIndexProperties,
-                                                                       ObjectStructureIndexDescriptorVector* indexDescriptors,
+                                                                       Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors,
                                                                        Optional<PropertyNameMapWithCache*> namedMap,
                                                                        Optional<IndexPropertyMapWithCache*> indexMap,
                                                                        bool hasNonAtomicPropertyName,
@@ -1209,9 +1312,11 @@ ObjectStructureWithIndexProperties::ObjectStructureWithIndexProperties(ObjectStr
     , m_namedPropertyMap(namedMap)
     , m_indexPropertyMap(indexMap)
 {
+    assertPropertyDomain(*m_namedProperties.value(), false);
+    assertPropertyDomain(*m_symbolProperties.value(), true);
     if (indexPropertyStorageSize() > 8 && !m_indexPropertyMap) {
         ASSERT(m_indexProperties);
-        m_indexPropertyMap = new IndexPropertyMapWithCache(*m_indexProperties);
+        m_indexPropertyMap = new IndexPropertyMapWithCache(*m_indexProperties.value());
     }
 }
 
@@ -1246,8 +1351,8 @@ ObjectStructureFindResult ObjectStructureWithIndexProperties::findNonIndexProper
 {
     if (name.isSymbol()) {
         for (size_t i = 0; i < m_symbolProperties->size(); i++) {
-            if ((*m_symbolProperties)[i].m_propertyName == name) {
-                return std::make_pair(m_namedProperties->size() + i, &(*m_symbolProperties)[i].m_descriptor);
+            if ((*m_symbolProperties.value())[i].m_propertyName == name) {
+                return std::make_pair(m_namedProperties->size() + i, &(*m_symbolProperties.value())[i].m_descriptor);
             }
         }
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
@@ -1256,12 +1361,12 @@ ObjectStructureFindResult ObjectStructureWithIndexProperties::findNonIndexProper
     size_t namedIndex = SIZE_MAX;
     if (m_namedProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         if (!m_namedPropertyMap) {
-            m_namedPropertyMap = new PropertyNameMapWithCache(*m_namedProperties);
+            m_namedPropertyMap = new PropertyNameMapWithCache(*m_namedProperties.value());
         }
-        namedIndex = m_namedPropertyMap->find(name, *m_namedProperties);
+        namedIndex = m_namedPropertyMap->find(name, *m_namedProperties.value());
     } else {
         for (size_t i = 0; i < m_namedProperties->size(); i++) {
-            if ((*m_namedProperties)[i].m_propertyName == name) {
+            if ((*m_namedProperties.value())[i].m_propertyName == name) {
                 namedIndex = i;
                 break;
             }
@@ -1270,7 +1375,7 @@ ObjectStructureFindResult ObjectStructureWithIndexProperties::findNonIndexProper
     if (namedIndex == SIZE_MAX) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }
-    return std::make_pair(namedIndex, &(*m_namedProperties)[namedIndex].m_descriptor);
+    return std::make_pair(namedIndex, &(*m_namedProperties.value())[namedIndex].m_descriptor);
 }
 
 ObjectStructureFindResult ObjectStructureWithIndexProperties::findIndexProperty(uint32_t index)
@@ -1278,7 +1383,7 @@ ObjectStructureFindResult ObjectStructureWithIndexProperties::findIndexProperty(
     size_t ordinal = SIZE_MAX;
     if (m_indexPropertyMap) {
         ASSERT(m_indexProperties);
-        ordinal = m_indexPropertyMap->find(index, *m_indexProperties);
+        ordinal = m_indexPropertyMap->find(index, *m_indexProperties.value());
     } else if (m_indexProperties) {
         auto it = std::lower_bound(m_indexProperties->begin(), m_indexProperties->end(), index);
         if (it != m_indexProperties->end() && *it == index) {
@@ -1296,20 +1401,20 @@ ObjectStructureFindResult ObjectStructureWithIndexProperties::findIndexProperty(
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }
     return std::make_pair(namedPropertyCount() + ordinal,
-                          m_indexDescriptors ? &(*m_indexDescriptors)[ordinal] : &defaultIndexPropertyDescriptor());
+                          m_indexDescriptors ? &(*m_indexDescriptors.value())[ordinal] : &defaultIndexPropertyDescriptor());
 }
 
 const ObjectStructurePropertyDescriptor& ObjectStructureWithIndexProperties::propertyDescriptor(size_t valueIndex) const
 {
     if (valueIndex < m_namedProperties->size()) {
-        return (*m_namedProperties)[valueIndex].m_descriptor;
+        return (*m_namedProperties.value())[valueIndex].m_descriptor;
     }
     valueIndex -= m_namedProperties->size();
     if (valueIndex < m_symbolProperties->size()) {
-        return (*m_symbolProperties)[valueIndex].m_descriptor;
+        return (*m_symbolProperties.value())[valueIndex].m_descriptor;
     }
     size_t indexOrdinal = valueIndex - m_symbolProperties->size();
-    return m_indexDescriptors ? (*m_indexDescriptors)[indexOrdinal] : defaultIndexPropertyDescriptor();
+    return m_indexDescriptors ? (*m_indexDescriptors.value())[indexOrdinal] : defaultIndexPropertyDescriptor();
 }
 
 bool ObjectStructureWithIndexProperties::isIndexProperty(size_t valueIndex) const
@@ -1327,9 +1432,9 @@ const ObjectStructurePropertyName& ObjectStructureWithIndexProperties::nonIndexP
 {
     ASSERT(!isIndexProperty(valueIndex));
     if (valueIndex < m_namedProperties->size()) {
-        return (*m_namedProperties)[valueIndex].m_propertyName;
+        return (*m_namedProperties.value())[valueIndex].m_propertyName;
     }
-    return (*m_symbolProperties)[valueIndex - m_namedProperties->size()].m_propertyName;
+    return (*m_symbolProperties.value())[valueIndex - m_namedProperties->size()].m_propertyName;
 }
 
 size_t ObjectStructureWithIndexProperties::propertyCount() const
@@ -1364,20 +1469,20 @@ ObjectStructure* ObjectStructureWithIndexProperties::addNonIndexProperty(const O
 {
     ObjectStructureItemVector* namedProperties;
     ObjectStructureItemVector* symbolProperties;
-    ObjectStructureIndexPropertyVector* indexProperties;
+    Optional<ObjectStructureIndexPropertyVector*> indexProperties;
     InlineIndexProperties inlineIndexProperties = m_inlineIndexProperties;
-    ObjectStructureIndexDescriptorVector* indexDescriptors;
+    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors;
     Optional<PropertyNameMapWithCache*> namedMap;
     Optional<IndexPropertyMapWithCache*> indexMap;
 
     if (m_isReferencedByInlineCache) {
-        namedProperties = copyProperties(m_namedProperties);
-        symbolProperties = copyProperties(m_symbolProperties);
-        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties) : nullptr;
-        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors) : nullptr;
+        namedProperties = copyProperties(m_namedProperties.value());
+        symbolProperties = copyProperties(m_symbolProperties.value());
+        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
+        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
     } else {
-        namedProperties = m_namedProperties;
-        symbolProperties = m_symbolProperties;
+        namedProperties = m_namedProperties.value();
+        symbolProperties = m_symbolProperties.value();
         indexProperties = m_indexProperties;
         indexDescriptors = m_indexDescriptors;
         namedMap = m_namedPropertyMap;
@@ -1414,20 +1519,20 @@ ObjectStructure* ObjectStructureWithIndexProperties::addIndexProperty(uint32_t i
 {
     ObjectStructureItemVector* namedProperties;
     ObjectStructureItemVector* symbolProperties;
-    ObjectStructureIndexPropertyVector* indexProperties;
+    Optional<ObjectStructureIndexPropertyVector*> indexProperties;
     InlineIndexProperties inlineIndexProperties = m_inlineIndexProperties;
-    ObjectStructureIndexDescriptorVector* indexDescriptors;
+    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors;
     Optional<PropertyNameMapWithCache*> namedMap;
     Optional<IndexPropertyMapWithCache*> indexMap;
 
     if (m_isReferencedByInlineCache) {
-        namedProperties = copyProperties(m_namedProperties);
-        symbolProperties = copyProperties(m_symbolProperties);
-        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties) : nullptr;
-        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors) : nullptr;
+        namedProperties = copyProperties(m_namedProperties.value());
+        symbolProperties = copyProperties(m_symbolProperties.value());
+        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
+        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
     } else {
-        namedProperties = m_namedProperties;
-        symbolProperties = m_symbolProperties;
+        namedProperties = m_namedProperties.value();
+        symbolProperties = m_symbolProperties.value();
         indexProperties = m_indexProperties;
         indexDescriptors = m_indexDescriptors;
         namedMap = m_namedPropertyMap;
@@ -1477,7 +1582,7 @@ ObjectStructure* ObjectStructureWithIndexProperties::addIndexProperty(uint32_t i
                 indexDescriptors->push_back(desc);
             }
             if (indexMap) {
-                indexMap->insert(*indexProperties);
+                indexMap->insert(*indexProperties.value());
             }
         } else {
             size_t insertionIndex = static_cast<size_t>(std::lower_bound(indexProperties->begin(), indexProperties->end(), index)
@@ -1494,17 +1599,17 @@ ObjectStructure* ObjectStructureWithIndexProperties::addIndexProperty(uint32_t i
 
 ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t valueIndex)
 {
-    auto* namedProperties = copyProperties(m_namedProperties);
-    auto* symbolProperties = copyProperties(m_symbolProperties);
-    auto* indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties) : nullptr;
+    auto* namedProperties = copyProperties(m_namedProperties.value());
+    auto* symbolProperties = copyProperties(m_symbolProperties.value());
+    Optional<ObjectStructureIndexPropertyVector*> indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
     InlineIndexProperties inlineIndexProperties = m_inlineIndexProperties;
-    auto* indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors) : nullptr;
+    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
     if (valueIndex < m_namedProperties->size()) {
         auto* filtered = new ObjectStructureItemVector();
         filtered->reserve(m_namedProperties->size() - 1);
         for (size_t i = 0; i < m_namedProperties->size(); i++) {
             if (i != valueIndex) {
-                filtered->push_back((*m_namedProperties)[i]);
+                filtered->push_back((*m_namedProperties.value())[i]);
             }
         }
         namedProperties = filtered;
@@ -1514,7 +1619,7 @@ ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t value
         filtered->reserve(m_symbolProperties->size() - 1);
         for (size_t i = 0; i < m_symbolProperties->size(); i++) {
             if (i != removedSymbolOrdinal) {
-                filtered->push_back((*m_symbolProperties)[i]);
+                filtered->push_back((*m_symbolProperties.value())[i]);
             }
         }
         symbolProperties = filtered;
@@ -1547,7 +1652,7 @@ ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t value
             bool allDefault = true;
             for (size_t i = 0; i < m_indexDescriptors->size(); i++) {
                 if (i != removedIndexOrdinal) {
-                    const auto& descriptor = (*m_indexDescriptors)[i];
+                    const auto& descriptor = (*m_indexDescriptors.value())[i];
                     filteredDescriptors->push_back(descriptor);
                     allDefault &= isDefaultIndexPropertyDescriptor(descriptor);
                 }
@@ -1561,27 +1666,21 @@ ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t value
         if (namedProperties == emptyProperties()) {
             namedProperties = new ObjectStructureItemVector();
         }
-        namedProperties->reserve(namedProperties->size() + symbolProperties->size());
-        for (const auto& item : *symbolProperties) {
-            namedProperties->push_back(item);
-        }
-        bool hasSymbol = false;
         bool hasNonAtomic = false;
         bool hasEnumerable = false;
         for (const auto& item : *namedProperties) {
-            hasSymbol |= item.m_propertyName.isSymbol();
             hasNonAtomic |= item.m_propertyName.hasNonAtomicString();
             hasEnumerable |= item.m_descriptor.isEnumerable();
         }
         if (namedProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-            return new ObjectStructureWithMap(namedProperties, nullptr, false, hasSymbol, hasEnumerable);
+            return new ObjectStructureWithMap(namedProperties, nullptr, false, false, hasEnumerable);
         }
-        return new ObjectStructureWithoutTransition(namedProperties, false, hasSymbol, hasNonAtomic, hasEnumerable);
+        return new ObjectStructureWithoutTransition(namedProperties, false, false, hasNonAtomic, hasEnumerable);
     }
     Optional<IndexPropertyMapWithCache*> indexMap;
     if (m_indexPropertyMap && remainingIndexCount) {
         ASSERT(indexProperties);
-        indexMap = new IndexPropertyMapWithCache(*indexProperties);
+        indexMap = new IndexPropertyMapWithCache(*indexProperties.value());
     }
     return new ObjectStructureWithIndexProperties(namedProperties, symbolProperties, indexProperties, inlineIndexProperties, indexDescriptors, nullptr, indexMap);
 }
@@ -1590,19 +1689,19 @@ ObjectStructure* ObjectStructureWithIndexProperties::replacePropertyDescriptor(s
 {
     ObjectStructureItemVector* namedProperties;
     ObjectStructureItemVector* symbolProperties;
-    ObjectStructureIndexPropertyVector* indexProperties;
+    Optional<ObjectStructureIndexPropertyVector*> indexProperties;
     InlineIndexProperties inlineIndexProperties = m_inlineIndexProperties;
-    ObjectStructureIndexDescriptorVector* indexDescriptors;
+    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors;
     Optional<PropertyNameMapWithCache*> namedMap;
     Optional<IndexPropertyMapWithCache*> indexMap;
     if (m_isReferencedByInlineCache) {
-        namedProperties = copyProperties(m_namedProperties);
-        symbolProperties = copyProperties(m_symbolProperties);
-        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties) : nullptr;
-        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors) : nullptr;
+        namedProperties = copyProperties(m_namedProperties.value());
+        symbolProperties = copyProperties(m_symbolProperties.value());
+        indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
+        indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
     } else {
-        namedProperties = m_namedProperties;
-        symbolProperties = m_symbolProperties;
+        namedProperties = m_namedProperties.value();
+        symbolProperties = m_symbolProperties.value();
         indexProperties = m_indexProperties;
         indexDescriptors = m_indexDescriptors;
         namedMap = m_namedPropertyMap;
@@ -1625,10 +1724,10 @@ ObjectStructure* ObjectStructureWithIndexProperties::replacePropertyDescriptor(s
             indexDescriptors->resize(indexProperties ? indexProperties->size() : inlineIndexProperties.m_size, defaultIndexPropertyDescriptor());
         }
         if (indexDescriptors) {
-            (*indexDescriptors)[indexOrdinal] = newDesc;
+            (*indexDescriptors.value())[indexOrdinal] = newDesc;
             if (isDefaultIndexPropertyDescriptor(newDesc)) {
                 bool allDefault = true;
-                for (const auto& descriptor : *indexDescriptors) {
+                for (const auto& descriptor : *indexDescriptors.value()) {
                     allDefault &= isDefaultIndexPropertyDescriptor(descriptor);
                 }
                 if (allDefault) {

@@ -3578,7 +3578,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
             } else {
                 ASSERT(originalObject->structure()->inTransitionMode());
                 ASSERT((originalObject->structure()->propertyCount() + 1) == item.m_cachedHiddenClassChainData[cachedClassChainLength]->propertyCount());
-                ASSERT(item.m_cachedHiddenClassChainData[cachedClassChainLength]->findProperty(code->m_propertyName).first == (item.m_cachedHiddenClassChainData[cachedClassChainLength]->propertyCount() - 1));
+                ASSERT(item.m_cachedHiddenClassChainData[cachedClassChainLength]->findProperty(code->m_propertyName).first
+                       == item.m_cachedHiddenClassChainData[cachedClassChainLength]->stringPropertyCount()
+                           - 1);
                 // next object structure save in `item.m_cachedHiddenClassChainData[cachedClassChainLength]`
                 ObjectStructure* previousStructure = originalObject->m_structure;
                 size_t previousPropertyCount = previousStructure->propertyCount();
@@ -3751,7 +3753,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
 #ifndef NDEBUG
         auto findResult = originalObject->structure()->findProperty(code->m_propertyName);
-        ASSERT(findResult.first == (originalObject->structure()->propertyCount() - 1));
+        ASSERT(findResult.first == originalObject->structure()->stringPropertyCount() - 1);
         ASSERT(findResult.second->isPlainDataProperty() && findResult.second->isWritable());
 #endif
 
@@ -6422,9 +6424,8 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
     Object* obj = willBeObject.toObject(state);
     if (willBeObject.isPrimitive()) {
         obj->preventExtensions(state);
-    } else if (!property.isString()) {
-        // Only destroy transition table for non-string keys
-        // String keys can safely use transition mode, preserving IC effectiveness
+    } else if (!property.isString() && !property.isSymbol()) {
+        // String and symbol keys can both reuse structure transitions.
         obj->markThisObjectDontNeedStructureTransitionTable();
     }
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
