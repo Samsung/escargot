@@ -81,18 +81,17 @@ void Global::initialize(Platform* platform)
     ASSERT(!g_platform);
     g_platform = platform;
 
-    // initialize PointerValue tag values
-    // tag values should be initialized once and not changed
-    PointerValue::g_objectTag = Object().getVTag();
-    PointerValue::g_prototypeObjectTag = PrototypeObject().getVTag();
-    PointerValue::g_arrayObjectTag = ArrayObject().getVTag();
-    PointerValue::g_typedArrayObjectTag = TypedArrayObject().getVTag();
-    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getVTag();
-    PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getVTag();
-    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getVTag();
+    // Verify the ABI address points against compiler-constructed objects.
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_objectTag) == Object().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_prototypeObjectTag) == PrototypeObject().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_arrayObjectTag) == ArrayObject().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_typedArrayObjectTag) == TypedArrayObject().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_arrayPrototypeObjectTag) == ArrayPrototypeObject().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_scriptFunctionObjectTag) == ScriptFunctionObject().getVTag());
+    RELEASE_ASSERT(reinterpret_cast<size_t>(PointerValue::g_objectRareDataTag) == ObjectRareData(nullptr).getVTag());
     // tag values for ScriptSimpleFunctionObject
 #define INIT_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
-    PointerValue::g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag = ScriptSimpleFunctionObject<isStrict, isClear, SIZE>().getVTag();
+    RELEASE_ASSERT((reinterpret_cast<size_t>(PointerValue::g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag) == ScriptSimpleFunctionObject<isStrict, isClear, SIZE>().getVTag()));
 
     DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef INIT_SCRIPTSIMPLEFUNCTION_TAGS
