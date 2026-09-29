@@ -303,6 +303,60 @@ ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(siz
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
+ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector(ObjectStructureItemTightVector&& properties)
+    : m_size(properties.size())
+{
+    if (m_size) {
+        m_storage = new Storage();
+        m_storage->m_buffer = properties.data();
+        m_storage->m_size = m_size;
+        m_storage->m_capacity = m_size;
+        properties.reset(nullptr, 0);
+    }
+}
+
+ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector(const ObjectStructureTransitionPropertyVector& properties, const ObjectStructureItem& newItem)
+    : m_size(properties.size() + 1)
+{
+    if (properties.m_storage && properties.m_size == properties.m_storage->m_size) {
+        m_storage = properties.m_storage;
+    } else {
+        m_storage = new Storage();
+        m_storage->m_size = properties.m_size;
+    }
+    auto* storage = m_storage.value();
+    if (m_size > storage->m_capacity) {
+        size_t capacity = std::max(m_size, std::max(storage->m_capacity * 2, static_cast<size_t>(2)));
+        auto* buffer = GCUtil::gc_malloc_allocator<ObjectStructureItem>().allocate(capacity);
+        if (properties.m_size) {
+            memcpy(buffer, properties.data().value(), properties.m_size * sizeof(ObjectStructureItem));
+        }
+        if (storage->m_buffer) {
+            storage->m_retiredBuffers = new RetiredBuffer(storage->m_buffer.value(), storage->m_retiredBuffers);
+        }
+        storage->m_buffer = buffer;
+        storage->m_capacity = capacity;
+    }
+    storage->m_buffer.value()[properties.m_size] = newItem;
+    storage->m_size = m_size;
+    if (storage->m_map) {
+        storage->m_map->insert(*this);
+    }
+}
+
+size_t ObjectStructureTransitionPropertyVector::find(const ObjectStructurePropertyName& name) const
+{
+    ASSERT(m_storage);
+    auto* storage = m_storage.unwrap();
+    auto fullProperties = *this;
+    fullProperties.m_size = storage->m_size;
+    if (!storage->m_map) {
+        storage->m_map = new PropertyNameMapWithCache(fullProperties);
+    }
+    size_t index = storage->m_map->find(name, fullProperties);
+    return index < m_size ? index : SIZE_MAX;
+}
+
 void* ObjectStructureWithTransition::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -318,6 +372,13 @@ void* ObjectStructureWithTransition::operator new(size_t size)
 }
 
 ObjectStructureWithTransition* ObjectStructureWithTransition::create(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+                                                                     bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
+{
+    return create(ObjectStructureTransitionPropertyVector(std::move(strings)), ObjectStructureTransitionPropertyVector(std::move(symbols)),
+                  hasNonAtomicPropertyName, hasEnumerableProperty);
+}
+
+ObjectStructureWithTransition* ObjectStructureWithTransition::create(ObjectStructureTransitionPropertyVector&& strings, ObjectStructureTransitionPropertyVector&& symbols,
                                                                      bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
 {
     if (strings.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE
@@ -467,15 +528,15 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
         }
     } else {
         if (hasSymbol) {
-            ObjectStructureItemTightVector strings = name.isSymbol() ? ObjectStructureItemTightVector(m_properties) : ObjectStructureItemTightVector(m_properties, newItem);
+            ObjectStructureTransitionPropertyVector strings = name.isSymbol() ? m_properties : ObjectStructureTransitionPropertyVector(m_properties, newItem);
             auto oldSymbols = symbolProperties();
-            ObjectStructureItemTightVector emptySymbols;
+            ObjectStructureTransitionPropertyVector emptySymbols;
             const auto& symbols = oldSymbols ? *oldSymbols.value() : emptySymbols;
-            ObjectStructureItemTightVector newSymbols = name.isSymbol() ? ObjectStructureItemTightVector(symbols, newItem) : ObjectStructureItemTightVector(symbols);
+            ObjectStructureTransitionPropertyVector newSymbols = name.isSymbol() ? ObjectStructureTransitionPropertyVector(symbols, newItem) : symbols;
             newObjectStructure = create(std::move(strings), std::move(newSymbols), hasNonAtomicName, hasEnumerableProperty);
         } else {
-            ObjectStructureItemTightVector newProperties(m_properties, newItem);
-            newObjectStructure = create(std::move(newProperties), ObjectStructureItemTightVector(), hasNonAtomicName, hasEnumerableProperty);
+            ObjectStructureTransitionPropertyVector newProperties(m_properties, newItem);
+            newObjectStructure = create(std::move(newProperties), ObjectStructureTransitionPropertyVector(), hasNonAtomicName, hasEnumerableProperty);
         }
         ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
 
@@ -641,6 +702,11 @@ PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureItemTigh
     rebuild(properties);
 }
 
+PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties)
+{
+    rebuild(properties);
+}
+
 size_t PropertyNameMapWithCache::hash(const ObjectStructurePropertyName& name) const
 {
     // Atomic names normally use pointer identity. If a template contributed
@@ -758,6 +824,17 @@ void PropertyNameMapWithCache::rebuild(const Properties& properties)
 
 void PropertyNameMapWithCache::insert(const ObjectStructureItemVector& properties)
 {
+    insertInProperties(properties);
+}
+
+void PropertyNameMapWithCache::insert(const ObjectStructureTransitionPropertyVector& properties)
+{
+    insertInProperties(properties);
+}
+
+template <typename Properties>
+void PropertyNameMapWithCache::insertInProperties(const Properties& properties)
+{
     ASSERT(properties.size() == m_size + 1);
     const auto& name = properties[properties.size() - 1].m_propertyName;
     bool dense = m_denseCapacity && name.tryToUseAsIndexProperty() < m_denseCapacity;
@@ -784,6 +861,11 @@ size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, c
 }
 
 size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureItemTightVector& properties)
+{
+    return findInProperties(name, properties);
+}
+
+size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties)
 {
     return findInProperties(name, properties);
 }
@@ -820,8 +902,6 @@ void* ObjectStructureWithTransitionWithMap::operator new(size_t size)
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_properties));
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_symbolProperties));
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_transitionTableVectorBuffer));
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_stringMap));
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_symbolMap));
         descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectStructureWithTransitionWithMap));
         typeInited = true;
     }
@@ -838,11 +918,7 @@ ObjectStructureFindResult ObjectStructureWithTransitionWithMap::findProperty(con
     if (properties.size() < ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE) {
         return ObjectStructureWithTransitionAndSymbols::findProperty(name);
     }
-    auto& map = isSymbol ? m_symbolMap : m_stringMap;
-    if (!map) {
-        map = new PropertyNameMapWithCache(properties);
-    }
-    size_t index = map->find(name, properties);
+    size_t index = properties.find(name);
     if (index == SIZE_MAX) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }

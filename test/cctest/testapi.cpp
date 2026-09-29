@@ -1940,6 +1940,60 @@ TEST(EnumerateObjectOwnProperties, Basic1)
     });
 }
 
+TEST(EnumerateObjectOwnProperties, TransitionGrowth)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        for (bool useSymbols : { false, true }) {
+            for (size_t prefix : { 3, 60 }) {
+                auto* parent = ObjectRef::create(state);
+                auto* child = ObjectRef::create(state);
+                auto* sibling = ObjectRef::create(state);
+                auto* keys = ValueVectorRef::create();
+                if (useSymbols) {
+                    keys->pushBack(StringRef::createFromASCII("transition_growth"));
+                }
+                for (size_t i = keys->size(); i < 128; i++) {
+                    std::string name = "transition_growth_" + std::to_string(prefix) + "_" + std::to_string(i);
+                    auto* string = StringRef::createFromASCII(name.data(), name.size());
+                    keys->pushBack(useSymbols ? static_cast<ValueRef*>(SymbolRef::create(string)) : string);
+                }
+                for (size_t i = 0; i < prefix; i++) {
+                    for (auto* object : { parent, child, sibling }) {
+                        EXPECT_TRUE(object->defineDataProperty(state, keys->at(i), ValueRef::create(static_cast<int>(i)), true, true, true));
+                    }
+                }
+                size_t visited = 0;
+                parent->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* name, bool writable, bool enumerable, bool configurable) -> bool {
+                    EXPECT_TRUE(name->equalsTo(state, keys->at(visited)));
+                    EXPECT_TRUE(writable && enumerable && configurable);
+                    if (visited == static_cast<size_t>(useSymbols)) {
+                        // Grow the captured buffer and its shared lookup index
+                        // while the parent enumeration is suspended.
+                        for (size_t i = prefix; i < keys->size(); i++) {
+                            EXPECT_TRUE(child->defineDataProperty(state, keys->at(i), ValueRef::create(static_cast<int>(i)), true, true, true));
+                            EXPECT_TRUE(child->hasOwnProperty(state, keys->at(i)));
+                        }
+                        Memory::gc();
+                    }
+                    visited++;
+                    return true; }, false);
+                EXPECT_EQ(visited, prefix);
+                EXPECT_FALSE(parent->hasOwnProperty(state, keys->at(prefix)));
+                // Hit the lookup cache from both its full view and an ancestor
+                // before creating a different transition branch.
+                EXPECT_TRUE(child->hasOwnProperty(state, keys->at(prefix)));
+                EXPECT_FALSE(parent->hasOwnProperty(state, keys->at(prefix)));
+                auto* branchName = StringRef::createFromASCII("transition_growth_branch");
+                EXPECT_TRUE(sibling->defineDataProperty(state, branchName, ValueRef::create(1), true, true, true));
+                EXPECT_FALSE(child->hasOwnProperty(state, branchName));
+                EXPECT_FALSE(sibling->hasOwnProperty(state, keys->at(prefix)));
+                EXPECT_TRUE(parent->hasOwnProperty(state, keys->at(prefix - 1)));
+            }
+        }
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(ErrorCallback, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {

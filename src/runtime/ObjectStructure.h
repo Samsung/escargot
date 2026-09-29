@@ -73,6 +73,55 @@ typedef HashMap<ObjectStructureTransitionMapItem, ObjectStructure*, std::hash<Ob
 
 typedef TightVector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemTightVector;
 
+class PropertyNameMapWithCache;
+
+// Each structure sees an immutable prefix. Only a view of the complete
+// storage can append; branching from a shorter prefix creates new storage.
+class ObjectStructureTransitionPropertyVector {
+public:
+    ObjectStructureTransitionPropertyVector() = default;
+    ObjectStructureTransitionPropertyVector(ObjectStructureItemTightVector&& properties);
+    ObjectStructureTransitionPropertyVector(const ObjectStructureTransitionPropertyVector& properties, const ObjectStructureItem& newItem);
+
+    size_t size() const { return m_size; }
+    bool empty() const { return !m_size; }
+    Optional<const ObjectStructureItem*> data() const { return m_storage ? m_storage->m_buffer.unwrap() : nullptr; }
+    const ObjectStructureItem& operator[](size_t index) const
+    {
+        ASSERT(index < m_size);
+        return data().value()[index];
+    }
+    size_t find(const ObjectStructurePropertyName& name) const;
+
+private:
+    // Keep old allocations alive when a callback grows the shared storage
+    // while an enumeration or descriptor reference still uses its old buffer.
+    struct RetiredBuffer : public gc {
+        RetiredBuffer(ObjectStructureItem* buffer, Optional<RetiredBuffer*> previous)
+            : m_buffer(buffer)
+            , m_previous(previous)
+        {
+        }
+        ObjectStructureItem* m_buffer;
+        Optional<RetiredBuffer*> m_previous;
+    };
+
+    struct Storage : public gc {
+        Optional<ObjectStructureItem*> m_buffer;
+        size_t m_size{ 0 };
+        size_t m_capacity{ 0 };
+        Optional<RetiredBuffer*> m_retiredBuffers;
+        Optional<PropertyNameMapWithCache*> m_map;
+    };
+
+    Optional<Storage*> m_storage;
+    size_t m_size{ 0 };
+};
+
+// Structure GC descriptors trace the first word, now the shared storage
+// pointer instead of the TightVector buffer pointer.
+COMPILE_ASSERT(sizeof(ObjectStructureTransitionPropertyVector) == sizeof(ObjectStructureItemTightVector), "");
+
 class ObjectStructureItemVector : public Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> {
     typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemVectorType;
 
@@ -84,6 +133,22 @@ public:
     ObjectStructureItemVector(const ObjectStructureItemTightVector& other)
     {
         assign(other.data(), other.data() + other.size());
+    }
+
+    ObjectStructureItemVector(const ObjectStructureTransitionPropertyVector& other)
+    {
+        if (!other.empty()) {
+            assign(other.data().value(), other.data().value() + other.size());
+        }
+    }
+
+    ObjectStructureItemVector(const ObjectStructureTransitionPropertyVector& other, const ObjectStructureItem& newItem)
+    {
+        resizeFitWithUninitializedValues(other.size() + 1);
+        if (!other.empty()) {
+            memcpy(data(), other.data().value(), other.size() * sizeof(ObjectStructureItem));
+        }
+        back() = newItem;
     }
 
     ObjectStructureItemVector(const ObjectStructureItemVector& other)
@@ -310,7 +375,8 @@ protected:
     static void assertPropertyDomain(const Properties& properties, bool isSymbol)
     {
 #ifndef NDEBUG
-        for (const auto& item : properties) {
+        for (size_t i = 0; i < properties.size(); i++) {
+            const auto& item = properties[i];
             ASSERT(item.m_propertyName.isSymbol() == isSymbol);
             ASSERT(item.m_propertyName.tryToUseAsIndexProperty() == Value::InvalidIndexPropertyValue);
         }
@@ -437,8 +503,10 @@ class ObjectStructureWithTransition : public ObjectStructure {
 public:
     static ObjectStructureWithTransition* create(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
                                                  bool hasNonAtomicPropertyName, bool hasEnumerableProperty);
+    static ObjectStructureWithTransition* create(ObjectStructureTransitionPropertyVector&& strings, ObjectStructureTransitionPropertyVector&& symbols,
+                                                 bool hasNonAtomicPropertyName, bool hasEnumerableProperty);
 
-    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
+    ObjectStructureWithTransition(ObjectStructureTransitionPropertyVector&& properties, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : ObjectStructure(hasIndexPropertyName,
                           hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_properties(std::move(properties))
@@ -482,12 +550,12 @@ private:
     }
 
 protected:
-    virtual Optional<const ObjectStructureItemTightVector*> symbolProperties() const
+    virtual Optional<const ObjectStructureTransitionPropertyVector*> symbolProperties() const
     {
         return nullptr;
     }
 
-    ObjectStructureItemTightVector m_properties;
+    ObjectStructureTransitionPropertyVector m_properties;
     union {
         Optional<ObjectStructureTransitionVectorItem*> m_transitionTableVectorBuffer;
         ObjectStructureTransitionTableMap* m_transitionTableMap;
@@ -497,7 +565,7 @@ protected:
 // Keep symbol keys in their own buffer while sharing the transition machinery.
 class ObjectStructureWithTransitionAndSymbols : public ObjectStructureWithTransition {
 public:
-    ObjectStructureWithTransitionAndSymbols(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+    ObjectStructureWithTransitionAndSymbols(ObjectStructureTransitionPropertyVector&& strings, ObjectStructureTransitionPropertyVector&& symbols,
                                             bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : ObjectStructureWithTransition(std::move(strings), false, !symbols.empty(), hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_symbolProperties(std::move(symbols))
@@ -529,12 +597,12 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual Optional<const ObjectStructureItemTightVector*> symbolProperties() const override
+    virtual Optional<const ObjectStructureTransitionPropertyVector*> symbolProperties() const override
     {
         return &m_symbolProperties;
     }
 
-    ObjectStructureItemTightVector m_symbolProperties;
+    ObjectStructureTransitionPropertyVector m_symbolProperties;
 };
 
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
@@ -546,6 +614,7 @@ class PropertyNameMapWithCache : public gc {
 public:
     explicit PropertyNameMapWithCache(const ObjectStructureItemVector& properties);
     explicit PropertyNameMapWithCache(const ObjectStructureItemTightVector& properties);
+    explicit PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties);
 
     size_t size() const
     {
@@ -553,14 +622,18 @@ public:
     }
 
     void insert(const ObjectStructureItemVector& properties);
+    void insert(const ObjectStructureTransitionPropertyVector& properties);
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties);
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemTightVector& properties);
+    size_t find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties);
 
 private:
     static uint8_t entryWidth(size_t count);
     size_t hash(const ObjectStructurePropertyName& name) const;
     template <typename Properties>
     void rebuild(const Properties& properties);
+    template <typename Properties>
+    void insertInProperties(const Properties& properties);
     template <typename Properties>
     size_t findInProperties(const ObjectStructurePropertyName& name, const Properties& properties);
     template <typename Entry>
@@ -583,7 +656,7 @@ private:
 // allocate bucket indexes into the existing, separately stored keys.
 class ObjectStructureWithTransitionWithMap : public ObjectStructureWithTransitionAndSymbols {
 public:
-    ObjectStructureWithTransitionWithMap(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
+    ObjectStructureWithTransitionWithMap(ObjectStructureTransitionPropertyVector&& strings, ObjectStructureTransitionPropertyVector&& symbols,
                                          bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : ObjectStructureWithTransitionAndSymbols(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty)
     {
@@ -593,10 +666,6 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
-
-private:
-    Optional<PropertyNameMapWithCache*> m_stringMap;
-    Optional<PropertyNameMapWithCache*> m_symbolMap;
 };
 
 class ObjectStructureWithMap : public ObjectStructure {
