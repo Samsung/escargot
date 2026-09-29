@@ -111,7 +111,11 @@ static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value x = argv[0];
+#ifdef ESCARGOT_64
+    return Value(Value::DoubleInUnitRange, ieee754::sin(x.toNumber(state)));
+#else
     return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::sin(x.toNumber(state)));
+#endif
 }
 
 static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

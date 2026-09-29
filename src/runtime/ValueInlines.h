@@ -751,12 +751,62 @@ ALWAYS_INLINE Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
         return;
     }
 #ifdef ESCARGOT_64
-    if (UNLIKELY((bitwise_cast<int64_t>(d) & DoubleInvalidBeginning) == DoubleInvalidBeginning)) {
-        *this = Value(EncodeAsDouble, std::numeric_limits<double>::quiet_NaN());
+    uint64_t bits = bitwise_cast<uint64_t>(d);
+    if (UNLIKELY(bits >= static_cast<uint64_t>(DoubleInvalidBeginning))) {
+        bits = bitwise_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN());
+    }
+    u.asInt64 = static_cast<int64_t>(bits + static_cast<uint64_t>(DoubleEncodeOffset));
+#else
+    *this = Value(EncodeAsDouble, d);
+#endif
+}
+
+ALWAYS_INLINE Value::Value(PreferDoubleTag, double d)
+{
+    int32_t asInt32 = static_cast<int32_t>(d);
+    double converted = static_cast<double>(asInt32);
+    // Ordered inequality and unordered reuse the int32 round-trip comparison.
+    // Canonicalizing NaNs here makes a separate tag-collision check unnecessary.
+    if (LIKELY(std::islessgreater(d, converted))) {
+        *this = Value(EncodeAsDouble, d);
         return;
     }
+    if (UNLIKELY(std::isunordered(d, converted))) {
+        *this = Value(NanInit);
+        return;
+    }
+    if (UNLIKELY(!asInt32 && std::signbit(d))) {
+        *this = Value(EncodeAsDouble, d);
+        return;
+    }
+    *this = Value(asInt32);
+}
+
+ALWAYS_INLINE Value::Value(DoubleInUnitRangeTag, double d)
+{
+    ASSERT(std::isnan(d) || (d >= -1.0 && d <= 1.0));
+    uint64_t bits = bitwise_cast<uint64_t>(d);
+    uint64_t magnitude = bits << 1;
+    constexpr uint64_t oneMagnitude = 0x7fe0000000000000ull;
+    if (UNLIKELY(magnitude >= oneMagnitude)) {
+        if (LIKELY(magnitude == oneMagnitude)) {
+            *this = Value(bits >> 63 ? int32_t(-1) : int32_t(1));
+        } else {
+            *this = Value(NanInit);
+        }
+        return;
+    }
+    if (UNLIKELY(!bits)) {
+        *this = Value(int32_t(0));
+        return;
+    }
+    // Remaining values are fractional or -0: no int32 conversion or NaN
+    // tag-collision check is needed. The range branch canonicalized NaNs.
+#ifdef ESCARGOT_64
+    u.asInt64 = static_cast<int64_t>(bits + static_cast<uint64_t>(DoubleEncodeOffset));
+#else
+    u.asInt64 = static_cast<int64_t>(bits);
 #endif
-    *this = Value(EncodeAsDouble, d);
 }
 
 inline Value::Value(char i)
