@@ -379,6 +379,9 @@ IF (ESCARGOT_BUILD_64BIT AND NOT ESCARGOT_BUILD_64BIT_LARGE AND
     NOT ESCARGOT_BUILD_64BIT_FORCE_LARGE AND ESCARGOT_HAS_CAGE_REGISTER_FLAG)
     SET_SOURCE_FILES_PROPERTIES (${ESCARGOT_ROOT}/src/interpreter/ByteCodeInterpreter.cpp
         PROPERTIES COMPILE_FLAGS "${ESCARGOT_CAGE_REGISTER_FLAG} -DESCARGOT_INTERPRETER_CAGE_REGISTER")
+    # Final LTO code generation must also reserve the cage register. Propagate
+    # the option to the link step of static-library consumers as well.
+    TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_CAGE_REGISTER_FLAG})
 ENDIF()
 
 # 2. Build the Escargot shell if enabled
