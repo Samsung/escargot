@@ -141,85 +141,6 @@ class ExportedFunctionObject;
     FOR_EACH_NONSTRICT_CLEAR_SCRIPTSIMPLEFUNCTION(F) \
     FOR_EACH_NONSTRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(F)
 
-// These declarations name the compiler-emitted vtables, rather than mutable
-// copies of their addresses. All tagged classes have one non-virtual base chain.
-namespace PointerValueVTable {
-#if defined(_MSC_VER)
-constexpr bool needsOpaqueVPtrLoad = true;
-#if defined(_M_IX86)
-#define POINTER_VALUE_VTABLE_C_PREFIX "_"
-#else
-#define POINTER_VALUE_VTABLE_C_PREFIX ""
-#endif
-#define DECLARE_POINTER_VALUE_VTABLE(NAME, ITANIUM, MSVC)                   \
-    extern "C" const size_t escargot##NAME##VTable[addressPointOffset + 1]; \
-    __pragma(comment(linker, "/alternatename:" POINTER_VALUE_VTABLE_C_PREFIX "escargot" #NAME "VTable=" MSVC))
-constexpr size_t addressPointOffset = 0;
-#else
-#define POINTER_VALUE_VTABLE_STRINGIFY_IMPL(PREFIX) #PREFIX
-#define POINTER_VALUE_VTABLE_STRINGIFY(PREFIX) POINTER_VALUE_VTABLE_STRINGIFY_IMPL(PREFIX)
-#define POINTER_VALUE_VTABLE_C_PREFIX POINTER_VALUE_VTABLE_STRINGIFY(__USER_LABEL_PREFIX__)
-#if defined(ESCARGOT_EXPORT_ALL)
-#define POINTER_VALUE_VTABLE_VISIBILITY "default"
-#else
-#define POINTER_VALUE_VTABLE_VISIBILITY "hidden"
-#endif
-#if defined(__ELF__) && defined(__GNUC__) && !defined(__clang__)
-// Let GCC track vtable aliases without redeclaring their types or claiming
-// their COMDAT sections. Only their addresses are used.
-// GCC can emit weakrefs from multiple translation units without renaming them
-// during shared-library LTO. Give each alias a translation-unit-specific name.
-constexpr bool needsOpaqueVPtrLoad = true;
-#define DECLARE_POINTER_VALUE_VTABLE(NAME, ITANIUM, MSVC) \
-    static size_t escargot##NAME##VTable[addressPointOffset + 1] __asm__("\"escargot" #NAME "VTable." __BASE_FILE__ "\"") __attribute__((weakref(ITANIUM)));
-#else
-constexpr bool needsOpaqueVPtrLoad = false;
-#define DECLARE_POINTER_VALUE_VTABLE(NAME, ITANIUM, MSVC) \
-    extern const size_t escargot##NAME##VTable[addressPointOffset + 1] __asm__(POINTER_VALUE_VTABLE_C_PREFIX ITANIUM) __attribute__((visibility(POINTER_VALUE_VTABLE_VISIBILITY)));
-#endif
-// The Itanium address point follows offset-to-top and typeinfo.
-constexpr size_t addressPointOffset = 2;
-#endif
-
-DECLARE_POINTER_VALUE_VTABLE(Object, "_ZTVN8Escargot6ObjectE", "??_7Object@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(PrototypeObject, "_ZTVN8Escargot15PrototypeObjectE", "??_7PrototypeObject@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(ArrayObject, "_ZTVN8Escargot11ArrayObjectE", "??_7ArrayObject@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(TypedArrayObject, "_ZTVN8Escargot16TypedArrayObjectE", "??_7TypedArrayObject@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(ArrayPrototypeObject, "_ZTVN8Escargot20ArrayPrototypeObjectE", "??_7ArrayPrototypeObject@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(ScriptFunctionObject, "_ZTVN8Escargot20ScriptFunctionObjectE", "??_7ScriptFunctionObject@Escargot@@6B@")
-DECLARE_POINTER_VALUE_VTABLE(ObjectRareData, "_ZTVN8Escargot14ObjectRareDataE", "??_7ObjectRareData@Escargot@@6B@")
-
-#define POINTER_VALUE_VTABLE_ITANIUM_BOOL_true "1"
-#define POINTER_VALUE_VTABLE_ITANIUM_BOOL_false "0"
-#define POINTER_VALUE_VTABLE_MSVC_BOOL_true "$00"
-#define POINTER_VALUE_VTABLE_MSVC_BOOL_false "$0A@"
-#define POINTER_VALUE_VTABLE_MSVC_SIZE_4 "$03"
-#define POINTER_VALUE_VTABLE_MSVC_SIZE_8 "$07"
-#define POINTER_VALUE_VTABLE_MSVC_SIZE_16 "$0BA@"
-#define POINTER_VALUE_VTABLE_MSVC_SIZE_24 "$0BI@"
-#define DECLARE_SCRIPTSIMPLEFUNCTION_VTABLE(STRICT, CLEAR, isStrict, isClear, SIZE)                                                                                                                \
-    DECLARE_POINTER_VALUE_VTABLE(ScriptSimpleFunctionObject##STRICT##CLEAR##SIZE,                                                                                                                  \
-                                 "_ZTVN8Escargot26ScriptSimpleFunctionObjectILb" POINTER_VALUE_VTABLE_ITANIUM_BOOL_##isStrict "ELb" POINTER_VALUE_VTABLE_ITANIUM_BOOL_##isClear "ELj" #SIZE "EEE", \
-                                 "??_7?$ScriptSimpleFunctionObject@" POINTER_VALUE_VTABLE_MSVC_BOOL_##isStrict                                                                                     \
-                                     POINTER_VALUE_VTABLE_MSVC_BOOL_##isClear POINTER_VALUE_VTABLE_MSVC_SIZE_##SIZE                                                                                \
-                                 "@Escargot@@6B@")
-DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DECLARE_SCRIPTSIMPLEFUNCTION_VTABLE)
-#undef DECLARE_SCRIPTSIMPLEFUNCTION_VTABLE
-#undef POINTER_VALUE_VTABLE_MSVC_SIZE_24
-#undef POINTER_VALUE_VTABLE_MSVC_SIZE_16
-#undef POINTER_VALUE_VTABLE_MSVC_SIZE_8
-#undef POINTER_VALUE_VTABLE_MSVC_SIZE_4
-#undef POINTER_VALUE_VTABLE_MSVC_BOOL_false
-#undef POINTER_VALUE_VTABLE_MSVC_BOOL_true
-#undef POINTER_VALUE_VTABLE_ITANIUM_BOOL_false
-#undef POINTER_VALUE_VTABLE_ITANIUM_BOOL_true
-#undef DECLARE_POINTER_VALUE_VTABLE
-#undef POINTER_VALUE_VTABLE_C_PREFIX
-#undef POINTER_VALUE_VTABLE_STRINGIFY
-#undef POINTER_VALUE_VTABLE_STRINGIFY_IMPL
-#undef POINTER_VALUE_VTABLE_VISIBILITY
-} // namespace PointerValueVTable
-
 
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 1 << 1
@@ -274,7 +195,7 @@ public:
 
     inline bool isArrayObject() const
     {
-        return hasArrayObjectTag() || hasVTag(g_arrayPrototypeObjectTag);
+        return hasVTag(g_arrayObjectTag) || hasVTag(g_arrayPrototypeObjectTag);
     }
 
     inline bool isArrayPrototypeObject() const
@@ -1286,53 +1207,41 @@ public:
     }
 
 protected:
-    inline bool hasVTag(const size_t* tag) const
+    inline bool hasVTag(const size_t tag) const
     {
         // compare vtable address
         ASSERT(!!tag);
-        return reinterpret_cast<size_t>(tag) == getVTag();
+        return tag == *((size_t*)(this));
     }
 
     inline size_t getVTag() const
     {
-        if (PointerValueVTable::needsOpaqueVPtrLoad) {
-#if defined(__ELF__) && defined(__GNUC__) && !defined(__clang__)
-            size_t vptr;
-            memcpy(&vptr, this, sizeof(vptr));
-            // Hide the value, not memory, so GCC cannot distinguish a weakref
-            // from the vptr while still reusing the load across tag comparisons.
-            __asm__("" : "+r"(vptr));
-            return vptr;
-#else
-            // The optimizer must not infer inequality from an alias declaration.
-            return *reinterpret_cast<const volatile size_t*>(this);
-#endif
-        }
         // return vtable address
         return *((size_t*)(this));
     }
 
-    inline void writeVTag(const size_t* tag)
+    inline void writeVTag(const size_t tag)
     {
         // rewrite vtable address
-        *((size_t*)(this)) = reinterpret_cast<size_t>(tag);
+        *((size_t*)(this)) = tag;
     }
 
-    // Constant vtable address points for fast type checks and vptr rewrites.
-    static constexpr const size_t* g_objectTag = PointerValueVTable::escargotObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_prototypeObjectTag = PointerValueVTable::escargotPrototypeObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_arrayObjectTag = PointerValueVTable::escargotArrayObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_typedArrayObjectTag = PointerValueVTable::escargotTypedArrayObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_arrayPrototypeObjectTag = PointerValueVTable::escargotArrayPrototypeObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_scriptFunctionObjectTag = PointerValueVTable::escargotScriptFunctionObjectVTable + PointerValueVTable::addressPointOffset;
-    static constexpr const size_t* g_objectRareDataTag = PointerValueVTable::escargotObjectRareDataVTable + PointerValueVTable::addressPointOffset;
+    // tag values for fast type check
+    // these values actually have unique virtual table address of each object class
+    static size_t g_objectTag;
+    static size_t g_prototypeObjectTag;
+    static size_t g_arrayObjectTag;
+    static size_t g_typedArrayObjectTag;
+    static size_t g_arrayPrototypeObjectTag;
+    static size_t g_scriptFunctionObjectTag;
+    static size_t g_objectRareDataTag;
 
     // tag values for ScriptSimpleFunctionObject
 #define DECLARE_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
-    static constexpr const size_t* g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag = PointerValueVTable::escargotScriptSimpleFunctionObject##STRICT##CLEAR##SIZE##VTable + PointerValueVTable::addressPointOffset;
+    static size_t g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag;
 
     DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DECLARE_SCRIPTSIMPLEFUNCTION_TAGS);
-#undef DECLARE_SCRIPTSIMPLEFUNCTION_TAGS
+#undef DECLARE_SCRIPTSIMPLEFUNCTIONOBJECT_TAGS
 };
 
 // getTypeTag() reads the first word following PointerValue's vtable slot.

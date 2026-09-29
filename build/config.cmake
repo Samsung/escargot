@@ -319,7 +319,6 @@ ENDIF()
 
 IF (ESCARGOT_EXPORT_ALL)
     SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fvisibility=default)
-    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DESCARGOT_EXPORT_ALL)
 ENDIF()
 
 option(ESCARGOT_TCO_DEBUG "Enable extra tail-call-optimization debug checks (debug builds only)" OFF)
