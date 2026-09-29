@@ -164,12 +164,14 @@ constexpr size_t addressPointOffset = 0;
 #else
 #define POINTER_VALUE_VTABLE_VISIBILITY "hidden"
 #endif
-#if defined(__ELF__) && defined(__GNUC__) && !defined(__clang__) && !defined(__PIC__)
-// Let GCC track these aliases through LTO partitioning without redeclaring its
-// vtables or claiming their COMDAT sections. Only their addresses are used.
+#if defined(__ELF__) && defined(__GNUC__) && !defined(__clang__)
+// Let GCC track vtable aliases without redeclaring their types or claiming
+// their COMDAT sections. Only their addresses are used.
+// GCC can emit weakrefs from multiple translation units without renaming them
+// during shared-library LTO. Give each alias a translation-unit-specific name.
 constexpr bool needsOpaqueVPtrLoad = true;
 #define DECLARE_POINTER_VALUE_VTABLE(NAME, ITANIUM, MSVC) \
-    static size_t escargot##NAME##VTable[addressPointOffset + 1] __asm__("escargot" #NAME "VTable") __attribute__((weakref(ITANIUM)));
+    static size_t escargot##NAME##VTable[addressPointOffset + 1] __asm__("\"escargot" #NAME "VTable." __BASE_FILE__ "\"") __attribute__((weakref(ITANIUM)));
 #else
 constexpr bool needsOpaqueVPtrLoad = false;
 #define DECLARE_POINTER_VALUE_VTABLE(NAME, ITANIUM, MSVC) \
@@ -1294,9 +1296,17 @@ protected:
     inline size_t getVTag() const
     {
         if (PointerValueVTable::needsOpaqueVPtrLoad) {
+#if defined(__ELF__) && defined(__GNUC__) && !defined(__clang__)
+            size_t vptr;
+            memcpy(&vptr, this, sizeof(vptr));
+            // Hide the value, not memory, so GCC cannot distinguish a weakref
+            // from the vptr while still reusing the load across tag comparisons.
+            __asm__("" : "+r"(vptr));
+            return vptr;
+#else
             // The optimizer must not infer inequality from an alias declaration.
-            // Materializing the vptr also retains the vtables used by weakrefs.
             return *reinterpret_cast<const volatile size_t*>(this);
+#endif
         }
         // return vtable address
         return *((size_t*)(this));
