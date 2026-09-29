@@ -335,6 +335,9 @@ public:
     // The result must be in [-1, 1] or NaN; folds 0 and +/-1 to int32.
     enum DoubleInUnitRangeTag { DoubleInUnitRange };
     explicit Value(DoubleInUnitRangeTag, double);
+    // The result must be in (-4, 4) or NaN; folds 0 and +/-1, +/-2, +/-3.
+    enum DoubleInSmallRangeTag { DoubleInSmallRange };
+    explicit Value(DoubleInSmallRangeTag, double);
     // You can use this function with only !isInt32ConvertibleDouble value
     explicit Value(UnconvertibleDoubleToInt32 v)
         : Value(EncodeAsDouble, v.value)

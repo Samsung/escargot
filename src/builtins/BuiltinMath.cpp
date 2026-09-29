@@ -33,6 +33,16 @@
 
 namespace Escargot {
 
+template <typename ResultTag>
+static ALWAYS_INLINE Value mathDoubleResult(ResultTag tag, double result)
+{
+#ifdef ESCARGOT_64
+    return Value(tag, result);
+#else
+    return Value(Value::DoubleToIntConvertibleTestNeeds, result);
+#endif
+}
+
 static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return Value(Value::DoubleToIntConvertibleTestNeeds, std::abs(argv[0].toNumber(state)));
@@ -111,11 +121,7 @@ static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value x = argv[0];
-#ifdef ESCARGOT_64
-    return Value(Value::DoubleInUnitRange, ieee754::sin(x.toNumber(state)));
-#else
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::sin(x.toNumber(state)));
-#endif
+    return mathDoubleResult(Value::DoubleInUnitRange, ieee754::sin(x.toNumber(state)));
 }
 
 static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -126,8 +132,14 @@ static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc
 
 static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value x = argv[0];
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::cos(x.toNumber(state)));
+    double x = argv[0].toNumber(state);
+#ifdef ESCARGOT_64
+    // Match __kernel_cos: |x| < 2^-27 returns exactly 1.
+    if (UNLIKELY((bitwise_cast<uint64_t>(x) << 1) < 0x7c80000000000000ull)) {
+        return Value(1);
+    }
+#endif
+    return mathDoubleResult(Value::DoubleInUnitRange, ieee754::cos(x));
 }
 
 static Value builtinMathCosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -139,7 +151,7 @@ static Value builtinMathCosh(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathAcos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::acos(x));
+    return mathDoubleResult(Value::DoubleInSmallRange, ieee754::acos(x));
 }
 
 static Value builtinMathAcosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -151,7 +163,7 @@ static Value builtinMathAcosh(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathAsin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::asin(x));
+    return mathDoubleResult(Value::DoubleInSmallRange, ieee754::asin(x));
 }
 
 static Value builtinMathAsinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -163,7 +175,7 @@ static Value builtinMathAsinh(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::atan(x));
+    return mathDoubleResult(Value::DoubleInSmallRange, ieee754::atan(x));
 }
 
 static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -182,13 +194,20 @@ static Value builtinMathAtanh(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::tan(x));
+#ifdef ESCARGOT_64
+    // Match __kernel_tan with iy == 1: |x| < 2^-28 returns x.
+    uint64_t bits = bitwise_cast<uint64_t>(x);
+    if (UNLIKELY((bits << 1) < 0x7c60000000000000ull)) {
+        return bits ? Value(Value::EncodeAsDouble, x) : Value(0);
+    }
+#endif
+    return mathDoubleResult(Value::PreferDouble, ieee754::tan(x));
 }
 
 static Value builtinMathTanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::tanh(x));
+    return mathDoubleResult(Value::DoubleInUnitRange, ieee754::tanh(x));
 }
 
 static Value builtinMathTrunc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -572,7 +591,7 @@ static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t ar
     uint64_t a = static_cast<uint64_t>(engine()) >> 5; // 27 bits
     uint64_t b = static_cast<uint64_t>(engine()) >> 6; // 26 bits
     double r = (a * 67108864.0 + b) * (1.0 / 9007199254740992.0); // (a * 2^26 + b) / 2^53
-    return Value(Value::DoubleToIntConvertibleTestNeeds, r);
+    return mathDoubleResult(Value::DoubleInUnitRange, r);
 }
 
 static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
