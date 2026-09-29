@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.18)
 
 project(escargot-rtos C CXX ASM)
 
-# GCC 13 loses promoted weakref vtable aliases when streaming LTO partitions.
-# Keep whole-program optimization in one pass so those aliases stay intact.
 set(CMAKE_EXE_LINKER_FLAGS
     "-T ${CMAKE_SOURCE_DIR}/startup/an552_ns.ld \
-    -flto -flto-partition=none -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map \
+    -flto -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/escargot-rtos.map \
     --specs=nosys.specs"
     CACHE STRING "" FORCE)
 
