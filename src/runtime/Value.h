@@ -329,6 +329,12 @@ public:
     // if you want to init Value with constant double value,
     // please use Value(UnconvertibleDoubleToInt32) or Value(int32_t)
     explicit Value(DoubleToIntConvertibleTestNeedsTag, double);
+    // Biased toward non-integral doubles; folds int32 and canonicalizes NaNs.
+    enum PreferDoubleTag { PreferDouble };
+    explicit Value(PreferDoubleTag, double);
+    // The result must be in [-1, 1] or NaN; folds 0 and +/-1 to int32.
+    enum DoubleInUnitRangeTag { DoubleInUnitRange };
+    explicit Value(DoubleInUnitRangeTag, double);
     // You can use this function with only !isInt32ConvertibleDouble value
     explicit Value(UnconvertibleDoubleToInt32 v)
         : Value(EncodeAsDouble, v.value)
@@ -489,9 +495,7 @@ public:
 // This value is 2^48, used to encode doubles such that the encoded value will begin
 // with a 16-bit pattern within the range 0x0001..0xFFFE.
 #define DoubleEncodeOffset 0x1000000000000ll
-// DoubleEncodeOffset assumes that double value will begin with 0x0000..0xFFFD,
-// but there can be invalid inputs start with 0xFFFE or 0xFFFF.
-// So it is used to filter those values.
+// NaN patterns starting with 0xFFFE or 0xFFFF collide with reserved tags.
 #define DoubleInvalidBeginning 0xfffe000000000000ll
 // If all bits in the mask are set, this indicates an integer number,
 // if any but not all are set this value is a double precision number.
