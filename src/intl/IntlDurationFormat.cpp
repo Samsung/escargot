@@ -814,47 +814,6 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
     return elements;
 }
 
-namespace {
-class StringVectorToUCharList {
-public:
-    StringVectorToUCharList(const std::vector<UTF16StringDataNonGCStd>& v)
-    {
-        m_strings.resize(v.size());
-        m_stringLengths = new int32_t[v.size()];
-
-        for (size_t i = 0; i < m_strings.size(); i++) {
-            const auto& data = v[i];
-            m_strings[i] = data.data();
-            ASSERT(m_strings[i][data.size()] == 0);
-            m_stringLengths[i] = data.size();
-        }
-    }
-
-    ~StringVectorToUCharList()
-    {
-        delete[] m_stringLengths;
-    }
-
-    const UChar** strings()
-    {
-        return m_strings.data();
-    }
-
-    int32_t* stringLengths()
-    {
-        return m_stringLengths;
-    }
-
-    int32_t stringCount()
-    {
-        return m_strings.size();
-    }
-
-private:
-    std::vector<const UChar*> m_strings;
-    int32_t* m_stringLengths;
-};
-} // namespace
 
 String* IntlDurationFormatObject::format(ExecutionState& state, const Value& duration)
 {
@@ -890,7 +849,7 @@ String* IntlDurationFormatObject::format(ExecutionState& state, const Value& dur
         stringList.push_back(std::move(builder));
     }
 
-    StringVectorToUCharList input(stringList);
+    Intl::StringVectorToUCharList input(stringList);
 
     auto result = INTL_ICU_STRING_BUFFER_OPERATION(ulistfmt_format, m_icuListFormatter, input.strings(), input.stringLengths(), input.stringCount());
     if (U_FAILURE(result.first)) {
@@ -1007,7 +966,7 @@ ArrayObject* IntlDurationFormatObject::formatToParts(ExecutionState& state, cons
     }
     ASSERT(stringList.size() == groupedElements.size());
 
-    StringVectorToUCharList input(stringList);
+    Intl::StringVectorToUCharList input(stringList);
 
     UErrorCode status = U_ZERO_ERROR;
 

@@ -56,6 +56,34 @@
 
 namespace Escargot {
 
+Intl::StringVectorToUCharList::StringVectorToUCharList(const StringVector& strings)
+    : m_ownedStrings(strings.size())
+{
+    for (size_t i = 0; i < strings.size(); i++) {
+        auto data = strings[i]->toUTF16StringData();
+        if (data.size()) {
+            m_ownedStrings[i].assign(data.data(), data.size());
+        }
+    }
+    initialize(m_ownedStrings);
+}
+
+Intl::StringVectorToUCharList::StringVectorToUCharList(const std::vector<UTF16StringDataNonGCStd>& strings)
+{
+    initialize(strings);
+}
+
+void Intl::StringVectorToUCharList::initialize(const std::vector<UTF16StringDataNonGCStd>& strings)
+{
+    m_strings.resize(strings.size());
+    m_stringLengths.resize(strings.size());
+    for (size_t i = 0; i < strings.size(); i++) {
+        m_strings[i] = strings[i].data();
+        ASSERT(m_strings[i][strings[i].size()] == 0);
+        m_stringLengths[i] = strings[i].size();
+    }
+}
+
 // Invalid tags starting with: https://github.com/tc39/ecma402/pull/289
 static bool isValidTagInBCP47ButInvalidOnUTS35(const std::string& s)
 {
