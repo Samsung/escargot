@@ -763,23 +763,24 @@ ALWAYS_INLINE Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
 
 ALWAYS_INLINE Value::Value(PreferDoubleTag, double d)
 {
-    int32_t asInt32 = static_cast<int32_t>(d);
-    double converted = static_cast<double>(asInt32);
-    // Ordered inequality and unordered reuse the int32 round-trip comparison.
-    // Canonicalizing NaNs here makes a separate tag-collision check unnecessary.
-    if (LIKELY(std::islessgreater(d, converted))) {
-        *this = Value(EncodeAsDouble, d);
-        return;
-    }
-    if (UNLIKELY(std::isunordered(d, converted))) {
+    uint64_t bits = bitwise_cast<uint64_t>(d);
+    if (UNLIKELY((bits << 1) > 0xffe0000000000000ull)) {
         *this = Value(NanInit);
         return;
     }
-    if (UNLIKELY(!asInt32 && std::signbit(d))) {
+    // Every int32-representable double has zero low 22 mantissa bits.
+    // Most fractional doubles fail this test without an FP conversion.
+    if (LIKELY(bits & 0x3fffffull)) {
         *this = Value(EncodeAsDouble, d);
         return;
     }
-    *this = Value(asInt32);
+    int32_t asInt32;
+    if (isInt32ConvertibleDouble(d, asInt32)) {
+        *this = Value(asInt32);
+    } else {
+        // NaNs were canonicalized above, so no tag-collision check is needed.
+        *this = Value(EncodeAsDouble, d);
+    }
 }
 
 ALWAYS_INLINE Value::Value(DoubleInUnitRangeTag, double d)
@@ -802,6 +803,38 @@ ALWAYS_INLINE Value::Value(DoubleInUnitRangeTag, double d)
     }
     // Remaining values are fractional or -0: no int32 conversion or NaN
     // tag-collision check is needed. The range branch canonicalized NaNs.
+#ifdef ESCARGOT_64
+    u.asInt64 = static_cast<int64_t>(bits + static_cast<uint64_t>(DoubleEncodeOffset));
+#else
+    u.asInt64 = static_cast<int64_t>(bits);
+#endif
+}
+
+ALWAYS_INLINE Value::Value(DoubleInSmallRangeTag, double d)
+{
+    ASSERT(std::isnan(d) || (d > -4.0 && d < 4.0));
+    uint64_t bits = bitwise_cast<uint64_t>(d);
+    uint64_t magnitude = bits << 1;
+    if (UNLIKELY(magnitude >= 0x8020000000000000ull)) {
+        *this = Value(NanInit);
+        return;
+    }
+    // Integers in this range have zero low 51 mantissa bits. The filter
+    // also admits 1.5 and smaller powers of two; the high bits distinguish
+    // 1, 2 and 3 with indices 0, 2 and 3 relative to the encoding of 1.
+    if (UNLIKELY((magnitude << 12) == 0)) {
+        if (!magnitude) {
+            *this = bits ? Value(EncodeAsDouble, -0.0) : Value(int32_t(0));
+            return;
+        }
+        uint32_t integerIndex = static_cast<uint32_t>(magnitude >> 52) - 0x7fe;
+        if (integerIndex <= 3 && integerIndex != 1) {
+            int32_t integer = integerIndex ? static_cast<int32_t>(integerIndex) : 1;
+            int32_t sign = -static_cast<int32_t>(bits >> 63);
+            *this = Value((integer ^ sign) - sign);
+            return;
+        }
+    }
 #ifdef ESCARGOT_64
     u.asInt64 = static_cast<int64_t>(bits + static_cast<uint64_t>(DoubleEncodeOffset));
 #else
