@@ -139,6 +139,37 @@ class Intl {
 public:
     typedef std::vector<std::string> (*LocaleDataImplFunction)(String* locale, size_t keyIndex);
 
+    class StringVectorToUCharList {
+    public:
+        explicit StringVectorToUCharList(const StringVector& strings);
+        // The input strings must outlive this borrowed view.
+        explicit StringVectorToUCharList(const std::vector<UTF16StringDataNonGCStd>& strings);
+        StringVectorToUCharList(const StringVectorToUCharList&) = delete;
+        StringVectorToUCharList& operator=(const StringVectorToUCharList&) = delete;
+
+        const UChar** strings()
+        {
+            return m_strings.data();
+        }
+
+        const int32_t* stringLengths() const
+        {
+            return m_stringLengths.data();
+        }
+
+        int32_t stringCount() const
+        {
+            return m_strings.size();
+        }
+
+    private:
+        void initialize(const std::vector<UTF16StringDataNonGCStd>& strings);
+
+        std::vector<UTF16StringDataNonGCStd> m_ownedStrings;
+        std::vector<const UChar*> m_strings;
+        std::vector<int32_t> m_stringLengths;
+    };
+
     struct IntlMatcherResult {
         IntlMatcherResult()
         {

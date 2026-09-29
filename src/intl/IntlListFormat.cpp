@@ -175,51 +175,6 @@ static StringVector stringListFromIterable(ExecutionState& state, const Value& i
     return list;
 }
 
-namespace {
-class StringVectorToUCharList {
-public:
-    StringVectorToUCharList(const StringVector& v)
-    {
-        m_strings.resize(v.size());
-        m_stringLengths = new int32_t[v.size()];
-
-        for (size_t i = 0; i < m_strings.size(); i++) {
-            auto data = v[i]->toUTF16StringData();
-            m_strings[i] = new UChar[data.size() + 1];
-            memcpy(m_strings[i], data.data(), sizeof(UChar) * data.size());
-            m_strings[i][data.size()] = 0;
-            m_stringLengths[i] = data.size();
-        }
-    }
-
-    ~StringVectorToUCharList()
-    {
-        for (size_t i = 0; i < m_strings.size(); i++) {
-            delete[] m_strings[i];
-        }
-        delete[] m_stringLengths;
-    }
-
-    UChar** strings()
-    {
-        return m_strings.data();
-    }
-
-    int32_t* stringLengths()
-    {
-        return m_stringLengths;
-    }
-
-    int32_t stringCount()
-    {
-        return m_strings.size();
-    }
-
-private:
-    std::vector<UChar*> m_strings;
-    int32_t* m_stringLengths;
-};
-} // namespace
 
 Value IntlListFormatObject::format(ExecutionState& state, const Value& list)
 {
@@ -229,7 +184,7 @@ Value IntlListFormatObject::format(ExecutionState& state, const Value& list)
     // Let stringList be ? StringListFromIterable(list).
     StringVector stringList = stringListFromIterable(state, list);
     // Return FormatList(lf, stringList).
-    StringVectorToUCharList ucharList(stringList);
+    Intl::StringVectorToUCharList ucharList(stringList);
     auto result = INTL_ICU_STRING_BUFFER_OPERATION(ulistfmt_format, m_icuListFormatter, ucharList.strings(), ucharList.stringLengths(), ucharList.stringCount());
     if (U_FAILURE(result.first)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format string list");
@@ -249,7 +204,7 @@ Value IntlListFormatObject::formatToParts(ExecutionState& state, const Value& li
     // Let stringList be ? StringListFromIterable(list).
     StringVector stringList = stringListFromIterable(state, list);
     // Return FormatListToParts(lf, stringList).
-    StringVectorToUCharList ucharList(stringList);
+    Intl::StringVectorToUCharList ucharList(stringList);
 
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UFormattedList> uresult(
