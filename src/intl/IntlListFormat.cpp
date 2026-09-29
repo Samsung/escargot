@@ -175,6 +175,7 @@ static StringVector stringListFromIterable(ExecutionState& state, const Value& i
     return list;
 }
 
+namespace {
 class StringVectorToUCharList {
 public:
     StringVectorToUCharList(const StringVector& v)
@@ -218,6 +219,7 @@ private:
     std::vector<UChar*> m_strings;
     int32_t* m_stringLengths;
 };
+} // namespace
 
 Value IntlListFormatObject::format(ExecutionState& state, const Value& list)
 {

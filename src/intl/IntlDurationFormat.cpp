@@ -814,6 +814,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
     return elements;
 }
 
+namespace {
 class StringVectorToUCharList {
 public:
     StringVectorToUCharList(const std::vector<UTF16StringDataNonGCStd>& v)
@@ -853,6 +854,7 @@ private:
     std::vector<const UChar*> m_strings;
     int32_t* m_stringLengths;
 };
+} // namespace
 
 String* IntlDurationFormatObject::format(ExecutionState& state, const Value& duration)
 {
