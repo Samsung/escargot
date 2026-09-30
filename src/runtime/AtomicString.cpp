@@ -93,19 +93,19 @@ public:
     // unused
     virtual UTF16StringData toUTF16StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF8StringData toUTF8StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     void* operator new(size_t size) = delete;
@@ -155,19 +155,19 @@ public:
     // unused
     virtual UTF8StringData toUTF8StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF16StringData toUTF16StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 };
 
@@ -216,19 +216,19 @@ public:
     // unused
     virtual UTF16StringData toUTF16StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF8StringData toUTF8StringData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // unused
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     void* operator new(size_t size) = delete;

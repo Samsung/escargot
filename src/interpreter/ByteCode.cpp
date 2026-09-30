@@ -57,7 +57,7 @@ void ByteCode::dumpCode(const uint8_t* byteCodeStart, const size_t endPos)
             FOR_EACH_BYTECODE(RETURN_BYTECODE_NAME)
 #undef RETURN_BYTECODE_NAME
         default:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
         }
 
         printf(" | %s ", opcodeName);

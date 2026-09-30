@@ -328,10 +328,10 @@ private:
 
         // parseEscape() should never call these delegate methods when
         // invoked with inCharacterClass set.
-        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
+        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { ASSERT_UNREACHABLE(); }
 
     private:
         Delegate& m_delegate;
@@ -737,10 +737,10 @@ private:
 
         // parseEscape() should never call these delegate methods when
         // invoked with inCharacterClass set.
-        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
+        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { ASSERT_UNREACHABLE(); }
 
     private:
         Delegate& m_delegate;
@@ -807,11 +807,11 @@ private:
         bool mayContainStrings() { return m_mayContainStrings; }
 
         // parseEscape() should never call these delegate methods when parsing a class string disjunction.
-        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { RELEASE_ASSERT_NOT_REACHED(); }
-        NO_RETURN_DUE_TO_ASSERT void atomBuiltInCharacterClass(BuiltInCharacterClassID, bool) { RELEASE_ASSERT_NOT_REACHED(); }
+        NO_RETURN_DUE_TO_ASSERT void assertionWordBoundary(bool) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomBackReference(unsigned) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedBackReference(const String&) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomNamedForwardReference(const String&) { ASSERT_UNREACHABLE(); }
+        NO_RETURN_DUE_TO_ASSERT void atomBuiltInCharacterClass(BuiltInCharacterClassID, bool) { ASSERT_UNREACHABLE(); }
 
     private:
         Delegate& m_delegate;

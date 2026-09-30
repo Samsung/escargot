@@ -71,32 +71,32 @@ public:
 
     virtual void createBinding(ExecutionState& state, const AtomicString& name, bool canDelete = false, bool isMutable = true, bool isVarDeclaration = true, Optional<InterpretedCodeBlock*> relatedCodeBlock = nullptr)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void setMutableBindingByBindingSlot(ExecutionState& state, const BindingSlot& slot, const AtomicString& name, const Value& v)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     struct GetBindingValueResult {
@@ -127,17 +127,17 @@ public:
 
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual Value getSuperBase(ExecutionState& state)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual Value getThisBinding(ExecutionState& state)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return Value();
     }
 
@@ -396,12 +396,12 @@ public:
 
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 };
 
@@ -532,7 +532,7 @@ public:
                 return;
             }
         }
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
@@ -545,7 +545,7 @@ public:
                 return;
             }
         }
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     void* operator new(size_t size)
@@ -678,12 +678,12 @@ struct FunctionEnvironmentRecordPiece<false, false> {
     FunctionEnvironmentRecordPiece() {}
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     Value getThisBinding(ExecutionState& state)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return Value();
     }
 
@@ -694,7 +694,7 @@ struct FunctionEnvironmentRecordPiece<false, false> {
 
     void setNewTarget(Object* newTarget)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 };
 
@@ -731,7 +731,7 @@ struct FunctionEnvironmentRecordPiece<true, false> {
 
     void setNewTarget(Object* newTarget)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 };
 
@@ -746,12 +746,12 @@ struct FunctionEnvironmentRecordPiece<false, true> {
 
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     Value getThisBinding(ExecutionState& state)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return Value();
     }
 
@@ -916,18 +916,18 @@ public:
 
     virtual void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     virtual Object* newTarget()
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return nullptr;
     }
 
     virtual void setNewTarget(Object* newTarget)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -1113,7 +1113,7 @@ public:
                 return;
             }
         }
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     void bindThisValue(ExecutionState& state, const Value& thisValue) override

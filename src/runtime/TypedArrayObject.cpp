@@ -261,7 +261,7 @@ TypedArrayObject* TypedArrayObject::allocateTypedArray(ExecutionState& state, Ob
         FOR_EACH_TYPEDARRAY_TYPES(TYPED_ARRAY_DEFAULT_PROTO)
 #undef TYPED_ARRAY_DEFAULT_PROTO
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget, defaultProto);
     TypedArrayObject* obj = new TypedArrayObject(state, proto, type);
@@ -289,7 +289,7 @@ String* TypedArrayObject::typedArrayName(ExecutionState& state)
         FOR_EACH_TYPEDARRAY_TYPES(TYPED_ARRAY_NAME)
 #undef TYPED_ARRAY_NAME
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 }
 

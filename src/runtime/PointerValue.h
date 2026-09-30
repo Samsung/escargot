@@ -1040,7 +1040,7 @@ public:
 #else
     SharedArrayBufferObject* asSharedArrayBufferObject()
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 #endif
 

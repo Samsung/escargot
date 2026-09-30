@@ -404,7 +404,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
             millisecond = argv[length - 1].toNumber(state);
         break;
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // Check if original date value was NaN

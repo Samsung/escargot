@@ -196,7 +196,7 @@ static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue,
         }
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().BigInt.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
     return Value();
 #endif
 }

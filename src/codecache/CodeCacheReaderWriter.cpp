@@ -680,7 +680,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case ExecutionResumeOpcode:
-                RELEASE_ASSERT_NOT_REACHED();
+                ASSERT_UNREACHABLE();
                 break;
             default:
                 break;
@@ -1321,8 +1321,8 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 break;
             }
             default:
-                RELEASE_ASSERT_NOT_REACHED();
-                break;
+                ASSERT_NOT_REACHED();
+                throw CodeCacheReader::Error("invalid relocation type");
             }
         }
     }

@@ -505,7 +505,7 @@ public:
                 hasParameterOtherThanIdentifier = true;
                 break;
             default: {
-                RELEASE_ASSERT_NOT_REACHED();
+                ASSERT_UNREACHABLE();
             }
             }
         }
@@ -2916,7 +2916,7 @@ public:
                     return this->finalize(node, builder.createUnaryExpressionLogicalNotNode(subExpr));
                 }
                 default: {
-                    RELEASE_ASSERT_NOT_REACHED();
+                    ASSERT_UNREACHABLE();
                     return exprNode;
                 }
                 }
@@ -2980,7 +2980,7 @@ public:
                     return this->finalize(node, builder.createUnaryExpressionTypeOfNode(subExpr));
                 }
                 default: {
-                    RELEASE_ASSERT_NOT_REACHED();
+                    ASSERT_UNREACHABLE();
                     return exprNode;
                 }
                 }
@@ -3247,7 +3247,7 @@ public:
             case NullishCoalescing:
                 return builder.createBinaryExpressionNullishCoalescingNode(left, right);
             default:
-                RELEASE_ASSERT_NOT_REACHED();
+                ASSERT_UNREACHABLE();
             }
         } else {
             ASSERT(token->type == Token::KeywordToken);
@@ -3257,7 +3257,7 @@ public:
             case KeywordKind::InstanceofKeyword:
                 return builder.createBinaryExpressionInstanceOfNode(left, right);
             default:
-                RELEASE_ASSERT_NOT_REACHED();
+                ASSERT_UNREACHABLE();
             }
         }
     }
@@ -3612,7 +3612,7 @@ public:
                         exprResult = builder.createAssignmentExpressionLogicalNullishNode(exprNode, rightNode);
                         break;
                     default:
-                        RELEASE_ASSERT_NOT_REACHED();
+                        ASSERT_UNREACHABLE();
                     }
 
 #undef CHECK_LOGICAL_ASSIGNMENT
@@ -4597,7 +4597,7 @@ public:
                 return;
             }
         }
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     bool hasLabel(AtomicString label)

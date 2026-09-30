@@ -379,7 +379,7 @@ public:
     {
         // dummy function for expressions() of SequenceExpressionNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         SyntaxNodeList* tempVector;
         return *tempVector;
     }
@@ -388,7 +388,7 @@ public:
     {
         // dummy function for scopeContext() of FunctionDeclarationNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         ASTScopeContext* scopeContext;
         return scopeContext;
     }
@@ -397,7 +397,7 @@ public:
     {
         // dummy function for classNode() of ClassDeclarationNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         ClassNode* tempClassNode;
         return *tempClassNode;
     }
@@ -406,7 +406,7 @@ public:
     {
         // dummy function for value() of LiteralNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return Value();
     }
 
@@ -414,7 +414,7 @@ public:
     {
         // dummy function for imported() of ImportSpecifierNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         IdentifierNode* identifier;
         return identifier;
     }
@@ -423,7 +423,7 @@ public:
     {
         // dummy function for imported() of ExportSpecifierNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         IdentifierNode* identifier;
         return identifier;
     }
@@ -432,7 +432,7 @@ public:
     {
         // dummy function for local() of Import/ExportSpecifierNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         IdentifierNode* identifier;
         return identifier;
     }
@@ -441,7 +441,7 @@ public:
     {
         // dummy function for node() of ASTSentinelNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return *this;
     }
 
@@ -449,7 +449,7 @@ public:
     {
         // dummy function for next() of ASTSentinelNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return this;
     }
 
@@ -457,7 +457,7 @@ public:
     {
         // dummy function for setASTNode() of ASTSentinelNode
         // this function should never be invoked
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     ALWAYS_INLINE operator bool() const
@@ -518,7 +518,7 @@ public:
 
     SyntaxNode* back()
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return &m_node;
     }
 
@@ -892,7 +892,7 @@ public:
 
     void setValueStringLiteral(const ParserStringView& string)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     template <const size_t len>

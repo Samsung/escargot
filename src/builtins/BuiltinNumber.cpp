@@ -311,7 +311,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
         }
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
     return Value();
 #endif
 }
@@ -324,7 +324,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
         return Value(Value::DoubleToIntConvertibleTestNeeds, thisValue.asPointerValue()->asNumberObject()->primitiveValue());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
     return Value();
 }
 

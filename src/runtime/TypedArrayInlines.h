@@ -362,7 +362,7 @@ struct TypedArrayHelper {
         case TypedArrayType::BigUint64:
             return Value(new BigInt(readUint64(elementAddress<indexed, 3>(rawBytes, index))));
         default:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
             return Value();
         }
     }
@@ -444,7 +444,7 @@ struct TypedArrayHelper {
             writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), BigUint64Adaptor::toNative(state, val));
             break;
         default:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
             break;
         }
     }

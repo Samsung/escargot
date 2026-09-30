@@ -558,8 +558,17 @@ void customEscargotErrorLogger(const char* format, ...);
 #else
 #define ESCARGOT_UNREACHABLE() \
     do {                       \
+        abort();               \
     } while (0)
 #endif
+
+// Use for paths excluded by an internal invariant: check in debug builds and
+// tell the optimizer that execution cannot continue there in release builds.
+#define ASSERT_UNREACHABLE()    \
+    do {                        \
+        ASSERT_NOT_REACHED();   \
+        ESCARGOT_UNREACHABLE(); \
+    } while (0)
 
 #if defined(ESCARGOT_SMALL_CONFIG)
 #define RELEASE_ASSERT(assertion)     \

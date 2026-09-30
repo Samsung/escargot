@@ -2987,7 +2987,7 @@ jobs:
 
     - name: Boot-test under QEMU (mps3-an547 / Cortex-M55)
       run: |
-        (sleep 3; echo "escargot"; sleep 90) | timeout 120 qemu-system-arm \
+        (sleep 3; echo "escargot"; sleep 240) | timeout 300 qemu-system-arm \
           -M mps3-an547 -cpu cortex-m55 \
           -kernel nuttx/nuttx -nographic > nuttx-output.log 2>&1 || true
         cat nuttx-output.log

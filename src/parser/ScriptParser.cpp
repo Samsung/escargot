@@ -591,7 +591,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
         auto str = orgError->message->toUTF8StringData();
         delete orgError;
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, str.data());
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // Generate ByteCode
@@ -611,7 +611,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
         m_context->astAllocator().reset();
         GC_enable();
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, message);
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     // reset ASTAllocator
