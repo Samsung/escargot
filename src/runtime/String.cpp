@@ -290,39 +290,44 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen, size
     return ch - offsetsFromUTF8[length - 1];
 }
 
-UTF16StringDataNonGCStd utf8StringToUTF16StringNonGC(const char* buf, const size_t len)
+template <typename Append>
+static void decodeUTF8ToUTF16(const char* buf, size_t len, Append append)
 {
-    UTF16StringDataNonGCStd str;
     const char* source = buf;
     int charlen;
     bool valid;
     while (source < buf + len) {
         unsigned char c = static_cast<unsigned char>(*source);
         if (c < 0x80) {
-            str += c;
+            append(c);
             source++;
             continue;
         }
 
         char32_t ch = readUTF8Sequence(source, valid, charlen, buf + len - source);
         if (!valid) { // Invalid sequence
-            str += 0xFFFD;
+            append(0xFFFD);
         } else if ((uint32_t)(ch) <= 0xffff) { // BMP
             if (((ch) & 0xfffff800) == 0xd800) { // SURROGATE
-                str += 0xFFFD;
+                append(0xFFFD);
                 source -= (charlen - 1);
             } else {
-                str += ch; // normal case
+                append(ch); // normal case
             }
         } else if ((uint32_t)((ch)-0x10000) <= 0xfffff) { // SUPPLEMENTARY
-            str += (char16_t)(((ch) >> 10) + 0xd7c0); // LEAD
-            str += (char16_t)(((ch) & 0x3ff) | 0xdc00); // TRAIL
+            append((char16_t)(((ch) >> 10) + 0xd7c0)); // LEAD
+            append((char16_t)(((ch) & 0x3ff) | 0xdc00)); // TRAIL
         } else {
-            str += 0xFFFD;
+            append(0xFFFD);
             source -= (charlen - 1);
         }
     }
+}
 
+UTF16StringDataNonGCStd utf8StringToUTF16StringNonGC(const char* buf, const size_t len)
+{
+    UTF16StringDataNonGCStd str;
+    decodeUTF8ToUTF16(buf, len, [&str](char16_t ch) { str += ch; });
     return str;
 }
 
@@ -875,11 +880,18 @@ String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len, bool maybeASCII)
 {
-    if (maybeASCII && isAllASCII(src, len)) {
+    if (!len || (maybeASCII && isAllASCII(src, len))) {
         return new CompressibleString(instance, src, len);
     } else {
-        auto s = utf8StringToUTF16StringNonGC(src, len);
-        return new CompressibleString(instance, s.data(), s.length());
+        size_t utf16Length = 0;
+        decodeUTF8ToUTF16(src, len, [&utf16Length](char16_t) { utf16Length++; });
+        RELEASE_ASSERT(utf16Length <= SIZE_MAX / sizeof(char16_t));
+        char16_t* buffer = static_cast<char16_t*>(CompressibleString::allocateStringDataBuffer(utf16Length * sizeof(char16_t)));
+        RELEASE_ASSERT(buffer);
+        size_t index = 0;
+        decodeUTF8ToUTF16(src, len, [&buffer, &index](char16_t ch) { buffer[index++] = ch; });
+        ASSERT(index == utf16Length);
+        return new CompressibleString(instance, buffer, utf16Length, false);
     }
 }
 #endif
