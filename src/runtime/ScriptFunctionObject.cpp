@@ -171,7 +171,7 @@ void ScriptFunctionObject::callConstructor(ExecutionState& state, Object* receiv
     FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, receiver, argc, argv, newTarget);
 }
 
-void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)
+void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Optional<Value*> stackStorage, bool isMapped)
 {
     // arrow function should not create an ArgumentsObject
     ASSERT(!isScriptArrowFunctionObject());
@@ -195,8 +195,17 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
         const InterpretedCodeBlock::IdentifierInfoVector& v = interpretedCodeBlock()->identifierInfos();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == arguments) {
+                if (UNLIKELY(v[i].m_indexForIndexedStorage == SIZE_MAX)) {
+                    // eval code can make a function use the arguments object only
+                    // after the layout of that function's environment record was
+                    // fixed, and captureArguments() then registers `arguments`
+                    // without a slot to keep it in. The object is still reachable
+                    // through the record itself, so there is nothing to store.
+                    break;
+                }
                 if (v[i].m_needToAllocateOnStack) {
-                    stackStorage[v[i].m_indexForIndexedStorage] = newArgumentsObject;
+                    ASSERT(stackStorage.hasValue());
+                    stackStorage.value()[v[i].m_indexForIndexedStorage] = newArgumentsObject;
                 } else {
                     environmentRecordWillArgumentsObjectBeLocatedIn->setHeapValueByIndex(state, v[i].m_indexForIndexedStorage, newArgumentsObject);
                 }

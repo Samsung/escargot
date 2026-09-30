@@ -1041,12 +1041,28 @@ public:
         return heapStorage()[idx];
     }
 
+    // Eval code can make a function use the arguments object only after the layout
+    // of that function's record was already fixed, and captureArguments() then
+    // registers `arguments` without an indexed slot to keep it in. The record holds
+    // the materialized object itself, so that is where such a binding lives.
+    // (ArgumentsObject.cpp handles the same SIZE_MAX index for its own accesses.)
+    EnvironmentRecord::GetBindingValueResult slotlessArgumentsBinding()
+    {
+        if (auto args = argumentsObject()) {
+            return EnvironmentRecord::GetBindingValueResult(args.value());
+        }
+        return EnvironmentRecord::GetBindingValueResult();
+    }
+
     virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
         const auto& v = functionObject()->interpretedCodeBlock()->identifierInfos();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
+                if (UNLIKELY(v[i].m_indexForIndexedStorage == SIZE_MAX)) {
+                    return slotlessArgumentsBinding();
+                }
                 return EnvironmentRecord::GetBindingValueResult(heapStorage()[v[i].m_indexForIndexedStorage]);
             }
         }
@@ -1087,6 +1103,12 @@ public:
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
+                if (UNLIKELY(v[i].m_indexForIndexedStorage == SIZE_MAX)) {
+                    // see slotlessArgumentsBinding(): this binding is kept in the
+                    // record itself, which can hold nothing but the arguments
+                    // object, so an assignment to it has nowhere to go.
+                    return;
+                }
                 heapStorage()[v[i].m_indexForIndexedStorage] = V;
                 return;
             }
