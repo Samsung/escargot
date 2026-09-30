@@ -394,9 +394,9 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #else
 
 #define DEFINE_OPCODE(codeName) case codeName##Opcode
-#define DEFINE_DEFAULT                \
-    default:                          \
-        RELEASE_ASSERT_NOT_REACHED(); \
+#define DEFINE_DEFAULT        \
+    default:                  \
+        ASSERT_UNREACHABLE(); \
         }
 #define NEXT_INSTRUCTION() \
     goto NextInstruction;
@@ -4560,7 +4560,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 
             return Value(Value::EmptyValue);
 #else
-                RELEASE_ASSERT_NOT_REACHED();
+                ASSERT_UNREACHABLE();
 #endif
         }
     } else {
@@ -5386,7 +5386,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         break;
     }
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 }
 

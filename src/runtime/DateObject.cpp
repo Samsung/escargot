@@ -1449,7 +1449,7 @@ String* DateObject::toISOString(ExecutionState& state)
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), ErrorObject::Messages::GlobalObject_InvalidDate);
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 

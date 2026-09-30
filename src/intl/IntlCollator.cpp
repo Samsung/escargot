@@ -296,7 +296,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
             // If the name given in the Type column of the row is "boolean",
             // then let value be the result of comparing value with "true".
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
         }
         // Set the [[<property>]] internal property of collator to value.
         collator->internalSlot()->set(state, ObjectPropertyName(property), value, collator->internalSlot());

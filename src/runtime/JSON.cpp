@@ -175,7 +175,7 @@ static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValu
         }
         return obj;
     } else {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 }
 

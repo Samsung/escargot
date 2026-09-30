@@ -64,13 +64,19 @@ CXXFLAGS += -DOS_BAREMETAL=1
 # NOTE: this must NOT be an install:: rule — in a CONFIG_BUILD_FLAT build
 # apps/Makefile's "install" target is never invoked by the normal build
 # chain (only "all", via tools/LibTargets.mk's $(APPDIR)/libapps.a rule).
-# context:: *is* run automatically (confirmed via the "Register: escargot"
-# message during `make context`), so hook the copy there instead.
-context::
+# context:: runs during initial setup (confirmed by "Register: escargot").
+# A cached NuttX .context skips context:: on later CI runs. The app's all::
+# target still runs when the sample sources are refreshed, so stage the newly
+# built engine archives there as well.
+.PHONY: stage-archives
+context:: stage-archives
+all:: stage-archives
+
+stage-archives:
 	$(Q) mkdir -p $(APPDIR)/staging
-	$(Q) cp -up $(ESCARGOT_PREBUILT)/libescargot.a $(APPDIR)/staging/
-	$(Q) cp -up $(ESCARGOT_PREBUILT)/libgc-lib.a $(APPDIR)/staging/
-	$(Q) cp -up $(ESCARGOT_PREBUILT)/liblibsimdutf.a $(APPDIR)/staging/
-	$(Q) cp -up $(ESCARGOT_PREBUILT)/liblibbf.a $(APPDIR)/staging/
+	$(Q) cp -f $(ESCARGOT_PREBUILT)/libescargot.a $(APPDIR)/staging/
+	$(Q) cp -f $(ESCARGOT_PREBUILT)/libgc-lib.a $(APPDIR)/staging/
+	$(Q) cp -f $(ESCARGOT_PREBUILT)/liblibsimdutf.a $(APPDIR)/staging/
+	$(Q) cp -f $(ESCARGOT_PREBUILT)/liblibbf.a $(APPDIR)/staging/
 
 include $(APPDIR)/Application.mk

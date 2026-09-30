@@ -452,13 +452,13 @@ public:
 
     virtual InterpretedCodeBlockRareData* rareData() const
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return nullptr;
     }
 
     virtual TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>& taggedTemplateLiteralCache()
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>* tempVector;
         return *tempVector;
     }

@@ -144,6 +144,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_subdirectory(${ESCARGOT_ROOT} ${CMAKE_BINARY_DIR}/escargot-engine)
 
+# NuttX's flat image does not initialize a PIC global offset table. GCutil
+# defaults to PIC even for static archives, which makes its global state reads
+# use an uninitialized GOT and causes GC initialization to abort.
+set_target_properties(gc-lib PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+
 # Reuse the exact same preprocessor defines the engine itself was compiled
 # with for any translation unit here that includes EscargotPublic.h (e.g.
 # OS_BAREMETAL, ESCARGOT_EXPORT=) instead of hand-copying ESCARGOT_DEFS again.

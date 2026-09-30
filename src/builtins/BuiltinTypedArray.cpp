@@ -83,7 +83,7 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
     case TypedArrayType::BigUint64:
         return glob->bigUint64Array();
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
     return Value();
 }

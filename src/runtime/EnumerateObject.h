@@ -35,7 +35,7 @@ public:
 
     virtual void fillRestElement(ExecutionState& state, Object* result)
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
 
     size_t m_index;

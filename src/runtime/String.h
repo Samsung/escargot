@@ -656,7 +656,7 @@ protected:
     StringBufferData m_bufferData;
     virtual StringBufferAccessData bufferAccessDataSpecialImpl()
     {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return m_bufferData;
     }
 

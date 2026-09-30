@@ -237,7 +237,7 @@ Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint prefer
 
     // Throw a TypeError exception.
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-toprimitive

@@ -287,7 +287,7 @@ static inline simdutf::base64_options toSIMDUTFDecodeOptions(Alphabet alphabet)
     case Alphabet::Base64URL:
         return simdutf::base64_url;
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 static inline simdutf::last_chunk_handling_options toSIMDUTFLastChunkHandling(LastChunkHandling lastChunkHandling)
@@ -300,7 +300,7 @@ static inline simdutf::last_chunk_handling_options toSIMDUTFLastChunkHandling(La
     case LastChunkHandling::StopBeforePartial:
         return simdutf::last_chunk_handling_options::stop_before_partial;
     }
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 template <typename T>

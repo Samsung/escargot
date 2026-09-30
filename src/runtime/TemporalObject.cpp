@@ -3911,7 +3911,7 @@ static int32_t unitIndexInTable(TemporalUnit unit)
     case TemporalUnit::Nanosecond:
         return 9;
     default: {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
     }
 }
@@ -3940,7 +3940,7 @@ static TemporalUnit unitInTable(int32_t i)
     case 9:
         return TemporalUnit::Nanosecond;
     default: {
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
     }
     }
 }

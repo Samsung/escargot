@@ -774,7 +774,7 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
         } else if (0xDC00 <= t && t <= 0xDFFF) {
             ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
         } else {
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
         }
     }
 

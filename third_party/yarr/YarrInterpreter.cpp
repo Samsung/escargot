@@ -964,7 +964,7 @@ public:
             return true;
         }
 
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return false;
     }
 
@@ -1098,7 +1098,7 @@ public:
             return true;
         }
 
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return false;
     }
 
@@ -1367,7 +1367,7 @@ public:
     {
         // 'Terminal' parentheses are at the end of the regex, and as such a match past end
         // should always be returned as a successful match - we should never backtrack to here.
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return false;
     }
 
@@ -1522,7 +1522,7 @@ public:
             return JSRegExpResult::Match;
         }
 
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return JSRegExpResult::ErrorNoMatch;
     }
 
@@ -1680,7 +1680,7 @@ public:
         }
         }
 
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return JSRegExpResult::ErrorNoMatch;
     }
 
@@ -2054,7 +2054,7 @@ public:
         }
 
         // We should never fall-through to here.
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
 
     backtrack:
         ASSERT(context->term < disjunction->terms.data() + disjunction->terms.size());
@@ -2066,7 +2066,7 @@ public:
             DUMP_EXTRA("id:", currentTerm().subpatternId(), " - Return NoMatch\n");
             return JSRegExpResult::NoMatch;
         case ByteTerm::Type::SubpatternEnd:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
 
         case ByteTerm::Type::BodyAlternativeBegin:
         case ByteTerm::Type::BodyAlternativeDisjunction: {
@@ -2110,7 +2110,7 @@ public:
             MATCH_NEXT();
         }
         case ByteTerm::Type::BodyAlternativeEnd:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
 
         case ByteTerm::Type::AlternativeBegin:
         case ByteTerm::Type::AlternativeDisjunction: {
@@ -2205,10 +2205,10 @@ public:
             BACKTRACK();
 
         case ByteTerm::Type::DotStarEnclosure:
-            RELEASE_ASSERT_NOT_REACHED();
+            ASSERT_UNREACHABLE();
         }
 
-        RELEASE_ASSERT_NOT_REACHED();
+        ASSERT_UNREACHABLE();
         return JSRegExpResult::ErrorNoMatch;
     }
 

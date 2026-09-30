@@ -69,7 +69,7 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
         return thisValue.toString(state);
 
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 #define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
@@ -1176,7 +1176,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
         return Value(thisValue.asPointerValue()->asStringObject()->primitiveValue());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

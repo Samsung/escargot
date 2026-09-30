@@ -47,7 +47,7 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -58,7 +58,7 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue()).toString(state);
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_UNREACHABLE();
 }
 
 void GlobalObject::initializeBoolean(ExecutionState& state)
