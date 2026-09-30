@@ -109,7 +109,7 @@ protected:
         return m_outerEnvironment;
     }
 
-    void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped);
+    void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Optional<Value*> stackStorage, bool isMapped);
     void generateByteCodeBlock(ExecutionState& state);
 
     static inline void fillGCDescriptor(GC_word* desc)

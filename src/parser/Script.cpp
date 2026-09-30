@@ -641,7 +641,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
             // If eval code uses the arguments object but not yet created in outer function, generate it
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
             bool isMapped = !funcObject->interpretedCodeBlock()->hasParameterOtherThanIdentifier() && !inStrict;
-            funcObject->generateArgumentsObject(newState, es->argc(), es->argv(), funcRecord, nullptr, isMapped);
+            funcObject->generateArgumentsObject(newState, es->argc(), es->argv(), funcRecord, NullOption, isMapped);
         }
     }
 
