@@ -667,10 +667,11 @@ jobs:
           lease_seconds=14400 # 4h, comfortably above this lock's real hold times
           RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" &
           lock_pid=$!
-          for _ in $(seq 1 600); do
+          # A performance run may hold the exclusive lock for several minutes.
+          for _ in $(seq 1 3600); do
             test -s "$ready_file" && break
             kill -0 "$lock_pid" 2>/dev/null || exit 1
-            sleep 0.1
+            sleep 1
           done
           test -s "$ready_file"
           printf 'PERFORMANCE_HOST_LOCK_PID=%s\n' "$lock_pid" >> "$GITHUB_ENV"
@@ -2104,7 +2105,7 @@ jobs:
     strategy:
       matrix:
         compiler: [gcc, clang]
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
     # See android-baremetal-test262: shared holders may run concurrently;
     # a benchmark job takes this same file exclusively.
@@ -2127,10 +2128,11 @@ jobs:
         lease_seconds=14400 # 4h, comfortably above this lock's real hold times
         RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" &
         lock_pid=$!
-        for _ in $(seq 1 600); do
+        # A performance run may hold the exclusive lock for several minutes.
+        for _ in $(seq 1 3600); do
           test -s "$ready_file" && break
           kill -0 "$lock_pid" 2>/dev/null || exit 1
-          sleep 0.1
+          sleep 1
         done
         test -s "$ready_file"
         printf 'PERFORMANCE_HOST_LOCK_PID=%s\n' "$lock_pid" >> "$GITHUB_ENV"
