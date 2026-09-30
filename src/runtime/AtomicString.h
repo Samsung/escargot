@@ -135,6 +135,69 @@ private:
 
 COMPILE_ASSERT(sizeof(AtomicString) == sizeof(size_t), "");
 
+// AtomicStringMap owns the canonical strings. Compact slots in identifier
+// arrays can therefore be allocated atomically without tracing their offsets.
+class CompactAtomicString {
+public:
+    CompactAtomicString()
+        : CompactAtomicString(AtomicString())
+    {
+    }
+
+    CompactAtomicString(AtomicString string)
+    {
+        *this = string;
+    }
+
+    CompactAtomicString& operator=(AtomicString string)
+    {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        const uintptr_t address = reinterpret_cast<uintptr_t>(string.string());
+        const uintptr_t offset = address - ThreadLocal::cageBase();
+        RELEASE_ASSERT(offset <= UINT32_MAX);
+        m_string = static_cast<uint32_t>(offset);
+#else
+        m_string = string.string();
+#endif
+        return *this;
+    }
+
+    String* string() const
+    {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return reinterpret_cast<String*>(ThreadLocal::cageBase() + m_string);
+#else
+        return m_string;
+#endif
+    }
+
+    operator AtomicString() const
+    {
+        return AtomicString::fromPayload(string());
+    }
+
+    friend bool operator==(CompactAtomicString left, AtomicString right)
+    {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        // The cage base is 4 GiB aligned, so the low bits are the offset.
+        return left.m_string == static_cast<uint32_t>(reinterpret_cast<uintptr_t>(right.string()));
+#else
+        return left.string() == right.string();
+#endif
+    }
+
+private:
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t m_string;
+#else
+    String* m_string;
+#endif
+};
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+COMPILE_ASSERT(sizeof(CompactAtomicString) == sizeof(uint32_t), "");
+#endif
+
 inline bool operator==(const AtomicString& a, const AtomicString& b)
 {
     return a.string() == b.string();

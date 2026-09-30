@@ -443,7 +443,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         for (size_t i = 0; i < globalLexicalVectorLen; i++) {
             // Let hasRestrictedGlobal be ? envRec.HasRestrictedGlobalProperty(name).
             // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-            auto desc = context()->globalObject()->getOwnProperty(state, globalLexicalVector[i].m_name);
+            auto desc = context()->globalObject()->getOwnProperty(state, AtomicString(globalLexicalVector[i].m_name));
             if (desc.hasValue() && !desc.isConfigurable()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString(), "redeclaration of non-configurable global property %s");
             }
