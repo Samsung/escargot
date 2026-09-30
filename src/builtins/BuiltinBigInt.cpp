@@ -74,6 +74,16 @@ static Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t
     }
     // Let bigint be ? ToBigInt(bigint).
     BigInt* bigint = argv[1].toBigInt(state);
+    // `bits` may be as large as 2^53-1, which neither fits the mask nor the libbf
+    // exponent type. No BigInt is wider than maxBitLength bits, so such a mask
+    // covers the whole value: a non-negative one is already its own result, while
+    // a negative one would need `bits` bits that cannot be represented.
+    if (UNLIKELY(bits > BigInt::maxBitLength)) {
+        if (bigint->isNegative()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::BigIntTooLarge);
+        }
+        return bigint;
+    }
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
     bf_init(ThreadLocal::bfContext(), &mask);
@@ -96,6 +106,11 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
     }
     // Let bigint be ? ToBigInt(bigint).
     BigInt* bigint = argv[1].toBigInt(state);
+    // see builtinBigIntAsUintN() above. Here the sign is kept as well, so a mask
+    // wider than any representable BigInt leaves the value untouched.
+    if (UNLIKELY(bits > BigInt::maxBitLength)) {
+        return bigint;
+    }
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
     bf_init(ThreadLocal::bfContext(), &mask);

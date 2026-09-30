@@ -97,6 +97,7 @@ public:
         static constexpr const char* Overflow = "overflow occurred";
         static constexpr const char* OutOfMemory = "out of memory";
         static constexpr const char* ExponentByNegative = "Exponent must be positive";
+        static constexpr const char* BigIntTooLarge = "Maximum BigInt size exceeded";
         static constexpr const char* GlobalObject_ThisUndefinedOrNull = "%s: this value is undefined or null";
         static constexpr const char* GlobalObject_ThisNotObject = "%s: this value is not an object";
         static constexpr const char* GlobalObject_ThisNotRegExpObject = "%s: this value is not a RegExp object";
