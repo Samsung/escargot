@@ -2590,6 +2590,60 @@ TEST(ReloadableString, Basic)
         return ValueRef::createUndefined(); }, string, &d);
 }
 
+TEST(ReloadableString, StringBufferAccessDataHoldsBuffer)
+{
+    char reloadableStringTestSource[] = "reloadable string buffer access test";
+    EXPECT_TRUE(StringRef::isReloadableStringEnabled());
+
+    struct Data {
+        const char* string;
+        bool loaded;
+    };
+
+    Data d;
+    d.string = reloadableStringTestSource;
+    d.loaded = false;
+
+    StringRef* string = StringRef::createReloadableString(g_context->vmInstance(), true, strlen(reloadableStringTestSource), &d, [](void* callbackData) -> void* {
+        Data* d = static_cast<Data*>(callbackData);
+        size_t len = strlen(d->string);
+        void* ptr = malloc(len);
+        memcpy(ptr, d->string, len);
+        d->loaded = true;
+        return ptr; }, [](void* memoryPtr, void* callbackData) {
+        Data* d = static_cast<Data*>(callbackData);
+        d->loaded = false;
+        free(memoryPtr); });
+
+    {
+        auto accessData = string->stringBufferAccessData();
+        EXPECT_TRUE(d.loaded);
+        EXPECT_TRUE(accessData.has8BitContent);
+        EXPECT_EQ(accessData.length, strlen(reloadableStringTestSource));
+
+        // the buffer of a reloadable string must stay loaded while someone
+        // holds its StringBufferAccessDataRef
+        g_context->vmInstance()->enterIdleMode();
+        EXPECT_TRUE(d.loaded);
+        EXPECT_TRUE(memcmp(accessData.buffer, reloadableStringTestSource, accessData.length) == 0);
+
+        {
+            // a copy owns a reference of its own
+            auto copiedAccessData = accessData;
+            g_context->vmInstance()->enterIdleMode();
+            EXPECT_TRUE(d.loaded);
+            EXPECT_TRUE(memcmp(copiedAccessData.buffer, reloadableStringTestSource, copiedAccessData.length) == 0);
+        }
+
+        g_context->vmInstance()->enterIdleMode();
+        EXPECT_TRUE(d.loaded);
+    }
+
+    // the last reference is released, so the buffer can be unloaded again
+    g_context->vmInstance()->enterIdleMode();
+    EXPECT_FALSE(d.loaded);
+}
+
 // records the native stack address seen at the bottom of the calibration/real
 // recursion below, so DisabledStackOverflow.Basic can measure real stack cost
 // per recursion level instead of relying on a guessed depth constant

@@ -90,11 +90,6 @@ public:
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const
-    {
-        return (const LChar*)m_bufferData.buffer;
-    }
-
     // unused
     virtual UTF16StringData toUTF16StringData() const
     {
@@ -157,11 +152,6 @@ public:
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const
-    {
-        return (const LChar*)m_bufferData.buffer;
-    }
-
     // unused
     virtual UTF8StringData toUTF8StringData() const
     {
@@ -221,11 +211,6 @@ public:
     virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferData.uncheckedCharAtFor16Bit(idx);
-    }
-
-    virtual const char16_t* characters16() const
-    {
-        return (const char16_t*)m_bufferData.buffer;
     }
 
     // unused

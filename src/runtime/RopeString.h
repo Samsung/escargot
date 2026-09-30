@@ -54,16 +54,6 @@ public:
         return true;
     }
 
-    virtual const LChar* characters8() const override
-    {
-        return (const LChar*)bufferAccessData().buffer;
-    }
-
-    virtual const char16_t* characters16() const override
-    {
-        return (const char16_t*)bufferAccessData().buffer;
-    }
-
     bool wasFlattened() const
     {
         return !m_bufferData.hasSpecialImpl;

@@ -394,16 +394,19 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), m_bytecodePattern->m_offsetsSize);
     unsigned* outputBuf = ALLOCA_ATOMIC(sizeof(unsigned) * outputBufLength, unsigned int);
     outputBuf[1] = start;
+    // keep the buffer of `str` alive(it may be a CompressibleString or a
+    // ReloadableString) while the matcher walks it
+    auto strAccessData = str->bufferAccessData();
     do {
         start = outputBuf[1];
         memset(outputBuf, -1, sizeof(unsigned) * 2 * (subPatternNum + 1));
         if (start > length) {
             break;
         }
-        if (LIKELY(str->has8BitContent()))
-            result = JSC::Yarr::interpret(m_bytecodePattern, str->characters8(), length, start, outputBuf);
+        if (LIKELY(strAccessData.has8BitContent))
+            result = JSC::Yarr::interpret(m_bytecodePattern, (const LChar*)strAccessData.bufferAs8Bit, length, start, outputBuf);
         else
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)str->characters16(), length, start, outputBuf);
+            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)strAccessData.bufferAs16Bit, length, start, outputBuf);
 
         if (result != JSC::Yarr::offsetNoMatch) {
             gotResult = true;

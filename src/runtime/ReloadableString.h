@@ -38,16 +38,6 @@ public:
     virtual UTF8StringData toUTF8StringData() const override;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
-    virtual const LChar* characters8() const override
-    {
-        return (const LChar*)bufferAccessData().buffer;
-    }
-
-    virtual const char16_t* characters16() const override
-    {
-        return (const char16_t*)bufferAccessData().buffer;
-    }
-
     virtual bool isReloadableString() override
     {
         return true;

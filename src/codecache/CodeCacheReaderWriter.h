@@ -146,13 +146,14 @@ public:
         void putString(String* string)
         {
             ASSERT(string->length());
-            bool is8Bit = string->has8BitContent();
+            auto accessData = string->bufferAccessData();
+            bool is8Bit = accessData.has8BitContent;
             ensureSize(sizeof(bool));
             put(is8Bit);
             if (LIKELY(is8Bit)) {
-                putData(string->characters8(), string->length());
+                putData((const LChar*)accessData.bufferAs8Bit, accessData.length);
             } else {
-                putData(string->characters16(), string->length());
+                putData(accessData.bufferAs16Bit, accessData.length);
             }
         }
 

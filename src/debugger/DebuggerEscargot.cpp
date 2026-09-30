@@ -47,9 +47,10 @@ void DebuggerEscargot::sendSubtype(uint8_t type, uint8_t subType)
 void DebuggerEscargot::sendString(uint8_t type, const String* string)
 {
     size_t length = string->length();
+    auto accessData = string->bufferAccessData();
 
-    if (string->has8BitContent()) {
-        const LChar* chars = string->characters8();
+    if (accessData.has8BitContent) {
+        const LChar* chars = (const LChar*)accessData.bufferAs8Bit;
         const size_t maxMessageLength = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1;
 
         while (length > maxMessageLength) {
@@ -64,7 +65,7 @@ void DebuggerEscargot::sendString(uint8_t type, const String* string)
         return;
     }
 
-    const char16_t* chars = string->characters16();
+    const char16_t* chars = accessData.bufferAs16Bit;
     const size_t maxMessageLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / 2;
 
     while (length > maxMessageLength) {
@@ -1015,9 +1016,10 @@ bool DebuggerEscargot::processEvents(ExecutionState* state, Optional<ByteCodeBlo
                     abort();
                 }
 
+                auto accessData = data->bufferAccessData();
                 send(ESCARGOT_DEBUGGER_SNAPSHOT_FINISHED,
-                     data->characters8(),
-                     data->length());
+                     accessData.bufferAs8Bit,
+                     accessData.length);
             }
             return true;
         }

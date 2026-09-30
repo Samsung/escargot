@@ -516,12 +516,12 @@ UTF16StringData ASCIIString::toUTF16StringData() const
 
 UTF8StringData ASCIIString::toUTF8StringData() const
 {
-    return UTF8StringData((const char*)ASCIIString::characters8(), ASCIIString::length());
+    return UTF8StringData(m_bufferData.bufferAs8Bit, ASCIIString::length());
 }
 
 UTF8StringDataNonGCStd ASCIIString::toNonGCUTF8StringData(int options) const
 {
-    return UTF8StringDataNonGCStd((const char*)ASCIIString::characters8(), ASCIIString::length());
+    return UTF8StringDataNonGCStd(m_bufferData.bufferAs8Bit, ASCIIString::length());
 }
 
 UTF16StringData Latin1String::toUTF16StringData() const
@@ -571,7 +571,7 @@ UTF8StringDataNonGCStd Latin1String::toNonGCUTF8StringData(int options) const
 
 UTF16StringData UTF16String::toUTF16StringData() const
 {
-    return UTF16StringData(UTF16String::characters16(), UTF16String::length());
+    return UTF16StringData(m_bufferData.bufferAs16Bit, UTF16String::length());
 }
 
 UTF8StringData UTF16String::toUTF8StringData() const

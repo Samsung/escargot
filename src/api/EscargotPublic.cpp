@@ -1023,16 +1023,57 @@ std::string StringRef::toStdUTF8String(int options)
     return toImpl(this)->toNonGCUTF8StringData(options);
 }
 
+StringRef::StringBufferAccessDataRef::StringBufferAccessDataRef()
+    : has8BitContent(true)
+    , length(0)
+    , buffer(nullptr)
+    , m_bufferOwnerRefCount(nullptr)
+{
+}
+
+StringRef::StringBufferAccessDataRef::StringBufferAccessDataRef(bool has8BitContent, size_t length, const void* buffer, void* bufferOwnerRefCount)
+    : has8BitContent(has8BitContent)
+    , length(length)
+    , buffer(buffer)
+    , m_bufferOwnerRefCount(bufferOwnerRefCount)
+{
+    StringBufferAccessData::retainExtraData(m_bufferOwnerRefCount);
+}
+
+StringRef::StringBufferAccessDataRef::StringBufferAccessDataRef(const StringRef::StringBufferAccessDataRef& src)
+    : has8BitContent(src.has8BitContent)
+    , length(src.length)
+    , buffer(src.buffer)
+    , m_bufferOwnerRefCount(src.m_bufferOwnerRefCount)
+{
+    StringBufferAccessData::retainExtraData(m_bufferOwnerRefCount);
+}
+
+StringRef::StringBufferAccessDataRef& StringRef::StringBufferAccessDataRef::operator=(const StringRef::StringBufferAccessDataRef& src)
+{
+    if (LIKELY(this != &src)) {
+        // retain first, `src` may hold the same buffer with this
+        StringBufferAccessData::retainExtraData(src.m_bufferOwnerRefCount);
+        StringBufferAccessData::releaseExtraData(m_bufferOwnerRefCount);
+        has8BitContent = src.has8BitContent;
+        length = src.length;
+        buffer = src.buffer;
+        m_bufferOwnerRefCount = src.m_bufferOwnerRefCount;
+    }
+    return *this;
+}
+
+StringRef::StringBufferAccessDataRef::~StringBufferAccessDataRef()
+{
+    StringBufferAccessData::releaseExtraData(m_bufferOwnerRefCount);
+}
+
 StringRef::StringBufferAccessDataRef StringRef::stringBufferAccessData()
 {
-    StringRef::StringBufferAccessDataRef ref;
     auto implRef = toImpl(this)->bufferAccessData();
-
-    ref.buffer = implRef.buffer;
-    ref.has8BitContent = implRef.has8BitContent;
-    ref.length = implRef.length;
-
-    return ref;
+    // the returned struct keeps its own reference on the buffer, so the string
+    // cannot be compressed or unloaded while the caller holds it
+    return StringRef::StringBufferAccessDataRef(implRef.has8BitContent, implRef.length, implRef.buffer, implRef.extraData);
 }
 
 bool RopeStringRef::wasFlattened()

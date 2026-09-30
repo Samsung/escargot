@@ -363,19 +363,21 @@ void CodeCacheWriter::storeStringTable()
             String* string = table[i].string();
             ASSERT(string->has8BitContent());
 
-            m_buffer.putData(string->characters8(), string->length());
+            auto accessData = string->bufferAccessData();
+            m_buffer.putData((const LChar*)accessData.bufferAs8Bit, accessData.length);
         }
     } else {
         for (size_t i = 0; i < tableSize; i++) {
             String* string = table[i].string();
-            bool is8Bit = string->has8BitContent();
+            auto accessData = string->bufferAccessData();
+            bool is8Bit = accessData.has8BitContent;
 
             m_buffer.ensureSize(sizeof(bool));
             m_buffer.put(is8Bit);
             if (is8Bit) {
-                m_buffer.putData(string->characters8(), string->length());
+                m_buffer.putData((const LChar*)accessData.bufferAs8Bit, accessData.length);
             } else {
-                m_buffer.putData(string->characters16(), string->length());
+                m_buffer.putData(accessData.bufferAs16Bit, accessData.length);
             }
         }
     }
