@@ -122,7 +122,9 @@ struct GlobalVariableAccessCacheItem;
     F(ArrayDefineOwnPropertyOperation)                \
     F(ArrayDefineOwnPropertyBySpreadElementOperation) \
     F(GetObject)                                      \
+    F(GetTypedArrayObject)                            \
     F(SetObjectOperation)                             \
+    F(SetTypedArrayObjectOperation)                   \
     F(GetObjectPreComputedCase)                       \
     F(GetObjectPreComputedCaseSimpleInlineCache2)     \
     F(GetObjectPreComputedCaseSimpleInlineCache)      \
@@ -1358,6 +1360,10 @@ public:
 #endif
 };
 
+class GetTypedArrayObject : public GetObject {
+};
+COMPILE_ASSERT(sizeof(GetTypedArrayObject) == sizeof(GetObject), "");
+
 class SetObjectOperation : public ByteCode {
 public:
     SetObjectOperation(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t propertyRegisterIndex, const size_t loadRegisterIndex)
@@ -1379,6 +1385,10 @@ public:
     }
 #endif
 };
+
+class SetTypedArrayObjectOperation : public SetObjectOperation {
+};
+COMPILE_ASSERT(sizeof(SetTypedArrayObjectOperation) == sizeof(SetObjectOperation), "");
 
 class ObjectDefineOwnPropertyOperation : public ByteCode {
 public:

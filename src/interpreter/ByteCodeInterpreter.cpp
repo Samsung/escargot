@@ -715,45 +715,56 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             GetObject* code = (GetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isArrayObject())) {
-                ArrayObject* arr = willBeObject.asArrayObject();
-                if (LIKELY(arr->isFastModeArray())) {
-                    // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
-                    // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
-                    if (LIKELY(property.isUInt32())) {
-                        uint32_t idx = property.asUInt32();
-                        if (LIKELY(idx < arr->arrayLength(*state))) {
-                            registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(arr->m_fastModeData[idx]);
-                            ADD_PROGRAM_COUNTER(GetObject);
-                            NEXT_INSTRUCTION();
-                        }
-                    } else if (property.isString()) {
-                        uint32_t idx = property.asString()->tryToUseAsIndex32();
-                        if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
-                            registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(arr->m_fastModeData[idx]);
-                            ADD_PROGRAM_COUNTER(GetObject);
-                            NEXT_INSTRUCTION();
-                        }
-                    }
-                    // For Object or other types, fall through to slow case to avoid side effects
-                }
-            } else if (willBeObject.isObject()) {
+            if (LIKELY(willBeObject.isObject())) {
                 Object* obj = willBeObject.asObject();
-                if (UNLIKELY(obj->hasTypedArrayObjectTag())) {
-                    TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
-                    uint32_t idx = property.isUInt32() ? property.asUInt32()
-                        : property.isString()          ? property.asString()->tryToUseAsIndex32()
-                                                       : Value::InvalidIndex32Value;
-                    // Buffer updates clear the cached address on detach or out-of-bounds.
-                    if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && arr->rawBuffer())) {
-                        registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
+                // Fast path: only handle UInt32 keys. Object keys must be excluded for correctness,
+                // since converting them can call toString()/valueOf() and turn the array non-fast.
+                // String keys are correct to handle here (tryToUseAsIndex32() is side-effect free)
+                // but are left to the slow case on purpose, to keep interpret() small.
+                if (LIKELY(obj->hasArrayObjectTag() && property.isUInt32())) {
+                    auto arr = obj->asArrayObject();
+                    uint32_t idx = property.asUInt32();
+                    if (LIKELY(arr->isFastModeArray() && idx < arr->arrayLength(*state))) {
+                        registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(arr->m_fastModeData[idx]);
                         ADD_PROGRAM_COUNTER(GetObject);
                         NEXT_INSTRUCTION();
                     }
+                } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
+                    // Only specialize on keys the specialized handler can actually serve.
+                    code->changeOpcode(Opcode::GetTypedArrayObjectOpcode);
                 }
-                registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(*state, property, willBeObject);
-                ADD_PROGRAM_COUNTER(GetObject);
-                NEXT_INSTRUCTION();
+            }
+            // For Object or other types, fall through to slow case to avoid side effects
+            JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
+        }
+
+        DEFINE_OPCODE(GetTypedArrayObject)
+            :
+        {
+            GetTypedArrayObject* code = (GetTypedArrayObject*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                if (LIKELY(obj->hasTypedArrayObjectTag())) {
+                    if (LIKELY(property.isUInt32())) {
+                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
+                        uint32_t idx = property.asUInt32();
+                        // Buffer updates clear the cached address on detach or out-of-bounds.
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength())) {
+                            registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
+                            ADD_PROGRAM_COUNTER(GetTypedArrayObject);
+                            NEXT_INSTRUCTION();
+                        }
+                    }
+                } else {
+                    // This site was specialized for TypedArray but is now seeing another receiver.
+                    // Hand it back to the generic handler instead of demoting it to the slow case,
+                    // so that a polymorphic site keeps the inline ArrayObject fast path. The opcode
+                    // is left alone, so this never ping-pongs; GetObject and GetTypedArrayObject are
+                    // the same size, so the generic handler advances the program counter correctly.
+                    JUMP_INSTRUCTION(GetObject);
+                }
             }
             JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
         }
@@ -764,38 +775,57 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isArrayObject())) {
-                ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                if (LIKELY(arr->isFastModeArray())) {
-                    // Fast path: only handle UInt32 and String to avoid toString()/valueOf() side effects
-                    // Object property keys can trigger toString()/valueOf() which may convert array to non-fast mode
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                // Fast path: only handle UInt32 keys. Object keys must be excluded for correctness,
+                // since converting them can call toString()/valueOf() and turn the array non-fast.
+                // String keys are correct to handle here (tryToUseAsIndex32() is side-effect free)
+                // but are left to the slow case on purpose, to keep interpret() small.
+                if (LIKELY(obj->hasArrayObjectTag() && property.isUInt32())) {
+                    auto arr = obj->asArrayObject();
+                    uint32_t idx = property.asUInt32();
+                    if (LIKELY(arr->isFastModeArray() && idx < arr->arrayLength(*state))) {
+                        arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+                        ADD_PROGRAM_COUNTER(SetObjectOperation);
+                        NEXT_INSTRUCTION();
+                    }
+                } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
+                    // Only specialize on keys the specialized handler can actually serve.
+                    code->changeOpcode(Opcode::SetTypedArrayObjectOperationOpcode);
+                }
+            }
+            // For Object or other types, fall through to slow case to avoid side effects
+            JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
+        }
+
+        DEFINE_OPCODE(SetTypedArrayObjectOperation)
+            :
+        {
+            SetTypedArrayObjectOperation* code = (SetTypedArrayObjectOperation*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                if (LIKELY(obj->hasTypedArrayObjectTag())) {
                     if (LIKELY(property.isUInt32())) {
+                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
                         uint32_t idx = property.asUInt32();
-                        if (LIKELY(idx < arr->arrayLength(*state))) {
-                            arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                            ADD_PROGRAM_COUNTER(SetObjectOperation);
-                            NEXT_INSTRUCTION();
-                        }
-                    } else if (property.isString()) {
-                        uint32_t idx = property.asString()->tryToUseAsIndex32();
-                        if (LIKELY(idx != Value::InvalidIndex32Value && idx < arr->arrayLength(*state))) {
-                            arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
-                            ADD_PROGRAM_COUNTER(SetObjectOperation);
+                        const Value& value = registerFile[code->m_loadRegisterIndex];
+                        // Restricted to Numbers stored into a non-BigInt array: that conversion runs no
+                        // user code and cannot throw, so the switch inlined here stays leaf-sized. Every
+                        // other primitive (and every BigInt array) takes the slow case, which does the
+                        // full ToNumber()/ToBigInt() conversion.
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && value.isNumber()
+                                   && arr->typedArrayType() < TypedArrayType::BigInt64)) {
+                            arr->setDirectTypedArrayElementNumeric(*state, idx, value);
+                            ADD_PROGRAM_COUNTER(SetTypedArrayObjectOperation);
                             NEXT_INSTRUCTION();
                         }
                     }
-                    // For Object or other types, fall through to slow case to avoid side effects
-                }
-            } else if (UNLIKELY(willBeObject.isObject() && willBeObject.asObject()->hasTypedArrayObjectTag())) {
-                TypedArrayObject* arr = static_cast<TypedArrayObject*>(willBeObject.asObject());
-                uint32_t idx = property.isUInt32() ? property.asUInt32()
-                    : property.isString()          ? property.asString()->tryToUseAsIndex32()
-                                                   : Value::InvalidIndex32Value;
-                const Value& value = registerFile[code->m_loadRegisterIndex];
-                if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && arr->rawBuffer() && value.isPrimitive())) {
-                    arr->setDirectTypedArrayElement(*state, idx, value);
-                    ADD_PROGRAM_COUNTER(SetObjectOperation);
-                    NEXT_INSTRUCTION();
+                } else {
+                    // See the comment in GetTypedArrayObject: hand a now-polymorphic site back to the
+                    // generic handler so it keeps the inline ArrayObject fast path.
+                    JUMP_INSTRUCTION(SetObjectOperation);
                 }
             }
             JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
@@ -2483,7 +2513,6 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
     }
 #endif
             FOR_EACH_BYTECODE(REGISTER_TABLE);
-
 #undef REGISTER_TABLE
 #undef OPAQUE_LABEL_ADDRESS
 #endif
