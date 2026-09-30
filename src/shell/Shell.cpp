@@ -271,52 +271,46 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
     FILE* fp = fopen(fileName, "r");
     if (fp) {
         StringRef* src = StringRef::emptyString();
-        std::string utf8Str;
-        std::vector<unsigned char> str;
+        std::string fileContents;
         char buf[512];
-        bool hasNonLatin1Content = false;
+        bool hasNonASCIIContent = false;
         size_t readLen;
         while ((readLen = fread(buf, 1, sizeof buf, fp))) {
-            if (!hasNonLatin1Content) {
+            if (!hasNonASCIIContent) {
                 for (size_t i = 0; i < readLen; i++) {
-                    unsigned char ch = buf[i];
-                    if (ch & 0x80) {
-                        // check non-latin1 character
-                        hasNonLatin1Content = true;
-                        fseek(fp, 0, SEEK_SET);
+                    if (static_cast<unsigned char>(buf[i]) & 0x80) {
+                        hasNonASCIIContent = true;
                         break;
                     }
-                    str.push_back(ch);
                 }
-            } else {
-                utf8Str.append(buf, readLen);
             }
+            fileContents.append(buf, readLen);
         }
         fclose(fp);
 
-        if (!hasNonLatin1Content && str.empty()) {
+        if (fileContents.empty()) {
             return src;
         }
 
         if (StringRef::isCompressibleStringEnabled()) {
             if (state) {
-                if (hasNonLatin1Content) {
-                    src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), utf8Str.data(), utf8Str.length(), false);
+                if (hasNonASCIIContent) {
+                    src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), fileContents.data(), fileContents.length(), false);
                 } else {
-                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.size());
+                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), reinterpret_cast<const unsigned char*>(fileContents.data()), fileContents.length());
                 }
             } else {
-                if (hasNonLatin1Content) {
-                    src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
+                if (hasNonASCIIContent) {
+                    src = StringRef::createFromUTF8(fileContents.data(), fileContents.length(), false);
                 } else {
-                    src = StringRef::createFromLatin1(str.data(), str.size());
+                    src = StringRef::createFromLatin1(reinterpret_cast<const unsigned char*>(fileContents.data()), fileContents.length());
                 }
             }
         } else {
-            if (hasNonLatin1Content) {
-                src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
+            if (hasNonASCIIContent) {
+                src = StringRef::createFromUTF8(fileContents.data(), fileContents.length(), false);
             } else {
-                src = StringRef::createFromLatin1(str.data(), str.size());
+                src = StringRef::createFromLatin1(reinterpret_cast<const unsigned char*>(fileContents.data()), fileContents.length());
             }
         }
         return src;
