@@ -414,6 +414,30 @@ void BigInt::throwBFException(ExecutionState& state, int status)
     return;
 }
 
+void BigInt::throwIfExceedsMaxBitLength(ExecutionState& state, bf_t* r)
+{
+    // a finite libbf value is mantissa * 2^expn with the mantissa in [0.5, 1),
+    // so `expn` is the bit length of the value. Infinity and NaN carry an expn
+    // larger than any real bit length, so they are rejected here as well.
+    if (UNLIKELY(r->expn > static_cast<slimb_t>(maxBitLength))) {
+        bf_delete(r);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::BigIntTooLarge);
+    }
+}
+
+bool BigInt::isShiftedOutOfRange(slimb_t shift) const
+{
+    // libbf caps the exponent it can hold, on 32bit far below the shift counts
+    // JavaScript allows, and rounds whatever underflows to a signed zero - which
+    // is how `-1n >> 1000000000000n` used to come back as 0n instead of -1n. The
+    // result of such a shift is known exactly without going through libbf.
+    if (shift >= 0 || isZero()) {
+        return false;
+    }
+    // |this| < 2^expn, so the quotient drops below 1 once the shift reaches expn
+    return -static_cast<int64_t>(shift) >= static_cast<int64_t>(m_bf.expn);
+}
+
 String* BigInt::toString(int radix)
 {
     int savedSign = m_bf.sign;
@@ -526,6 +550,7 @@ BigInt* BigInt::addition(ExecutionState& state, const BigInt* b) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -538,6 +563,7 @@ BigInt* BigInt::subtraction(ExecutionState& state, const BigInt* b) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -550,6 +576,7 @@ BigInt* BigInt::multiply(ExecutionState& state, const BigInt* b) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -584,6 +611,19 @@ BigInt* BigInt::remainder(ExecutionState& state, const BigInt* b) const
 
 BigInt* BigInt::pow(ExecutionState& state, const BigInt* b) const
 {
+    // unlike the shift operations below, bf_pow() actually computes the digits of
+    // the result, so an oversized exponent wedges the engine here instead of
+    // reaching the size check at the end. |this| is at least 2^(expn - 1), hence
+    // the result needs at least (expn - 1) * b bits: reject it up front.
+    if (UNLIKELY(m_bf.expn > 1 && !b->isNegative())) {
+        int64_t exponent;
+        // saturates at INT64_MAX for a huge b instead of wrapping around
+        bf_get_int64(&exponent, &b->m_bf, 0);
+        if (UNLIKELY(exponent > static_cast<int64_t>(maxBitLength) / (static_cast<int64_t>(m_bf.expn) - 1))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::BigIntTooLarge);
+        }
+    }
+
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
@@ -591,6 +631,7 @@ BigInt* BigInt::pow(ExecutionState& state, const BigInt* b) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -652,8 +693,16 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src) const
 #endif
     // if (op == OP_sar)
     //     v2 = -v2;
+    if (UNLIKELY(isShiftedOutOfRange(v2))) {
+        bf_delete(&r);
+        // flooring a negative value that lost all of its bits gives -1n, not 0n
+        return new BigInt(static_cast<int64_t>(isNegative() ? -1 : 0));
+    }
     int ret = bf_set(&r, &m_bf);
-    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    // a shift by a large negative amount underflows the libbf exponent, which is
+    // a correct result of 0n for an integer shift and must not be reported as an
+    // error: keep only the states that really make the result unusable
+    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
     if (v2 < 0) {
         ret |= bf_rint(&r, BF_RNDD) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
     }
@@ -661,6 +710,7 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -685,19 +735,23 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src) const
         v2 = std::numeric_limits<int64_t>::min() + 1;
 #endif
     v2 = -v2;
+    if (UNLIKELY(isShiftedOutOfRange(v2))) {
+        bf_delete(&r);
+        return new BigInt(static_cast<int64_t>(isNegative() ? -1 : 0));
+    }
     int ret = bf_set(&r, &m_bf);
-    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ);
+    // see leftShift() above: a right shift by a large negative amount can leave
+    // the value infinite, which used to be handed back as a BigInt that no longer
+    // held an integer at all
+    ret |= bf_mul_2exp(&r, v2, BF_PREC_INF, BF_RNDZ) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
     if (v2 < 0) {
         ret |= bf_rint(&r, BF_RNDD) & (BF_ST_OVERFLOW | BF_ST_MEM_ERROR);
     }
-    UNUSED_VARIABLE(ret);
-    // FIXME check overflow for rightshift operation
-    /*
     if (UNLIKELY(ret)) {
         bf_delete(&r);
         throwBFException(state, ret);
     }
-    */
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -710,6 +764,7 @@ BigInt* BigInt::increment(ExecutionState& state) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 
@@ -722,6 +777,7 @@ BigInt* BigInt::decrement(ExecutionState& state) const
         bf_delete(&r);
         throwBFException(state, ret);
     }
+    throwIfExceedsMaxBitLength(state, &r);
     return new BigInt(r);
 }
 

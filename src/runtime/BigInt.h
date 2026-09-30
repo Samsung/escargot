@@ -75,6 +75,17 @@ class BigInt : public PointerValue {
     friend class BigIntData;
 
 public:
+    // Implementation-defined upper bound on the magnitude of a BigInt, in bits.
+    // libbf stores a value as mantissa * 2^exponent, so an operation like
+    // `1n << 1000000000000n` builds an astronomically large number for free and
+    // only pays for it when the value has to be materialized - printing it with
+    // a power-of-two radix, or adding anything to it, then burns unbounded time
+    // and memory. Operations that can grow a value reject a result larger than
+    // this bound with a RangeError instead, as the specification permits. The
+    // bound is the one V8 uses. A 32bit target gives up earlier than this, when
+    // the libbf exponent itself overflows, but the error is the same RangeError.
+    static const uint32_t maxBitLength = 1 << 30;
+
     BigInt(int64_t num);
     BigInt(uint64_t num);
     BigInt(BigIntData&& n);
@@ -146,6 +157,13 @@ public:
 
 private:
     BigInt();
+
+    // deletes `r` and throws a RangeError if `r` needs more than maxBitLength bits
+    static void throwIfExceedsMaxBitLength(ExecutionState& state, bf_t* r);
+
+    // true when a shift of `shift` bits (a negative `shift` goes right) pushes
+    // every bit out of the value
+    bool isShiftedOutOfRange(slimb_t shift) const;
 
     void initFinalizer();
 
