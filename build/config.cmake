@@ -447,7 +447,11 @@ ENDIF()
 
 option(ESCARGOT_VALGRIND "Build with Valgrind annotations" OFF)
 IF (ESCARGOT_VALGRIND)
+    IF (ESCARGOT_MEM_STATS)
+        MESSAGE (FATAL_ERROR "ESCARGOT_VALGRIND and ESCARGOT_MEM_STATS cannot be combined: memory statistics register a finalizer for every allocation and distort Massif profiles")
+    ENDIF()
     SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DESCARGOT_VALGRIND)
+    SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DVALGRIND_TRACKING)
 ENDIF()
 
 # Handle legacy/typo variable ESARGOT_GOOGLE_PERF and map to standard ESCARGOT_GOOGLE_PERF
@@ -460,6 +464,10 @@ IF (ESCARGOT_GOOGLE_PERF)
     SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DESCARGOT_GOOGLE_PERF)
     SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -lprofiler -lunwind -llzma)
 ENDIF()
+
+# These are preprocessor definitions for the engine and its consumers, not
+# linker inputs. GCutil receives the same definitions through GCUTIL_CFLAGS.
+SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} ${PROFILER_FLAGS})
 
 #######################################################
 # FLAGS FOR DEBUGGER
