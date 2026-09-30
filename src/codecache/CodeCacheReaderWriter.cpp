@@ -165,7 +165,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         m_buffer.put(info.m_isParameterName);
         m_buffer.put(info.m_isExplicitlyDeclaredOrParameterName);
         m_buffer.put(info.m_isVarDeclaration);
-        m_buffer.put(info.m_indexForIndexedStorage);
+        m_buffer.put(static_cast<size_t>(info.m_indexForIndexedStorage));
         m_buffer.put(m_stringTable->add(info.m_name));
     }
 
@@ -193,7 +193,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
             m_buffer.put(info.m_needToAllocateOnStack);
             m_buffer.put(info.m_isMutable);
             m_buffer.put(info.m_isUsing);
-            m_buffer.put(info.m_indexForIndexedStorage);
+            m_buffer.put(static_cast<size_t>(info.m_indexForIndexedStorage));
             m_buffer.put(m_stringTable->add(info.m_name));
         }
     }
@@ -781,7 +781,11 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         info.m_isParameterName = m_buffer.get<bool>();
         info.m_isExplicitlyDeclaredOrParameterName = m_buffer.get<bool>();
         info.m_isVarDeclaration = m_buffer.get<bool>();
-        info.m_indexForIndexedStorage = m_buffer.get<size_t>();
+        size_t storageIndex = m_buffer.get<size_t>();
+        if (storageIndex != SIZE_MAX && storageIndex >= UINT32_MAX) {
+            throw CodeCacheReader::Error("identifier index out of range");
+        }
+        info.m_indexForIndexedStorage = storageIndex;
         info.m_name = m_stringTable->get(m_buffer.get<size_t>());
         identifierVector[i] = info;
     }
@@ -812,7 +816,11 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
                 idInfo.m_needToAllocateOnStack = m_buffer.get<bool>();
                 idInfo.m_isMutable = m_buffer.get<bool>();
                 idInfo.m_isUsing = m_buffer.get<bool>();
-                idInfo.m_indexForIndexedStorage = m_buffer.get<size_t>();
+                size_t storageIndex = m_buffer.get<size_t>();
+                if (storageIndex != SIZE_MAX && storageIndex >= UINT32_MAX) {
+                    throw CodeCacheReader::Error("identifier index out of range");
+                }
+                idInfo.m_indexForIndexedStorage = storageIndex;
                 idInfo.m_name = m_stringTable->get(m_buffer.get<size_t>());
                 info->identifiers()[j] = idInfo;
             }

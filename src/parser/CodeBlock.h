@@ -250,12 +250,38 @@ public:
         }
     };
 
+    // Keep the existing SIZE_MAX sentinel at call sites while storing four bytes.
+    class CompactIdentifierIndex {
+    public:
+        CompactIdentifierIndex()
+            : m_index(UINT32_MAX)
+        {
+        }
+
+        CompactIdentifierIndex& operator=(size_t index)
+        {
+            RELEASE_ASSERT(index == SIZE_MAX || index < UINT32_MAX);
+            m_index = index == SIZE_MAX ? UINT32_MAX : static_cast<uint32_t>(index);
+            return *this;
+        }
+
+        operator size_t() const
+        {
+            return m_index == UINT32_MAX ? SIZE_MAX : m_index;
+        }
+
+    private:
+        uint32_t m_index;
+    };
+
+    COMPILE_ASSERT(sizeof(CompactIdentifierIndex) == sizeof(uint32_t), "");
+
     struct BlockIdentifierInfo {
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
         bool m_isUsing : 1;
-        size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
-        AtomicString m_name;
+        CompactIdentifierIndex m_indexForIndexedStorage;
+        CompactAtomicString m_name;
     };
 
     typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
@@ -414,9 +440,14 @@ public:
         bool m_isParameterName : 1;
         bool m_isExplicitlyDeclaredOrParameterName : 1;
         bool m_isVarDeclaration : 1;
-        size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
-        AtomicString m_name;
+        CompactIdentifierIndex m_indexForIndexedStorage;
+        CompactAtomicString m_name;
     };
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    COMPILE_ASSERT(sizeof(BlockIdentifierInfo) == 12, "");
+    COMPILE_ASSERT(sizeof(IdentifierInfo) == 12, "");
+#endif
 
     typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
 
