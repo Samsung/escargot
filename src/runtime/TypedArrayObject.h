@@ -77,6 +77,8 @@ public:
     virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;
     Value getDirectTypedArrayElement(ExecutionState& state, uint32_t index);
     void setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value);
+    // Requires value.isNumber() and a non-BigInt element type; never throws.
+    void setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value);
 
     virtual bool hasOwnEnumeration() const override
     {

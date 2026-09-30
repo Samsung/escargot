@@ -110,6 +110,15 @@ struct Float16TypedArrayAdaptor {
     {
         return Float16(val.toNumber(state));
     }
+
+    static Float16 toNativeFromInt32(ExecutionState& state, int32_t value)
+    {
+        return Float16(static_cast<double>(value));
+    }
+    static Float16 toNativeFromDouble(ExecutionState& state, double value)
+    {
+        return Float16(value);
+    }
 };
 
 template <typename TypeArg>
@@ -358,9 +367,20 @@ struct TypedArrayHelper {
         }
     }
 
-    template <typename Adaptor, bool inlineNumericConversion>
+    /* Converts `val` to the array's native element type.
+       - inlineNumericConversion: handle Int32/Double inline before falling back to the generic
+         Adaptor::toNative(), which can run user code (valueOf) and throw.
+       - numericOnly: the caller guarantees val.isNumber(), so the generic fallback is dropped
+         altogether. That leaves the conversion leaf and non-throwing, which is what lets the
+         switch inlined into Interpreter::interpret() stay small. */
+    template <typename Adaptor, bool inlineNumericConversion, bool numericOnly = false>
     ALWAYS_INLINE static typename Adaptor::Type toNativeElement(ExecutionState& state, const Value& val)
     {
+        ASSERT(!numericOnly || val.isNumber());
+        if (numericOnly) {
+            return val.isInt32() ? Adaptor::toNativeFromInt32(state, val.asInt32())
+                                 : Adaptor::toNativeFromDouble(state, val.asDouble());
+        }
         if (inlineNumericConversion) {
             if (val.isInt32()) {
                 return Adaptor::toNativeFromInt32(state, val.asInt32());
@@ -372,44 +392,55 @@ struct TypedArrayHelper {
         return Adaptor::toNative(state, val);
     }
 
-    template <bool inlineNumericConversion = false, bool indexed = false>
+    /* With numericOnly the BigInt64/BigUint64 cases are unreachable: storing a Number into a
+       BigInt array is a TypeError, so the caller must filter those types out beforehand. */
+    template <bool inlineNumericConversion = false, bool indexed = false, bool numericOnly = false>
     ALWAYS_INLINE static void numberToRawBytes(ExecutionState& state, TypedArrayType type, const Value& val, uint8_t* rawBytes, uint32_t index = 0)
     {
+        ASSERT(!numericOnly || (val.isNumber() && type < TypedArrayType::BigInt64));
         switch (type) {
         case TypedArrayType::Int8:
-            *reinterpret_cast<Int8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Int8Adaptor, inlineNumericConversion>(state, val);
+            *reinterpret_cast<Int8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Int8Adaptor, inlineNumericConversion, numericOnly>(state, val);
             break;
         case TypedArrayType::Uint8:
-            *reinterpret_cast<Uint8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8Adaptor, inlineNumericConversion>(state, val);
+            *reinterpret_cast<Uint8Adaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8Adaptor, inlineNumericConversion, numericOnly>(state, val);
             break;
         case TypedArrayType::Uint8Clamped:
-            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8ClampedAdaptor, inlineNumericConversion>(state, val);
+            *reinterpret_cast<Uint8ClampedAdaptor::Type*>(elementAddress<indexed, 0>(rawBytes, index)) = toNativeElement<Uint8ClampedAdaptor, inlineNumericConversion, numericOnly>(state, val);
             break;
         case TypedArrayType::Int16:
-            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Int16Adaptor, inlineNumericConversion>(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Int16Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Uint16:
-            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Uint16Adaptor, inlineNumericConversion>(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Uint16Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Int32:
-            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Int32Adaptor, inlineNumericConversion>(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Int32Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Uint32:
-            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Uint32Adaptor, inlineNumericConversion>(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Uint32Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Float16:
-            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), Float16Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 1>(rawBytes, index), toNativeElement<Float16Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Float32:
-            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), Float32Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 2>(rawBytes, index), toNativeElement<Float32Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::Float64:
-            writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), Float64Adaptor::toNative(state, val));
+            writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), toNativeElement<Float64Adaptor, inlineNumericConversion, numericOnly>(state, val));
             break;
         case TypedArrayType::BigInt64:
+            if (numericOnly) {
+                ASSERT_NOT_REACHED();
+                break;
+            }
             writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), BigInt64Adaptor::toNative(state, val));
             break;
         case TypedArrayType::BigUint64:
+            if (numericOnly) {
+                ASSERT_NOT_REACHED();
+                break;
+            }
             writeRawBytesAs(elementAddress<indexed, 3>(rawBytes, index), BigUint64Adaptor::toNative(state, val));
             break;
         default:
@@ -445,6 +476,13 @@ ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElement(ExecutionState& 
 {
     ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer() && value.isPrimitive());
     TypedArrayHelper::numberToRawBytes<true, true>(state, m_type, value, rawBuffer(), index);
+}
+
+ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value)
+{
+    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    ASSERT(value.isNumber() && m_type < TypedArrayType::BigInt64);
+    TypedArrayHelper::numberToRawBytes<true, true, true>(state, m_type, value, rawBuffer(), index);
 }
 } // namespace Escargot
 #endif
