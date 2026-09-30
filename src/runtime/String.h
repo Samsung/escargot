@@ -128,18 +128,36 @@ struct StringBufferAccessData {
     };
     void* extraData;
 
+    // increase refCount in CompressibleString or ReloadableString
+    // while the count is not zero, the buffer cannot be compressed or unloaded
+    static void retainExtraData(void* extraData)
+    {
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
+        if (UNLIKELY(!!extraData)) {
+            (*reinterpret_cast<size_t*>(extraData))++;
+        }
+#endif
+    }
+
+    // decrease refCount in CompressibleString or ReloadableString
+    static void releaseExtraData(void* extraData)
+    {
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
+        if (UNLIKELY(!!extraData)) {
+            size_t& count = *reinterpret_cast<size_t*>(extraData);
+            ASSERT(count > 0);
+            count--;
+        }
+#endif
+    }
+
     StringBufferAccessData(bool has8Bit, size_t len, void* buffer, void* extraDataToKeep = nullptr)
         : has8BitContent(has8Bit)
         , length(len)
         , buffer(buffer)
         , extraData(extraDataToKeep)
     {
-#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
-        if (UNLIKELY(!!extraData)) {
-            // increase refCount in CompressibleString or ReloadableString
-            (*reinterpret_cast<size_t*>(extraData))++;
-        }
-#endif
+        retainExtraData(extraData);
     }
 
     StringBufferAccessData(const StringBufferAccessData& src)
@@ -148,25 +166,26 @@ struct StringBufferAccessData {
         , buffer(src.buffer)
         , extraData(src.extraData)
     {
-#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
-        if (UNLIKELY(!!extraData)) {
-            // increase refCount in CompressibleString or ReloadableString
-            (*reinterpret_cast<size_t*>(extraData))++;
-        }
-#endif
+        retainExtraData(extraData);
     }
 
+    StringBufferAccessData& operator=(const StringBufferAccessData& src)
+    {
+        if (LIKELY(this != &src)) {
+            // retain first, `src` may hold the same buffer with this
+            retainExtraData(src.extraData);
+            releaseExtraData(extraData);
+            has8BitContent = src.has8BitContent;
+            length = src.length;
+            buffer = src.buffer;
+            extraData = src.extraData;
+        }
+        return *this;
+    }
 
     ~StringBufferAccessData()
     {
-#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
-        if (extraData) {
-            // decrease refCount in CompressibleString or ReloadableString
-            size_t& count = *reinterpret_cast<size_t*>(extraData);
-            ASSERT(count > 0);
-            count--;
-        }
-#endif
+        releaseExtraData(extraData);
     }
 
     char16_t uncheckedCharAtFor8Bit(size_t idx) const
@@ -604,26 +623,13 @@ public:
     bool isWellFormed() const;
     String* toWellFormed();
 
-    template <typename Any>
-    const Any* characters() const
-    {
-        if (is8Bit()) {
-            return (Any*)characters8();
-        } else {
-            return (Any*)characters16();
-        }
-    }
-
-    virtual const LChar* characters8() const
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-        return nullptr;
-    }
-    virtual const char16_t* characters16() const
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-        return nullptr;
-    }
+    // NOTE there is intentionally no characters8()/characters16() here.
+    // some String subclasses(CompressibleString, ReloadableString) own a buffer
+    // that can be released whenever the VM compresses/unloads it, so a bare
+    // buffer pointer handed out through a `String*` cannot be kept valid.
+    // use bufferAccessData() and keep the returned StringBufferAccessData alive
+    // for as long as its buffer is read; that struct holds a reference count
+    // which blocks compression/unloading in the meantime.
 
     uint64_t advanceStringIndex(uint64_t index, bool unicode);
 
@@ -768,11 +774,6 @@ public:
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const override
-    {
-        return (const LChar*)m_bufferData.buffer;
-    }
-
     void initBufferAccessData(ASCIIStringData& stringData)
     {
         m_bufferData.has8BitContent = true;
@@ -840,11 +841,6 @@ public:
     virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
     {
         return StringBufferAccessData(true, m_bufferData.length, &m_bufferData.bufferPointerAsArray);
-    }
-
-    virtual const LChar* characters8() const override
-    {
-        return (LChar*)&m_bufferData.bufferPointerAsArray;
     }
 };
 
@@ -915,11 +911,6 @@ public:
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
     }
 
-    virtual const LChar* characters8() const override
-    {
-        return (const LChar*)m_bufferData.buffer;
-    }
-
     virtual UTF16StringData toUTF16StringData() const override;
     virtual UTF8StringData toUTF8StringData() const override;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
@@ -968,11 +959,6 @@ public:
     {
         return StringBufferAccessData(true, m_bufferData.length, &m_bufferData.bufferPointerAsArray);
     }
-
-    virtual const LChar* characters8() const override
-    {
-        return (LChar*)&m_bufferData.bufferPointerAsArray;
-    }
 };
 
 template <const int bufferSize>
@@ -992,11 +978,6 @@ public:
     void* operator new(size_t size)
     {
         return GC_MALLOC_ATOMIC(size);
-    }
-
-    virtual const LChar* characters8() const override
-    {
-        return m_buffer;
     }
 
 private:
@@ -1037,11 +1018,6 @@ public:
     virtual char16_t charAt(const size_t idx) const override
     {
         return m_bufferData.uncheckedCharAtFor16Bit(idx);
-    }
-
-    virtual const char16_t* characters16() const override
-    {
-        return (const char16_t*)m_bufferData.buffer;
     }
 
     virtual UTF16StringData toUTF16StringData() const override;
@@ -1120,11 +1096,6 @@ public:
     {
         return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }
-
-    virtual const char16_t* characters16() const override
-    {
-        return (char16_t*)&m_bufferData.bufferPointerAs16BitArray;
-    }
 };
 
 template <const int bufferSize>
@@ -1144,11 +1115,6 @@ public:
     void* operator new(size_t size)
     {
         return GC_MALLOC_ATOMIC(size);
-    }
-
-    virtual const char16_t* characters16() const override
-    {
-        return m_buffer;
     }
 
 private:

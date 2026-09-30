@@ -1217,8 +1217,15 @@ public:
 
     std::string toStdUTF8String(int options = NoOptions);
 
-    // don't store this sturct or string buffer
     // this is only for temporary access
+    // while this struct is alive, the buffer of the string it was created from
+    // stays valid: a compressible/reloadable string cannot be compressed or
+    // unloaded while someone holds its buffer. so keep it alive as long as you
+    // read `buffer`, and destroy it as soon as you are done(holding it forever
+    // keeps the string data in memory forever)
+    // note that this does not keep the string itself alive from GC's view.
+    // the StringRef it came from must be reachable(eg. held in a rooted value)
+    // for as long as this struct is used
     struct ESCARGOT_EXPORT StringBufferAccessDataRef {
         bool has8BitContent;
         size_t length;
@@ -1226,6 +1233,11 @@ public:
 
         // A type to hold a single Latin-1 character.
         typedef unsigned char LChar;
+
+        StringBufferAccessDataRef();
+        StringBufferAccessDataRef(const StringBufferAccessDataRef& src);
+        StringBufferAccessDataRef& operator=(const StringBufferAccessDataRef& src);
+        ~StringBufferAccessDataRef();
 
         char16_t uncheckedCharAtFor8Bit(size_t idx) const
         {
@@ -1245,6 +1257,14 @@ public:
                 return ((char16_t*)buffer)[idx];
             }
         }
+
+    private:
+        friend class StringRef;
+        StringBufferAccessDataRef(bool has8BitContent, size_t length, const void* buffer, void* bufferOwnerRefCount);
+
+        // points to the reference count of the string which owns `buffer`
+        // (null if the buffer cannot be released under the caller's feet)
+        void* m_bufferOwnerRefCount;
     };
 
     StringBufferAccessDataRef stringBufferAccessData();

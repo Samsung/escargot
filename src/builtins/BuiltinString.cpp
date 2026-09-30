@@ -949,22 +949,27 @@ static String* stringToLocaleConvertCase(ExecutionState& state, String* str, Str
 {
     int32_t len = str->length();
     char16_t* src = ALLOCA_ATOMIC(len * 2, char16_t);
-    if (str->has8BitContent()) {
-        const LChar* buf = str->characters8();
-        for (int32_t i = 0; i < len; i++) {
-            src[i] = buf[i];
+    {
+        auto accessData = str->bufferAccessData();
+        if (accessData.has8BitContent) {
+            for (int32_t i = 0; i < len; i++) {
+                src[i] = accessData.uncheckedCharAtFor8Bit(i);
+            }
+        } else {
+            memcpy(src, accessData.bufferAs16Bit, len * 2);
         }
-    } else {
-        memcpy(src, str->characters16(), len * 2);
     }
+
+    // ICU needs a null terminated locale id
+    auto localeId = locale->toNonGCUTF8StringData();
 
     UErrorCode status = U_ZERO_ERROR;
     int32_t dest_length = len * 3;
     char16_t* dest = ALLOCA_ATOMIC(dest_length * 2, char16_t);
     if (isUpper) {
-        dest_length = u_strToUpper(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
+        dest_length = u_strToUpper(dest, dest_length, src, len, localeId.data(), &status);
     } else {
-        dest_length = u_strToLower(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
+        dest_length = u_strToLower(dest, dest_length, src, len, localeId.data(), &status);
     }
 
     ASSERT(status != U_BUFFER_OVERFLOW_ERROR);
@@ -978,7 +983,6 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
     if (str->has8BitContent()) {
         size_t len = str->length();
-        const LChar* from = str->characters8();
         LChar* dest;
         Latin1StringData newStr;
         if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
@@ -988,6 +992,8 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
             dest = newStr.data();
         }
 
+        auto accessData = str->bufferAccessData();
+        const LChar* from = (const LChar*)accessData.bufferAs8Bit;
         for (size_t i = 0; i < len; i++) {
 #if defined(ENABLE_ICU)
             char32_t u2 = u_tolower(from[i]);
@@ -1009,16 +1015,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
     return stringToLocaleConvertCase(state, str, String::emptyString(), false);
 #else
     size_t len = str->length();
-    UTF16StringData newStr;
-    if (str->has8BitContent()) {
-        const LChar* buf = str->characters8();
-        newStr.resizeWithUninitializedValues(len);
-        for (size_t i = 0; i < len; i++) {
-            newStr[i] = buf[i];
-        }
-    } else {
-        newStr = UTF16StringData(str->characters16(), len);
-    }
+    UTF16StringData newStr = str->toUTF16StringData();
     char16_t* buf = newStr.data();
     for (size_t i = 0; i < len;) {
         char32_t c;
@@ -1048,7 +1045,8 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
 
         bool fitTo8Bit = true;
         size_t sharpSCount = 0;
-        const LChar* buf = str->characters8();
+        auto accessData = str->bufferAccessData();
+        const LChar* buf = (const LChar*)accessData.bufferAs8Bit;
         for (size_t i = 0; i < len; i++) {
             LChar ch = buf[i];
             // U+00B5 and U+00FF are mapped to a character beyond U+00FF
@@ -1094,15 +1092,7 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
     return stringToLocaleConvertCase(state, str, String::emptyString(), true);
 #else
     size_t len = str->length();
-    UTF16StringData newStr;
-    if (str->has8BitContent()) {
-        const LChar* buf = str->characters8();
-        newStr.resizeWithUninitializedValues(len);
-        for (size_t i = 0; i < len; i++) {
-            newStr[i] = buf[i];
-        }
-    } else
-        newStr = UTF16StringData(str->characters16(), len);
+    UTF16StringData newStr = str->toUTF16StringData();
     char16_t* buf = newStr.data();
     for (size_t i = 0; i < len;) {
         char32_t c;

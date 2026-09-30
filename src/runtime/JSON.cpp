@@ -330,13 +330,15 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
         size_t len = JText->length();
         char16_t* char16Buf = new char16_t[len];
         std::unique_ptr<char16_t[]> buf(char16Buf);
-        const LChar* srcBuf = JText->characters8();
+        auto accessData = JText->bufferAccessData();
+        const LChar* srcBuf = (const LChar*)accessData.bufferAs8Bit;
         for (size_t i = 0; i < len; i++) {
             char16Buf[i] = srcBuf[i];
         }
         unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), JText->length(), parseResult);
     } else {
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->characters16(), JText->length(), parseResult);
+        auto accessData = JText->bufferAccessData();
+        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, accessData.bufferAs16Bit, JText->length(), parseResult);
     }
 
     // 4

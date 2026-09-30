@@ -101,18 +101,6 @@ public:
         return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }
 
-    virtual const LChar* characters8() const override
-    {
-        ASSERT(has8BitContent());
-        return (LChar*)bufferAccessData().buffer;
-    }
-
-    virtual const char16_t* characters16() const override
-    {
-        ASSERT(!has8BitContent());
-        return (const char16_t*)bufferAccessData().buffer;
-    }
-
     virtual bool isStringView() override
     {
         return true;
