@@ -97,7 +97,8 @@ public:
             context->giveUpRegister();
         } else {
             auto rt = m_right->type();
-            if (m_left->isIdentifier() && (rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !context->shouldCareScriptExecutionResult()) {
+            // A rejected await or a thrown yield must not update the assignment target.
+            if (m_left->isIdentifier() && (rt != ASTNodeType::ArrayExpression && rt != ASTNodeType::ObjectExpression) && !rightCanSuspend() && !context->shouldCareScriptExecutionResult()) {
                 auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
                 if (std::get<0>(r)) {
                     m_left->asIdentifier()->addLexicalVariableErrorsIfNeeds(codeBlock, context, std::get<2>(r), false, true);
@@ -127,6 +128,16 @@ public:
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         return context->getRegister();
+    }
+
+private:
+    bool rightCanSuspend()
+    {
+        bool result = false;
+        m_right->iterateChildren([&result](Node* node) {
+            result |= node->type() == ASTNodeType::AwaitExpression || node->type() == ASTNodeType::YieldExpression;
+        });
+        return result;
     }
 };
 } // namespace Escargot
