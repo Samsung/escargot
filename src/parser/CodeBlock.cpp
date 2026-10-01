@@ -48,8 +48,8 @@ void* InterpretedCodeBlock::operator new(size_t size)
     return CustomAllocator<InterpretedCodeBlock>().allocate(1);
 }
 
-InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
-    : InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction)
+InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+    : InterpretedCodeBlock(ctx, script, scopeCtx, isEvalCode, isEvalCodeInFunction)
     , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
 {
     ASSERT(scopeCtx->m_needRareData);
@@ -58,8 +58,8 @@ InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx,
 #endif /* ESCARGOT_DEBUGGER */
 }
 
-InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
-    : InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
+InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+    : InterpretedCodeBlock(ctx, script, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
     , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
 {
     ASSERT(scopeCtx->m_needRareData);
@@ -151,22 +151,22 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
     }
 }
 
-InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
 {
     if (UNLIKELY(scopeCtx->m_needRareData)) {
-        return new InterpretedCodeBlockWithRareData(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction);
+        return new InterpretedCodeBlockWithRareData(ctx, script, scopeCtx, isEvalCode, isEvalCodeInFunction);
     }
 
-    return new InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction);
+    return new InterpretedCodeBlock(ctx, script, scopeCtx, isEvalCode, isEvalCodeInFunction);
 }
 
-InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
 {
     if (UNLIKELY(scopeCtx->m_needRareData)) {
-        return new InterpretedCodeBlockWithRareData(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
+        return new InterpretedCodeBlockWithRareData(ctx, script, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
     }
 
-    return new InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
+    return new InterpretedCodeBlock(ctx, script, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction);
 }
 
 // create an empty InterpretedCodeBlock
@@ -179,10 +179,10 @@ InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* 
     return new InterpretedCodeBlock(ctx, script);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : InterpretedCodeBlock(ctx, script)
 {
-    m_src = src;
+    m_src = script->source()->range();
     m_functionStart = ExtendedNodeLOC(1, 1, 0);
 #ifndef NDEBUG
     m_scopeContext = scopeCtx;
@@ -190,10 +190,10 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     recordGlobalParsingInfo(scopeCtx, isEvalCode, isEvalCodeInFunction);
 }
 
-InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : InterpretedCodeBlock(ctx, script)
 {
-    m_src = StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index);
+    m_src = script->source()->range(scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index);
     m_parent = parentBlock;
     m_functionName = scopeCtx->m_functionName;
     m_functionStart = scopeCtx->m_functionStartLOC;
@@ -209,7 +209,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     : CodeBlock(ctx)
     , m_script(script)
-    , m_src()
+    , m_src{ nullptr, 0, 0 }
     , m_byteCodeBlock(nullptr)
     , m_parent(nullptr)
     , m_children(nullptr)

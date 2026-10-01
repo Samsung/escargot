@@ -5081,6 +5081,51 @@ ScriptParserRef::InitializeFunctionScriptResult::InitializeFunctionScriptResult(
 {
 }
 
+static_assert(static_cast<uint8_t>(ScriptSourceRef::Encoding::ASCII) == static_cast<uint8_t>(SourceEncoding::ASCII), "");
+static_assert(static_cast<uint8_t>(ScriptSourceRef::Encoding::Latin1) == static_cast<uint8_t>(SourceEncoding::Latin1), "");
+static_assert(static_cast<uint8_t>(ScriptSourceRef::Encoding::UTF8) == static_cast<uint8_t>(SourceEncoding::UTF8), "");
+static_assert(static_cast<uint8_t>(ScriptSourceRef::Encoding::UTF16) == static_cast<uint8_t>(SourceEncoding::UTF16), "");
+
+ScriptSourceRef* ScriptSourceRef::createFromASCII(const char* data, size_t length)
+{
+    return toRef(ScriptSource::createFromASCII(data, length));
+}
+
+ScriptSourceRef* ScriptSourceRef::createFromUTF8(const char* data, size_t length)
+{
+    return toRef(ScriptSource::createFromUTF8(data, length));
+}
+
+ScriptSourceRef* ScriptSourceRef::createFromUTF16(const char16_t* data, size_t length)
+{
+    return toRef(ScriptSource::createFromUTF16(data, length));
+}
+
+ScriptSourceRef* ScriptSourceRef::createFromString(StringRef* string)
+{
+    return toRef(ScriptSource::createFromString(toImpl(string)));
+}
+
+size_t ScriptSourceRef::length()
+{
+    return toImpl(this)->length();
+}
+
+ScriptSourceRef::Encoding ScriptSourceRef::encoding()
+{
+    return static_cast<Encoding>(toImpl(this)->encoding());
+}
+
+size_t ScriptSourceRef::storageLength()
+{
+    return toImpl(this)->storageLength();
+}
+
+StringRef* ScriptSourceRef::string()
+{
+    return toRef(toImpl(this)->string());
+}
+
 ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* source, StringRef* srcName, bool isModule)
 {
     auto internalResult = toImpl(this)->initializeScript(toImpl(source), toImpl(srcName), isModule);
@@ -5092,6 +5137,19 @@ ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(String
         result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;
     }
 
+    return result;
+}
+
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(ScriptSourceRef* source, StringRef* srcName, bool isModule)
+{
+    auto internalResult = toImpl(this)->initializeScript(toImpl(source), toImpl(srcName), isModule);
+    ScriptParserRef::InitializeScriptResult result;
+    if (internalResult.script) {
+        result.script = toRef(internalResult.script.value());
+    } else {
+        result.parseErrorMessage = toRef(internalResult.parseErrorMessage);
+        result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;
+    }
     return result;
 }
 
@@ -5154,6 +5212,11 @@ StringRef* ScriptRef::src()
 StringRef* ScriptRef::sourceCode()
 {
     return toRef(toImpl(this)->sourceCode());
+}
+
+ScriptSourceRef* ScriptRef::source()
+{
+    return toRef(toImpl(this)->source());
 }
 
 ContextRef* ScriptRef::context()

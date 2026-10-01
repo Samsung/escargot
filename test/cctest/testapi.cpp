@@ -567,6 +567,132 @@ TEST(EvalScript, Run)
     EXPECT_EQ(s, "2");
 }
 
+TEST(EvalScript, ScriptSourceUTF8)
+{
+    const char source[] = "let marker = \"\xF0\x9F\x98\x80\"; function outer() { return function inner(a) { return a + marker.length; }; } const f = outer(); f.toString();";
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source, sizeof(source) - 1);
+    EXPECT_EQ(scriptSource->length(), 128u);
+    EXPECT_EQ(scriptSource->storageLength(), sizeof(source) - 1);
+    EXPECT_EQ(scriptSource->encoding(), ScriptSourceRef::Encoding::UTF8);
+
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("raw-utf8.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+    EXPECT_EQ(parseResult.script.value()->sourceCode()->toStdUTF8String(), std::string(source, sizeof(source) - 1));
+    EXPECT_EQ(parseResult.script.value()->source(), scriptSource);
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_EQ(execution.result->asString()->toStdUTF8String(), "function inner(a) { return a + marker.length; }");
+}
+
+TEST(EvalScript, ScriptSourceInvalidUTF8)
+{
+    const char source[] = { '\'', static_cast<char>(0xff), '\'', ';', '\0' };
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source, sizeof(source) - 1);
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("invalid-utf8.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_EQ(execution.result->asString()->toStdUTF8String(), "\xEF\xBF\xBD");
+}
+
+TEST(EvalScript, ScriptSourceUTF16LoneSurrogate)
+{
+    const char16_t source[] = { u'\'', static_cast<char16_t>(0xd800), u'\'', u'.', u'c', u'h', u'a', u'r', u'C', u'o', u'd', u'e', u'A', u't', u'(', u'0', u')', u';' };
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF16(source, sizeof(source) / sizeof(source[0]));
+    EXPECT_EQ(scriptSource->storageLength(), scriptSource->length());
+    EXPECT_EQ(scriptSource->encoding(), ScriptSourceRef::Encoding::UTF16);
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("lone-surrogate.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+    EXPECT_EQ(parseResult.script.value()->source(), scriptSource);
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_TRUE(execution.result->isNumber());
+    EXPECT_EQ(execution.result->asNumber(), 0xd800);
+}
+
+TEST(EvalScript, ScriptSourceEncodingIndependentExecution)
+{
+    const char ascii[] = "40 + 2";
+    const char utf8[] = "'\xF0\x9F\x98\x80'.length + 40";
+    const char16_t utf16[] = { u'\'', 0xd83d, 0xde00, u'\'', u'.', u'l', u'e', u'n', u'g', u't', u'h', u' ', u'+', u' ', u'4', u'0' };
+    ScriptSourceRef* sources[] = {
+        ScriptSourceRef::createFromASCII(ascii, sizeof(ascii) - 1),
+        ScriptSourceRef::createFromUTF8(utf8, sizeof(utf8) - 1),
+        ScriptSourceRef::createFromUTF16(utf16, sizeof(utf16) / sizeof(utf16[0])),
+    };
+
+    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i) {
+        auto parseResult = g_context->scriptParser()->initializeScript(sources[i], StringRef::createFromASCII("encoding.js"), false);
+        ASSERT_TRUE(parseResult.script.hasValue());
+        auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+        ASSERT_TRUE(execution.isSuccessful());
+        EXPECT_TRUE(execution.result->isNumber());
+        EXPECT_EQ(execution.result->asNumber(), 42);
+    }
+}
+
+TEST(EvalScript, ScriptSourceUTF8BoundaryAndLazyFunction)
+{
+    std::string source;
+    for (size_t i = 0; i < 160; ++i) {
+        source += "// \xF0\x9F\x98\x80\n";
+    }
+    source += "function outer() { return function inner() { return 42; }; } outer()();";
+
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source.data(), source.length());
+    ASSERT_GT(scriptSource->length(), 256u);
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("utf8-boundary.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_EQ(execution.result->asNumber(), 42);
+}
+
+TEST(EvalScript, ScriptSourceFromString)
+{
+    StringRef* text = StringRef::createFromUTF8("'\xF0\x9F\x98\x80'.length + 40", strlen("'\xF0\x9F\x98\x80'.length + 40"));
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromString(text);
+    // createFromString keeps the given string as is, it reports how the content is stored
+    EXPECT_EQ(scriptSource->string(), text);
+    EXPECT_EQ(scriptSource->length(), text->length());
+    EXPECT_EQ(scriptSource->storageLength(), text->length());
+    EXPECT_EQ(scriptSource->encoding(), ScriptSourceRef::Encoding::UTF16);
+
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("from-string.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+    EXPECT_EQ(parseResult.script.value()->source(), scriptSource);
+    EXPECT_EQ(parseResult.script.value()->sourceCode(), text);
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_EQ(execution.result->asNumber(), 42);
+}
+
+TEST(EvalScript, ScriptSourceNestedEvalAndFunctionConstructor)
+{
+    // eval and `new Function` inside a ScriptSource backed script build their own sources
+    // the names are unique because every test shares one global object
+    const char source[] = "var nestedMarker = '\xF0\x9F\x98\x80';"
+                          "var nestedFromEval = eval('nestedMarker.length + 1');"
+                          "var nestedMade = new Function('a', 'return a + nestedMarker.length;');"
+                          "nestedFromEval + nestedMade(10) + ':' + nestedMade.toString();";
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source, sizeof(source) - 1);
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("nested-eval.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+
+    // the same script parsed from a plain string must give the very same result,
+    // Function.prototype.toString of the generated function included
+    auto expected = evalScript(g_context.get(), StringRef::createFromUTF8(source, sizeof(source) - 1), StringRef::createFromASCII("nested-eval-plain.js"), false);
+    EXPECT_EQ(execution.result->asString()->toStdUTF8String(), expected);
+}
+
 TEST(EvalScript, Run2)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("'1' - 1"), StringRef::createFromASCII("test.js"), false);

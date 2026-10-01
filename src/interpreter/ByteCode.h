@@ -3855,7 +3855,7 @@ public:
             char* dumpCodeblockTree = getenv("DUMP_CODEBLOCK_TREE");
             if ((dumpByteCode && (strcmp(dumpByteCode, "1") == 0)) || (dumpCodeblockTree && (strcmp(dumpCodeblockTree, "1") == 0))) {
                 if (idx != SIZE_MAX) {
-                    auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
+                    auto loc = computeNodeLOC(m_codeBlock->src().toStringView(), m_codeBlock->functionStart(), idx);
                     t.m_loc.line = loc.line;
                     t.m_loc.column = loc.column;
                 }
@@ -3873,7 +3873,7 @@ public:
         }
 
 #if !defined(NDEBUG) && defined(ESCARGOT_DEBUGGER)
-        const auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
+        const auto loc = computeNodeLOC(m_codeBlock->src().toStringView(), m_codeBlock->functionStart(), idx);
         ByteCodeLOC* bytecodeLoc = &reinterpret_cast<ByteCode*>(first)->m_loc;
         bytecodeLoc->index = loc.index;
         bytecodeLoc->line = loc.line;

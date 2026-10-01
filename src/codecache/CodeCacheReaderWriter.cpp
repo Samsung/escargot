@@ -119,8 +119,8 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
 
     {
         // InterpretedCodeBlock::m_src
-        size_t start = codeBlock->src().start();
-        size_t end = codeBlock->src().end();
+        size_t start = codeBlock->src().start;
+        size_t end = codeBlock->src().end;
         m_buffer.put(start);
         m_buffer.put(end);
     }
@@ -740,7 +740,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         // InterpretedCodeBlock::m_src
         size_t start = m_buffer.get<size_t>();
         size_t end = m_buffer.get<size_t>();
-        codeBlock->m_src = StringView(script->sourceCode(), start, end);
+        codeBlock->m_src = script->source()->range(start, end);
     }
 
     // InterpretedCodeBlock::m_parent

@@ -132,14 +132,14 @@ static bool hasShadowedPrivateNameInClassChain(InterpretedCodeBlock* codeBlock)
     return false;
 }
 
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, Script* script, ASTScopeContext* scopeCtx, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
 {
     InterpretedCodeBlock* codeBlock;
-    if (parentCodeBlock == nullptr) {
+    if (!parentCodeBlock) {
         // globalBlock
-        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, source, scopeCtx, isEvalCode, isEvalCodeInFunction);
+        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, scopeCtx, isEvalCode, isEvalCodeInFunction);
     } else {
-        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, source, scopeCtx, parentCodeBlock, isEvalCode, isEvalCodeInFunction);
+        codeBlock = InterpretedCodeBlock::createInterpretedCodeBlock(ctx, script, scopeCtx, parentCodeBlock.value(), isEvalCode, isEvalCodeInFunction);
     }
 
 #if defined(ENABLE_CODE_CACHE)
@@ -332,7 +332,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         ASTScopeContext* childScope = scopeCtx->firstChild();
         for (size_t i = 0; i < childCount; i++) {
             ASSERT(!!childScope);
-            InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, source, script, childScope, codeBlock, isEvalCode, isEvalCodeInFunction);
+            InterpretedCodeBlock* newBlock = generateCodeBlockTreeFromASTWalker(ctx, script, childScope, codeBlock, isEvalCode, isEvalCodeInFunction);
             (*codeBlockVector)[i] = newBlock;
             childScope = childScope->nextSibling();
         }
@@ -345,9 +345,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 }
 
 // generate code blocks from AST
-InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction)
+InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction)
 {
-    return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr, isEvalCode, isEvalCodeInFunction);
+    return generateCodeBlockTreeFromASTWalker(ctx, script, program->scopeContext(), nullptr, isEvalCode, isEvalCodeInFunction);
 }
 
 void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
@@ -387,7 +387,7 @@ void ScriptParser::deleteCodeBlockCacheInfo()
 }
 #endif
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(Optional<String*> originSource, size_t originLineOffset, ScriptSource* source, String* srcName, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration)
 {
     ASSERT(m_context->astAllocator().isInitialized());
 
@@ -397,13 +397,15 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     CodeCacheIndex cacheIndex;
     CodeBlockCacheInfoHolder cacheInfoHolder;
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
-    bool cacheable = codeCache->enabled() && needByteCodeGeneration && !isModule && !isEvalMode && srcName->length() && source->length() > codeCache->minSourceLength();
+    size_t sourceLength = source->length();
+    bool cacheable = codeCache->enabled() && needByteCodeGeneration && !isModule && !isEvalMode && srcName->length() && sourceLength > codeCache->minSourceLength();
 
     // Load caching
     if (cacheable) {
         ASSERT(!parentCodeBlock);
+        size_t sourceHash = source->hashValue();
         // set m_functionIndex as SIZE_MAX for global code
-        cacheIndex = CodeCacheIndex(source->hashValue<0, false>(), source->length(), SIZE_MAX);
+        cacheIndex = CodeCacheIndex(sourceHash, sourceLength, SIZE_MAX);
         auto result = codeCache->searchCache(cacheIndex);
         if (result.first) {
             GC_disable();
@@ -445,13 +447,13 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     InterpretedCodeBlock* topCodeBlock = nullptr;
-    StringView sourceView(source, 0, source->length());
+    StringView sourceView = source->range().toStringView();
     ProgramNode* programNode = nullptr;
     Script* script = nullptr;
 
     // Parsing
     try {
-        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
+        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock.unwrap());
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
                                             isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
@@ -473,9 +475,9 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
             programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
             programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
             programNode->scopeContext()->m_allowArguments = parentCodeBlock->allowArguments();
-            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, sourceView, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, sourceView, script, programNode, isEvalMode, isEvalCodeInFunction);
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, script, programNode, isEvalMode, isEvalCodeInFunction);
         }
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
@@ -629,7 +631,7 @@ Script* ScriptParser::initializeJSONModule(String* source, String* srcName)
 
     moduleData->m_localExportEntries.push_back(entry);
 
-    Script* script = new Script(srcName, source, moduleData, 0, false);
+    Script* script = new Script(srcName, ScriptSource::createFromString(source), moduleData, 0, false);
 
     ModuleEnvironmentRecord* moduleRecord = new ModuleEnvironmentRecord(script);
     moduleData->m_moduleRecord = moduleRecord;
@@ -665,7 +667,7 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
     }
 }
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(Optional<String*> originSource, size_t originLineOffset, ScriptSource* source, String* srcName, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
     // src name should have valid string
     ASSERT(srcName && srcName->length());
@@ -681,13 +683,13 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     InterpretedCodeBlock* topCodeBlock = nullptr;
-    StringView sourceView(source, 0, source->length());
+    StringView sourceView = source->range().toStringView();
     ProgramNode* programNode = nullptr;
     Script* script = nullptr;
 
     // Parsing
     try {
-        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
+        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock.unwrap());
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
 
@@ -701,9 +703,9 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
             programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
             programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
             programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
-            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, sourceView, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
+            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
         } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, sourceView, script, programNode, isEvalMode, isEvalCodeInFunction);
+            topCodeBlock = generateCodeBlockTreeFromAST(m_context, script, programNode, isEvalMode, isEvalCodeInFunction);
         }
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
@@ -712,7 +714,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         m_context->astAllocator().reset();
 
         if (m_context->debuggerEnabled()) {
-            m_context->debugger()->parseCompleted(originSource ? originSource : source, srcName, originLineOffset, orgError->message);
+            m_context->debugger()->parseCompleted(originSource.hasValue() ? originSource.value() : source->string(), srcName, originLineOffset, orgError->message);
             m_context->debugger()->clearParsingData();
             m_context->debugger()->setInDebuggingCodeMode(false);
         }
@@ -748,7 +750,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         if (debugger != nullptr) {
             recursivelyGenerateChildrenByteCode(topCodeBlock);
 
-            debugger->parseCompleted(originSource ? originSource : source, srcName, originLineOffset);
+            debugger->parseCompleted(originSource.hasValue() ? originSource.value() : source->string(), srcName, originLineOffset);
             debugger->clearParsingData();
             debugger->setInDebuggingCodeMode(false);
         }
@@ -760,7 +762,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         String* msg = String::fromASCII(message, strlen(message));
 
         if (m_context->debuggerEnabled()) {
-            m_context->debugger()->parseCompleted(originSource ? originSource : source, srcName, originLineOffset, msg);
+            m_context->debugger()->parseCompleted(originSource.hasValue() ? originSource.value() : source->string(), srcName, originLineOffset, msg);
             m_context->debugger()->clearParsingData();
             m_context->debugger()->setInDebuggingCodeMode(false);
         }

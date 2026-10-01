@@ -544,7 +544,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
     index -= cb->functionStart().index;
 
-    auto result = computeNodeLOC(cb->src(), cb->functionStart(), index);
+    auto result = computeNodeLOC(cb->src().toStringView(), cb->functionStart(), index);
     result.index = indexRelatedWithScript;
 
     return result;

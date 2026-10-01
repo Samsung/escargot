@@ -45,7 +45,7 @@ void* Script::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Script)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_srcName));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_sourceCode));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_source));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_topCodeBlock));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_moduleData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Script));
@@ -351,7 +351,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             ESCARGOT_LOG_ERROR("You cannot re-execute this type of Script object");
             RELEASE_ASSERT_NOT_REACHED();
         }
-        m_topCodeBlock = state.context()->scriptParser().initializeScript(m_sourceCode, m_srcName, m_moduleData).script->m_topCodeBlock;
+        m_topCodeBlock = state.context()->scriptParser().initializeScript(m_source, m_srcName, m_moduleData).script->m_topCodeBlock;
     }
 
     if (isModule()) {

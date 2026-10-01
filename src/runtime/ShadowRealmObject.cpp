@@ -101,7 +101,7 @@ Value ShadowRealmObject::wrappedValue(ExecutionState& state, Context* callerReal
 Value ShadowRealmObject::eval(ExecutionState& state, String* sourceText, Context* callerRealm)
 {
     ScriptParser parser(m_realmContext);
-    Script* script = parser.initializeScript(nullptr, 0, sourceText, m_realmContext->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, false, false, false, false, true).scriptThrowsExceptionIfParseError(state);
+    Script* script = parser.initializeScript(nullptr, 0, ScriptSource::createFromString(sourceText), m_realmContext->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, false, false, false, false, true).scriptThrowsExceptionIfParseError(state);
     Value scriptResult;
     try {
         scriptResult = script->execute(state, true, false);

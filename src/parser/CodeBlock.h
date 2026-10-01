@@ -21,6 +21,7 @@
 #define __EscargotCodeBlock__
 
 #include "parser/ast/CommonASTData.h"
+#include "parser/ScriptSource.h"
 #include "runtime/AtomicString.h"
 
 namespace Escargot {
@@ -514,7 +515,8 @@ public:
         return m_script;
     }
 
-    const StringView& src()
+    // function source including parameters
+    SourceRange src() const
     {
         return m_src;
     }
@@ -1050,7 +1052,7 @@ public:
 
 protected:
     Script* m_script;
-    StringView m_src; // function source including parameters
+    SourceRange m_src;
     ByteCodeBlock* m_byteCodeBlock;
 
     InterpretedCodeBlock* m_parent;
@@ -1142,14 +1144,14 @@ protected:
 #endif
 
     // init global CodeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     // init function CodeBlock
-    InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
     // empty CodeBlock (for CodeCache loading)
     InterpretedCodeBlock(Context* ctx, Script* script);
 
-    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
-    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
@@ -1245,9 +1247,9 @@ public:
     }
 
 private:
-    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
 
-    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script)
         : InterpretedCodeBlock(ctx, script)
