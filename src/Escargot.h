@@ -157,6 +157,22 @@
 #ifndef FAST_LOG2_UINT
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define FAST_LOG2_UINT(x) ((unsigned)(8 * sizeof(unsigned long long) - __builtin_clzll((x)) - 1))
+#elif defined(COMPILER_MSVC)
+#include <intrin.h>
+namespace Escargot {
+static ALWAYS_INLINE unsigned fastLog2Uint(unsigned long long value)
+{
+    assert(value);
+    unsigned long index;
+    if (value >> 32) {
+        _BitScanReverse(&index, static_cast<unsigned long>(value >> 32));
+        return static_cast<unsigned>(index + 32);
+    }
+    _BitScanReverse(&index, static_cast<unsigned long>(value));
+    return static_cast<unsigned>(index);
+}
+} // namespace Escargot
+#define FAST_LOG2_UINT(x) Escargot::fastLog2Uint(x)
 #else
 #define FAST_LOG2_UINT(x) log2l(x)
 #endif
