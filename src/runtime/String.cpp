@@ -886,12 +886,13 @@ String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* s
         size_t utf16Length = 0;
         decodeUTF8ToUTF16(src, len, [&utf16Length](char16_t) { utf16Length++; });
         RELEASE_ASSERT(utf16Length <= SIZE_MAX / sizeof(char16_t));
-        char16_t* buffer = static_cast<char16_t*>(CompressibleString::allocateStringDataBuffer(utf16Length * sizeof(char16_t)));
+        const size_t byteLength = utf16Length * sizeof(char16_t);
+        char16_t* buffer = static_cast<char16_t*>(CompressibleString::allocateOwnedStringDataBuffer(byteLength));
         RELEASE_ASSERT(buffer);
         size_t index = 0;
         decodeUTF8ToUTF16(src, len, [&buffer, &index](char16_t ch) { buffer[index++] = ch; });
         ASSERT(index == utf16Length);
-        return new CompressibleString(instance, buffer, utf16Length, false);
+        return new CompressibleString(instance, buffer, utf16Length, false, CompressibleString::shouldUseOSAllocator(byteLength));
     }
 }
 #endif
