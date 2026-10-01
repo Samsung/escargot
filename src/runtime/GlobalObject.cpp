@@ -331,7 +331,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         }
         ScriptParser parser(state.context());
         bool strictFromOutside = false;
-        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(nullptr, 0, ScriptSource::createFromString(arg.asString()), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExtendedExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -372,7 +372,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             allowNewTarget = true;
         }
 
-        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), parentCodeBlock,
+        Script* script = parser.initializeScript(nullptr, 0, ScriptSource::createFromString(arg.asString()), state.context()->staticStrings().lazyEvalCode().string(), parentCodeBlock,
                                                  false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
                                                  parentCodeBlock->allowSuperProperty(), allowNewTarget, true)
                              .scriptThrowsExceptionIfParseError(state);

@@ -242,7 +242,7 @@ FunctionObject::FunctionSource FunctionObject::createDynamicFunctionScript(Execu
         }
     }
 
-    Script* script = parser.initializeScript(nullptr, 0, scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
+    Script* script = parser.initializeScript(nullptr, 0, ScriptSource::createFromString(scriptSource), srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
 
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
     // mark it as dynamic code
@@ -266,7 +266,7 @@ ScriptParser::InitializeScriptResult FunctionObject::createFunctionScript(Execut
 
     ScriptParser parser(state.context());
     // originLineOffset is set to 2 because `createFunctionSource` adds 2 lines at start
-    auto result = parser.initializeScript(sourceBodyString, 2, scriptSource, sourceName, nullptr, false, false, false, false, false, false, false, true
+    auto result = parser.initializeScript(sourceBodyString, 2, ScriptSource::createFromString(scriptSource), sourceName, nullptr, false, false, false, false, false, false, false, true
 #ifdef ESCARGOT_DEBUGGER
                                           // in debugger mode, all bytecodes should be compiled at once
                                           ,

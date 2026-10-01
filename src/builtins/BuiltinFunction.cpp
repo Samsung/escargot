@@ -76,12 +76,12 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
             } else {
                 StringBuilder builder;
                 if (fn->isScriptFunctionObject()) {
-                    StringView src = fn->asScriptFunctionObject()->interpretedCodeBlock()->src();
+                    SourceRange src = fn->asScriptFunctionObject()->interpretedCodeBlock()->src();
                     size_t length = src.length();
-                    while (length > 0 && EscargotLexer::isWhiteSpaceOrLineTerminator(src[length - 1])) {
+                    while (length > 0 && EscargotLexer::isWhiteSpaceOrLineTerminator(src.charAt(length - 1))) {
                         length--;
                     }
-                    builder.appendString(new StringView(src, 0, length), &state);
+                    builder.appendString(src.subrange(0, length).toString(), &state);
                 } else {
                     ASSERT(fn->isNativeFunctionObject());
                     builder.appendString("function ");

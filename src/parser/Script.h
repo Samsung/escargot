@@ -22,6 +22,7 @@
 
 #include "runtime/PromiseObject.h"
 #include "runtime/Platform.h"
+#include "parser/ScriptSource.h"
 
 namespace Escargot {
 
@@ -164,7 +165,7 @@ public:
         }
     };
 
-    Script(String* srcName, String* sourceCode, ModuleData* moduleData, size_t originLineOffset, bool canExecuteAgain
+    Script(String* srcName, ScriptSource* source, ModuleData* moduleData, size_t originLineOffset, bool canExecuteAgain
 #if defined(ENABLE_CODE_CACHE)
            ,
            size_t sourceCodeHashValue = 0
@@ -175,13 +176,13 @@ public:
         , m_sourceCodeHashValue(sourceCodeHashValue)
 #endif
         , m_srcName(srcName)
-        , m_sourceCode(sourceCode)
+        , m_source(source)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
         , m_originSourceLineOffset(originLineOffset)
     {
-        // srcName and sourceCode should have valid string (empty string for no name)
-        ASSERT(!!srcName && !!sourceCode);
+        // srcName should have valid string (empty string for no name)
+        ASSERT(!!srcName && !!source);
     }
 
     void* operator new(size_t size);
@@ -193,9 +194,14 @@ public:
         return m_srcName;
     }
 
+    ScriptSource* source()
+    {
+        return m_source;
+    }
+
     String* sourceCode()
     {
-        return m_sourceCode;
+        return m_source->string();
     }
 
     InterpretedCodeBlock* topCodeBlock()
@@ -219,7 +225,7 @@ public:
     size_t sourceCodeHashValue()
     {
         if (UNLIKELY(m_sourceCodeHashValue == 0)) {
-            m_sourceCodeHashValue = m_sourceCode->hashValue<0, false>();
+            m_sourceCodeHashValue = m_source->hashValue();
         }
         return m_sourceCodeHashValue;
     }
@@ -322,7 +328,7 @@ private:
     size_t m_sourceCodeHashValue;
 #endif
     String* m_srcName;
-    String* m_sourceCode;
+    ScriptSource* m_source;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
 

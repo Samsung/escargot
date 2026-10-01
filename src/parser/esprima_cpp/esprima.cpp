@@ -7358,7 +7358,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->script()->isModule(), codeBlock->functionStart());
+    Parser parser(ctx, codeBlock->src().toStringView(), nullptr, codeBlock->script()->isModule(), codeBlock->functionStart());
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;

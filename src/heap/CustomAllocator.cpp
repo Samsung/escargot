@@ -395,6 +395,8 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_pair* arr)
     arr[6].to = (GC_word*)current->m_identifierInfos.data();
     arr[7].from = (GC_word*)&current->m_blockInfos;
     arr[7].to = (GC_word*)current->m_blockInfos;
+    arr[8].from = (GC_word*)&current->m_src;
+    arr[8].to = (GC_word*)current->m_src.source.unwrap();
     return 0;
 }
 
@@ -419,6 +421,8 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_pair* arr
     arr[7].to = (GC_word*)current->m_blockInfos;
     arr[8].from = (GC_word*)&current->m_rareData;
     arr[8].to = (GC_word*)current->m_rareData;
+    arr[9].from = (GC_word*)&current->m_src;
+    arr[9].to = (GC_word*)current->m_src.source.unwrap();
     return 0;
 }
 
@@ -459,12 +463,17 @@ void initializeCustomAllocators()
                                                                          TRUE);
 #endif
 
-    s_interpreCodeBlockProcDescriptor[0] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0);
+    // m_src is marked through the single bit of its leading ScriptSource pointer
+    static_assert(offsetof(SourceRange, source) == 0, "");
+    static_assert(sizeof(Optional<ScriptSource*>) == sizeof(size_t), "");
+
+    s_interpreCodeBlockProcDescriptor[0] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 9>), 0);
     {
         // add + 1 for headerwords w/debug mode
         GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlock) + 1] = { 0 };
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_src));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
@@ -478,12 +487,13 @@ void initializeCustomAllocators()
                                                                       FALSE,
                                                                       TRUE);
 
-    s_interpreCodeBlockProcDescriptor[1] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0);
+    s_interpreCodeBlockProcDescriptor[1] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 10>), 0);
     {
         // add + 1 for headerwords w/debug mode
         GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData) + 1] = { 0 };
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
+        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_src));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));

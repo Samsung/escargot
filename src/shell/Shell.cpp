@@ -385,7 +385,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
 
 #if defined(ESCARGOT_ENABLE_TEST)
 
-static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
+static bool evalScript(ContextRef* context, ScriptSourceRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
 
 static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
@@ -476,7 +476,7 @@ static ValueRef* builtinEvalOnThreadAndWait(ExecutionStateRef* state, ValueRef* 
             PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
             PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
 
-            evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
+            evalScript(context.get(), ScriptSourceRef::createFromUTF8(script.data(), script.size()),
                        StringRef::createFromASCII("from main thread"), false, false);
 
             while (context->vmInstance()->hasPendingJob()) {
@@ -567,7 +567,7 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
         PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
         PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
 
-        evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
+        evalScript(context.get(), ScriptSourceRef::createFromUTF8(script.data(), script.size()),
                    StringRef::createFromASCII("from main thread"), false, false);
 
         while (true) {
@@ -903,7 +903,7 @@ private:
     }
 };
 
-static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
+static bool evalScript(ContextRef* context, ScriptSourceRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
 {
     if (stringEndsWith(srcName->toStdUTF8String(), "mjs")) {
         isModule = isModule || true;
@@ -913,7 +913,8 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
     bool shouldRestart = false;
     do {
         if (shouldRestart) {
-            source = Evaluator::execute(context, [](ExecutionStateRef* state, StringRef* str) -> ValueRef* { return builtinHelperFileRead(state, str->toStdUTF8String().c_str(), "read").get(); }, srcName).result->asString();
+            StringRef* reloaded = Evaluator::execute(context, [](ExecutionStateRef* state, StringRef* str) -> ValueRef* { return builtinHelperFileRead(state, str->toStdUTF8String().c_str(), "read").get(); }, srcName).result->asString();
+            source = ScriptSourceRef::createFromString(reloaded);
         }
         shouldRestart = false;
 
@@ -1310,7 +1311,7 @@ int main(int argc, char* argv[])
                         if (!clientSourceRef) {
                             break;
                         }
-                        if (!evalScript(context, clientSourceRef, sourceName, false, false)) {
+                        if (!evalScript(context, ScriptSourceRef::createFromString(clientSourceRef), sourceName, false, false)) {
                             runShell = false;
                             exitCode = 3;
                             break;
@@ -1335,8 +1336,7 @@ int main(int argc, char* argv[])
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
                     i++;
-                    StringRef* src = StringRef::createFromUTF8(argv[i], strlen(argv[i]));
-                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false, false)) {
+                    if (!evalScript(context, ScriptSourceRef::createFromUTF8(argv[i], strlen(argv[i])), StringRef::createFromASCII("shell input"), false, false)) {
                         runShell = false;
                         exitCode = 3;
                         break;
@@ -1362,7 +1362,7 @@ int main(int argc, char* argv[])
                 fileName = argv[i];
             }
 
-            if (!evalScript(context, src, StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
+            if (!evalScript(context, ScriptSourceRef::createFromString(src), StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
                 runShell = false;
                 exitCode = 3;
                 break;
@@ -1393,7 +1393,7 @@ int main(int argc, char* argv[])
             break;
         }
         StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
-        evalScript(context, str, StringRef::emptyString(), true, false);
+        evalScript(context, ScriptSourceRef::createFromString(str), StringRef::emptyString(), true, false);
     }
 
 #if defined(ESCARGOT_ENABLE_TEST)

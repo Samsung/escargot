@@ -118,6 +118,7 @@
     F(PointerValue)                         \
     F(RopeString)                           \
     F(Script)                               \
+    F(ScriptSource)                         \
     F(ScriptParser)                         \
     F(Template)                             \
     F(VMInstance)                           \
@@ -2293,6 +2294,33 @@ public:
     static ValueRef* deserializeFrom(ContextRef* context, const char* data, size_t len, size_t& offset);
 };
 
+// The source text of a Script, together with the encoding of the input it was built from.
+class ESCARGOT_EXPORT ScriptSourceRef {
+public:
+    // encoding of the input the source was created from, not of its storage
+    enum class Encoding : uint8_t {
+        ASCII,
+        Latin1,
+        UTF8,
+        UTF16,
+    };
+
+    // a byte >= 0x80 is read as a Latin-1 character
+    static ScriptSourceRef* createFromASCII(const char* data, size_t length);
+    // invalid UTF-8 sequences are replaced by U+FFFD
+    static ScriptSourceRef* createFromUTF8(const char* data, size_t length);
+    static ScriptSourceRef* createFromUTF16(const char16_t* data, size_t length);
+    // keeps `string` as is, without copying it
+    static ScriptSourceRef* createFromString(StringRef* string);
+
+    Encoding encoding();
+    // length in UTF-16 code units
+    size_t length();
+    // number of units(bytes for ASCII/Latin-1/UTF-8, char16_t for UTF-16) of the input
+    size_t storageLength();
+    StringRef* string();
+};
+
 class ESCARGOT_EXPORT ScriptParserRef {
 public:
     struct ESCARGOT_EXPORT InitializeScriptResult {
@@ -2326,6 +2354,7 @@ public:
 
     // parse the input source code and return the result (Script)
     InitializeScriptResult initializeScript(StringRef* sourceCode, StringRef* srcName, bool isModule = false);
+    InitializeScriptResult initializeScript(ScriptSourceRef* sourceCode, StringRef* srcName, bool isModule = false);
     // convert the input body source into a function and parse it
     // generate Script and FunctionObject
     InitializeFunctionScriptResult initializeFunctionScript(StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* functionBody);
@@ -2339,6 +2368,7 @@ public:
     bool isExecuted();
     StringRef* src();
     StringRef* sourceCode();
+    ScriptSourceRef* source();
     ContextRef* context();
     ValueRef* execute(ExecutionStateRef* state);
 

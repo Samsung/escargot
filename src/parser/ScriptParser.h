@@ -20,6 +20,8 @@
 #ifndef __EscargotScriptParser__
 #define __EscargotScriptParser__
 
+#include "parser/ScriptSource.h"
+
 namespace Escargot {
 
 struct ASTScopeContext;
@@ -51,10 +53,14 @@ public:
         Script* scriptThrowsExceptionIfParseError(ExecutionState& state);
     };
 
-    InitializeScriptResult initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode = false, bool isEvalCodeInFunction = false, bool inWithOperation = false, bool strictFromOutside = false, bool allowSuperCall = false, bool allowSuperProperty = false, bool allowNewTarget = false, bool needByteCodeGeneration = true);
-    InitializeScriptResult initializeScript(String* source, String* srcName, bool isModule)
+    InitializeScriptResult initializeScript(Optional<String*> originSource, size_t originLineOffset, ScriptSource* source, String* srcName, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isModule, bool isEvalMode = false, bool isEvalCodeInFunction = false, bool inWithOperation = false, bool strictFromOutside = false, bool allowSuperCall = false, bool allowSuperProperty = false, bool allowNewTarget = false, bool needByteCodeGeneration = true);
+    InitializeScriptResult initializeScript(ScriptSource* source, String* srcName, bool isModule)
     {
         return initializeScript(nullptr, 0, source, srcName, nullptr, isModule);
+    }
+    InitializeScriptResult initializeScript(String* source, String* srcName, bool isModule)
+    {
+        return initializeScript(ScriptSource::createFromString(source), srcName, isModule);
     }
 
     Script* initializeJSONModule(String* source, String* srcName);
@@ -69,8 +75,8 @@ public:
 #endif
 
 private:
-    InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
-    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
+    InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, Script* script, ASTScopeContext* scopeCtx, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
     void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
@@ -78,7 +84,7 @@ private:
 
 #ifdef ESCARGOT_DEBUGGER
     void recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* topCodeBlock);
-    InitializeScriptResult initializeScriptWithDebugger(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
+    InitializeScriptResult initializeScriptWithDebugger(Optional<String*> originSource, size_t originLineOffset, ScriptSource* source, String* srcName, Optional<InterpretedCodeBlock*> parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
 #endif /* ESCARGOT_DEBUGGER */
 
     Context* m_context;

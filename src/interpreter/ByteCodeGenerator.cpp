@@ -155,7 +155,7 @@ void ByteCodeGenerateContext::calculateBreakpointLocation(size_t index, Extended
     ASSERT(indexOffset >= m_breakpointContext->m_lastBreakpointIndexOffset);
 
     // calculate the current breakpoint's location based on the last breakpoint's location
-    StringView src = m_codeBlock->src();
+    StringView src = m_codeBlock->src().toStringView();
     for (size_t i = m_breakpointContext->m_lastBreakpointIndexOffset; i < indexOffset; i++) {
         char16_t c = src.charAt(i);
         if (EscargotLexer::isLineTerminator(c)) {
@@ -327,7 +327,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
             InterpretedCodeBlock* parentCodeBlock = codeBlock->parent();
             bool allowSC = parentCodeBlock ? parentCodeBlock->allowSuperCall() : false;
             bool allowSP = parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false;
-            ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
+            ast = esprima::parseProgram(context, codeBlock->src().toStringView(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
                                         codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), allowSC, allowSP, false, true);
         } else {
             ast = esprima::parseSingleFunction(context, codeBlock);
