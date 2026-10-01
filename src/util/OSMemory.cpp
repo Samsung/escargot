@@ -159,6 +159,20 @@ void OSMemory::decommit(void* address, size_t bytes)
 #endif
 }
 
+bool OSMemory::discard(void* address, size_t bytes)
+{
+    RELEASE_ASSERT(address && bytes);
+    RELEASE_ASSERT(reinterpret_cast<uintptr_t>(address) % pageSize() == 0);
+    RELEASE_ASSERT(bytes % pageSize() == 0);
+#if defined(OS_POSIX) && defined(MADV_DONTNEED)
+    return madvise(address, bytes, MADV_DONTNEED) == 0;
+#elif defined(OS_WINDOWS)
+    return VirtualAlloc(address, bytes, MEM_RESET, PAGE_READWRITE) != nullptr;
+#else
+    return false;
+#endif
+}
+
 void OSMemory::release(void* address, size_t bytes)
 {
     RELEASE_ASSERT(address && bytes);

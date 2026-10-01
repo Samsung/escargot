@@ -24,6 +24,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "lz4.h"
+#include "util/OSMemory.h"
 
 namespace Escargot {
 
@@ -45,10 +46,12 @@ CompressibleString::CompressibleString(VMInstance* instance)
     , m_isOwnerMayFreed(false)
     , m_isCompressed(false)
     , m_isPartiallyDecompressed(false)
+    , m_bufferIsOSAllocated(false)
     , m_refCount(0)
     , m_vmInstance(instance)
     , m_lastUsedTickcount(fastTickCount())
     , m_isChunkDecompressed()
+    , m_chunkLastUsedTicks()
 {
     m_bufferData.hasSpecialImpl = true;
 
@@ -59,10 +62,11 @@ CompressibleString::CompressibleString(VMInstance* instance)
         ASSERT(self->refCount() == 0);
 
         if (!self->isCompressed()) {
-            deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2));
+            deallocateOwnedStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2), self->m_bufferIsOSAllocated);
         }
         self->m_compressedData.~CompressedDataVector();
         self->m_isChunkDecompressed.~vector<char>();
+        self->m_chunkLastUsedTicks.~vector<uint64_t>();
 
         if (!self->m_isOwnerMayFreed) {
             self->m_vmInstance->compressibleStringsUncomressedBufferSize() -= self->decomressedBufferSize();
@@ -78,38 +82,45 @@ CompressibleString::CompressibleString(VMInstance* instance)
 CompressibleString::CompressibleString(VMInstance* instance, const char* str, size_t len)
     : CompressibleString(instance)
 {
-    char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
+    char* buf = (char*)allocateOwnedStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
-    initBufferAccessData(buf, len, true);
+    initBufferAccessData(buf, len, true, shouldUseOSAllocator(len));
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, const LChar* str, size_t len)
     : CompressibleString(instance)
 {
-    char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
+    char* buf = (char*)allocateOwnedStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
-    initBufferAccessData(buf, len, true);
+    initBufferAccessData(buf, len, true, shouldUseOSAllocator(len));
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, const char16_t* str, size_t len)
     : CompressibleString(instance)
 {
-    char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len * 2);
+    char* buf = (char*)allocateOwnedStringDataBuffer(sizeof(char) * len * 2);
     memcpy(buf, str, len * 2);
-    initBufferAccessData(buf, len, false);
+    initBufferAccessData(buf, len, false, shouldUseOSAllocator(len * 2));
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit)
     : CompressibleString(instance)
 {
-    initBufferAccessData(buffer, stringLength, is8bit);
+    initBufferAccessData(buffer, stringLength, is8bit, false);
 }
 
-void CompressibleString::initBufferAccessData(void* data, size_t len, bool is8bit)
+CompressibleString::CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit, bool bufferIsOSAllocated)
+    : CompressibleString(instance)
+{
+    initBufferAccessData(buffer, stringLength, is8bit, bufferIsOSAllocated);
+}
+
+void CompressibleString::initBufferAccessData(void* data, size_t len, bool is8bit, bool bufferIsOSAllocated)
 {
     m_bufferData.has8BitContent = is8bit;
     m_bufferData.length = len;
     m_bufferData.buffer = data;
+    m_bufferIsOSAllocated = bufferIsOSAllocated;
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
 }
@@ -171,6 +182,32 @@ void CompressibleString::deallocateStringDataBuffer(void* ptr, size_t byteLength
     free(ptr);
 }
 
+bool CompressibleString::shouldUseOSAllocator(size_t byteLength)
+{
+#if defined(OS_POSIX) || defined(OS_WINDOWS)
+    return byteLength >= 65536;
+#else
+    return false;
+#endif
+}
+
+void* CompressibleString::allocateOwnedStringDataBuffer(size_t byteLength)
+{
+    if (shouldUseOSAllocator(byteLength)) {
+        return OSMemory::reserve(byteLength);
+    }
+    return malloc(byteLength);
+}
+
+void CompressibleString::deallocateOwnedStringDataBuffer(void* ptr, size_t byteLength, bool bufferIsOSAllocated)
+{
+    if (bufferIsOSAllocated) {
+        OSMemory::release(ptr, byteLength);
+    } else {
+        free(ptr);
+    }
+}
+
 bool CompressibleString::compress()
 {
     ASSERT(!m_isCompressed);
@@ -214,6 +251,60 @@ void CompressibleString::decompressRange(size_t start, size_t length)
 constexpr static const size_t g_compressChunkSize = 65536;
 static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 65809, "");
 
+void CompressibleString::compressColdChunks(uint64_t currentTickCount, uint64_t idleInterval)
+{
+    if (!m_isPartiallyDecompressed || m_refCount) {
+        return;
+    }
+
+    if (!m_bufferIsOSAllocated) {
+        return;
+    }
+
+    const size_t pageSize = OSMemory::pageSize();
+    const size_t originByteLength = m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2);
+    const uintptr_t bufferStart = reinterpret_cast<uintptr_t>(m_bufferData.buffer);
+    std::unique_ptr<char[]> compBuffer;
+    int lastBoundLength = 0;
+
+    for (size_t chunkIndex = 0; chunkIndex < m_compressedData.size(); chunkIndex++) {
+        if (!m_isChunkDecompressed[chunkIndex]
+            || currentTickCount - m_chunkLastUsedTicks[chunkIndex] < idleInterval) {
+            continue;
+        }
+
+        const size_t srcIndex = chunkIndex * g_compressChunkSize;
+        const int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
+        const uintptr_t chunkStart = bufferStart + srcIndex;
+        const uintptr_t chunkEnd = chunkStart + srcSize;
+        const uintptr_t pageStart = ((chunkStart + pageSize - 1) / pageSize) * pageSize;
+        const uintptr_t pageEnd = (chunkEnd / pageSize) * pageSize;
+        if (pageStart >= pageEnd) {
+            continue;
+        }
+
+        if (m_compressedData[chunkIndex].empty()) {
+            const int boundLength = LZ4::LZ4_compressBound(srcSize);
+            if (boundLength > lastBoundLength) {
+                compBuffer.reset(new char[boundLength]);
+                lastBoundLength = boundLength;
+            }
+            const int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, compBuffer.get(), srcSize, boundLength);
+            if (!compressedLength) {
+                continue;
+            }
+            m_compressedData[chunkIndex].assign(compBuffer.get(), compBuffer.get() + compressedLength);
+        }
+
+        // Only discard pages entirely inside this chunk. The compressed copy
+        // remains available to restore them on the next range access.
+        if (OSMemory::discard(reinterpret_cast<void*>(pageStart), pageEnd - pageStart)) {
+            m_isChunkDecompressed[chunkIndex] = false;
+            m_chunkLastUsedTicks[chunkIndex] = 0;
+        }
+    }
+}
+
 template <typename StringType>
 bool CompressibleString::compressWorker()
 {
@@ -221,13 +312,42 @@ bool CompressibleString::compressWorker()
     ASSERT(m_bufferData.length > 0);
 
     if (m_isPartiallyDecompressed) {
+        // A decoded chunk no longer needs its compressed copy while the raw
+        // buffer is alive. Rebuild only those copies before dropping the raw
+        // buffer so later range reads can still recover every chunk.
+        const size_t originByteLength = m_bufferData.length * sizeof(StringType);
+        std::unique_ptr<char[]> compBuffer;
+        int lastBoundLength = 0;
+        for (size_t chunkIndex = 0; chunkIndex < m_compressedData.size(); chunkIndex++) {
+            if (!m_isChunkDecompressed[chunkIndex] || !m_compressedData[chunkIndex].empty()) {
+                continue;
+            }
+
+            const size_t srcIndex = chunkIndex * g_compressChunkSize;
+            const int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
+            const int boundLength = LZ4::LZ4_compressBound(srcSize);
+            if (boundLength > lastBoundLength) {
+                compBuffer.reset(new char[boundLength]);
+                lastBoundLength = boundLength;
+            }
+
+            const int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, compBuffer.get(), srcSize, boundLength);
+            if (!compressedLength) {
+                return false;
+            }
+            m_compressedData[chunkIndex].assign(compBuffer.get(), compBuffer.get() + compressedLength);
+        }
+
         m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
 
-        deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
+        deallocateOwnedStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2), m_bufferIsOSAllocated);
 
         m_bufferData.bufferAs8Bit = nullptr;
+        m_bufferIsOSAllocated = false;
         m_isChunkDecompressed.clear();
         m_isChunkDecompressed.shrink_to_fit();
+        m_chunkLastUsedTicks.clear();
+        m_chunkLastUsedTicks.shrink_to_fit();
         m_isPartiallyDecompressed = false;
         m_isCompressed = true;
         return true;
@@ -257,9 +377,10 @@ bool CompressibleString::compressWorker()
     m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
 
     // immediately free the original string after compression when there is no reference on stack
-    deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
+    deallocateOwnedStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2), m_bufferIsOSAllocated);
 
     m_bufferData.bufferAs8Bit = nullptr;
+    m_bufferIsOSAllocated = false;
     m_isCompressed = true;
 
     /*
@@ -283,8 +404,9 @@ void CompressibleString::decompressWorker()
 
     char* dstBuffer = nullptr;
     if (m_isCompressed) {
-        dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
+        dstBuffer = (char*)allocateOwnedStringDataBuffer(originByteLength);
         m_isChunkDecompressed.resize(m_compressedData.size(), 0);
+        m_chunkLastUsedTicks.resize(m_compressedData.size(), 0);
     } else {
         dstBuffer = const_cast<char*>(m_bufferData.bufferAs8Bit);
     }
@@ -306,9 +428,12 @@ void CompressibleString::decompressWorker()
     CompressedDataVector().swap(m_compressedData);
     m_isChunkDecompressed.clear();
     m_isChunkDecompressed.shrink_to_fit();
+    m_chunkLastUsedTicks.clear();
+    m_chunkLastUsedTicks.shrink_to_fit();
 
     if (m_isCompressed) {
         m_bufferData.bufferAs8Bit = const_cast<const char*>(dstBuffer);
+        m_bufferIsOSAllocated = shouldUseOSAllocator(originByteLength);
         m_isCompressed = false;
         m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
     }
@@ -323,9 +448,11 @@ void CompressibleString::decompressRangeWorker(size_t start, size_t length)
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
 
     if (m_isCompressed) {
-        char* dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
+        char* dstBuffer = (char*)allocateOwnedStringDataBuffer(originByteLength);
         m_bufferData.bufferAs8Bit = dstBuffer;
+        m_bufferIsOSAllocated = shouldUseOSAllocator(originByteLength);
         m_isChunkDecompressed.resize(m_compressedData.size(), 0);
+        m_chunkLastUsedTicks.resize(m_compressedData.size(), 0);
         m_isPartiallyDecompressed = true;
         m_isCompressed = false;
         m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
@@ -337,6 +464,7 @@ void CompressibleString::decompressRangeWorker(size_t start, size_t length)
     size_t endChunk = length > 0 ? ((endByte - 1) / g_compressChunkSize) : startChunk;
 
     char* dstBuffer = const_cast<char*>(m_bufferData.bufferAs8Bit);
+    const uint64_t currentTickCount = fastTickCount();
 
     for (size_t chunkIndex = startChunk; chunkIndex <= endChunk && chunkIndex < m_compressedData.size(); chunkIndex++) {
         if (!m_isChunkDecompressed[chunkIndex]) {
@@ -349,7 +477,9 @@ void CompressibleString::decompressRangeWorker(size_t start, size_t length)
                 RELEASE_ASSERT_NOT_REACHED();
             }
             m_isChunkDecompressed[chunkIndex] = true;
+            std::vector<char>().swap(m_compressedData[chunkIndex]);
         }
+        m_chunkLastUsedTicks[chunkIndex] = currentTickCount;
     }
 }
 } // namespace Escargot

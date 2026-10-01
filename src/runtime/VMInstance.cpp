@@ -117,6 +117,7 @@ void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
     size_t mostBigIndex = SIZE_MAX;
 
     for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
+        currentAllocatedCompressibleStrings[i]->compressColdChunks(currentTickCount, ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL);
         if (!currentAllocatedCompressibleStrings[i]->isCompressed()
             && currentTickCount - currentAllocatedCompressibleStrings[i]->m_lastUsedTickcount > ESCARGOT_COMPRESSIBLE_COMPRESS_USED_BEFORE_INTERVAL
             && currentAllocatedCompressibleStrings[i]->decomressedBufferSize() > ESCARGOT_COMPRESSIBLE_COMPRESS_MIN_SIZE) {

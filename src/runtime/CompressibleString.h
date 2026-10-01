@@ -30,6 +30,7 @@ class VMInstance;
 
 class CompressibleString : public String {
     friend class VMInstance;
+    friend class String;
 
 public:
     // 8bit string constructor
@@ -83,8 +84,12 @@ public:
 
 private:
     CompressibleString(VMInstance* instance);
+    CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit, bool bufferIsOSAllocated);
 
-    void initBufferAccessData(void* data, size_t len, bool is8bit);
+    void initBufferAccessData(void* data, size_t len, bool is8bit, bool bufferIsOSAllocated);
+    static bool shouldUseOSAllocator(size_t byteLength);
+    static void* allocateOwnedStringDataBuffer(size_t byteLength);
+    static void deallocateOwnedStringDataBuffer(void* ptr, size_t byteLength, bool bufferIsOSAllocated);
 
     size_t decomressedBufferSize()
     {
@@ -101,16 +106,19 @@ private:
     NEVER_INLINE void decompressWorker();
     template <typename StringType>
     NEVER_INLINE void decompressRangeWorker(size_t start, size_t length);
+    void compressColdChunks(uint64_t currentTickCount, uint64_t idleInterval);
 
     bool m_isOwnerMayFreed;
     bool m_isCompressed;
     bool m_isPartiallyDecompressed;
+    bool m_bufferIsOSAllocated;
     size_t m_refCount; // reference count representing the usage of this CompressibleString
     VMInstance* m_vmInstance;
     uint64_t m_lastUsedTickcount;
     typedef std::vector<std::vector<char>> CompressedDataVector;
     CompressedDataVector m_compressedData;
     std::vector<char> m_isChunkDecompressed;
+    std::vector<uint64_t> m_chunkLastUsedTicks;
 };
 } // namespace Escargot
 

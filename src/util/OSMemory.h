@@ -28,6 +28,8 @@ public:
     static void* reserveUncommitted(size_t bytes, bool writable = true, bool executable = false, bool guardPages = false, int tag = -1);
     static void commit(void* address, size_t bytes, bool writable = true, bool executable = false);
     static void decommit(void* address, size_t bytes);
+    // Discard page contents while keeping the range writable at the same address.
+    static bool discard(void* address, size_t bytes);
     static void release(void* address, size_t bytes);
 };
 
