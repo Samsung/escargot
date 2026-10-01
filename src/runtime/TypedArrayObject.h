@@ -75,10 +75,18 @@ public:
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;
     virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;
-    Value getDirectTypedArrayElement(ExecutionState& state, uint32_t index);
-    void setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value);
+    NEVER_INLINE Value getDirectTypedArrayElement(ExecutionState& state, uint32_t index);
+    ALWAYS_INLINE void setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value);
     // Requires value.isNumber() and a non-BigInt element type; never throws.
-    void setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value);
+    NEVER_INLINE void setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value);
+
+    /* Same as the two above, but with the element type as a template argument, so the switch on
+       TypedArrayType folds away and the element size becomes a compile-time constant. Callers
+       must have already checked that m_type equals `type`. */
+    template <TypedArrayType type>
+    Value getDirectTypedArrayElementOfType(ExecutionState& state, uint32_t index);
+    template <TypedArrayType type>
+    void setDirectTypedArrayElementNumericOfType(ExecutionState& state, uint32_t index, const Value& value);
 
     virtual bool hasOwnEnumeration() const override
     {

@@ -329,4 +329,17 @@ bool TypedArrayObject::setIndexedProperty(ExecutionState& state, const Value& pr
     return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
+NEVER_INLINE Value TypedArrayObject::getDirectTypedArrayElement(ExecutionState& state, uint32_t index)
+{
+    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    return TypedArrayHelper::rawBytesToNumber<true, true>(state, m_type, rawBuffer(), index);
+}
+
+NEVER_INLINE void TypedArrayObject::setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value)
+{
+    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    ASSERT(value.isNumber() && m_type < TypedArrayType::BigInt64);
+    TypedArrayHelper::numberToRawBytes<true, true, true>(state, m_type, value, rawBuffer(), index);
+}
+
 } // namespace Escargot
