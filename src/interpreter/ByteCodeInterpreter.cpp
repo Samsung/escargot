@@ -364,6 +364,35 @@ ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(Exec
     return true;
 }
 
+/* Pick the indexed-access opcode specialized for `type`. Element types without one fall back to
+   the generic tier, which calls out of line. Kept out of line because each site runs this exactly
+   once, when it first sees a TypedArray receiver. */
+NEVER_INLINE static Opcode specializedTypedArrayGetOpcode(TypedArrayType type)
+{
+    switch (type) {
+#define RETURN_SPECIALIZED_GET_OPCODE(name) \
+    case TypedArrayType::name:              \
+        return Opcode::Get##name##ArrayObjectOpcode;
+        FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(RETURN_SPECIALIZED_GET_OPCODE)
+#undef RETURN_SPECIALIZED_GET_OPCODE
+    default:
+        return Opcode::GetTypedArrayObjectOpcode;
+    }
+}
+
+NEVER_INLINE static Opcode specializedTypedArraySetOpcode(TypedArrayType type)
+{
+    switch (type) {
+#define RETURN_SPECIALIZED_SET_OPCODE(name) \
+    case TypedArrayType::name:              \
+        return Opcode::Set##name##ArrayObjectOperationOpcode;
+        FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(RETURN_SPECIALIZED_SET_OPCODE)
+#undef RETURN_SPECIALIZED_SET_OPCODE
+    default:
+        return Opcode::SetTypedArrayObjectOperationOpcode;
+    }
+}
+
 ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
@@ -731,41 +760,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     }
                 } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
                     // Only specialize on keys the specialized handler can actually serve.
-                    code->changeOpcode(Opcode::GetTypedArrayObjectOpcode);
+                    code->changeOpcode(specializedTypedArrayGetOpcode(static_cast<TypedArrayObject*>(obj)->typedArrayType()));
                 }
             }
             // For Object or other types, fall through to slow case to avoid side effects
-            JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
-        }
-
-        DEFINE_OPCODE(GetTypedArrayObject)
-            :
-        {
-            GetTypedArrayObject* code = (GetTypedArrayObject*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject())) {
-                Object* obj = willBeObject.asObject();
-                if (LIKELY(obj->hasTypedArrayObjectTag())) {
-                    if (LIKELY(property.isUInt32())) {
-                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
-                        uint32_t idx = property.asUInt32();
-                        // Buffer updates clear the cached address on detach or out-of-bounds.
-                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength())) {
-                            registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
-                            ADD_PROGRAM_COUNTER(GetTypedArrayObject);
-                            NEXT_INSTRUCTION();
-                        }
-                    }
-                } else {
-                    // This site was specialized for TypedArray but is now seeing another receiver.
-                    // Hand it back to the generic handler instead of demoting it to the slow case,
-                    // so that a polymorphic site keeps the inline ArrayObject fast path. The opcode
-                    // is left alone, so this never ping-pongs; GetObject and GetTypedArrayObject are
-                    // the same size, so the generic handler advances the program counter correctly.
-                    JUMP_INSTRUCTION(GetObject);
-                }
-            }
             JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
         }
 
@@ -790,44 +788,13 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         NEXT_INSTRUCTION();
                     }
                 } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
-                    // Only specialize on keys the specialized handler can actually serve.
-                    code->changeOpcode(Opcode::SetTypedArrayObjectOperationOpcode);
+                    TypedArrayType type = static_cast<TypedArrayObject*>(obj)->typedArrayType();
+                    if (type < TypedArrayType::BigInt64) {
+                        code->changeOpcode(specializedTypedArraySetOpcode(type));
+                    }
                 }
             }
             // For Object or other types, fall through to slow case to avoid side effects
-            JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
-        }
-
-        DEFINE_OPCODE(SetTypedArrayObjectOperation)
-            :
-        {
-            SetTypedArrayObjectOperation* code = (SetTypedArrayObjectOperation*)programCounter;
-            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
-            const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject())) {
-                Object* obj = willBeObject.asObject();
-                if (LIKELY(obj->hasTypedArrayObjectTag())) {
-                    if (LIKELY(property.isUInt32())) {
-                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
-                        uint32_t idx = property.asUInt32();
-                        const Value& value = registerFile[code->m_loadRegisterIndex];
-                        // Restricted to Numbers stored into a non-BigInt array: that conversion runs no
-                        // user code and cannot throw, so the switch inlined here stays leaf-sized. Every
-                        // other primitive (and every BigInt array) takes the slow case, which does the
-                        // full ToNumber()/ToBigInt() conversion.
-                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && value.isNumber()
-                                   && arr->typedArrayType() < TypedArrayType::BigInt64)) {
-                            arr->setDirectTypedArrayElementNumeric(*state, idx, value);
-                            ADD_PROGRAM_COUNTER(SetTypedArrayObjectOperation);
-                            NEXT_INSTRUCTION();
-                        }
-                    }
-                } else {
-                    // See the comment in GetTypedArrayObject: hand a now-polymorphic site back to the
-                    // generic handler so it keeps the inline ArrayObject fast path.
-                    JUMP_INSTRUCTION(SetObjectOperation);
-                }
-            }
             JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
         }
 
@@ -2300,6 +2267,138 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             ADD_PROGRAM_COUNTER(StoreByNameWithAddress);
             NEXT_INSTRUCTION();
         }
+
+        DEFINE_OPCODE(GetTypedArrayObject)
+            :
+        {
+            GetTypedArrayObject* code = (GetTypedArrayObject*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                if (LIKELY(obj->hasTypedArrayObjectTag())) {
+                    if (LIKELY(property.isUInt32())) {
+                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
+                        uint32_t idx = property.asUInt32();
+                        // Buffer updates clear the cached address on detach or out-of-bounds.
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength())) {
+                            registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
+                            ADD_PROGRAM_COUNTER(GetTypedArrayObject);
+                            NEXT_INSTRUCTION();
+                        }
+                    }
+                } else {
+                    // This site was specialized for TypedArray but is now seeing another receiver.
+                    // Hand it back to the generic handler instead of demoting it to the slow case,
+                    // so that a polymorphic site keeps the inline ArrayObject fast path. The opcode
+                    // is left alone, so this never ping-pongs; GetObject and GetTypedArrayObject are
+                    // the same size, so the generic handler advances the program counter correctly.
+                    JUMP_INSTRUCTION(GetObject);
+                }
+            }
+            JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
+        }
+
+#define DEFINE_SPECIALIZED_GET_TYPEDARRAY_OPCODE(name)                                                                                           \
+    DEFINE_OPCODE(Get##name##ArrayObject)                                                                                                        \
+        :                                                                                                                                        \
+    {                                                                                                                                            \
+        Get##name##ArrayObject* code = (Get##name##ArrayObject*)programCounter;                                                                  \
+        const Value& willBeObject = registerFile[code->m_objectRegisterIndex];                                                                   \
+        const Value& property = registerFile[code->m_propertyRegisterIndex];                                                                     \
+        if (LIKELY(willBeObject.isObject())) {                                                                                                   \
+            Object* obj = willBeObject.asObject();                                                                                               \
+            if (LIKELY(obj->hasTypedArrayObjectTag())) {                                                                                         \
+                TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);                                                                     \
+                if (LIKELY(arr->typedArrayType() == TypedArrayType::name)) {                                                                     \
+                    if (LIKELY(property.isUInt32())) {                                                                                           \
+                        uint32_t idx = property.asUInt32();                                                                                      \
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength())) {                                                             \
+                            registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElementOfType<TypedArrayType::name>(*state, idx); \
+                            ADD_PROGRAM_COUNTER(Get##name##ArrayObject);                                                                         \
+                            NEXT_INSTRUCTION();                                                                                                  \
+                        }                                                                                                                        \
+                    }                                                                                                                            \
+                } else {                                                                                                                         \
+                    code->changeOpcode(Opcode::GetTypedArrayObjectOpcode);                                                                       \
+                    JUMP_INSTRUCTION(GetTypedArrayObject);                                                                                       \
+                }                                                                                                                                \
+            } else {                                                                                                                             \
+                JUMP_INSTRUCTION(GetObject);                                                                                                     \
+            }                                                                                                                                    \
+        }                                                                                                                                        \
+        JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);                                                                                               \
+    }
+
+        FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(DEFINE_SPECIALIZED_GET_TYPEDARRAY_OPCODE)
+#undef DEFINE_SPECIALIZED_GET_TYPEDARRAY_OPCODE
+
+        DEFINE_OPCODE(SetTypedArrayObjectOperation)
+            :
+        {
+            SetTypedArrayObjectOperation* code = (SetTypedArrayObjectOperation*)programCounter;
+            const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+            const Value& property = registerFile[code->m_propertyRegisterIndex];
+            if (LIKELY(willBeObject.isObject())) {
+                Object* obj = willBeObject.asObject();
+                if (LIKELY(obj->hasTypedArrayObjectTag())) {
+                    if (LIKELY(property.isUInt32())) {
+                        TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);
+                        uint32_t idx = property.asUInt32();
+                        const Value& value = registerFile[code->m_loadRegisterIndex];
+                        // Restricted to Numbers stored into a non-BigInt array: that conversion runs no
+                        // user code and cannot throw. BigInt arrays take the slow case directly.
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && value.isNumber()
+                                   && arr->typedArrayType() < TypedArrayType::BigInt64)) {
+                            arr->setDirectTypedArrayElementNumeric(*state, idx, value);
+                            ADD_PROGRAM_COUNTER(SetTypedArrayObjectOperation);
+                            NEXT_INSTRUCTION();
+                        }
+                    }
+                } else {
+                    // See the comment in GetTypedArrayObject: hand a now-polymorphic site back to the
+                    // generic handler so it keeps the inline ArrayObject fast path.
+                    JUMP_INSTRUCTION(SetObjectOperation);
+                }
+            }
+            JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
+        }
+
+#define DEFINE_SPECIALIZED_SET_TYPEDARRAY_OPCODE(name)                                                   \
+    DEFINE_OPCODE(Set##name##ArrayObjectOperation)                                                       \
+        :                                                                                                \
+    {                                                                                                    \
+        Set##name##ArrayObjectOperation* code = (Set##name##ArrayObjectOperation*)programCounter;        \
+        const Value& willBeObject = registerFile[code->m_objectRegisterIndex];                           \
+        const Value& property = registerFile[code->m_propertyRegisterIndex];                             \
+        if (LIKELY(willBeObject.isObject())) {                                                           \
+            Object* obj = willBeObject.asObject();                                                       \
+            if (LIKELY(obj->hasTypedArrayObjectTag())) {                                                 \
+                TypedArrayObject* arr = static_cast<TypedArrayObject*>(obj);                             \
+                if (LIKELY(arr->typedArrayType() == TypedArrayType::name)) {                             \
+                    if (LIKELY(property.isUInt32())) {                                                   \
+                        uint32_t idx = property.asUInt32();                                              \
+                        const Value& value = registerFile[code->m_loadRegisterIndex];                    \
+                        if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && value.isNumber())) { \
+                            arr->setDirectTypedArrayElementNumericOfType<TypedArrayType::name>(          \
+                                *state, idx, value);                                                     \
+                            ADD_PROGRAM_COUNTER(Set##name##ArrayObjectOperation);                        \
+                            NEXT_INSTRUCTION();                                                          \
+                        }                                                                                \
+                    }                                                                                    \
+                } else {                                                                                 \
+                    code->changeOpcode(Opcode::SetTypedArrayObjectOperationOpcode);                      \
+                    JUMP_INSTRUCTION(SetTypedArrayObjectOperation);                                      \
+                }                                                                                        \
+            } else {                                                                                     \
+                JUMP_INSTRUCTION(SetObjectOperation);                                                    \
+            }                                                                                            \
+        }                                                                                                \
+        JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);                                                       \
+    }
+
+        FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(DEFINE_SPECIALIZED_SET_TYPEDARRAY_OPCODE)
+#undef DEFINE_SPECIALIZED_SET_TYPEDARRAY_OPCODE
 
         // Rarely-used; see InterpreterSlowPath::setExecutionStateInStrictModeOperation.
 #if defined(ENABLE_TCO)

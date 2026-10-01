@@ -258,22 +258,13 @@ struct TypedArrayHelper {
 #endif
     }
 
-    // Read through bytes so ARM32 never emits a float load that requires an
-    // aligned address. This can be inlined into TypedArray indexed access;
-    // DataView keeps its existing byte-granular read path.
+    // Read through 32-bit integer memcpy so ARM32 never emits an aligned-only
+    // float load (vldr), using hardware unaligned integer load (ldr) instead.
+    // This can be inlined into TypedArray indexed access; DataView keeps its
+    // existing byte-granular read path.
     ALWAYS_INLINE static uint32_t readFloat32BitsInline(const uint8_t* rawBytes)
     {
-#if defined(ESCARGOT_LITTLE_ENDIAN)
-        return static_cast<uint32_t>(rawBytes[0])
-            | (static_cast<uint32_t>(rawBytes[1]) << 8)
-            | (static_cast<uint32_t>(rawBytes[2]) << 16)
-            | (static_cast<uint32_t>(rawBytes[3]) << 24);
-#else
-        return (static_cast<uint32_t>(rawBytes[0]) << 24)
-            | (static_cast<uint32_t>(rawBytes[1]) << 16)
-            | (static_cast<uint32_t>(rawBytes[2]) << 8)
-            | static_cast<uint32_t>(rawBytes[3]);
-#endif
+        return readRawBytesAs<uint32_t>(const_cast<uint8_t*>(rawBytes));
     }
 
     ALWAYS_INLINE static uint64_t readFloat64BitsInline(const uint8_t* rawBytes)
@@ -466,23 +457,25 @@ struct TypedArrayHelper {
     }
 };
 
-ALWAYS_INLINE Value TypedArrayObject::getDirectTypedArrayElement(ExecutionState& state, uint32_t index)
-{
-    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
-    return TypedArrayHelper::rawBytesToNumber<true, true>(state, m_type, rawBuffer(), index);
-}
-
 ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElement(ExecutionState& state, uint32_t index, const Value& value)
 {
     ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer() && value.isPrimitive());
     TypedArrayHelper::numberToRawBytes<true, true>(state, m_type, value, rawBuffer(), index);
 }
 
-ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElementNumeric(ExecutionState& state, uint32_t index, const Value& value)
+template <TypedArrayType type>
+ALWAYS_INLINE Value TypedArrayObject::getDirectTypedArrayElementOfType(ExecutionState& state, uint32_t index)
 {
-    ASSERT(static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
-    ASSERT(value.isNumber() && m_type < TypedArrayType::BigInt64);
-    TypedArrayHelper::numberToRawBytes<true, true, true>(state, m_type, value, rawBuffer(), index);
+    ASSERT(m_type == type && static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    return TypedArrayHelper::rawBytesToNumber<true, true>(state, type, rawBuffer(), index);
+}
+
+template <TypedArrayType type>
+ALWAYS_INLINE void TypedArrayObject::setDirectTypedArrayElementNumericOfType(ExecutionState& state, uint32_t index, const Value& value)
+{
+    ASSERT(m_type == type && static_cast<size_t>(index) < arrayLength() && !buffer()->isDetachedBuffer());
+    ASSERT(value.isNumber() && type < TypedArrayType::BigInt64);
+    TypedArrayHelper::numberToRawBytes<true, true, true>(state, type, value, rawBuffer(), index);
 }
 } // namespace Escargot
 #endif

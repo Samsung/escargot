@@ -71,127 +71,137 @@ struct GlobalVariableAccessCacheItem;
  * ======================================================================================
  */
 
+#define FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(F, ...) \
+    F(Uint8, ##__VA_ARGS__)                          \
+    F(Int32, ##__VA_ARGS__)                          \
+    F(Float32, ##__VA_ARGS__)
+
+#define SPECIALIZED_TYPEDARRAY_GET_BYTECODE_OP(name, F) F(Get##name##ArrayObject)
+#define SPECIALIZED_TYPEDARRAY_SET_BYTECODE_OP(name, F) F(Set##name##ArrayObjectOperation)
+
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F)                       \
-    F(LoadLiteral)                                    \
-    F(LoadByName)                                     \
-    F(StoreByName)                                    \
-    F(InitializeByName)                               \
-    F(LoadByHeapIndex)                                \
-    F(StoreByHeapIndex)                               \
-    F(InitializeByHeapIndex)                          \
-    F(NewOperation)                                   \
-    F(NewOperationWithSpreadElement)                  \
-    F(BinaryPlus)                                     \
-    F(BinaryMinus)                                    \
-    F(BinaryMultiply)                                 \
-    F(BinaryDivision)                                 \
-    F(BinaryExponentiation)                           \
-    F(BinaryMod)                                      \
-    F(BinaryEqual)                                    \
-    F(BinaryLessThan)                                 \
-    F(BinaryLessThanOrEqual)                          \
-    F(BinaryGreaterThan)                              \
-    F(BinaryGreaterThanOrEqual)                       \
-    F(BinaryStrictEqual)                              \
-    F(BinaryBitwiseAnd)                               \
-    F(BinaryBitwiseOr)                                \
-    F(BinaryBitwiseXor)                               \
-    F(BinaryLeftShift)                                \
-    F(BinarySignedRightShift)                         \
-    F(BinaryUnsignedRightShift)                       \
-    F(BinaryInOperation)                              \
-    F(BinaryInstanceOfOperation)                      \
-    F(BinaryInstanceOfOperationInlineCache)           \
-    F(CreateObjectPrepare)                            \
-    F(CreateObject)                                   \
-    F(CreateOnlyKeyValueObject)                       \
-    F(CreateArray)                                    \
-    F(CreateSpreadArrayObject)                        \
-    F(CreateArrayFromIterable)                        \
-    F(ReleaseIteratorRecord)                          \
-    F(CreateFunction)                                 \
-    F(InitializeClass)                                \
-    F(CreateRestElement)                              \
-    F(SuperReference)                                 \
-    F(ComplexSetObjectOperation)                      \
-    F(ComplexGetObjectOperation)                      \
-    F(LoadThisBinding)                                \
-    F(ObjectDefineOwnPropertyOperation)               \
-    F(ObjectDefineOwnPropertyWithNameOperation)       \
-    F(ArrayDefineOwnPropertyOperation)                \
-    F(ArrayDefineOwnPropertyBySpreadElementOperation) \
-    F(GetObject)                                      \
-    F(GetTypedArrayObject)                            \
-    F(SetObjectOperation)                             \
-    F(SetTypedArrayObjectOperation)                   \
-    F(GetObjectPreComputedCase)                       \
-    F(GetObjectPreComputedCaseSimpleInlineCache2)     \
-    F(GetObjectPreComputedCaseSimpleInlineCache)      \
-    F(GetObjectPreComputedCaseLength)                 \
-    F(GetObjectPreComputedCaseComplexInlineCache)     \
-    F(SetObjectPreComputedCase)                       \
-    F(SetObjectPreComputedCaseSimpleInlineCache)      \
-    F(SetObjectPreComputedCaseComplexInlineCache)     \
-    F(GetGlobalVariable)                              \
-    F(SetGlobalVariable)                              \
-    F(InitializeGlobalVariable)                       \
-    F(Move)                                           \
-    F(Increment)                                      \
-    F(Decrement)                                      \
-    F(ToNumber)                                       \
-    F(ToPropertyKey)                                  \
-    F(UnaryMinus)                                     \
-    F(UnaryNot)                                       \
-    F(UnaryBitwiseNot)                                \
-    F(UnaryTypeof)                                    \
-    F(UnaryDelete)                                    \
-    F(TemplateOperation)                              \
-    F(Jump)                                           \
-    F(JumpComplexCase)                                \
-    F(JumpIfBoolean)                                  \
-    F(JumpIfUndefinedOrNull)                          \
-    F(JumpIfNotFulfilled)                             \
-    F(JumpIfEqual)                                    \
-    F(SwitchOnInt32)                                  \
-    F(SwitchOnValue)                                  \
-    F(Call)                                           \
-    F(CallWithReceiver)                               \
-    F(GetParameter)                                   \
-    F(ExecutionResume)                                \
-    F(ExecutionPause)                                 \
-    F(InitializeDisposable)                           \
-    F(FinalizeDisposable)                             \
-    F(SetExecutionStateInStrictMode)                  \
-    F(ReturnFunctionSlowCase)                         \
-    F(TryOperation)                                   \
-    F(CloseLexicalEnvironment)                        \
-    F(ThrowOperation)                                 \
-    F(ThrowStaticErrorOperation)                      \
-    F(CreateEnumerateObject)                          \
-    F(GetEnumerateKey)                                \
-    F(CheckLastEnumerateKey)                          \
-    F(MarkEnumerateKey)                               \
-    F(IteratorOperation)                              \
-    F(IteratorNextValue)                              \
-    F(IteratorBindValue)                              \
-    F(GetMethod)                                      \
-    F(LoadRegExp)                                     \
-    F(OpenLexicalEnvironment)                         \
-    F(ObjectDefineGetterSetter)                       \
-    F(CallComplexCase)                                \
-    F(BindingRestElement)                             \
-    F(LoadByHeapIndexComplexCase)                     \
-    F(MetaPropertyOperation)                          \
-    F(BlockOperation)                                 \
-    F(ReplaceBlockLexicalEnvironmentOperation)        \
-    F(TaggedTemplateOperation)                        \
-    F(EnsureArgumentsObject)                          \
-    F(LoadArgumentsElement)                           \
-    F(BindingCalleeIntoRegister)                      \
-    F(ResolveNameAddress)                             \
-    F(StoreByNameWithAddress)                         \
-    F(FillOpcodeTable)                                \
+#define FOR_EACH_BYTECODE_OP(F)                                                     \
+    F(LoadLiteral)                                                                  \
+    F(LoadByName)                                                                   \
+    F(StoreByName)                                                                  \
+    F(InitializeByName)                                                             \
+    F(LoadByHeapIndex)                                                              \
+    F(StoreByHeapIndex)                                                             \
+    F(InitializeByHeapIndex)                                                        \
+    F(NewOperation)                                                                 \
+    F(NewOperationWithSpreadElement)                                                \
+    F(BinaryPlus)                                                                   \
+    F(BinaryMinus)                                                                  \
+    F(BinaryMultiply)                                                               \
+    F(BinaryDivision)                                                               \
+    F(BinaryExponentiation)                                                         \
+    F(BinaryMod)                                                                    \
+    F(BinaryEqual)                                                                  \
+    F(BinaryLessThan)                                                               \
+    F(BinaryLessThanOrEqual)                                                        \
+    F(BinaryGreaterThan)                                                            \
+    F(BinaryGreaterThanOrEqual)                                                     \
+    F(BinaryStrictEqual)                                                            \
+    F(BinaryBitwiseAnd)                                                             \
+    F(BinaryBitwiseOr)                                                              \
+    F(BinaryBitwiseXor)                                                             \
+    F(BinaryLeftShift)                                                              \
+    F(BinarySignedRightShift)                                                       \
+    F(BinaryUnsignedRightShift)                                                     \
+    F(BinaryInOperation)                                                            \
+    F(BinaryInstanceOfOperation)                                                    \
+    F(BinaryInstanceOfOperationInlineCache)                                         \
+    F(CreateObjectPrepare)                                                          \
+    F(CreateObject)                                                                 \
+    F(CreateOnlyKeyValueObject)                                                     \
+    F(CreateArray)                                                                  \
+    F(CreateSpreadArrayObject)                                                      \
+    F(CreateArrayFromIterable)                                                      \
+    F(ReleaseIteratorRecord)                                                        \
+    F(CreateFunction)                                                               \
+    F(InitializeClass)                                                              \
+    F(CreateRestElement)                                                            \
+    F(SuperReference)                                                               \
+    F(ComplexSetObjectOperation)                                                    \
+    F(ComplexGetObjectOperation)                                                    \
+    F(LoadThisBinding)                                                              \
+    F(ObjectDefineOwnPropertyOperation)                                             \
+    F(ObjectDefineOwnPropertyWithNameOperation)                                     \
+    F(ArrayDefineOwnPropertyOperation)                                              \
+    F(ArrayDefineOwnPropertyBySpreadElementOperation)                               \
+    F(GetObject)                                                                    \
+    F(SetObjectOperation)                                                           \
+    F(GetObjectPreComputedCase)                                                     \
+    F(GetObjectPreComputedCaseSimpleInlineCache2)                                   \
+    F(GetObjectPreComputedCaseSimpleInlineCache)                                    \
+    F(GetObjectPreComputedCaseLength)                                               \
+    F(GetObjectPreComputedCaseComplexInlineCache)                                   \
+    F(SetObjectPreComputedCase)                                                     \
+    F(SetObjectPreComputedCaseSimpleInlineCache)                                    \
+    F(SetObjectPreComputedCaseComplexInlineCache)                                   \
+    F(GetGlobalVariable)                                                            \
+    F(SetGlobalVariable)                                                            \
+    F(InitializeGlobalVariable)                                                     \
+    F(Move)                                                                         \
+    F(Increment)                                                                    \
+    F(Decrement)                                                                    \
+    F(ToNumber)                                                                     \
+    F(ToPropertyKey)                                                                \
+    F(UnaryMinus)                                                                   \
+    F(UnaryNot)                                                                     \
+    F(UnaryBitwiseNot)                                                              \
+    F(UnaryTypeof)                                                                  \
+    F(UnaryDelete)                                                                  \
+    F(TemplateOperation)                                                            \
+    F(Jump)                                                                         \
+    F(JumpComplexCase)                                                              \
+    F(JumpIfBoolean)                                                                \
+    F(JumpIfUndefinedOrNull)                                                        \
+    F(JumpIfNotFulfilled)                                                           \
+    F(JumpIfEqual)                                                                  \
+    F(SwitchOnInt32)                                                                \
+    F(SwitchOnValue)                                                                \
+    F(Call)                                                                         \
+    F(CallWithReceiver)                                                             \
+    F(GetParameter)                                                                 \
+    F(ExecutionResume)                                                              \
+    F(ExecutionPause)                                                               \
+    F(InitializeDisposable)                                                         \
+    F(FinalizeDisposable)                                                           \
+    F(SetExecutionStateInStrictMode)                                                \
+    F(ReturnFunctionSlowCase)                                                       \
+    F(TryOperation)                                                                 \
+    F(CloseLexicalEnvironment)                                                      \
+    F(ThrowOperation)                                                               \
+    F(ThrowStaticErrorOperation)                                                    \
+    F(CreateEnumerateObject)                                                        \
+    F(GetEnumerateKey)                                                              \
+    F(CheckLastEnumerateKey)                                                        \
+    F(MarkEnumerateKey)                                                             \
+    F(IteratorOperation)                                                            \
+    F(IteratorNextValue)                                                            \
+    F(IteratorBindValue)                                                            \
+    F(GetMethod)                                                                    \
+    F(LoadRegExp)                                                                   \
+    F(OpenLexicalEnvironment)                                                       \
+    F(ObjectDefineGetterSetter)                                                     \
+    F(CallComplexCase)                                                              \
+    F(BindingRestElement)                                                           \
+    F(LoadByHeapIndexComplexCase)                                                   \
+    F(MetaPropertyOperation)                                                        \
+    F(BlockOperation)                                                               \
+    F(ReplaceBlockLexicalEnvironmentOperation)                                      \
+    F(TaggedTemplateOperation)                                                      \
+    F(EnsureArgumentsObject)                                                        \
+    F(LoadArgumentsElement)                                                         \
+    F(BindingCalleeIntoRegister)                                                    \
+    F(ResolveNameAddress)                                                           \
+    F(StoreByNameWithAddress)                                                       \
+    F(GetTypedArrayObject)                                                          \
+    FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(SPECIALIZED_TYPEDARRAY_GET_BYTECODE_OP, F) \
+    F(SetTypedArrayObjectOperation)                                                 \
+    FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(SPECIALIZED_TYPEDARRAY_SET_BYTECODE_OP, F) \
+    F(FillOpcodeTable)                                                              \
     F(End)
 
 #if defined(ENABLE_TCO)
@@ -1389,6 +1399,17 @@ public:
 class SetTypedArrayObjectOperation : public SetObjectOperation {
 };
 COMPILE_ASSERT(sizeof(SetTypedArrayObjectOperation) == sizeof(SetObjectOperation), "");
+
+#define DECLARE_SPECIALIZED_TYPEDARRAY_BYTECODE(name)                        \
+    class Get##name##ArrayObject : public GetObject {                        \
+    };                                                                       \
+    COMPILE_ASSERT(sizeof(Get##name##ArrayObject) == sizeof(GetObject), ""); \
+    class Set##name##ArrayObjectOperation : public SetObjectOperation {      \
+    };                                                                       \
+    COMPILE_ASSERT(sizeof(Set##name##ArrayObjectOperation) == sizeof(SetObjectOperation), "");
+
+FOR_EACH_SPECIALIZED_TYPEDARRAY_TYPE(DECLARE_SPECIALIZED_TYPEDARRAY_BYTECODE)
+#undef DECLARE_SPECIALIZED_TYPEDARRAY_BYTECODE
 
 class ObjectDefineOwnPropertyOperation : public ByteCode {
 public:
