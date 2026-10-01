@@ -296,7 +296,7 @@ static Value builtinSetIntersection(ExecutionState& state, Value thisValue, size
     SetObject::SetObjectData resultSetData;
 
     // 5. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
-    if (setDataSize(state, O->storage()) <= otherRec.size) {
+    if (O->size() <= otherRec.size) {
         // a. Let thisSize be the number of elements in O.[[SetData]].
         auto thisSize = O->storage().size();
         // b. Let index be 0.
@@ -371,7 +371,7 @@ static Value builtinSetIsDisjointFrom(ExecutionState& state, Value thisValue, si
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
-    if (setDataSize(state, O->storage()) <= otherRec.size) {
+    if (O->size() <= otherRec.size) {
         // a. Let thisSize be the number of elements in O.[[SetData]].
         auto thisSize = O->storage().size();
         // b. Let index be 0.
@@ -434,7 +434,7 @@ static Value builtinSetDifference(ExecutionState& state, Value thisValue, size_t
     // 4. Let resultSetData be a copy of O.[[SetData]].
     SetObject::SetObjectData resultSetData = O->storage();
     // 5. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
-    if (setDataSize(state, O->storage()) <= otherRec.size) {
+    if (O->size() <= otherRec.size) {
         // a. Let thisSize be the number of elements in O.[[SetData]].
         auto thisSize = O->storage().size();
         // b. Let index be 0.
@@ -497,7 +497,7 @@ static Value builtinSetIsSubsetOf(ExecutionState& state, Value thisValue, size_t
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) > otherRec.[[Size]], return false.
-    if (setDataSize(state, O->storage()) > otherRec.size) {
+    if (O->size() > otherRec.size) {
         return Value(false);
     }
 
@@ -539,7 +539,7 @@ static Value builtinSetIsSupersetOf(ExecutionState& state, Value thisValue, size
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) < otherRec.[[Size]], return false.
-    if (setDataSize(state, O->storage()) < otherRec.size) {
+    if (O->size() < otherRec.size) {
         return Value(false);
     }
     // 5. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
@@ -629,7 +629,7 @@ static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, size);
-    return Value(S->size(state));
+    return Value(S->size());
 }
 
 static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

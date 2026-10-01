@@ -95,6 +95,9 @@ void WeakSetObject::buildOrRebuildHashIndex()
     for (size_t i = 0; i < live; i++) {
         index->insert(keyedCollectionPointerHash(m_storage[i]->key.unwrap()), i);
     }
+    if (m_hashIndex) {
+        KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+    }
     m_hashIndex = index;
 }
 
