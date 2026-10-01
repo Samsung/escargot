@@ -308,6 +308,10 @@ public:
                 if (m_size > end) {
                     VectorCopier<T>::copy(&m_buffer[end - c], &m_buffer[end], m_size - end);
                 }
+                for (size_t i = newSize; i < m_size; i++) {
+                    m_buffer[i].~T();
+                }
+                memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * c);
                 m_size = newSize;
             }
         } else {
@@ -433,6 +437,8 @@ public:
 
                 m_buffer = newBuffer;
                 m_capacity = newSize;
+            } else if (newSize < m_size) {
+                memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (m_size - newSize));
             }
             m_size = newSize;
         } else {
@@ -454,6 +460,8 @@ public:
 
                 m_buffer = newBuffer;
                 m_capacity = newCapacity;
+            } else if (newSize < m_size) {
+                memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (m_size - newSize));
             }
             m_size = newSize;
         } else {
@@ -481,6 +489,12 @@ public:
             } else {
                 for (size_t i = m_size; i < newSize; i++) {
                     m_buffer[i] = val;
+                }
+                if (newSize < m_size) {
+                    for (size_t i = newSize; i < m_size; i++) {
+                        m_buffer[i].~T();
+                    }
+                    memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (m_size - newSize));
                 }
                 m_size = newSize;
             }
@@ -605,6 +619,9 @@ public:
                 for (size_t i = oldSize; i < newSize; i++) {
                     m_buffer[i] = val;
                 }
+                if (newSize < oldSize) {
+                    memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (oldSize - newSize));
+                }
             }
         } else {
             clear();
@@ -709,6 +726,9 @@ public:
                 for (size_t i = oldSize; i < newSize; i++) {
                     m_buffer[i] = val;
                 }
+                if (newSize < oldSize) {
+                    memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (oldSize - newSize));
+                }
             }
         } else {
             clear();
@@ -732,6 +752,9 @@ public:
             } else {
                 for (size_t i = oldSize; i < newSize; i++) {
                     m_buffer[i] = val;
+                }
+                if (newSize < oldSize) {
+                    memset(static_cast<void*>(m_buffer + newSize), 0, sizeof(T) * (oldSize - newSize));
                 }
             }
         } else {
@@ -807,6 +830,7 @@ public:
                 inlineAt(i)->~T();
             }
         }
+        memset(m_inlineStorage, 0, sizeof(m_inlineStorage));
         m_size = 0;
         m_useExternalStorage = false;
     }
@@ -849,7 +873,9 @@ public:
 
                 for (size_t i = 0; i < m_size; i++) {
                     m_externalStorage.push_back(std::move(*inlineAt(i)));
+                    inlineAt(i)->~T();
                 }
+                memset(m_inlineStorage, 0, sizeof(m_inlineStorage));
             }
         } else {
             m_externalStorage.reserve(siz);
@@ -872,7 +898,9 @@ public:
 
                 for (size_t i = 0; i < m_size; i++) {
                     m_externalStorage.push_back(std::move(*inlineAt(i)));
+                    inlineAt(i)->~T();
                 }
+                memset(m_inlineStorage, 0, sizeof(m_inlineStorage));
 
                 m_externalStorage.push_back(decl);
             }
@@ -889,6 +917,7 @@ public:
             m_externalStorage.pop_back();
         } else {
             inlineAt(m_size)->~T();
+            memset(static_cast<void*>(inlineAt(m_size)), 0, sizeof(T));
         }
     }
 
