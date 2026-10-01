@@ -418,6 +418,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(Optional<Str
             GC_enable();
 
             if (LIKELY(loadingDone)) {
+                source->compactUTF8(m_context->vmInstance());
                 ScriptParser::InitializeScriptResult result;
                 result.script = script;
                 return result;
@@ -447,7 +448,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(Optional<Str
     bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     InterpretedCodeBlock* topCodeBlock = nullptr;
-    StringView sourceView = source->range().toStringView();
+    bool stream = !source->hasFlatString();
+    StringView sourceView = stream ? StringView(String::emptyString()) : source->range().toStringView();
     ProgramNode* programNode = nullptr;
     Script* script = nullptr;
 
@@ -456,7 +458,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(Optional<Str
         ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock.unwrap());
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
-                                            isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
+                                            isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments,
+                                            stream ? Optional<SourceRange>(source->range()) : Optional<SourceRange>());
 
         script = new Script(srcName, source, programNode->moduleData(), originLineOffset, !parentCodeBlock
 #if defined(ENABLE_CODE_CACHE)
@@ -534,6 +537,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(Optional<Str
 
     GC_enable();
 
+    source->compactUTF8(m_context->vmInstance());
+
     ScriptParser::InitializeScriptResult result;
     result.script = script;
     return result;
@@ -556,7 +561,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     // Load cache
     if (cacheable) {
         // loading source code hash value can cause computing hash value of entire source code
-        cacheIndex = CodeCacheIndex(codeBlock->script()->sourceCodeHashValue(), codeBlock->script()->sourceCode()->length(), codeBlock->functionStart().index);
+        cacheIndex = CodeCacheIndex(codeBlock->script()->sourceCodeHashValue(), codeBlock->script()->source()->length(), codeBlock->functionStart().index);
         auto result = codeCache->searchCache(cacheIndex);
         if (result.first) {
             GC_disable();
@@ -683,7 +688,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
 
     InterpretedCodeBlock* topCodeBlock = nullptr;
-    StringView sourceView = source->range().toStringView();
+    bool stream = !source->hasFlatString();
+    StringView sourceView = stream ? StringView(String::emptyString()) : source->range().toStringView();
     ProgramNode* programNode = nullptr;
     Script* script = nullptr;
 
@@ -691,7 +697,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     try {
         ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock.unwrap());
 
-        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
+        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments,
+                                            stream ? Optional<SourceRange>(source->range()) : Optional<SourceRange>());
 
         script = new Script(srcName, source, programNode->moduleData(), originLineOffset, !parentCodeBlock);
         if (parentCodeBlock) {
@@ -774,6 +781,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         result.parseErrorMessage = msg;
         return result;
     }
+
+    source->compactUTF8(m_context->vmInstance());
 
     ScriptParser::InitializeScriptResult result;
     result.script = script;

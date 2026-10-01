@@ -50,6 +50,12 @@ public:
         initBufferAccessData(str->bufferAccessData(), s, e);
     }
 
+    ALWAYS_INLINE ParserStringView(const char* ascii, size_t length)
+        : String()
+    {
+        initBufferAccessData(StringBufferAccessData(true, length, const_cast<char*>(ascii)), 0, length);
+    }
+
     ALWAYS_INLINE ParserStringView()
         : String()
     {

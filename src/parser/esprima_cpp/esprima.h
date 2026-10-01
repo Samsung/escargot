@@ -20,6 +20,8 @@
 #ifndef __EscargotEsprima__
 #define __EscargotEsprima__
 
+#include "parser/ScriptSource.h"
+
 namespace Escargot {
 
 class Context;
@@ -33,6 +35,7 @@ class ProgramNode;
 
 struct NodeLOC;
 struct ASTClassInfo;
+struct SourceRange;
 
 enum class ErrorCode : uint8_t;
 
@@ -61,7 +64,8 @@ struct Error : public gc {
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo,
                           bool isModule, bool strictFromOutside, bool inWith, bool allowSuperCallFromOutside,
-                          bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside);
+                          bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside,
+                          Optional<SourceRange> streamingSource = Optional<SourceRange>());
 FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock);
 
 ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock);

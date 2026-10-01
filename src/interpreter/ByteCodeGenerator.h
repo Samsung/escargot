@@ -33,6 +33,7 @@ class CodeBlock;
 class ByteCodeBlock;
 class Node;
 class InterpretedCodeBlock;
+class ClassSourceText;
 
 struct ClassContextInformation {
     ClassContextInformation()
@@ -40,7 +41,7 @@ struct ClassContextInformation {
         , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
         , m_name()
-        , m_src(String::emptyString())
+        , m_src(nullptr)
     {
     }
 
@@ -48,7 +49,7 @@ struct ClassContextInformation {
     size_t m_prototypeIndex;
     size_t m_superIndex;
     Optional<AtomicString> m_name;
-    String* m_src;
+    Optional<ClassSourceText*> m_src;
 };
 
 #ifdef ESCARGOT_DEBUGGER

@@ -23,6 +23,7 @@
 #if defined(ENABLE_CODE_CACHE)
 
 #include "util/Vector.h"
+#include "interpreter/ByteCode.h"
 
 namespace Escargot {
 
@@ -222,7 +223,7 @@ private:
     CacheStringTable* m_stringTable;
     CodeBlockCacheInfo* m_codeBlockCacheInfo;
 
-    void storeByteCodeStream(ByteCodeBlock* block);
+    void storeByteCodeStream(ByteCodeBlock* block, ByteCodeStringLiteralData& stringLiteralData, ByteCodeOtherLiteralData& bigIntData);
     void storeGlobalVariableAccessCache(Context* context);
 };
 

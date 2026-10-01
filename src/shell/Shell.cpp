@@ -331,12 +331,31 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
     }
 }
 
+static OptionalRef<ScriptSourceRef> builtinHelperFileReadSource(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
+{
+    FILE* fp = fopen(fileName, "r");
+    if (!fp) {
+        // Keep the shell's existing error message and exception behavior.
+        builtinHelperFileRead(state, fileName, builtinName);
+        return nullptr;
+    }
+
+    std::string bytes;
+    char buffer[16384];
+    size_t count;
+    while ((count = fread(buffer, 1, sizeof(buffer), fp)) != 0) {
+        bytes.append(buffer, count);
+    }
+    fclose(fp);
+    return ScriptSourceRef::createFromUTF8(bytes.data(), bytes.length());
+}
+
 static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc >= 1) {
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "load").value();
+        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "load").value();
         bool isModule = stringEndsWith(f, "mjs");
 
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
@@ -365,7 +384,7 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
 
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "run").value();
+        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "run").value();
         bool isModule = stringEndsWith(f, "mjs");
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
         script->execute(state);
@@ -913,8 +932,11 @@ static bool evalScript(ContextRef* context, ScriptSourceRef* source, StringRef* 
     bool shouldRestart = false;
     do {
         if (shouldRestart) {
-            StringRef* reloaded = Evaluator::execute(context, [](ExecutionStateRef* state, StringRef* str) -> ValueRef* { return builtinHelperFileRead(state, str->toStdUTF8String().c_str(), "read").get(); }, srcName).result->asString();
-            source = ScriptSourceRef::createFromString(reloaded);
+            auto reloaded = builtinHelperFileReadSource(nullptr, srcName->toStdUTF8String().c_str(), "read");
+            if (!reloaded) {
+                return false;
+            }
+            source = reloaded.value();
         }
         shouldRestart = false;
 
@@ -1356,13 +1378,13 @@ int main(int argc, char* argv[])
             fclose(fp);
             runShell = false;
 
-            StringRef* src = Evaluator::execute(context, [](ExecutionStateRef* state, char* c) -> ValueRef* { return builtinHelperFileRead(state, c, "read").get(); }, argv[i]).result->asString();
+            ScriptSourceRef* src = builtinHelperFileReadSource(nullptr, argv[i], "read").value();
 
             if (fileName.length() == 0) {
                 fileName = argv[i];
             }
 
-            if (!evalScript(context, ScriptSourceRef::createFromString(src), StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
+            if (!evalScript(context, src, StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
                 runShell = false;
                 exitCode = 3;
                 break;

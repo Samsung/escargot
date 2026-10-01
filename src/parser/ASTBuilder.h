@@ -24,6 +24,8 @@
 
 namespace Escargot {
 
+class ClassSourceText;
+
 #define FOR_EACH_TARGET_NODE(F)               \
     F(ArrayExpression)                        \
     F(ArrayPattern)                           \
@@ -552,7 +554,7 @@ public:
     }
 
     template <class ClassType>
-    SyntaxNode createClass(SyntaxNode id, SyntaxNode superClass, SyntaxNode classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    SyntaxNode createClass(SyntaxNode id, SyntaxNode superClass, SyntaxNode classBody, LexicalBlockIndex classBodyLexicalBlockIndex, ClassSourceText* classSrc)
     {
         // temporally generated Class to identify the type
         ClassType tempClass;
@@ -728,7 +730,7 @@ public:
     }
 
     template <class ClassType>
-    ClassType* createClass(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassType* createClass(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, ClassSourceText* classSrc)
     {
         return new (m_allocator) ClassType(id, superClass, classBody, classBodyLexicalBlockIndex, classSrc);
     }

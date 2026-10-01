@@ -585,6 +585,20 @@ TEST(EvalScript, ScriptSourceUTF8)
     EXPECT_EQ(execution.result->asString()->toStdUTF8String(), "function inner(a) { return a + marker.length; }");
 }
 
+TEST(EvalScript, ScriptSourceUTF8ClassToString)
+{
+    const char source[] = "/* \xF0\x9F\x98\x80 */ class RawUTF8ClassForToString { value() { return 1; } } RawUTF8ClassForToString;";
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source, sizeof(source) - 1);
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("raw-class.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    GC_gcollect();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("RawUTF8ClassForToString.toString()"), StringRef::createFromASCII("class-to-string.js"), false),
+              "class RawUTF8ClassForToString { value() { return 1; } }");
+}
+
 TEST(EvalScript, ScriptSourceInvalidUTF8)
 {
     const char source[] = { '\'', static_cast<char>(0xff), '\'', ';', '\0' };
@@ -650,6 +664,55 @@ TEST(EvalScript, ScriptSourceUTF8BoundaryAndLazyFunction)
     auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
     ASSERT_TRUE(execution.isSuccessful());
     EXPECT_EQ(execution.result->asNumber(), 42);
+}
+
+TEST(EvalScript, ScriptSourceUTF8KeywordAcrossWindow)
+{
+    std::string source = "// \xC3\xA9\n";
+    const std::string beforeClass = "globalThis.WindowClass = class { ";
+    // Put "static" across the 1024-code-unit decoding window boundary.
+    source += std::string(1022 - 5 - beforeClass.length(), ' ');
+    source += beforeClass;
+    source += "static get value() { return 42; } }; WindowClass.value;";
+
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(source.data(), source.length());
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("utf8-keyword-boundary.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+    EXPECT_EQ(execution.result->asNumber(), 42);
+}
+
+TEST(EvalScript, ScriptSourceUTF8IndexBoundary)
+{
+    // A source whose text is mostly ASCII is kept as the UTF-8 bytes it came from, and a
+    // range of it is decoded by walking those bytes from the nearest entry of an index
+    // that holds one byte offset per 512 code units. The comment below is 511 code units
+    // long("//" plus 509 characters), so the surrogate pair of the emoji behind it covers
+    // the code units 511 and 512 -- the second index entry lands on a trail surrogate,
+    // the one position a cursor cannot be rebuilt from the byte offset alone.
+    std::string text = "//" + std::string(509, 'c') + "\xF0\x9F\x98\x80\n";
+    // a class expression rather than a declaration, the text below is run twice in the
+    // same context and a lexical declaration cannot be repeated there
+    text += "globalThis.Boxed = class Boxed { constructor(v) { this.v = v; } get doubled() { return this.v * 2; } };\n";
+    text += "function lazy(a) { return `${a}\xC3\xA9`; }\n";
+    text += "lazy(new Boxed(21).doubled) + '|' + lazy.toString() + '|' + Boxed.toString();";
+
+    ScriptSourceRef* scriptSource = ScriptSourceRef::createFromUTF8(text.data(), text.length());
+    // the emoji costs two bytes more than its two code units and the accent one more than
+    // its one, which is what makes the bytes the smaller of the two representations
+    EXPECT_EQ(scriptSource->storageLength(), scriptSource->length() + 3);
+
+    auto parseResult = g_context->scriptParser()->initializeScript(scriptSource, StringRef::createFromASCII("utf8-index-boundary.js"), false);
+    ASSERT_TRUE(parseResult.script.hasValue());
+    auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
+    ASSERT_TRUE(execution.isSuccessful());
+
+    // the very same text given as a string is stored flat, and both storages have to
+    // produce the same text for a lazily parsed function body and for a class source
+    auto expected = evalScript(g_context.get(), StringRef::createFromUTF8(text.data(), text.length()), StringRef::createFromASCII("utf8-index-boundary-flat.js"), false);
+    EXPECT_EQ(execution.result->asString()->toStdUTF8String(), expected);
+    EXPECT_NE(expected.find("function lazy(a) { return `${a}\xC3\xA9`; }"), std::string::npos);
 }
 
 TEST(EvalScript, ScriptSourceFromString)
@@ -3656,6 +3719,91 @@ TEST(GCLeak, SourceStaysAliveWhileAFunctionNeedsIt)
     // itself is already gone
     EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("keepMeAlive.toString()"), StringRef::createFromASCII("toString.js"), false),
               "function keepMeAlive(a) { return a + 1; }");
+
+    context.release();
+    instance.release();
+}
+
+// A script that keeps one function alive on the global object, with a comment that is
+// almost all ASCII but for a single accented character. That one character used to make
+// the whole text be decoded into UTF-16 and kept that way -- twice the size of the bytes
+// it came from -- for as long as any function of the script lived, because the source
+// text is what Function.prototype.toString has to return.
+static std::string makeMostlyASCIIUTF8Script(size_t commentLength, size_t serial)
+{
+    std::string source = "// \xC3\xA9" + std::string(commentLength, 'c') + "\n";
+    source += "globalThis.keptFn" + std::to_string(serial) + " = function () { return " + std::to_string(serial) + "; };\n";
+    return source;
+}
+
+TEST(GCLeak, MostlyASCIIUTF8ParsingUsesBoundedDecodedStorage)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    const size_t commentLength = 4 * 1024 * 1024;
+    std::string text = makeMostlyASCIIUTF8Script(commentLength, 1);
+    ScriptSourceRef* source = ScriptSourceRef::createFromUTF8(text.data(), text.length());
+    size_t beforeParse = GC_get_total_bytes();
+
+    runScriptWithoutKeepingIt(context.get(), source, "streaming-source.js");
+
+    // The source bytes were allocated before the counter was read. Parsing this
+    // mostly ASCII source should not allocate another four-megabyte string.
+    EXPECT_LT(GC_get_total_bytes() - beforeParse, 3 * 1024 * 1024u);
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("keptFn1()"), StringRef::createFromASCII("streaming-check.js"), false), "1");
+
+    context.release();
+    instance.release();
+}
+
+TEST(GCLeak, LargeUTF8SourceRemainsReadableAfterCompaction)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    std::string text = makeMostlyASCIIUTF8Script(9 * 1024 * 1024, 42);
+    runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(text.data(), text.length()), "compact-source.js");
+    GC_gcollect();
+
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("keptFn42() + ',' + keptFn42.toString()"), StringRef::createFromASCII("compact-check.js"), false),
+              "42,function () { return 42; }");
+
+    context.release();
+    instance.release();
+}
+
+TEST(GCLeak, MostlyASCIIUTF8SourceIsKeptAsBytes)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    // a slope test for the same reason as the tests above: the assertion is on how much
+    // the heap grows per run, not on the fate of one object
+    const size_t iterations = 8;
+    const size_t commentLength = 1024 * 1024;
+
+    std::string warmUpSource = makeMostlyASCIIUTF8Script(commentLength, 0);
+    runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(warmUpSource.data(), warmUpSource.length()), "mostlyASCII0.js");
+    collectEverythingUnreachable();
+    size_t baseline = Memory::heapSize();
+
+    for (size_t i = 1; i <= iterations; i++) {
+        std::string source = makeMostlyASCIIUTF8Script(commentLength, i);
+        std::string srcName = "mostlyASCII" + std::to_string(i) + ".js";
+        runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(source.data(), source.length()), srcName.data());
+    }
+    collectEverythingUnreachable();
+    size_t growth = Memory::heapSize() > baseline ? Memory::heapSize() - baseline : 0;
+
+    // every source has to stay, the functions on the global object need it. halfway
+    // between the two representations: about `iterations * commentLength` if the bytes are
+    // kept, twice that if the text is kept decoded into UTF-16
+    EXPECT_LT(growth, iterations * commentLength * 3 / 2);
+
+    // and the functions really are still there, so the run above is not vacuous
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("keptFn1() + keptFn8() + ',' + keptFn8.toString()"), StringRef::createFromASCII("fnCheck.js"), false),
+              "9,function () { return 8; }");
 
     context.release();
     instance.release();

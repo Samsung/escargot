@@ -25,11 +25,17 @@
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/VMInstance.h"
 #include "parser/Script.h"
+#include "parser/ScriptSource.h"
 #include "parser/ast/Node.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {
+
+String* StackTraceDataOnStack::materializedSourceCode() const
+{
+    return scriptSource ? scriptSource->string() : sourceCode;
+}
 
 SandBox::SandBox(Context* s)
     : m_context(s)
@@ -211,7 +217,7 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             StackTraceDataOnStack data;
             data.loc = loc;
             data.srcName = cb->script()->srcName();
-            data.sourceCode = cb->script()->sourceCode();
+            data.scriptSource = cb->script()->source();
             data.isEval = true;
             data.isFunction = false;
             data.isAssociatedWithJavaScriptCode = true;
@@ -254,7 +260,7 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             StackTraceDataOnStack data;
             data.loc = loc;
             data.srcName = cb->script()->srcName();
-            data.sourceCode = cb->script()->sourceCode();
+            data.scriptSource = cb->script()->source();
 
             data.functionName = cb->functionName().string();
             data.isEval = false;
@@ -422,22 +428,25 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
             builder.appendChar(':');
             builder.appendString(String::fromDouble(loc.column));
 
-            String* src = block->m_codeBlock->script()->sourceCode();
-            if (src->length() && loc.index != SIZE_MAX) {
+            ScriptSource* src = block->m_codeBlock->script()->source();
+            if (src->length() && loc.index != SIZE_MAX && loc.index < src->length()) {
                 const size_t preLineMax = 40;
                 const size_t afterLineMax = 40;
 
                 size_t preLineSoFar = 0;
                 size_t afterLineSoFar = 0;
 
-                auto bad = src->bufferAccessData();
                 size_t start = loc.index;
+                size_t windowStart = start > preLineMax ? start - preLineMax : 0;
+                size_t windowEnd = std::min(src->length(), start + afterLineMax + 1);
+                String* window = src->substring(windowStart, windowEnd);
                 int64_t idx = (int64_t)start;
                 while (start - idx < preLineMax) {
                     if (idx == 0) {
                         break;
                     }
-                    if (bad.charAt((size_t)idx) == '\r' || bad.charAt((size_t)idx) == '\n') {
+                    char16_t ch = window->charAt((size_t)idx - windowStart);
+                    if (ch == '\r' || ch == '\n') {
                         idx++;
                         break;
                     }
@@ -447,19 +456,20 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
 
                 idx = start;
                 while (idx - start < afterLineMax) {
-                    if ((size_t)idx == bad.length - 1) {
+                    if ((size_t)idx == src->length() - 1) {
                         break;
                     }
-                    if (bad.charAt((size_t)idx) == '\r' || bad.charAt((size_t)idx) == '\n') {
+                    char16_t ch = window->charAt((size_t)idx - windowStart);
+                    if (ch == '\r' || ch == '\n') {
                         break;
                     }
                     idx++;
                 }
                 afterLineSoFar = idx;
 
-                if (preLineSoFar <= afterLineSoFar && preLineSoFar <= bad.length && afterLineSoFar <= bad.length) {
+                if (preLineSoFar <= afterLineSoFar && preLineSoFar <= src->length() && afterLineSoFar <= src->length()) {
                     builder.appendChar('\n');
-                    builder.appendSubString(src, preLineSoFar, afterLineSoFar);
+                    builder.appendSubString(window, preLineSoFar - windowStart, afterLineSoFar - windowStart);
                     builder.appendChar('\n');
                     std::string sourceCodePosition;
                     for (size_t i = preLineSoFar; i < start; i++) {

@@ -26,6 +26,7 @@
 namespace Escargot {
 
 class ScriptClassConstructorFunctionObject;
+class ClassSourceText;
 
 class ScriptClassConstructorPrototypeObject : public PrototypeObject {
 public:
@@ -56,7 +57,7 @@ class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment,
-                                         Object* homeObject, Optional<Object*> outerClassConstructor, String* classSourceCode, const Optional<AtomicString>& name);
+                                         Object* homeObject, Optional<Object*> outerClassConstructor, ClassSourceText* classSourceCode, const Optional<AtomicString>& name);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
@@ -77,10 +78,7 @@ public:
         return m_homeObject;
     }
 
-    String* classSourceCode()
-    {
-        return m_classSourceCode;
-    }
+    String* classSourceCode();
 
     Optional<Object*> outerClassConstructor()
     {
@@ -108,8 +106,7 @@ private:
     size_t m_prototypeIndex;
     Object* m_homeObject;
     Optional<Object*> m_outerClassConstructor;
-    // We needs to store class source code for toString(). because class constructor stores its source code
-    String* m_classSourceCode;
+    ClassSourceText* m_classSourceCode;
     TightVector<std::tuple<EncodedValue, EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, EncodedValue, size_t>>> m_instanceFieldInitData;
     VectorWithNoSize<std::tuple<EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, size_t>>> m_staticFieldInitData;
 };

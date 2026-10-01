@@ -72,7 +72,7 @@ public:
     static void* allocateStringDataBuffer(size_t byteLength);
     static void deallocateStringDataBuffer(void* ptr, size_t byteLength);
 
-    bool compress();
+    bool compress(int acceleration = 1);
     void decompress();
 
     bool isPartiallyDecompressed() const
@@ -101,7 +101,7 @@ private:
     }
 
     template <typename StringType>
-    NEVER_INLINE bool compressWorker();
+    NEVER_INLINE bool compressWorker(int acceleration);
     template <typename StringType>
     NEVER_INLINE void decompressWorker();
     template <typename StringType>

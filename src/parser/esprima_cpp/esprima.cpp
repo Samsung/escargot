@@ -654,7 +654,7 @@ public:
                 msg = checkTokenIdentifier(token.type);
 
                 if (token.type == Token::KeywordToken) {
-                    if (this->scanner->isFutureReservedWord(token.relatedSource(this->scanner->source))) {
+                    if (this->scanner->isFutureReservedWord(token.relatedSource(this->scanner))) {
                         msg = Messages::UnexpectedReserved;
                     } else if (this->context->strict && token.isStrictModeReservedWord()) {
                         msg = Messages::StrictReservedWord;
@@ -663,7 +663,7 @@ public:
             } else if (token.type == Token::EOFToken) {
                 msg = Messages::UnexpectedEOS;
             }
-            value = new StringView(this->scanner->sourceAsNormalView, token.start, token.end);
+            value = this->scanner->sourceSliceAsString(token.start, token.end);
         } else {
             value = new ASCIIStringFromExternalMemory("ILLEGAL");
         }
@@ -1115,7 +1115,7 @@ public:
     {
         ParserStringView s;
         if (token->type == Token::KeywordToken) {
-            s = ParserStringView(this->scannerInstance.source, token->start, token->end);
+            s = this->scannerInstance.sourceSlice(token->start, token->end);
         } else {
             if (token->hasAllocatedString) {
                 if (!token->valueStringLiteralData.m_stringIfNewlyAllocated) {
@@ -1126,7 +1126,7 @@ public:
                 sb.appendString(token->valueStringLiteralData.m_stringIfNewlyAllocated);
                 s = ParserStringView(sb.finalize());
             } else {
-                s = ParserStringView(this->scannerInstance.source, token->start - 1, token->end);
+                s = this->scannerInstance.sourceSlice(token->start - 1, token->end);
             }
         }
 
@@ -1560,7 +1560,7 @@ public:
             param = this->parsePatternWithDefault(builder, params);
         }
         for (size_t i = 0; i < params.size(); i++) {
-            this->validateParam(options, params[i], params[i].relatedSource(this->scanner->source));
+            this->validateParam(options, params[i], params[i].relatedSource(this->scanner));
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
 
@@ -2454,7 +2454,7 @@ public:
 
         if (UNLIKELY(this->match(Period))) {
             this->nextToken();
-            if (this->lookahead.type == Token::IdentifierToken && this->context->allowNewTarget && this->lookahead.relatedSource(this->scanner->source) == "target") {
+            if (this->lookahead.type == Token::IdentifierToken && this->context->allowNewTarget && this->lookahead.relatedSource(this->scanner) == "target") {
                 this->nextToken();
                 this->currentScopeContext->m_hasSuperOrNewTarget = true;
                 MetaNode node = this->createNode();
@@ -4422,7 +4422,7 @@ public:
                             this->throwUnexpectedToken(this->lookahead);
                         }
                         this->nextToken();
-                        left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keywordToken.relatedSource(this->scanner->source))));
+                        left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keywordToken.relatedSource(this->scanner))));
                         init = nullptr;
                         type = statementTypeForIn;
                     } else {
@@ -6516,7 +6516,10 @@ public:
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
 
-        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, StringView(this->scanner->sourceAsNormalView, startNode.index - this->baseMarker.index, endNode.index - this->baseMarker.index)));
+        // A raw UTF-8 source decodes only this class range. A flat source keeps
+        // the existing view, since its code block already retains that source.
+        ClassSourceText* classSrc = this->scanner->sourceSliceAsClassSourceText(startNode.index - this->baseMarker.index, endNode.index - this->baseMarker.index);
+        return this->finalize(startNode, builder.template createClass<ClassType>(idNode, superClass, classBody, classBlockContext.childLexicalBlockIndex, classSrc));
     }
 
     template <class ASTBuilder>
@@ -6567,14 +6570,14 @@ public:
     {
         // Parse: with { type: "json" }
 
-        if (this->hasLineTerminator || this->lookahead.relatedSource(this->scanner->source) != "with") {
+        if (this->hasLineTerminator || this->lookahead.relatedSource(this->scanner) != "with") {
             return Platform::ModuleES;
         }
 
         this->nextToken();
         expect(LeftBrace);
 
-        if (this->lookahead.relatedSource(this->scanner->source) != "type") {
+        if (this->lookahead.relatedSource(this->scanner) != "type") {
             this->throwError("Unsupported key in assertion");
         }
 
@@ -7333,12 +7336,17 @@ public:
 };
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo, bool isModule, bool strictFromOutside,
-                          bool inWith, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside)
+                          bool inWith, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside,
+                          Optional<SourceRange> streamingSource)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
 
     Parser parser(ctx, source, outerClassInfo, isModule);
+    if (streamingSource) {
+        parser.scannerInstance.resetStreamingSource(streamingSource.value());
+        parser.setMarkers(ExtendedNodeLOC(1, 0, 0));
+    }
     NodeGenerator builder(ctx->astAllocator());
 
     parser.context->strict |= strictFromOutside;
@@ -7358,7 +7366,13 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src().toStringView(), nullptr, codeBlock->script()->isModule(), codeBlock->functionStart());
+    SourceRange functionSource = codeBlock->src();
+    bool stream = !functionSource.source->hasFlatString();
+    Parser parser(ctx, stream ? StringView(String::emptyString()) : functionSource.toStringView(), nullptr, codeBlock->script()->isModule(), codeBlock->functionStart());
+    if (stream) {
+        parser.scannerInstance.resetStreamingSource(functionSource);
+        parser.setMarkers(codeBlock->functionStart());
+    }
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;

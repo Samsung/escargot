@@ -22,6 +22,7 @@
 
 #include "parser/esprima_cpp/esprima.h"
 #include "parser/ParserStringView.h"
+#include "parser/ScriptSource.h"
 
 namespace Escargot {
 
@@ -328,7 +329,7 @@ public:
             KeywordKind valueKeywordKind;
         };
 
-        ParserStringView relatedSource(const ParserStringView& source);
+        ParserStringView relatedSource(Scanner* scanner);
         StringView relatedSource(const StringView& source);
         ParserStringView valueStringLiteral(Scanner* scannerInstance);
         Value valueStringLiteralToValue(Scanner* scannerInstance);
@@ -533,7 +534,7 @@ public:
             return (this->secondaryKeywordKind == EvalKeyword || this->secondaryKeywordKind == ArgumentsKeyword);
         }
 
-        ParserStringView relatedSource(const ParserStringView& source) const;
+        ParserStringView relatedSource(Scanner* scanner) const;
     };
 
     // ScannerResult should be allocated on the stack by ALLOCA
@@ -544,6 +545,14 @@ public:
     ::Escargot::Context* escargotContext;
     ::Escargot::esprima::ParserContext* parserContext;
     StringBufferAccessData sourceCodeAccessData;
+    Optional<ScriptSource*> streamingSource;
+    size_t streamingSourceStart;
+    static const size_t utf16WindowCapacity = 1024;
+    mutable char16_t utf16Window[utf16WindowCapacity];
+    mutable uint32_t utf8WindowByteOffsets[utf16WindowCapacity + 1];
+    mutable Optional<const char*> utf16WindowASCIIBytes;
+    mutable size_t utf16WindowStart;
+    mutable size_t utf16WindowEnd;
     bool isModule;
 
     size_t length;
@@ -556,11 +565,19 @@ public:
     }
 
     Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, const StringView& code, bool isModule, size_t startLine = 0, size_t startColumn = 0);
+    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, SourceRange code, bool isModule, size_t startLine = 0, size_t startColumn = 0);
 
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();
 
     void resetSource(StringView code);
+    void resetStreamingSource(SourceRange code);
+
+    bool isStreamingUTF8() const { return !!streamingSource; }
+    ParserStringView sourceSlice(size_t start, size_t end) const;
+    String* sourceSliceAsString(size_t start, size_t end) const;
+    ClassSourceText* sourceSliceAsClassSourceText(size_t start, size_t end) const;
+    Optional<const char*> directASCIIRange(size_t start, size_t end) const;
 
     ScanState saveState()
     {
@@ -584,6 +601,21 @@ public:
     ALWAYS_INLINE char16_t sourceCharAt(const size_t idx) const
     {
         ASSERT(idx < this->length);
+        if (streamingSource) {
+            if (UNLIKELY(idx < utf16WindowStart || idx >= utf16WindowEnd)) {
+                utf16WindowStart = idx / utf16WindowCapacity * utf16WindowCapacity;
+                size_t count = std::min(utf16WindowCapacity, length - utf16WindowStart);
+                utf16WindowASCIIBytes = streamingSource->asciiBytes(streamingSourceStart + utf16WindowStart, count);
+                if (!utf16WindowASCIIBytes) {
+                    streamingSource->copyUTF16(streamingSourceStart + utf16WindowStart, count, utf16Window, utf8WindowByteOffsets);
+                }
+                utf16WindowEnd = utf16WindowStart + count;
+            }
+            if (LIKELY(!!utf16WindowASCIIBytes)) {
+                return static_cast<unsigned char>(utf16WindowASCIIBytes.value()[idx - utf16WindowStart]);
+            }
+            return utf16Window[idx - utf16WindowStart];
+        }
         return sourceCodeAccessData.charAt(idx);
     }
 

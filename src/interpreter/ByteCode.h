@@ -33,6 +33,7 @@ namespace Escargot {
 class Node;
 class ObjectStructure;
 class VMInstance;
+class ClassSourceText;
 struct GlobalVariableAccessCacheItem;
 
 /*
@@ -579,7 +580,7 @@ public:
     };
 
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t classPrototypeRegisterIndex,
-                    const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, String* src, const Optional<AtomicString>& name)
+                    const size_t superClassRegisterIndex, InterpretedCodeBlock* cb, ClassSourceText* src, const Optional<AtomicString>& name)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CreateClass)
         , m_classConstructorRegisterIndex(classRegisterIndex)
@@ -724,7 +725,7 @@ public:
             ByteCodeRegisterIndex m_classPrototypeRegisterIndex;
             ByteCodeRegisterIndex m_superClassRegisterIndex;
             InterpretedCodeBlock* m_codeBlock;
-            String* m_classSrc;
+            ClassSourceText* m_classSrc;
             String* m_name;
         }; // CreateClass
         struct {
@@ -3824,6 +3825,12 @@ typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>, VectorDefaultComputeRe
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
 typedef HashMap<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
 
+struct ByteCodeCompressedLOCData {
+    std::vector<uint8_t> deltas;
+    size_t cachedCodePosition{ SIZE_MAX };
+    ExtendedNodeLOC cachedLocation;
+};
+
 struct ByteCodeLOCDelta {
     uint16_t deltaBytecode;
     int16_t deltaSource;
@@ -3855,7 +3862,7 @@ public:
             char* dumpCodeblockTree = getenv("DUMP_CODEBLOCK_TREE");
             if ((dumpByteCode && (strcmp(dumpByteCode, "1") == 0)) || (dumpCodeblockTree && (strcmp(dumpCodeblockTree, "1") == 0))) {
                 if (idx != SIZE_MAX) {
-                    auto loc = computeNodeLOC(m_codeBlock->src().toStringView(), m_codeBlock->functionStart(), idx);
+                    auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
                     t.m_loc.line = loc.line;
                     t.m_loc.column = loc.column;
                 }
@@ -3873,7 +3880,7 @@ public:
         }
 
 #if !defined(NDEBUG) && defined(ESCARGOT_DEBUGGER)
-        const auto loc = computeNodeLOC(m_codeBlock->src().toStringView(), m_codeBlock->functionStart(), idx);
+        const auto loc = computeNodeLOC(m_codeBlock->src(), m_codeBlock->functionStart(), idx);
         ByteCodeLOC* bytecodeLoc = &reinterpret_cast<ByteCode*>(first)->m_loc;
         bytecodeLoc->index = loc.index;
         bytecodeLoc->line = loc.line;
@@ -3981,7 +3988,7 @@ public:
     }
 
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData);
-    ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
+    ExtendedNodeLOC computeNodeLOC(SourceRange src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLOCData(Context* c, ByteCodeLOCData* locData);
 
     bool m_shouldClearStack : 1;
@@ -4024,7 +4031,7 @@ public:
     // every later sweep; GC_clear_block() zeroes everything *except* word 0, so a sentinel
     // living there would read back that stale link -- not 0 -- on a revisit.
     Optional<VMInstance*> m_vm;
-    Optional<std::vector<uint8_t>*> m_locData;
+    Optional<ByteCodeCompressedLOCData*> m_locData;
 };
 } // namespace Escargot
 
