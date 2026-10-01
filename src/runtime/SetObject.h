@@ -48,7 +48,7 @@ public:
     void clear(ExecutionState& state);
     bool deleteOperation(ExecutionState& state, const Value& key);
     bool has(ExecutionState& state, const Value& key);
-    size_t size(ExecutionState& state);
+    size_t size() const;
 
     IteratorObject* values(ExecutionState& state);
     IteratorObject* keys(ExecutionState& state);

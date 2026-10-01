@@ -38,7 +38,7 @@ SetObject::SetObject(ExecutionState& state, Object* proto)
 SetObject::SetObject(ExecutionState& state, Object* proto, SetObjectData&& data)
     : SetObject(state, proto)
 {
-    m_storage = data;
+    m_storage = std::move(data);
 }
 
 void* SetObject::operator new(size_t size)
@@ -58,10 +58,13 @@ void* SetObject::operator new(size_t size)
 
 void SetObject::clear(ExecutionState& state)
 {
+    if (m_hashIndex) {
+        KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+        m_hashIndex = nullptr;
+    }
     for (size_t i = 0; i < m_storage.size(); i++) {
         m_storage[i] = Value(Value::EmptyValue);
     }
-    m_hashIndex = nullptr;
 }
 
 size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* outHash)
@@ -136,6 +139,9 @@ void SetObject::buildOrRebuildHashIndex()
             index->insert(keyedCollectionHash(key), i);
         }
     }
+    if (m_hashIndex) {
+        KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+    }
     m_hashIndex = index;
 }
 
@@ -153,6 +159,7 @@ void SetObject::addToHashIndex(size_t storageIndex, size_t hash)
         hash = keyedCollectionHash(m_storage[storageIndex]);
     }
     m_hashIndex.value()->insert(hash, storageIndex);
+    m_hashIndex.value()->liveCount++;
 }
 
 bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
@@ -164,6 +171,13 @@ bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
     // the hash index keeps a stale bucket for i; it is skipped by comparison
     // and swept at the next rebuild
     m_storage[i] = Value(Value::EmptyValue);
+    if (m_hashIndex) {
+        ASSERT(m_hashIndex.value()->liveCount > 0);
+        if (--m_hashIndex.value()->liveCount == 0) {
+            KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+            m_hashIndex = nullptr;
+        }
+    }
     return true;
 }
 
@@ -188,24 +202,23 @@ bool SetObject::has(ExecutionState& state, const Value& key)
     return findKeyIndex(state, key) != SIZE_MAX;
 }
 
-size_t SetObject::size(ExecutionState& state)
+size_t SetObject::size() const
 {
-    size_t siz = 0;
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        Value existingKey = m_storage[i];
-        if (existingKey.isEmpty()) {
-            continue;
-        }
-        siz++;
+    if (m_hashIndex) {
+        return m_hashIndex.value()->liveCount;
     }
-    return siz;
-}
 
+    size_t live = 0;
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        live += !m_storage[i].isEmpty();
+    }
+    return live;
+}
 ArrayObject* SetObject::createDenseArrayCopy(ExecutionState& state, SetObject* src)
 {
     const SetObjectData& storage = src->m_storage;
     ValueVector buffer;
-    buffer.reserve(storage.size());
+    buffer.reserve(src->size());
     for (size_t i = 0; i < storage.size(); i++) {
         Value v = storage[i];
         // deleted entries are tombstones left in place (see deleteOperation),

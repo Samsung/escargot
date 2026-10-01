@@ -196,7 +196,7 @@ static Value builtinMapEntries(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, size);
-    return Value(M->size(state));
+    return Value(M->size());
 }
 
 static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

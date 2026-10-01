@@ -51,7 +51,7 @@ public:
     Value getOrInsertComputed(ExecutionState& state, Value& key, const Value& callback);
     bool has(ExecutionState& state, const Value& key);
     void set(ExecutionState& state, const Value& key, const Value& value);
-    size_t size(ExecutionState& state);
+    size_t size() const;
 
     IteratorObject* values(ExecutionState& state);
     IteratorObject* keys(ExecutionState& state);

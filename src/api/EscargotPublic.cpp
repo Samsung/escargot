@@ -4729,7 +4729,7 @@ bool SetObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 
 size_t SetObjectRef::size(ExecutionStateRef* state)
 {
-    return toImpl(this)->size(*toImpl(state));
+    return toImpl(this)->size();
 }
 
 WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
@@ -4794,7 +4794,7 @@ bool MapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 
 size_t MapObjectRef::size(ExecutionStateRef* state)
 {
-    return toImpl(this)->size(*toImpl(state));
+    return toImpl(this)->size();
 }
 
 WeakMapObjectRef* WeakMapObjectRef::create(ExecutionStateRef* state)

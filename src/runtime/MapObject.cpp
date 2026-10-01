@@ -52,10 +52,14 @@ void* MapObject::operator new(size_t size)
 
 void MapObject::clear(ExecutionState& state)
 {
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
+    if (m_hashIndex) {
+        KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+        m_hashIndex = nullptr;
     }
-    m_hashIndex = nullptr;
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        m_storage[i].first = Value(Value::EmptyValue);
+        m_storage[i].second = Value(Value::EmptyValue);
+    }
 }
 
 size_t MapObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* outHash)
@@ -130,6 +134,9 @@ void MapObject::buildOrRebuildHashIndex()
             index->insert(keyedCollectionHash(key), i);
         }
     }
+    if (m_hashIndex) {
+        KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+    }
     m_hashIndex = index;
 }
 
@@ -147,18 +154,7 @@ void MapObject::addToHashIndex(size_t storageIndex, size_t hash)
         hash = keyedCollectionHash(m_storage[storageIndex].first);
     }
     m_hashIndex.value()->insert(hash, storageIndex);
-}
-
-size_t MapObject::size(ExecutionState& state)
-{
-    size_t siz = 0;
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i].first.isEmpty()) {
-            continue;
-        }
-        siz++;
-    }
-    return siz;
+    m_hashIndex.value()->liveCount++;
 }
 
 bool MapObject::deleteOperation(ExecutionState& state, const Value& key)
@@ -169,7 +165,15 @@ bool MapObject::deleteOperation(ExecutionState& state, const Value& key)
     }
     // the hash index keeps a stale bucket for i; it is skipped by comparison
     // and swept at the next rebuild
-    m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
+    m_storage[i].first = Value(Value::EmptyValue);
+    m_storage[i].second = Value(Value::EmptyValue);
+    if (m_hashIndex) {
+        ASSERT(m_hashIndex.value()->liveCount > 0);
+        if (--m_hashIndex.value()->liveCount == 0) {
+            KeyedCollectionHashIndex::destroy(m_hashIndex.value());
+            m_hashIndex = nullptr;
+        }
+    }
     return true;
 }
 
@@ -254,6 +258,18 @@ void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
     addToHashIndex(m_storage.size() - 1, hash);
 }
 
+size_t MapObject::size() const
+{
+    if (m_hashIndex) {
+        return m_hashIndex.value()->liveCount;
+    }
+
+    size_t live = 0;
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        live += !m_storage[i].first.isEmpty();
+    }
+    return live;
+}
 IteratorObject* MapObject::values(ExecutionState& state)
 {
     return new MapIteratorObject(state, this, MapIteratorObject::TypeValue);

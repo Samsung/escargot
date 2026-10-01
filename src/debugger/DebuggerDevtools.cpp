@@ -191,7 +191,7 @@ ObjectDescription DebuggerDevtools::generateObjectDescription(ExecutionState* st
         return {
             .type = "object",
             .subType = "map",
-            .description = string_format("Map(%d)", mapObj->size(*state))
+            .description = string_format("Map(%d)", mapObj->size())
         };
     }
     if (object->isWeakMapObject()) {
@@ -207,7 +207,7 @@ ObjectDescription DebuggerDevtools::generateObjectDescription(ExecutionState* st
         return {
             .type = "object",
             .subType = "set",
-            .description = string_format("Set(%d)", setObj->size(*state))
+            .description = string_format("Set(%d)", setObj->size())
         };
     }
     if (object->isWeakSetObject()) {
@@ -370,7 +370,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
         if (value.asObject()->isMapObject()) {
             MapObject* mapObj = value.asObject()->asMapObject();
 
-            properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->size(*state))));
+            properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
 
             auto* entries = new (GC) Object(*state);
@@ -410,7 +410,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
         } else if (value.asObject()->isSetObject()) {
             SetObject* setObj = value.asObject()->asSetObject();
 
-            properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->size(*state))));
+            properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
 
             auto* entries = new (GC) Object(*state);

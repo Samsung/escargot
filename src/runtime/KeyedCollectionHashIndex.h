@@ -39,6 +39,7 @@ struct KeyedCollectionHashIndex {
 
     uint32_t capacity; // power of two
     uint32_t occupied; // buckets holding an index, including stale ones
+    uint32_t liveCount; // non-stale entries; the Map/Set size while indexed
     uint32_t buckets[1];
 
     static KeyedCollectionHashIndex* create(size_t liveCount)
@@ -51,7 +52,15 @@ struct KeyedCollectionHashIndex {
         auto p = reinterpret_cast<KeyedCollectionHashIndex*>(GC_MALLOC_ATOMIC(bytes));
         memset(p, 0, bytes);
         p->capacity = capacity;
+        p->liveCount = liveCount;
         return p;
+    }
+
+    static void destroy(KeyedCollectionHashIndex* index)
+    {
+        if (index) {
+            GC_FREE(index);
+        }
     }
 
     bool needsRebuild() const
