@@ -903,6 +903,9 @@ class TestSuite(object):
       self.PrintSummary(progress, logname)
     elif print_full:
       self.PrintFull(progress, logname)
+
+    if progress.failed:
+      self.PrintFailureOutput(progress, logname)
     
     # Close log file AFTER PrintSummary/PrintFull
     if logname:
