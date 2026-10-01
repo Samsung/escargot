@@ -1,44 +1,35 @@
-/* Bare-metal/RTOS OSAllocator stub -- yarr's BumpPointerAllocator backed
- * by plain malloc()/free(). Used whenever OS_BAREMETAL is defined (see
- * src/runtime/Platform.h and docs/porting/RTOS_PORTING_GUIDE.md); no
- * mmap()/mprotect() exist on these targets, and none of reserve/commit/
- * decommit granularity actually matters without an MMU, so this same
- * implementation is shared by every RTOS port -- it used to be
- * copy-pasted per port (escargot-rtos's own src/OSAllocatorBaremetal.cpp,
- * nuttx-escargot's own OSAllocatorNuttx.cxx, byte-for-byte identical)
- * before being consolidated here. A new RTOS port does not need its own
- * copy of this file at all.
- *
- * Self-guarded (like OSAllocatorPosix.cpp/OSAllocatorWin.cpp) so this
- * compiles to an empty translation unit on every non-OS_BAREMETAL build
- * -- the main engine CMakeLists globs every .cpp file under
- * third_party/yarr unconditionally and relies on exactly this pattern to
- * pick the right one. */
-#if defined(OS_BAREMETAL)
-
-#include <stdlib.h>
+/* Bare-metal/RTOS adapter for WTF's OSAllocator interface. */
+#include "Escargot.h"
 #include "OSAllocator.h"
+#include "util/OSMemory.h"
 
+#if defined(OS_BAREMETAL)
 namespace WTF {
 
-void* OSAllocator::reserveUncommitted(size_t bytes, Usage, bool, bool, bool)
+void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
 {
-    return malloc(bytes);
+    return Escargot::OSMemory::reserveUncommitted(bytes, writable, executable, includesGuardPages, static_cast<int>(usage));
 }
 
-void* OSAllocator::reserveAndCommit(size_t bytes, Usage, bool, bool, bool)
+void* OSAllocator::reserveAndCommit(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
 {
-    return malloc(bytes);
+    return Escargot::OSMemory::reserve(bytes, writable, executable, includesGuardPages, static_cast<int>(usage));
 }
 
-void OSAllocator::releaseDecommitted(void* ptr, size_t)
+void OSAllocator::commit(void* address, size_t bytes, bool writable, bool executable)
 {
-    free(ptr);
+    Escargot::OSMemory::commit(address, bytes, writable, executable);
 }
 
-void OSAllocator::commit(void*, size_t, bool, bool) {}
-void OSAllocator::decommit(void*, size_t) {}
+void OSAllocator::decommit(void* address, size_t bytes)
+{
+    Escargot::OSMemory::decommit(address, bytes);
+}
+
+void OSAllocator::releaseDecommitted(void* address, size_t bytes)
+{
+    Escargot::OSMemory::release(address, bytes);
+}
 
 } // namespace WTF
-
-#endif /* OS_BAREMETAL */
+#endif
