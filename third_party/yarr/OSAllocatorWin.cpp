@@ -20,72 +20,40 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESCARGOT
-#include "config.h"
-#include "OSAllocator.h"
-
-#include "PageAllocation.h"
-#include <errno.h>
-#include <sys/mman.h>
-#include <wtf/Assertions.h>
-#include <wtf/UnusedParam.h>
-#else
 #include "Escargot.h"
 #include "OSAllocator.h"
-#include "PageAllocation.h"
-#endif
+#include "util/OSMemory.h"
 
 #if defined(OS_WINDOWS)
-
 namespace WTF {
 
-static inline DWORD protection(bool writable, bool executable)
+void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
 {
-    return executable ? (writable ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ) : (writable ? PAGE_READWRITE : PAGE_READONLY);
+    return Escargot::OSMemory::reserveUncommitted(bytes, writable, executable, includesGuardPages, static_cast<int>(usage));
 }
 
-void* OSAllocator::reserveUncommitted(size_t bytes, Usage, bool writable, bool executable, bool includesGuardPages)
+void* OSAllocator::reserveAndCommit(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
 {
-    void* result = VirtualAlloc(0, bytes, MEM_RESERVE, protection(writable, executable));
-    if (!result)
-        CRASH();
-    return result;
-}
-
-void* OSAllocator::reserveAndCommit(size_t bytes, Usage, bool writable, bool executable, bool includesGuardPages)
-{
-    void* result = VirtualAlloc(0, bytes, MEM_RESERVE | MEM_COMMIT, protection(writable, executable));
-    if (!result)
-        CRASH();
-    return result;
+    return Escargot::OSMemory::reserve(bytes, writable, executable, includesGuardPages, static_cast<int>(usage));
 }
 
 void OSAllocator::commit(void* address, size_t bytes, bool writable, bool executable)
 {
-    void* result = VirtualAlloc(address, bytes, MEM_COMMIT, protection(writable, executable));
-    if (!result)
-        CRASH();
+    Escargot::OSMemory::commit(address, bytes, writable, executable);
 }
 
 void OSAllocator::decommit(void* address, size_t bytes)
 {
-    bool result = VirtualFree(address, bytes, MEM_DECOMMIT);
-    if (!result)
-        CRASH();
+    Escargot::OSMemory::decommit(address, bytes);
 }
 
 void OSAllocator::releaseDecommitted(void* address, size_t bytes)
 {
-    // According to http://msdn.microsoft.com/en-us/library/aa366892(VS.85).aspx,
-    // dwSize must be 0 if dwFreeType is MEM_RELEASE.
-    bool result = VirtualFree(address, 0, MEM_RELEASE);
-    if (!result)
-        CRASH();
+    Escargot::OSMemory::release(address, bytes);
 }
 
 } // namespace WTF
-
 #endif
