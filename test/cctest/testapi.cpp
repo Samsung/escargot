@@ -3573,6 +3573,94 @@ TEST(GCLeak, PrunedByteCodeOfLiveFunctionIsRecompiled)
     instance.release();
 }
 
+// Parses and runs a script without handing the ScriptRef back, so that after the call
+// nothing but the global object can reach anything the script produced.
+static void runScriptWithoutKeepingIt(ContextRef* context, ScriptSourceRef* source, const char* srcName)
+{
+    auto parseResult = context->scriptParser()->initializeScript(source, StringRef::createFromASCII(srcName, strlen(srcName)), false);
+    EXPECT_TRUE(parseResult.isSuccessful());
+    auto executeResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* s) -> ValueRef* { return s->execute(state); }, parseResult.script.value());
+    EXPECT_TRUE(executeResult.isSuccessful());
+}
+
+// A script whose text is almost entirely comment, and whose only lasting product is one
+// long string literal put on the global object. A literal longer than the inline buffer
+// limit used to be handed out as a StringView over the source, and such a view keeps the
+// whole source text alive -- here more than an order of magnitude more than the literal
+// itself -- even though no code block of the script survives. The literal is reached as a
+// plain property of the global object, so nothing else of the script is kept: in
+// particular it is not declared with `var`, which would make it a non-configurable global
+// and pin the whole code block tree for good.
+static std::string makeEscapingLiteralScript(size_t commentLength, size_t literalLength, size_t serial)
+{
+    std::string source = "// " + std::string(commentLength, 'c') + "\n";
+    source += "globalThis.keptLiteral" + std::to_string(serial) + " = '" + std::string(literalLength, 'x') + "';\n";
+    return source;
+}
+
+TEST(GCLeak, SourceIsNotRetainedByALiteralThatOutlivesIt)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    // the assertion is on the slope, not on the fate of one object: each run gets a source
+    // of its own and keeps only its literal, so retaining a source per run grows the heap
+    // in proportion to the number of runs. a stale pointer left on the native stack -- what
+    // makes a single weak-reference assertion unusable here, see the LeakCheck tests -- can
+    // pin at most the last run or two, which the margin below absorbs
+    const size_t iterations = 16;
+    const size_t commentLength = 4 * 1024 * 1024;
+    const size_t literalLength = 256 * 1024;
+
+    // one run up front, so that whatever the first script of a context allocates for good
+    // is already in the baseline
+    std::string warmUpSource = makeEscapingLiteralScript(commentLength, literalLength, 0);
+    runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(warmUpSource.data(), warmUpSource.length()), "escapingLiteral0.js");
+    collectEverythingUnreachable();
+    size_t baseline = Memory::heapSize();
+
+    for (size_t i = 1; i <= iterations; i++) {
+        std::string source = makeEscapingLiteralScript(commentLength, literalLength, i);
+        std::string srcName = "escapingLiteral" + std::to_string(i) + ".js";
+        runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(source.data(), source.length()), srcName.data());
+    }
+    collectEverythingUnreachable();
+    size_t growth = Memory::heapSize() > baseline ? Memory::heapSize() - baseline : 0;
+
+    // the literals themselves are expected to stay, the sources they came from are not.
+    // halfway between the two: `iterations * literalLength` if only the literals are kept,
+    // `iterations * commentLength` if every source is pinned
+    EXPECT_LT(growth, iterations * (literalLength + commentLength / 4));
+
+    // and the literals really are still there, so the run above is not vacuous
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("String(keptLiteral1.length) + ',' + keptLiteral16.length"), StringRef::createFromASCII("literalCheck.js"), false),
+              std::to_string(literalLength) + "," + std::to_string(literalLength));
+
+    context.release();
+    instance.release();
+}
+
+TEST(GCLeak, SourceStaysAliveWhileAFunctionNeedsIt)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    const char* text = "function keepMeAlive(a) { return a + 1; }\nkeepMeAlive(1);\n";
+    runScriptWithoutKeepingIt(context.get(), ScriptSourceRef::createFromUTF8(text, strlen(text)), "sourceRetained.js");
+
+    collectEverythingUnreachable();
+
+    // the counterpart of the test above, and the reason the source cannot simply be dropped
+    // once the bytecode is generated: Function.prototype.toString has to return the original
+    // text, so a reachable function keeps the source alive even though the script object
+    // itself is already gone
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("keepMeAlive.toString()"), StringRef::createFromASCII("toString.js"), false),
+              "function keepMeAlive(a) { return a + 1; }");
+
+    context.release();
+    instance.release();
+}
+
 TEST(EvaluateJob, Job)
 {
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
