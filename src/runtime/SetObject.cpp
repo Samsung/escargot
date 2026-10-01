@@ -129,8 +129,12 @@ size_t SetObject::findKeyIndex(ExecutionState& state, const Value& key, size_t* 
 void SetObject::buildOrRebuildHashIndex()
 {
     size_t live = 0;
-    for (size_t i = 0; i < m_storage.size(); i++) {
-        live += !m_storage[i].isEmpty();
+    if (m_hashIndex) {
+        live = m_hashIndex.value()->liveCount;
+    } else {
+        for (size_t i = 0; i < m_storage.size(); i++) {
+            live += !m_storage[i].isEmpty();
+        }
     }
     KeyedCollectionHashIndex* index = KeyedCollectionHashIndex::create(live);
     for (size_t i = 0; i < m_storage.size(); i++) {
@@ -150,8 +154,11 @@ void SetObject::addToHashIndex(size_t storageIndex, size_t hash)
     if (!m_hashIndex) {
         return;
     }
+    // bump liveCount before the rebuild check so buildOrRebuildHashIndex's
+    // trusted liveCount already covers storageIndex, which is already live
+    // in m_storage at this point
+    m_hashIndex.value()->liveCount++;
     if (UNLIKELY(m_hashIndex.value()->needsRebuild())) {
-        // the rebuilt index already covers storageIndex
         buildOrRebuildHashIndex();
         return;
     }
@@ -159,7 +166,6 @@ void SetObject::addToHashIndex(size_t storageIndex, size_t hash)
         hash = keyedCollectionHash(m_storage[storageIndex]);
     }
     m_hashIndex.value()->insert(hash, storageIndex);
-    m_hashIndex.value()->liveCount++;
 }
 
 bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
