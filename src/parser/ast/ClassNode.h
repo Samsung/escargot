@@ -25,6 +25,8 @@
 
 namespace Escargot {
 
+class ClassSourceText;
+
 class ClassNode {
 public:
     ClassNode()
@@ -32,11 +34,11 @@ public:
         , m_id()
         , m_superClass()
         , m_classBody()
-        , m_classSrc()
+        , m_classSrc(nullptr)
     {
     }
 
-    ClassNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, ClassSourceText* classSrc)
         : m_classBodyLexicalBlockIndex(classBodyLexicalBlockIndex)
         , m_id(id)
         , m_superClass(superClass)
@@ -49,14 +51,14 @@ public:
     inline Node* superClass() const { return m_superClass; }
     inline ClassBodyNode* classBody() const { return (ClassBodyNode*)m_classBody; }
     inline LexicalBlockIndex classBodyLexicalBlockIndex() const { return m_classBodyLexicalBlockIndex; }
-    inline const StringView& classSrc() const { return m_classSrc; }
+    inline ClassSourceText* classSrc() { return m_classSrc.value(); }
 
 private:
     LexicalBlockIndex m_classBodyLexicalBlockIndex;
     Node* m_id; // Id
     Node* m_superClass;
     Node* m_classBody;
-    StringView m_classSrc;
+    Optional<ClassSourceText*> m_classSrc;
 };
 } // namespace Escargot
 

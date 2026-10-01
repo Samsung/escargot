@@ -30,7 +30,7 @@ namespace Escargot {
 class ClassExpressionNode : public ExpressionNode {
 public:
     ClassExpressionNode() {}
-    ClassExpressionNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, StringView classSrc)
+    ClassExpressionNode(Node* id, Node* superClass, Node* classBody, LexicalBlockIndex classBodyLexicalBlockIndex, ClassSourceText* classSrc)
         : ExpressionNode()
         // id can be nullptr
         , m_class(id, superClass, classBody->asClassBody(), classBodyLexicalBlockIndex, classSrc)
@@ -68,8 +68,8 @@ public:
         } else {
             context->m_classInfo.m_name = classIdent ? classIdent->asIdentifier()->name() : m_implicitName;
         }
-        context->m_classInfo.m_src = new StringView(m_class.classSrc());
-        codeBlock->m_stringLiteralData.push_back(context->m_classInfo.m_src);
+        context->m_classInfo.m_src = m_class.classSrc();
+        codeBlock->m_otherLiteralData.push_back(context->m_classInfo.m_src.value());
 
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext blockContext;
@@ -91,7 +91,7 @@ public:
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, dstIndex);
         } else {
             codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex,
-                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src,
+                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src.value(),
                                                 context->m_classInfo.m_name),
                                 context, this->m_loc.index);
         }

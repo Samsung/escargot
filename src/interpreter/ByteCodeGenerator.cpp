@@ -327,8 +327,11 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
             InterpretedCodeBlock* parentCodeBlock = codeBlock->parent();
             bool allowSC = parentCodeBlock ? parentCodeBlock->allowSuperCall() : false;
             bool allowSP = parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false;
-            ast = esprima::parseProgram(context, codeBlock->src().toStringView(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
-                                        codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), allowSC, allowSP, false, true);
+            SourceRange sourceRange = codeBlock->src();
+            bool stream = !sourceRange.source->hasFlatString();
+            ast = esprima::parseProgram(context, stream ? StringView(String::emptyString()) : sourceRange.toStringView(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
+                                        codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), allowSC, allowSP, false, true,
+                                        stream ? Optional<SourceRange>(sourceRange) : Optional<SourceRange>());
         } else {
             ast = esprima::parseSingleFunction(context, codeBlock);
         }

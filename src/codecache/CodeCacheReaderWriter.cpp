@@ -29,6 +29,7 @@
 #include "runtime/Context.h"
 #include "runtime/ThreadLocal.h"
 #include "runtime/ObjectStructurePropertyName.h"
+#include <unordered_set>
 
 namespace Escargot {
 
@@ -318,8 +319,45 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     ByteCodeJumpFlowRecordData& jumpFlowRecordData = block->m_jumpFlowRecordData;
     m_buffer.putData(jumpFlowRecordData.data(), jumpFlowRecordData.size());
 
+    // Class source text is rooted in m_otherLiteralData, but the cache stores it
+    // as a string. Collect the class sources before writing the literal tables.
+    std::unordered_set<ClassSourceText*> classSources;
+    ByteCodeStringLiteralData stringLiteralData = block->m_stringLiteralData;
+    uint8_t* code = block->m_code.data();
+    uint8_t* end = code + block->m_code.size();
+    while (code < end) {
+        ByteCode* currentCode = reinterpret_cast<ByteCode*>(code);
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+        Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
+#else
+        Opcode opcode = currentCode->m_opcode;
+#endif
+        if (opcode == InitializeClassOpcode) {
+            InitializeClass* bc = static_cast<InitializeClass*>(currentCode);
+            if (bc->m_stage == InitializeClass::CreateClass && classSources.insert(bc->m_classSrc).second) {
+                stringLiteralData.push_back(bc->m_classSrc->string());
+            }
+        } else if (opcode == ExecutionPauseOpcode) {
+            ExecutionPause* bc = static_cast<ExecutionPause*>(currentCode);
+            if (bc->m_reason == ExecutionPause::Reason::Yield) {
+                code += bc->m_yieldData.m_tailDataLength;
+            } else if (bc->m_reason == ExecutionPause::Reason::Await) {
+                code += bc->m_awaitData.m_tailDataLength;
+            } else if (bc->m_reason == ExecutionPause::Reason::GeneratorsInitialize) {
+                code += bc->m_asyncGeneratorInitializeData.m_tailDataLength;
+            }
+        } else if (opcode == FinalizeDisposableOpcode) {
+            code += static_cast<FinalizeDisposable*>(currentCode)->m_tailDataLength;
+        } else if (opcode == SwitchOnInt32Opcode) {
+            code += static_cast<SwitchOnInt32*>(currentCode)->tailDataLength();
+        } else if (opcode == SwitchOnValueOpcode) {
+            code += static_cast<SwitchOnValue*>(currentCode)->tailDataLength();
+        }
+        ASSERT(opcode <= EndOpcode);
+        code += byteCodeLengths[opcode];
+    }
+
     // ByteCodeBlock::m_stringLiteralData
-    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
     size = stringLiteralData.size();
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
@@ -327,9 +365,13 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
         m_buffer.putString(stringLiteralData[i]);
     }
 
-    // ByteCodeBlock::m_otherLiteralData
-    // Note) only BigInt exists
-    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
+    // ByteCodeBlock::m_otherLiteralData: class sources are stored above.
+    ByteCodeOtherLiteralData bigIntData;
+    for (void* literal : block->m_otherLiteralData) {
+        if (classSources.find(static_cast<ClassSourceText*>(literal)) == classSources.end()) {
+            bigIntData.push_back(literal);
+        }
+    }
     size = bigIntData.size();
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
@@ -340,7 +382,7 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     }
 
     // ByteCodeBlock::m_code bytecode stream
-    storeByteCodeStream(block);
+    storeByteCodeStream(block, stringLiteralData, bigIntData);
 }
 
 void CodeCacheWriter::storeStringTable()
@@ -387,7 +429,7 @@ void CodeCacheWriter::storeStringTable()
     size_t stringIndex = m_stringTable->add(bc->member); \
     relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
 
-void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
+void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block, ByteCodeStringLiteralData& stringLiteralData, ByteCodeOtherLiteralData& bigIntData)
 {
     ByteCodeBlockData& byteCodeStream = block->m_code;
     ASSERT(byteCodeStream.size() > 0);
@@ -396,8 +438,6 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
     m_buffer.putData(byteCodeStream.data(), byteCodeStream.size());
 
     Vector<ByteCodeRelocInfo, std::allocator<ByteCodeRelocInfo>> relocInfoVector;
-    ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
-    ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
 
     // mark bytecode relocation infos
     {
@@ -423,15 +463,13 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                         String* string = value.asPointerValue()->asString();
                         if (UNLIKELY(!string->length())) {
                             relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, SIZE_MAX));
+                        } else if (string->isAtomicStringSource()) {
+                            size_t stringIndex = m_stringTable->add(AtomicString(context, string));
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
                         } else {
                             size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
-                            if (stringIndex != VectorUtil::invalidIndex) {
-                                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
-                            } else {
-                                ASSERT(string->isAtomicStringSource());
-                                stringIndex = m_stringTable->add(AtomicString(context, string));
-                                relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_ATOMICSTRING, (size_t)currentCode - codeBase, stringIndex));
-                            }
+                            ASSERT(stringIndex != VectorUtil::invalidIndex);
+                            relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_STRING, (size_t)currentCode - codeBase, stringIndex));
                         }
                     } else if (value.asPointerValue()->isBigInt()) {
                         BigInt* bigInt = value.asPointerValue()->asBigInt();
@@ -479,7 +517,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                         relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_CODEBLOCK, (size_t)currentCode - codeBase, codeBlockIndex));
                     }
 
-                    String* string = bc->m_classSrc;
+                    String* string = bc->m_classSrc->string();
                     ASSERT(!!string && string->length() > 0);
                     size_t stringIndex = VectorUtil::findInVector(stringLiteralData, string);
 
@@ -1164,7 +1202,8 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                         bc->m_codeBlock = children[dataIndex];
                     } else if (info.relocType == ByteCodeRelocType::RELOC_STRING) {
                         ASSERT(dataIndex < stringLiteralData.size());
-                        bc->m_classSrc = stringLiteralData[dataIndex];
+                        bc->m_classSrc = new ClassSourceText(stringLiteralData[dataIndex]);
+                        block->m_otherLiteralData.push_back(bc->m_classSrc);
                     } else {
                         ASSERT(info.relocType == ByteCodeRelocType::RELOC_ATOMICSTRING);
                         bc->m_name = m_stringTable->get(dataIndex).string();

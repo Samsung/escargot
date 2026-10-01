@@ -25,10 +25,12 @@
 namespace Escargot {
 
 struct ExtendedNodeLOC;
+class ScriptSource;
 
 struct StackTraceDataOnStack : public gc {
     String* srcName;
     String* sourceCode;
+    Optional<ScriptSource*> scriptSource;
     ExtendedNodeLOC loc;
     String* functionName;
 
@@ -46,6 +48,7 @@ struct StackTraceDataOnStack : public gc {
     StackTraceDataOnStack()
         : srcName(String::emptyString())
         , sourceCode(String::emptyString())
+        , scriptSource(nullptr)
         , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
         , functionName(String::emptyString())
 #ifdef ESCARGOT_DEBUGGER
@@ -60,6 +63,8 @@ struct StackTraceDataOnStack : public gc {
         , isEval(false)
     {
     }
+
+    String* materializedSourceCode() const;
 };
 
 typedef Vector<StackTraceDataOnStack, GCUtil::gc_malloc_allocator<StackTraceDataOnStack>> StackTraceDataOnStackVector;

@@ -462,6 +462,9 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     if (codePosition == SIZE_MAX) {
         return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
     }
+    if (m_locData && m_locData->cachedCodePosition == codePosition) {
+        return m_locData->cachedLocation;
+    }
 
     if (!m_locData) {
         ByteCodeLOCData tempLocData;
@@ -471,7 +474,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
             return a.first < b.first;
         });
 
-        std::vector<uint8_t>* compressed = new std::vector<uint8_t>();
+        ByteCodeCompressedLOCData* compressed = new ByteCodeCompressedLOCData();
         size_t lastBytecode = 0;
         size_t lastSource = 0;
         for (size_t i = 0; i < tempLocData.size(); i++) {
@@ -479,15 +482,15 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
             size_t curSource = tempLocData[i].second;
 
             if (curBytecode == SIZE_MAX || curSource == SIZE_MAX) {
-                encodeULEB128(0xFFFFFFFF, *compressed);
+                encodeULEB128(0xFFFFFFFF, compressed->deltas);
                 continue;
             }
 
             size_t diffBytecode = curBytecode - lastBytecode;
             int32_t diffSource = static_cast<int32_t>(curSource) - static_cast<int32_t>(lastSource);
 
-            encodeULEB128(static_cast<uint32_t>(diffBytecode), *compressed);
-            encodeSLEB128(diffSource, *compressed);
+            encodeULEB128(static_cast<uint32_t>(diffBytecode), compressed->deltas);
+            encodeSLEB128(diffSource, compressed->deltas);
 
             lastBytecode = curBytecode;
             lastSource = curSource;
@@ -500,8 +503,8 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     size_t curSource = 0;
     size_t bestSource = SIZE_MAX;
 
-    const uint8_t* ptr = m_locData.value()->data();
-    const uint8_t* end = ptr + m_locData.value()->size();
+    const uint8_t* ptr = m_locData.value()->deltas.data();
+    const uint8_t* end = ptr + m_locData.value()->deltas.size();
 
     while (ptr < end) {
         uint32_t deltaBytecode = decodeULEB128(ptr);
@@ -528,7 +531,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
 
     if (index == SIZE_MAX) {
-        if (m_locData.value()->empty()) {
+        if (m_locData.value()->deltas.empty()) {
             index = cb->functionStart().index;
         } else {
             return ExtendedNodeLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX);
@@ -544,28 +547,38 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
     }
     index -= cb->functionStart().index;
 
-    auto result = computeNodeLOC(cb->src().toStringView(), cb->functionStart(), index);
+    auto result = computeNodeLOC(cb->src(), cb->functionStart(), index);
     result.index = indexRelatedWithScript;
+    m_locData->cachedCodePosition = codePosition;
+    m_locData->cachedLocation = result;
 
     return result;
 }
 
-ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index)
+ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(SourceRange src, ExtendedNodeLOC sourceElementStart, size_t index)
 {
     size_t line = sourceElementStart.line;
     size_t column = sourceElementStart.column;
-    size_t srcLength = src.length();
-    auto bad = src.bufferAccessData();
-    for (size_t i = 0; i < index && i < srcLength; i++) {
-        char16_t c = bad.charAt(i);
-        column++;
-        if (EscargotLexer::isLineTerminator(c)) {
-            // skip \r\n
-            if (c == 13 && (i + 1 < index) && bad.charAt(i + 1) == 10) {
-                i++;
+    size_t limit = std::min(index, src.length());
+    constexpr size_t windowLength = 1024;
+    char16_t buffer[windowLength];
+    bool skipLineFeed = false;
+    for (size_t offset = 0; offset < limit; offset += windowLength) {
+        size_t count = std::min(windowLength, limit - offset);
+        src.source->copyUTF16(src.start + offset, count, buffer);
+        for (size_t i = 0; i < count; i++) {
+            char16_t c = buffer[i];
+            if (skipLineFeed && c == 10) {
+                skipLineFeed = false;
+                continue;
             }
-            line++;
-            column = 1;
+            skipLineFeed = false;
+            column++;
+            if (EscargotLexer::isLineTerminator(c)) {
+                skipLineFeed = c == 13;
+                line++;
+                column = 1;
+            }
         }
     }
 

@@ -38,6 +38,8 @@ namespace Escargot {
  * value can represent an invalid octal value. */
 #define NON_OCTAL_VALUE 256
 
+const size_t EscargotLexer::Scanner::utf16WindowCapacity;
+
 char EscargotLexer::g_asciiRangeCharMap[128] = {
     0,
     0,
@@ -453,14 +455,14 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     throw error;
 };
 
-ParserStringView Scanner::SmallScannerResult::relatedSource(const ParserStringView& source) const
+ParserStringView Scanner::SmallScannerResult::relatedSource(Scanner* scanner) const
 {
-    return ParserStringView(source, this->start, this->end);
+    return scanner->sourceSlice(this->start, this->end);
 }
 
-ParserStringView Scanner::ScannerResult::relatedSource(const ParserStringView& source)
+ParserStringView Scanner::ScannerResult::relatedSource(Scanner* scanner)
 {
-    return ParserStringView(source, this->start, this->end);
+    return scanner->sourceSlice(this->start, this->end);
 }
 
 Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance)
@@ -480,7 +482,7 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
     size_t end = this->valueStringLiteralData.m_end;
     size_t length = end - start;
     if (length > 5 && length < 10) {
-        ParserStringView str(scannerInstance->source, start, end);
+        ParserStringView str = scannerInstance->sourceSlice(start, end);
         switch (str.bufferedCharAt(0)) {
         case 'o': {
             if (length == 6 && str.equalsSameLength("object", 1)) {
@@ -521,7 +523,7 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
     // permanently plus a transient double during the parse, so the two break even at about
     // 2 and the view only gets worse from there
     const size_t maxSourceToLiteralRatioForView = 2;
-    if (UNLIKELY(LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length && scannerInstance->source.length() <= length * maxSourceToLiteralRatioForView)) {
+    if (UNLIKELY(!scannerInstance->isStreamingUTF8() && LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length && scannerInstance->source.length() <= length * maxSourceToLiteralRatioForView)) {
         return new StringView(scannerInstance->sourceAsNormalView, start, end);
     }
 
@@ -542,7 +544,7 @@ ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInst
         }
         return ParserStringView(this->valueStringLiteralData.m_stringIfNewlyAllocated);
     }
-    return ParserStringView(scannerInstance->source, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
+    return scannerInstance->sourceSlice(this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
 }
 
 std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scannerInstance)
@@ -552,7 +554,19 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
         char* buffer;
         int length = this->end - this->start;
 
-        if (UNLIKELY(this->hasNumberSeparatorOnNumberLiteral)) {
+        if (UNLIKELY(scannerInstance->isStreamingUTF8())) {
+            buffer = ALLOCA_ATOMIC(length, char);
+            int underScoreCount = 0;
+            for (int i = 0; i < length; i++) {
+                char16_t c = scannerInstance->sourceCharAt(this->start + i);
+                if (c == '_') {
+                    underScoreCount++;
+                } else {
+                    buffer[i - underScoreCount] = static_cast<char>(c);
+                }
+            }
+            length -= underScoreCount;
+        } else if (UNLIKELY(this->hasNumberSeparatorOnNumberLiteral)) {
             buffer = ALLOCA_ATOMIC(this->end - this->start, char);
             int underScoreCount = 0;
             for (int i = 0; i < length; i++) {
@@ -721,6 +735,11 @@ Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::Pars
     , escargotContext(escargotContext)
     , parserContext(parserContext)
     , sourceCodeAccessData(code.bufferAccessData())
+    , streamingSource(nullptr)
+    , streamingSourceStart(0)
+    , utf16WindowASCIIBytes(nullptr)
+    , utf16WindowStart(0)
+    , utf16WindowEnd(0)
     , isModule(isModule)
     , length(code.length())
     , index(0)
@@ -731,8 +750,90 @@ Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::Pars
     // trackComment = false;
 }
 
+Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, SourceRange code, bool isModule, size_t startLine, size_t startColumn)
+    : Scanner(escargotContext, parserContext, StringView(String::emptyString()), isModule, startLine, startColumn)
+{
+    resetStreamingSource(code);
+}
+
+void Scanner::resetStreamingSource(SourceRange code)
+{
+    ASSERT(!!code.source && !code.source->hasFlatString());
+    streamingSource = code.source;
+    streamingSourceStart = code.start;
+    length = code.length();
+    index = 0;
+    utf16WindowASCIIBytes = nullptr;
+    utf16WindowStart = utf16WindowEnd = 0;
+}
+
+ParserStringView Scanner::sourceSlice(size_t start, size_t end) const
+{
+    ASSERT(start <= end && end <= length);
+    if (streamingSource) {
+        auto ascii = directASCIIRange(start, end);
+        if (ascii) {
+            return ParserStringView(ascii.value(), end - start);
+        }
+        return ParserStringView(streamingSource->substring(streamingSourceStart + start, streamingSourceStart + end));
+    }
+    return ParserStringView(source, start, end);
+}
+
+Optional<const char*> Scanner::directASCIIRange(size_t start, size_t end) const
+{
+    if (!streamingSource || start == end || end - start > utf16WindowCapacity) {
+        return nullptr;
+    }
+    if (start < utf16WindowStart || start >= utf16WindowEnd) {
+        sourceCharAt(start);
+    }
+    if (end > utf16WindowEnd) {
+        return nullptr;
+    }
+
+    if (utf16WindowASCIIBytes) {
+        return utf16WindowASCIIBytes.value() + start - utf16WindowStart;
+    }
+
+    uint32_t byteStart = utf8WindowByteOffsets[start - utf16WindowStart];
+    uint32_t byteEnd = utf8WindowByteOffsets[end - utf16WindowStart];
+    if (byteEnd - byteStart != end - start) {
+        return nullptr;
+    }
+    const char* bytes = streamingSource->rawUTF8Data(byteStart, end - start);
+    for (size_t i = 0; i < end - start; i++) {
+        if (static_cast<unsigned char>(bytes[i]) >= 0x80) {
+            return nullptr;
+        }
+    }
+    return bytes;
+}
+
+String* Scanner::sourceSliceAsString(size_t start, size_t end) const
+{
+    ASSERT(start <= end && end <= length);
+    if (streamingSource) {
+        return streamingSource->substring(streamingSourceStart + start, streamingSourceStart + end);
+    }
+    return new StringView(sourceAsNormalView, start, end);
+}
+
+ClassSourceText* Scanner::sourceSliceAsClassSourceText(size_t start, size_t end) const
+{
+    ASSERT(start <= end && end <= length);
+    if (streamingSource) {
+        return new ClassSourceText(streamingSource->range(streamingSourceStart + start, streamingSourceStart + end));
+    }
+    return new ClassSourceText(new StringView(sourceAsNormalView, start, end));
+}
+
 void Scanner::resetSource(StringView code)
 {
+    this->streamingSource = nullptr;
+    this->streamingSourceStart = 0;
+    this->utf16WindowASCIIBytes = nullptr;
+    this->utf16WindowStart = this->utf16WindowEnd = 0;
     this->source = ParserStringView(code, 0, code.length());
     this->sourceAsNormalView = code;
     this->sourceCodeAccessData = code.bufferAccessData();
@@ -867,6 +968,18 @@ Scanner::ScanIDResult Scanner::getIdentifier()
         } else {
             break;
         }
+    }
+
+    if (UNLIKELY(isStreamingUTF8())) {
+        auto ascii = directASCIIRange(start, index);
+        if (ascii) {
+            StringBufferAccessData data(true, index - start, const_cast<char*>(ascii.value()));
+            return std::make_tuple(data, nullptr);
+        }
+        String* identifier = sourceSliceAsString(start, index);
+        // This is still a plain identifier from the source. Keep the token's
+        // range form: hasAllocatedString also means that escapes were used.
+        return std::make_tuple(identifier->bufferAccessData(), nullptr);
     }
 
     const auto& srcData = this->source.bufferAccessData();

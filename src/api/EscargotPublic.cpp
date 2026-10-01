@@ -1362,7 +1362,7 @@ static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& r
         for (size_t i = 0; i < result.stackTrace.size(); i++) {
             Evaluator::StackTraceData t;
             t.srcName = toRef(result.stackTrace[i].srcName);
-            t.sourceCode = toRef(result.stackTrace[i].sourceCode);
+            t.sourceCode = toRef(result.stackTrace[i].materializedSourceCode());
             t.loc.index = result.stackTrace[i].loc.index;
             t.loc.line = result.stackTrace[i].loc.line;
             t.loc.column = result.stackTrace[i].loc.column;
@@ -3759,12 +3759,12 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace(
             stackTraceDataVector[i].loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
 
             stackTraceDataVector[i].srcName = codeBlock->script()->srcName();
-            stackTraceDataVector[i].sourceCode = codeBlock->script()->sourceCode();
+            stackTraceDataVector[i].scriptSource = codeBlock->script()->source();
         }
 
         Evaluator::StackTraceData t;
         t.srcName = toRef(stackTraceDataVector[i].srcName);
-        t.sourceCode = toRef(stackTraceDataVector[i].sourceCode);
+        t.sourceCode = toRef(stackTraceDataVector[i].materializedSourceCode());
         t.loc.index = stackTraceDataVector[i].loc.index;
         t.loc.line = stackTraceDataVector[i].loc.line;
         t.loc.column = stackTraceDataVector[i].loc.column;

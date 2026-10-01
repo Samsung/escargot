@@ -844,7 +844,7 @@ void CodeCache::loadAllByteCodeBlockOfFunctions(Context* context, std::vector<In
     ASSERT(m_currentContext.m_cacheFilePath.length() && m_currentContext.m_cacheFile);
 
     size_t srcHash = script->sourceCodeHashValue();
-    size_t srcLength = script->sourceCode()->length();
+    size_t srcLength = script->source()->length();
 
     // hold the current context
     CodeCacheContext previousContext = m_currentContext;

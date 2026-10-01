@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ScriptClassConstructorFunctionObject.h"
+#include "parser/ScriptSource.h"
 
 #include "FunctionObjectInlines.h"
 #include "runtime/EnvironmentRecord.h"
@@ -27,7 +28,7 @@
 namespace Escargot {
 ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock,
                                                                            LexicalEnvironment* outerEnvironment, Object* homeObject, Optional<Object*> outerClassConstructor,
-                                                                           String* classSourceCode, const Optional<AtomicString>& name)
+                                                                           ClassSourceText* classSourceCode, const Optional<AtomicString>& name)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, name ? 3 : 2)
     , m_homeObject(homeObject)
     , m_outerClassConstructor(outerClassConstructor)
@@ -56,6 +57,11 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
     }
 
     homeObject->asScriptClassConstructorPrototypeObject()->m_constructor = this;
+}
+
+String* ScriptClassConstructorFunctionObject::classSourceCode()
+{
+    return m_classSourceCode->string();
 }
 
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)

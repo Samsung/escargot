@@ -208,7 +208,7 @@ void CompressibleString::deallocateOwnedStringDataBuffer(void* ptr, size_t byteL
     }
 }
 
-bool CompressibleString::compress()
+bool CompressibleString::compress(int acceleration)
 {
     ASSERT(!m_isCompressed);
     if (UNLIKELY(!m_bufferData.length || m_refCount > 0)) {
@@ -217,9 +217,9 @@ bool CompressibleString::compress()
 
     bool has8Bit = m_bufferData.has8BitContent;
     if (has8Bit) {
-        return compressWorker<LChar>();
+        return compressWorker<LChar>(acceleration);
     } else {
-        return compressWorker<char16_t>();
+        return compressWorker<char16_t>(acceleration);
     }
 }
 
@@ -306,7 +306,7 @@ void CompressibleString::compressColdChunks(uint64_t currentTickCount, uint64_t 
 }
 
 template <typename StringType>
-bool CompressibleString::compressWorker()
+bool CompressibleString::compressWorker(int acceleration)
 {
     ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
@@ -364,7 +364,7 @@ bool CompressibleString::compressWorker()
             lastBoundLength = boundLength;
         }
 
-        int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, (char*)compBuffer.get(), srcSize, boundLength);
+        int compressedLength = LZ4::LZ4_compress_fast(m_bufferData.bufferAs8Bit + srcIndex, (char*)compBuffer.get(), srcSize, boundLength, acceleration);
         if (!compressedLength) {
             // compression fail
             return false;
