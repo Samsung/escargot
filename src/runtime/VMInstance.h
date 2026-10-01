@@ -788,6 +788,11 @@ public:
         m_smallStringCache.insertMRU(src, len, resultString);
     }
 
+    inline void insertShortStringCacheAsProbation(const LChar* src, size_t len, String* resultString)
+    {
+        m_smallStringCache.insertProbation(src, len, resultString);
+    }
+
     inline Optional<String*> lookupAtomicStringCache(const LChar* src, size_t len)
     {
         return m_atomicStringLookupCache.lookup(src, len);

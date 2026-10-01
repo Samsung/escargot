@@ -58,7 +58,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr, Optional<Execut
             LChar* result = reinterpret_cast<LChar*>(alloca(len));
             memcpy(result, lData.buffer, lData.length);
             memcpy(result + lData.length, rData.buffer, rData.length);
-            return String::fromLatin1(result, len, state);
+            return String::fromLatin1(result, len, state ? Optional<Context*>(state->context()) : NullOption);
         } else {
             StringBuilder builder;
             builder.appendString(lstr, state);

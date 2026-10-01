@@ -106,6 +106,7 @@ class ReloadableString;
 class RopeString;
 class StringView;
 class VMInstance;
+class Context;
 
 class StringWriteOption {
 public:
@@ -398,21 +399,35 @@ public:
     }
 
     template <const size_t srcLen>
-    static String* fromASCII(const char (&src)[srcLen], Optional<ExecutionState*> state = NullOption)
+    static String* fromASCII(const char (&src)[srcLen], Optional<Context*> context = NullOption)
     {
         ASSERT(srcLen - 1 == strlen(src));
-        return fromASCII(src, srcLen - 1, state);
+        return fromASCII(src, srcLen - 1, context);
     }
 
-    static String* fromASCII(const char* s, size_t len, Optional<ExecutionState*> state = NullOption)
+    static String* fromASCII(const char* s, size_t len, Optional<Context*> context = NullOption)
     {
-        return String::fromLatin1(reinterpret_cast<const LChar*>(s), len, state);
+        return String::fromLatin1(reinterpret_cast<const LChar*>(s), len, context);
     }
 
     // if you want to change this value, you  should change LATIN1_LARGE_INLINE_BUFFER macro in String.cpp
 #define LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE 24
-    static String* fromLatin1(const LChar* s, size_t len, Optional<ExecutionState*> state = NullOption);
-    static String* fromLatin1(const char16_t* s, size_t len, Optional<ExecutionState*> state = NullOption);
+    // how a miss is admitted into the short string cache
+    enum class ShortStringCacheAdmission {
+        // the content is likely to be asked for again soon, keep it as the most recently
+        // used entry of its set
+        MostRecentlyUsed,
+        // the caller walks through a lot of content it will mostly never see again, so an
+        // entry only earns a protected slot once it is actually asked for a second time.
+        // this keeps such a caller from evicting the whole cache on its way through
+        Probation,
+    };
+
+    // `context` only enables the short string cache, it is never required. the cache needs
+    // nothing of an ExecutionState, so a caller without one -- the parser, which creates a
+    // string for every string literal it reads -- can take it too
+    static String* fromLatin1(const LChar* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed);
+    static String* fromLatin1(const char16_t* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed);
 
     static String* fromCharCode(char32_t code, Optional<ExecutionState*> state = NullOption);
     ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static String* fromDouble(double v);

@@ -506,13 +506,28 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
         }
     }
 
-    if (UNLIKELY(LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length)) {
+    // a literal longer than the inline buffer limit can be handed out as a StringView over
+    // the source. the view itself is free, but it keeps the whole source text alive for as
+    // long as the string lives, and a literal easily outlives every code block of its
+    // script -- `globalThis.s = '<long literal>'` leaves nothing else of the script
+    // reachable -- so the source would be retained for nothing. hence a literal normally
+    // gets a buffer of its own.
+    //
+    // the exception is a literal that is essentially the whole source, the shape of a
+    // generated file that is one big string: there the copy doubles the peak memory of the
+    // parse to save nothing, because retaining the source is barely more than retaining the
+    // literal. the ratio below has to stay close to 1 for that to hold -- a view costs the
+    // whole source for as long as the literal lives, while a copy costs the literal
+    // permanently plus a transient double during the parse, so the two break even at about
+    // 2 and the view only gets worse from there
+    const size_t maxSourceToLiteralRatioForView = 2;
+    if (UNLIKELY(LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length && scannerInstance->source.length() <= length * maxSourceToLiteralRatioForView)) {
         return new StringView(scannerInstance->sourceAsNormalView, start, end);
-    } else {
-        constructStringLiteral(scannerInstance);
-        this->hasAllocatedString = true;
-        return this->valueStringLiteralData.m_stringIfNewlyAllocated;
     }
+
+    constructStringLiteral(scannerInstance);
+    this->hasAllocatedString = true;
+    return this->valueStringLiteralData.m_stringIfNewlyAllocated;
 }
 
 ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
@@ -687,7 +702,13 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
 
     String* newStr;
     if (isEveryCharLatin1) {
-        newStr = String::fromLatin1(stringUTF16.data(), stringUTF16.length());
+        // pass the context so that a short literal goes through the shared short string
+        // cache: the same literal text occurs over and over in a script, and now that a
+        // literal gets a string of its own rather than a view, that is a fresh allocation
+        // every time unless they are shared. a parse walks through far more distinct
+        // literals than the cache can hold, so it admits them on probation rather than
+        // evicting what the running code is relying on
+        newStr = String::fromLatin1(stringUTF16.data(), stringUTF16.length(), scannerInstance->escargotContext, String::ShortStringCacheAdmission::Probation);
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
     }

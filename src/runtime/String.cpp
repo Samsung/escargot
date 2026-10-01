@@ -780,7 +780,7 @@ ASCIIStringDataNonGCStd dtoa(double number)
 
 LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_DEFINE)
 
-String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState*> state)
+String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission)
 {
     if (len == 0) {
         return String::emptyString();
@@ -791,8 +791,15 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState
     ) {
         return new Latin1StringWithInlineBuffer(src, len);
     } else {
-        if (state && len <= VMInstance::smallStringCacheStringLength) {
-            auto* vm = state.value()->context()->vmInstance();
+        if (context && len <= VMInstance::smallStringCacheStringLength) {
+            auto* vm = context->vmInstance();
+            auto insertIntoCache = [&](String* resultString) {
+                if (admission == ShortStringCacheAdmission::Probation) {
+                    vm->insertShortStringCacheAsProbation(src, len, resultString);
+                } else {
+                    vm->insertShortStringCache(src, len, resultString);
+                }
+            };
 
             auto hitObj = vm->lookupShortStringCache(src, len);
             if (hitObj) {
@@ -821,22 +828,22 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState
             }
 
             if (isSmallNumeric) {
-                String* resultString = state.value()->context()->staticStrings().numbers[val].string();
-                vm->insertShortStringCache(src, len, resultString);
+                String* resultString = context->staticStrings().numbers[val].string();
+                insertIntoCache(resultString);
                 return resultString;
             }
 
             if (!isNumeric && isAllASCIIAlphanumeric(src, len)) {
-                auto a = AtomicString::has(state->context()->atomicStringMap(), src, len);
+                auto a = AtomicString::has(context->atomicStringMap(), src, len);
                 if (a) {
                     String* resultString = a.value().string();
-                    vm->insertShortStringCache(src, len, resultString);
+                    insertIntoCache(resultString);
                     return resultString;
                 }
             }
 
             String* resultString = String::fromLatin1(src, len);
-            vm->insertShortStringCache(src, len, resultString);
+            insertIntoCache(resultString);
 
             return resultString;
         }
@@ -851,7 +858,7 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<ExecutionState
     }
 }
 
-String* String::fromLatin1(const char16_t* src, size_t len, Optional<ExecutionState*> state)
+String* String::fromLatin1(const char16_t* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission)
 {
     if (len == 0) {
         return String::emptyString();
@@ -861,7 +868,7 @@ String* String::fromLatin1(const char16_t* src, size_t len, Optional<ExecutionSt
             ASSERT(src[i] < 256);
             dest[i] = src[i];
         }
-        return String::fromLatin1(dest, len, state);
+        return String::fromLatin1(dest, len, context, admission);
     } else {
         return new Latin1String(src, len);
     }
@@ -1323,7 +1330,7 @@ String* String::substring(size_t from, size_t to, Optional<ExecutionState*> stat
     }
     auto bad = bufferAccessDataForRange(from, len);
     if (bad.has8BitContent) {
-        return String::fromLatin1(reinterpret_cast<const LChar*>(bad.bufferAs8Bit + from), len, state);
+        return String::fromLatin1(reinterpret_cast<const LChar*>(bad.bufferAs8Bit + from), len, state ? Optional<Context*>(state->context()) : NullOption);
     }
     LChar may8BitBuffer[STRING_BUILDER_INLINE_STORAGE_DEFAULT];
     bool has8BitContent = true;
@@ -1337,7 +1344,7 @@ String* String::substring(size_t from, size_t to, Optional<ExecutionState*> stat
         builder.appendChar(c);
     }
     if (has8BitContent) {
-        return String::fromLatin1(may8BitBuffer, len, state);
+        return String::fromLatin1(may8BitBuffer, len, state ? Optional<Context*>(state->context()) : NullOption);
     }
     return builder.finalize();
 }
