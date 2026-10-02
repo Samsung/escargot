@@ -2129,6 +2129,51 @@ TEST(EnumerateObjectOwnProperties, Basic1)
     });
 }
 
+TEST(EnumerateObjectOwnProperties, ExposableObject)
+{
+    auto result = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ObjectRef* object = ObjectRef::createExposableObject(
+            state, [](ExecutionStateRef* state, ObjectRef*, ValueRef* name) -> ExposableObjectGetOwnPropertyCallbackResult {
+                auto string = name->toString(state);
+                if (string->equalsWithASCIIString("id-", 3)) {
+                    return ExposableObjectGetOwnPropertyCallbackResult(ValueRef::create(42), true, true, true);
+                }
+                if (string->equalsWithASCIIString("hidden", 6)) {
+                    return ExposableObjectGetOwnPropertyCallbackResult(ValueRef::create(7), true, false, true);
+                }
+                return ExposableObjectGetOwnPropertyCallbackResult(); },
+            [](ExecutionStateRef*, ObjectRef*, ValueRef*, ValueRef*) -> bool { return false; },
+            [](ExecutionStateRef*, ObjectRef*) -> ExposableObjectEnumerationCallbackResultVector {
+                ExposableObjectEnumerationCallbackResultVector names(2);
+                names[0] = ExposableObjectEnumerationCallbackResult(StringRef::createFromASCII("id-"));
+                names[1] = ExposableObjectEnumerationCallbackResult(StringRef::createFromASCII("hidden"), true, false, true);
+                return names; },
+            [](ExecutionStateRef*, ObjectRef*, ValueRef*) -> bool { return false; });
+
+        auto enumerate = eval(state->context(), StringRef::createFromASCII(R"(
+            (function(object) {
+                return JSON.stringify([
+                    Object.getOwnPropertyNames(object), Object.keys(object),
+                    Object.values(object), Object.entries(object),
+                    Reflect.ownKeys(object).map(String)
+                ]);
+            })
+        )"))
+                             ->asFunctionObject();
+        ValueRef* arguments[] = { object };
+        EXPECT_EQ(enumerate->call(state, ValueRef::createUndefined(), 1, arguments)->asString()->toStdUTF8String(),
+                  R"json([["id-","hidden"],["id-"],[42],[["id-",42]],["id-","hidden"]])json");
+
+        EXPECT_TRUE(object->defineDataProperty(state, StringRef::createFromASCII("stored"), ValueRef::create(9), true, true, true));
+        EXPECT_TRUE(object->defineDataProperty(state, StringRef::createFromASCII("2"), ValueRef::create(2), true, true, true));
+        EXPECT_TRUE(object->defineDataProperty(state, SymbolRef::create(StringRef::createFromASCII("exposed")), ValueRef::create(10), true, true, true));
+        EXPECT_EQ(enumerate->call(state, ValueRef::createUndefined(), 1, arguments)->asString()->toStdUTF8String(),
+                  R"json([["2","id-","hidden","stored"],["2","id-","stored"],[2,42,9],[["2",2],["id-",42],["stored",9]],["2","id-","hidden","stored","Symbol(exposed)"]])json");
+        return ValueRef::createUndefined();
+    });
+    EXPECT_TRUE(result.isSuccessful());
+}
+
 TEST(EnumerateObjectOwnProperties, TransitionGrowth)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
