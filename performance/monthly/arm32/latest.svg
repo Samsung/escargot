@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="600" viewBox="0 0 1080 600" role="img" aria-labelledby="title desc">
+<title id="title">ARM32 JavaScript engine performance and fixed-work memory</title>
+<desc id="desc">Median of three memory runs. Memory uses RSS from fixed work; execution scores are measured separately.</desc>
+<rect width="1080" height="600" rx="16" fill="#0b1220"/>
+<text x="28" y="40" fill="#e5edf8" font-family="Arial, sans-serif" font-size="26" font-weight="bold">JavaScript engines on ARM32</text>
+<text x="28" y="70" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="normal">Measured 2026-10-02 | Escargot 23f54209f | CPU 0</text>
+<text x="28" y="110" fill="#7dd3fc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">Fixed-work memory: average / peak RSS (MiB)</text>
+<text x="28" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Engine</text>
+<text x="255" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Version</text>
+<text x="475" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">SunSpider</text>
+<text x="685" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Octane</text>
+<text x="865" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Web Tooling</text>
+<text x="28" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS</text>
+<text x="255" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2026-06-04</text>
+<text x="475" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">3.3 / 6.6</text>
+<text x="685" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">132.8 / 197.2</text>
+<text x="865" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">303.2 / 402.2</text>
+<text x="28" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8</text>
+<text x="255" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">15.5.35.7</text>
+<text x="475" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">36.8 / 46.1</text>
+<text x="685" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">131.6 / 168.8</text>
+<text x="865" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">347.9 / 468.4</text>
+<text x="28" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8 --jitless</text>
+<text x="255" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">15.5.35.7</text>
+<text x="475" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">29.5 / 39.3</text>
+<text x="685" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">148.6 / 188.6</text>
+<text x="865" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">279.0 / 352.7</text>
+<rect x="14" y="267" width="1052" height="35" rx="5" fill="#17324b"/>
+<text x="28" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Escargot</text>
+<text x="255" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">23f54209f</text>
+<text x="475" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">10.6 / 16.5</text>
+<text x="685" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">57.0 / 110.1</text>
+<text x="865" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">103.3 / 127.1</text>
+<text x="28" y="351" fill="#7dd3fc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">Execution performance (separate score runs)</text>
+<text x="28" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Engine</text>
+<text x="255" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold"></text>
+<text x="475" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">SunSpider ms ↓</text>
+<text x="685" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Octane score ↑</text>
+<text x="865" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">WTB runs/s ↑</text>
+<text x="28" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS</text>
+<text x="255" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1212.6</text>
+<text x="685" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1,477</text>
+<text x="865" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">0.80</text>
+<text x="28" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8</text>
+<text x="255" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">364.4</text>
+<text x="685" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">22,703</text>
+<text x="865" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">5.42</text>
+<text x="28" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8 --jitless</text>
+<text x="255" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">728.8</text>
+<text x="685" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2,161</text>
+<text x="865" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1.94</text>
+<rect x="14" y="491" width="1052" height="31" rx="5" fill="#17324b"/>
+<text x="28" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Escargot</text>
+<text x="255" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold"></text>
+<text x="475" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">882.2</text>
+<text x="685" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">2,089</text>
+<text x="865" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">0.96</text>
+<text x="28" y="555" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.</text>
+<text x="28" y="580" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Same CPU, engine versions and work counts. Click for PSS/USS, ranges, methods and raw data.</text>
+</svg>
