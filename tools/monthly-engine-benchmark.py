@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Compare ARM64 JavaScript engines on Web Tooling, Octane and SunSpider."""
+"""Compare native ARM JavaScript engines on Web Tooling, Octane and SunSpider."""
 
 import datetime
 import argparse
+import base64
 from engine_memory_benchmark import METHOD, aggregate, measure_memory
 import platform
 import socket
@@ -13,20 +14,29 @@ from pathlib import Path
 import re
 import shutil
 import statistics
+import struct
 import subprocess
 import sys
 import tarfile
 import time
 import urllib.request
+import urllib.parse
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK = Path(os.environ["GITHUB_WORKSPACE"])
-REPORT = WORK / "monthly-engine-report"
-CACHE = Path.home() / ".cache" / "escargot-monthly-engines"
+ARCHITECTURE = os.environ.get("BENCHMARK_ARCHITECTURE", "arm64")
+if ARCHITECTURE not in ("arm64", "arm32"):
+    raise ValueError("BENCHMARK_ARCHITECTURE must be arm64 or arm32")
+REPORT = Path(os.environ.get("BENCHMARK_REPORT_DIR", WORK / "monthly-engine-report"))
+CACHE = Path(os.environ.get("MONTHLY_ENGINE_CACHE", Path.home() / ".cache" / "escargot-monthly-engines"))
 JOBS = 8
-CPU = min(os.sched_getaffinity(0))
-SYSTEM_LIBRARY_PATH = "/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:/lib:/usr/lib"
+CPU = int(os.environ.get("BENCHMARK_CPU", min(os.sched_getaffinity(0))))
+if CPU not in os.sched_getaffinity(0):
+    raise ValueError("BENCHMARK_CPU is outside the allowed CPU affinity")
+LIBRARY_TRIPLET = "arm-linux-gnueabihf" if ARCHITECTURE == "arm32" else "aarch64-linux-gnu"
+SYSTEM_LIBRARY_PATH = f"/lib/{LIBRARY_TRIPLET}:/usr/lib/{LIBRARY_TRIPLET}:/lib:/usr/lib"
 
 
 def run(*args, cwd=None, env=None):
@@ -63,6 +73,15 @@ def read_url(url):
 
 
 def install_glibc():
+    if ARCHITECTURE == "arm32":
+        # All four engines use the same Ubuntu ARM32 userspace. The official
+        # d8 archive requires glibc 2.27 or newer, available in Ubuntu 24.04.
+        loader = Path("/lib/ld-linux-armhf.so.3")
+        runtime_dir = Path("/lib/arm-linux-gnueabihf")
+        version = subprocess.check_output([loader, "--version"], text=True).splitlines()[0]
+        return loader, runtime_dir, {"version": version, "sha256": sha256(loader),
+                                    "libc_sha256": sha256(runtime_dir / "libc.so.6"),
+                                    "source": "Ubuntu 24.04 ARM32 container"}
     formula = json.loads(read_url("https://formulae.brew.sh/api/formula/glibc.json"))
     version = formula["versions"]["stable"]
     bottle = formula["bottle"]["stable"]["files"]["arm64_linux"]
@@ -94,6 +113,32 @@ def install_glibc():
 def install_d8(loader, runtime_dir):
     formula = json.loads(read_url("https://formulae.brew.sh/api/formula/v8.json"))
     version = formula["versions"]["stable"]
+    if ARCHITECTURE == "arm32":
+        milestone = ".".join(version.split(".")[:2])
+        name = f"official/{milestone}/v8-linux-arm32-rel-{version}.zip"
+        metadata_url = "https://storage.googleapis.com/storage/v1/b/chromium-v8/o/" + urllib.parse.quote(name, safe="")
+        metadata = json.loads(read_url(metadata_url))
+        url = "https://storage.googleapis.com/chromium-v8/" + name + "?generation=" + metadata["generation"]
+        archive = CACHE / "downloads" / f"v8-arm32-{version}.zip"
+        fetch(url, archive)
+        digest = sha256(archive)
+        if base64.b64encode(hashlib.md5(archive.read_bytes()).digest()).decode() != metadata["md5Hash"]:
+            archive.unlink()
+            raise RuntimeError("Official ARM32 V8 archive checksum mismatch")
+        directory = CACHE / f"v8-arm32-{version}-{digest}"
+        directory.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(archive) as package:
+            config = json.loads(package.read("v8_build_config.json"))
+            if config["target_cpu"] != "arm" or config["simulator_run"] or config["debug_code"]:
+                raise RuntimeError("Expected a native ARM32 V8 Release build")
+            for filename in ("d8", "icudtl.dat", "snapshot_blob.bin", "v8_build_config.json"):
+                (directory / filename).write_bytes(package.read(filename))
+        executable = directory / "d8"
+        executable.chmod(0o755)
+        command = [loader, "--library-path", f"{runtime_dir}:{SYSTEM_LIBRARY_PATH}", executable]
+        run(*command, "--version")
+        return command, {"version": version, "sha256": digest, "source": url,
+                         "build_config": config, "binary_sha256": sha256(executable)}
     bottle = formula["bottle"]["stable"]["files"]["arm64_linux"]
     digest = bottle["sha256"]
     archive = CACHE / "downloads" / f"v8-{version}-{digest}.tar.gz"
@@ -152,15 +197,18 @@ def install_qjs():
 
 
 def build_escargot():
-    build = WORK / "out" / "monthly-engine-release"
+    build = WORK / "out" / f"monthly-engine-release-{ARCHITECTURE}"
     options = [
         "-DCMAKE_BUILD_TYPE=Release", "-DESCARGOT_DEPLOY=ON",
         "-DESCARGOT_THREADING=ON", "-DESCARGOT_TCO=ON",
         "-DESCARGOT_ENABLE_SHELL=ON",
     ]
+    if ARCHITECTURE == "arm32":
+        options += ["-DESCARGOT_ARCH=arm", "-DCMAKE_SYSTEM_PROCESSOR=arm",
+                    "-DESCARGOT_TEMPORAL=OFF"]
     env = os.environ.copy()
     icu = Path("/usr/icu78-64")
-    if icu.is_dir():
+    if ARCHITECTURE == "arm64" and icu.is_dir():
         env["LDFLAGS"] = f"-L{icu}/lib -Wl,-rpath={icu}/lib"
         env["PKG_CONFIG_PATH"] = f"{icu}/lib/pkgconfig"
         env["LD_LIBRARY_PATH"] = f"{icu}/lib"
@@ -399,7 +447,7 @@ def run_memory_comparison(data, engines, drivers):
                 (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
     data["memory_validated"] = not failures
     (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
-    rows = ["# ARM64 fixed-work memory comparison", "", data["measured_date_kst"], "",
+    rows = [f"# {ARCHITECTURE.upper()} fixed-work memory comparison", "", data["measured_date_kst"], "",
             "Median of three fresh processes; MiB. Average RSS / kernel peak RSS.", "",
             "| Engine | SunSpider | Octane | Web Tooling |", "|---|---:|---:|---:|"]
     for name, _, _ in engines:
@@ -426,13 +474,27 @@ def main():
     parser.add_argument("--memory-only", action="store_true")
     parser.add_argument("--scores-json", type=Path)
     args = parser.parse_args()
-    if os.uname().machine not in ("aarch64", "arm64"):
-        raise RuntimeError("This benchmark must run natively on ARM64")
+    if os.uname().machine not in ("aarch64", "arm64", "armv7l", "armv8l"):
+        raise RuntimeError("This benchmark must run on native ARM hardware")
+    pointer_bits = struct.calcsize("P") * 8
+    if pointer_bits != (32 if ARCHITECTURE == "arm32" else 64):
+        raise RuntimeError("Python userspace does not match the requested architecture")
+    # A binfmt/QEMU process exposes the emulator executable here. Refuse it
+    # rather than reporting emulation as native ARM32 performance.
+    with Path("/proc/self/exe").open("rb") as executable:
+        header = executable.read(20)
+    if header[4] != (1 if pointer_bits == 32 else 2) or int.from_bytes(header[18:20], "little") != (40 if pointer_bits == 32 else 183):
+        raise RuntimeError("Emulated ARM execution cannot be benchmarked")
     REPORT.mkdir(parents=True, exist_ok=True)
     loader, runtime_dir, runtime_info = install_glibc()
     d8, d8_info = install_d8(loader, runtime_dir)
     qjs, qjs_info = install_qjs()
     escargot, escargot_env = build_escargot()
+    for executable in (qjs, escargot, Path(d8[-1])):
+        with executable.open("rb") as source:
+            header = source.read(20)
+        if header[:4] != b"\x7fELF" or header[4] != (1 if pointer_bits == 32 else 2) or int.from_bytes(header[18:20], "little") != (40 if pointer_bits == 32 else 183):
+            raise RuntimeError(f"Engine ELF architecture mismatch: {executable}")
     wtb = build_wtb()
     sunspider = build_sunspider()
     octane = ROOT / "test/octane"
@@ -443,7 +505,10 @@ def main():
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     data = {"measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "measured_date_kst": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date().isoformat(),
-            "architecture": os.uname().machine, "hostname": socket.gethostname(),
+            "architecture": "arm" if ARCHITECTURE == "arm32" else "aarch64",
+            "host_architecture": os.uname().machine, "pointer_bits": pointer_bits,
+            "execution_mode": "native", "hostname": socket.gethostname(),
+            "container_image": os.environ.get("BENCHMARK_CONTAINER_IMAGE"),
             "platform": platform.platform(), "cpu": CPU, "glibc_runtime": runtime_info,
             "cpu_info": Path("/proc/cpuinfo").read_text(),
             "wtb_min_samples": 3, "sunspider_repetitions": 5,
@@ -511,7 +576,7 @@ def main():
                 failures.append(f"{name}/{kind}")
                 print(f"{name}/{kind}: {error}", file=sys.stderr, flush=True)
             (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
-    rows = ["# ARM64 JavaScript engine comparison", "", data["measured_date_kst"], "",
+    rows = [f"# {ARCHITECTURE.upper()} JavaScript engine comparison", "", data["measured_date_kst"], "",
             f"Escargot source: `{data['escargot_source_revision']}`; CPU: {CPU}.", "",
             "| Engine | Version | SunSpider ms ↓ | Octane score ↑ | WTB runs/s ↑ |",
             "|---|---|---:|---:|---:|"]
@@ -526,7 +591,7 @@ def main():
     rows += ["", "SunSpider 1.0.2: one discarded run, five fresh-process repetitions, mean total ms.",
              "Octane 2.0: one scored run; WTB: minSamples=3.",
              "Memory is measured separately using the validated fixed-work protocol below.",
-             "All engines use the same private glibc runtime and CPU.", ""]
+             "All engines use the same glibc runtime and CPU.", ""]
     summary = "\n".join(rows)
     (REPORT / "summary.md").write_text(summary)
     print(summary, flush=True)
