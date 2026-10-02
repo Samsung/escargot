@@ -114,9 +114,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          site="$RUNNER_TEMP/escargot-monthly-pages"
+          site="$(mktemp -d "${TMPDIR:-$RUNNER_TEMP}/escargot-monthly-pages.XXXXXX")"
           git fetch origin gh-pages
           git worktree add --detach "$site" FETCH_HEAD
+          trap 'git -C "$GITHUB_WORKSPACE" worktree remove --force "$site"' EXIT
           python3 tools/render-project-page.py --output "$site/index.html" --readme README.md
           python3 tools/render-engine-comparison.py --report monthly-engine-report --site "$site" --inject-landing "$site/index.html"
           cd "$site"
