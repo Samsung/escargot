@@ -6367,7 +6367,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
                 innerResultHasException = true;
             }
 
-            if (!innerResultHasException && returnFunction.isUndefined()) {
+            if (!innerResultHasException && returnFunction.isUndefinedOrNull()) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
                 return;
             }
