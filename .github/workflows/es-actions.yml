@@ -1816,6 +1816,17 @@ jobs:
         export LANG=en_US.UTF-8
         locale
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
+    - name: Run incremental GC Web Tooling Benchmark (Release)
+      if: ${{ matrix.tag == 'threading-tco' && contains(matrix.tc, 'web-tooling-benchmark') }}
+      shell: bash
+      timeout-minutes: 10
+      run: |
+        # Reuse the one-sample bundle prepared by the regular benchmark run.
+        cd test/web-tooling-benchmark
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
+        "$GITHUB_WORKSPACE/out/release/x64/escargot" --gc-incremental dist/cli.js | tee "$RUNNER_TEMP/web-tooling-incremental.log"
+        # The benchmark can abort on a JS error without a nonzero exit code.
+        grep -q '^Geometric mean:' "$RUNNER_TEMP/web-tooling-incremental.log"
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15

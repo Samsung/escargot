@@ -1228,6 +1228,7 @@ static void printHelp()
     printf("  -f                          Ignored (compatibility option)\n");
     printf("  --shell                     Force starting the interactive shell\n");
     printf("  --module                    Execute the following script as an ES module\n");
+    printf("  --gc-incremental            Enable incremental garbage collection\n");
     printf("  --canblock-is-false         Set the platform canBlock flag to false\n");
     printf("  --filename-as=<name>        Specify the file name of the executed script\n");
     printf("  --start-debug-server[=opt]  Start the debugger server\n");
@@ -1268,8 +1269,18 @@ int main(int argc, char* argv[])
 
     bool waitBeforeExit = false;
 
+    Globals::InitializeOption initializeOption = Globals::InitializeOption::None;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-e") == 0) {
+            // The next argument is JavaScript source, not a shell option.
+            i++;
+        } else if (strcmp(argv[i], "--gc-incremental") == 0) {
+            initializeOption = initializeOption | Globals::InitializeOption::PreferIncrementalGC;
+        }
+    }
+
     ShellPlatform* platform = new ShellPlatform();
-    Globals::initialize(platform);
+    Globals::initialize(platform, initializeOption);
 
     Memory::setGCFrequency(12);
 
@@ -1294,6 +1305,10 @@ int main(int argc, char* argv[])
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
             if (argv[i][1] == '-') { // `--option` case
+                if (strcmp(argv[i], "--gc-incremental") == 0) {
+                    // Already applied before initializing the engine.
+                    continue;
+                }
                 if (strcmp(argv[i], "--shell") == 0) {
                     runShell = true;
                     continue;
