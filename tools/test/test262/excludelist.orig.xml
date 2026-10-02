@@ -950,7 +950,6 @@
     <test id="language/statements/for-of/dstr/obj-id-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-before-comma-invalid"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-not-last-element-invalid"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/statements/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
