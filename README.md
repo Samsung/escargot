@@ -46,12 +46,30 @@ JavaScript runtime with control over the features and footprint you deploy.
 
 ### Measured performance and memory
 
+Choose the architecture used by your product to see execution performance
+and memory use on the same fixed amount of work.
+
+<div id="engine-comparison-selector">
+
+<details name="engine-comparison-architecture" open>
+<summary><strong>ARM64</strong> — 64-bit ARM platforms</summary>
+
 [![Latest ARM64 JavaScript engine comparison](https://samsung.github.io/escargot/performance/monthly/latest.svg)](https://samsung.github.io/escargot/performance/monthly/)
 
-The table updates automatically when CI publishes a validated comparison.
+</details>
+
+<details name="engine-comparison-architecture">
+<summary><strong>ARM32</strong> — 32-bit embedded platforms</summary>
+
+[![Latest ARM32 JavaScript engine comparison](https://samsung.github.io/escargot/performance/monthly/arm32/latest.svg)](https://samsung.github.io/escargot/performance/monthly/arm32/)
+
+</details>
+
+</div>
+
+Both views update automatically when CI publishes a validated comparison.
 Open the [comparison dashboard](https://samsung.github.io/escargot/performance/monthly/)
 for individual tests, measurement methods, repeat ranges, and raw data.
-Memory measurements use the same fixed amount of work for each engine.
 
 ### Try it in your product
 

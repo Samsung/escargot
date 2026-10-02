@@ -175,8 +175,12 @@ def inject_landing(path):
     path = Path(path)
     text = path.read_text()
     iframe = '<iframe title="Latest JavaScript engine performance and memory comparison" src="performance/monthly/embed.html" style="width:100%;height:800px;border:0" loading="lazy"></iframe>'
-    pattern = r'<p><a[^>]*><img[^>]*src="https://samsung.github.io/escargot/performance/monthly/latest.svg"[^>]*></a></p>'
-    text, count = re.subn(pattern, iframe, text)
+    # The README uses native disclosures; Pages already has its own selector.
+    pattern = r'<div id="(?:user-content-)?engine-comparison-selector"[^>]*>.*?</div>'
+    text, count = re.subn(pattern, lambda _: iframe, text, flags=re.DOTALL)
+    if not count:
+        pattern = r'<p><a[^>]*><img[^>]*src="https://samsung.github.io/escargot/performance/monthly/latest.svg"[^>]*></a></p>'
+        text, count = re.subn(pattern, iframe, text)
     if not count and 'performance/monthly/embed.html' not in text:
         text = text.replace('<div class="readme">', '<section><h2>Performance and memory</h2>' + iframe + '</section><div class="readme">', 1)
     if 'escargot-comparison-height' not in text:
