@@ -240,6 +240,15 @@ public:
     // (Allocated memory by GC x 2) / (Frequency parameter value)
     // Increasing this value may use less space but there is more collection event
     static void setGCFrequency(size_t value = 1);
+
+    // Set the cold end (bottom/high address on descending stack) of the current thread's stack
+    // scanned by conservative GC to reduce false pointer retention. The address must
+    // remain valid while GC scans the stack; before initialization it sets the initial stack bottom.
+    static void setStackBottom(void* stackBottom);
+
+    // Get the cold end (bottom/high address on descending stack) of the current thread's stack.
+    // Requires GC initialization; querying before initialization logs an error and aborts.
+    static void* stackBottom();
 };
 
 class ESCARGOT_EXPORT PersistentRefHolderBase {

@@ -611,6 +611,30 @@ void Memory::setGCFrequency(size_t value)
     GC_set_free_space_divisor(value);
 }
 
+void Memory::setStackBottom(void* stackBottom)
+{
+    RELEASE_ASSERT(stackBottom != nullptr);
+    struct GC_stack_base sb;
+    memset(&sb, 0, sizeof(sb));
+    sb.mem_base = stackBottom;
+    GC_set_stackbottom(nullptr, &sb);
+}
+
+void* Memory::stackBottom()
+{
+    // GC_stackbottom is thread-local and cannot be accessed across a Windows DLL
+    // boundary. Use the collector's accessor, which requires initialization.
+    if (!GC_is_init_called()) {
+        ESCARGOT_LOG_ERROR("Memory::stackBottom requires GC initialization");
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    struct GC_stack_base sb;
+    memset(&sb, 0, sizeof(sb));
+    GC_get_my_stackbottom(&sb);
+    RELEASE_ASSERT(sb.mem_base != nullptr);
+    return sb.mem_base;
+}
+
 size_t Memory::heapSize()
 {
     return GC_get_heap_size();

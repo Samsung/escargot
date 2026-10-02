@@ -1238,6 +1238,8 @@ static void printHelp()
 
 int main(int argc, char* argv[])
 {
+    void* targetStackBottom = &argc;
+    Memory::setStackBottom(targetStackBottom);
 #if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
     SetConsoleOutputCP(65001);
 #endif
@@ -1281,6 +1283,11 @@ int main(int argc, char* argv[])
 
     ShellPlatform* platform = new ShellPlatform();
     Globals::initialize(platform, initializeOption);
+
+    if (Memory::stackBottom() != targetStackBottom) {
+        fprintf(stderr, "Failed to set GC stack bottom\n");
+        abort();
+    }
 
     Memory::setGCFrequency(12);
 
