@@ -1236,10 +1236,12 @@ static void printHelp()
     printf("  --wait-before-exit          Wait before exit for inspection\n");
 }
 
-int main(int argc, char* argv[])
+#if defined(_MSC_VER)
+static __declspec(noinline) int shellMain(int argc, char* argv[], void* targetStackBottom)
+#else
+static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* targetStackBottom)
+#endif
 {
-    void* targetStackBottom = &argc;
-    Memory::setStackBottom(targetStackBottom);
 #if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
     SetConsoleOutputCP(65001);
 #endif
@@ -1474,4 +1476,13 @@ int main(int argc, char* argv[])
 #endif
 
     return exitCode;
+}
+
+int main(int argc, char* argv[])
+{
+    // A parameter's address can lie below other locals in the same frame.
+    // Keep all shell roots in a callee frame below this GC stack boundary.
+    void* targetStackBottom = &argc;
+    Memory::setStackBottom(targetStackBottom);
+    return shellMain(argc, argv, targetStackBottom);
 }
