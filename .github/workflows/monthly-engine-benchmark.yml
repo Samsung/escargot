@@ -22,6 +22,10 @@ on:
         description: 'Optional original score artifact name'
         type: string
         default: ''
+      measure_arm32:
+        description: 'Measure ARM32 when republishing an existing ARM64 report (new monthly runs always measure both)'
+        type: boolean
+        default: false
 
 concurrency:
   group: performance-benchmark-master
@@ -46,7 +50,7 @@ jobs:
             echo 'run=false' >> "$GITHUB_OUTPUT"
           fi
 
-  benchmark-arm64:
+  benchmark-arm:
     needs: first-sunday
     if: needs.first-sunday.outputs.run == 'true'
     runs-on: [self-hosted, linux, arm64, test]
@@ -59,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Initialize benchmark and build dependencies
-        if: inputs.report_run_id == ''
+        if: inputs.report_run_id == '' || inputs.measure_arm32 == true
         run: git submodule update --init --jobs 8 third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane test/web-tooling-benchmark
       - uses: actions/configure-pages@v5
       - uses: actions/download-artifact@v5
@@ -104,11 +108,29 @@ jobs:
           mkdir -p monthly-engine-report
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
             python3 -u tools/monthly-engine-benchmark.py 2>&1 | tee monthly-engine-report/run.log
+      - name: Compare ARM32 engines natively on the same host
+        if: inputs.report_run_id == '' || inputs.measure_arm32 == true
+        shell: bash
+        env:
+          ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          lock_dir="$HOME/.cache/escargot-locks"
+          install -d -m 700 "$lock_dir"
+          mkdir -p monthly-engine-report-arm32
+          flock -x -w 3600 "$lock_dir/performance-host.lock" \
+            bash tools/run-monthly-arm32-benchmark.sh 2>&1 | tee monthly-engine-report-arm32/run.log
       - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: monthly-engine-report-${{ github.sha }}
           path: monthly-engine-report/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        if: always() && (inputs.report_run_id == '' || inputs.measure_arm32 == true)
+        with:
+          name: monthly-engine-report-arm32-${{ github.sha }}
+          path: monthly-engine-report-arm32/
           if-no-files-found: error
       - name: Publish validated comparison and README table
         shell: bash
@@ -120,6 +142,9 @@ jobs:
           trap 'git -C "$GITHUB_WORKSPACE" worktree remove --force "$site"' EXIT
           python3 tools/render-project-page.py --output "$site/index.html" --readme README.md
           python3 tools/render-engine-comparison.py --report monthly-engine-report --site "$site" --inject-landing "$site/index.html"
+          if [ -f monthly-engine-report-arm32/measurements.json ]; then
+            python3 tools/render-engine-comparison.py --report monthly-engine-report-arm32 --site "$site"
+          fi
           cd "$site"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -133,7 +158,7 @@ jobs:
           path: performance-pages
 
   deploy-pages:
-    needs: benchmark-arm64
+    needs: benchmark-arm
     runs-on: ubuntu-24.04
     permissions:
       pages: write
