@@ -134,12 +134,12 @@ char16_t ScriptSource::UTF8Cursor::next()
 
 ScriptSource::UTF8Cursor ScriptSource::cursorAt(size_t utf16Offset) const
 {
-    ASSERT((!!m_utf8Data
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-            || !!m_compressedUTF8
+    ASSERT(!!m_utf8Data || !!m_compressedUTF8);
+#else
+    ASSERT(!!m_utf8Data);
 #endif
-            )
-           && utf16Offset <= m_length);
+    ASSERT(utf16Offset <= m_length);
 
     size_t entry = utf16Offset / utf8IndexGranularity;
     uint32_t packed = m_utf8Index.value()[entry];
