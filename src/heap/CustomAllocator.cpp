@@ -101,39 +101,9 @@ GC_ms_entry* markAndPushCustom(GC_word* addr,
                                  number_of_sub_pointer - i);
 }
 
-// NOTE
-// a block that is not marked when this runs traces nothing at all.
-//
-// this kind is registered with mark-unconditionally (see initializeCustomAllocators),
-// so the collector runs this procedure for every block that has not been reclaimed yet,
-// blocks that are already garbage included -- GC_push_unconditionally pushes them
-// without setting their mark bit, so that the disclaim callback of a dying block can
-// still look at its referents. a block that is genuinely reachable, on the other hand,
-// is always marked before it is pushed (PUSH_CONTENTS sets the mark bit and only then
-// pushes, and that holds for the conservative stack scan too, which is what keeps a
-// block alive during a pruning cycle). so the mark bit is exactly the "is this block
-// still in use" test here, and a live block still traces all three fields.
-//
-// tracing anything from a dying block is what turns a dead island into a permanent
-// leak, because every referent below can lead back to this very block:
-//   - m_codeBlock is the owner, and the owner traces m_byteCodeBlock right back.
-//   - m_stringLiteralData holds source literals, which are usually StringViews of the
-//     script source; the underlying source string may be a CompressibleString or a
-//     ReloadableString, and both of those keep a VMInstance* -- from there the mark
-//     phase reaches every Context, Script and InterpretedCodeBlock, and from the owning
-//     CodeBlock this block again.
-//   - m_otherLiteralData holds BigInts, ObjectStructures and inline cache data, none of
-//     which reaches a VMInstance today, but the same rule is applied: a garbage block
-//     pushes nothing.
-// once such a loop closes, the dying block ends up marked and survives the collection,
-// and the next collection pushes it unconditionally again and repeats the whole thing.
-// the block, its owner and the entire VMInstance island hanging off it are then alive
-// for the rest of the process -- dropping a Context or a Script leaks its whole object
-// graph instead of collecting it.
-//
-// as a consequence the disclaim callback must treat all of this as weak references, see
-// ByteCodeBlock::clearByteCodeBlock(): it only uses the cached VMInstance back pointer
-// and the non-GC buffers, and re-checks the owner before touching it.
+// Disclaim kinds trace only reachable objects. Eager sweeping is enabled separately
+// through GC_new_kind_enumerable(), so native resources are still released in the
+// collection that kills their owner without tracing dead object graphs.
 int getValidValueInByteCodeBlock(void* ptr, GC_mark_pair* arr)
 {
     ByteCodeBlock* current = (ByteCodeBlock*)ptr;
@@ -150,50 +120,14 @@ int getValidValueInByteCodeBlock(void* ptr, GC_mark_pair* arr)
     return 0;
 }
 
-// NOTE
-// the observer list holds back references: every entry points at the ArrayBuffer (or
-// ArrayBufferView) that registered itself to be notified when the buffer address moves,
-// and those objects point at this BackingStore again through ArrayBuffer::m_backingStore.
-//
-// like ByteCodeBlockKind above, the backing store kinds are registered with
-// mark-unconditionally, so this procedure also runs for stores that are already garbage.
-// tracing the observer list there resurrects the observing ArrayBuffer, which marks this
-// store right back, and the pair -- plus the observer's prototype chain, its realm's
-// GlobalObject, Context and VMInstance, i.e. the whole heap -- can never be collected.
-// so the list is traced only while the store itself is reachable, and the same rule is
-// applied to every other field below: a store that is only visited by the unconditional
-// push is garbage and pushes nothing at all.
-//
-// the observer entries are already registered as disappearing links, so a live store
-// whose observer died gets its entry cleared instead of dangling.
 int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_pair* arr)
 {
     NonSharedBackingStore* current = (NonSharedBackingStore*)ptr;
     const bool isMarked = isMarkedHeapObject(current);
     arr[0].from = (GC_word*)&current->m_observerItems;
     arr[0].to = isMarked ? (GC_word*)current->m_observerItems.data() : nullptr;
-    // m_deleterData is gated the same way, even though the disclaim callback does hand it
-    // to the deleter (see clearNonSharedBackingStore()): a dying store traces nothing.
-    //
-    // keeping it alive from here is exactly what mark-unconditionally is for, but the cost
-    // is unbounded. deleter data that leads back to this store -- the owning
-    // ArrayBufferObject through m_backingStore, or a Context/VMInstance that reaches it --
-    // makes the dying store mark itself, so it survives the collection, is pushed
-    // unconditionally again in the next one, and neither it nor the island behind it is
-    // ever collected. that is a permanent leak the engine has no way to detect, and here a
-    // leak is worse than a crash: keeping GC allocated deleter data alive is the embedder's
-    // job instead, see the note on BackingStoreRef::createNonSharedBackingStore().
-    //
-    // the common case does not change at all: deleter data that is not GC allocated (e.g.
-    // the plain new/delete struct the N-API external ArrayBuffer support passes) is not a
-    // heap address, so it was never retained by this push either. for a resizable store the
-    // union holds m_maxByteLength and the deleter is passed nullptr, so nothing is traced.
-    //
-    // note that the mark-unconditionally registration still earns its keep even though
-    // nothing is traced from a dead store: it also puts this kind into the eager sweep that
-    // runs before marking (GC_reclaim_unconditionally_marked()), which is what gets the
-    // deleter called -- and the native buffer released -- in the collection that kills the
-    // store, rather than whenever the heap block is next needed for allocation.
+    // Deleter data is retained only while the store is reachable. The embedder
+    // must keep GC-allocated callback data alive until the deleter runs.
     arr[1].from = (GC_word*)&current->m_deleterData;
     arr[1].to = (isMarked && !current->m_isResizable) ? (GC_word*)current->m_deleterData : nullptr;
     return 0;
@@ -203,7 +137,6 @@ int getValidValueInNonSharedBackingStore(void* ptr, GC_mark_pair* arr)
 int getValidValueInSharedBackingStore(void* ptr, GC_mark_pair* arr)
 {
     SharedBackingStore* current = (SharedBackingStore*)ptr;
-    // same reasoning as getValidValueInNonSharedBackingStore() above
     arr[0].from = (GC_word*)&current->m_observerItems;
     arr[0].to = isMarkedHeapObject(current) ? (GC_word*)current->m_observerItems.data() : nullptr;
     return 0;
@@ -442,18 +375,22 @@ void initializeCustomAllocators()
                                                              FALSE,
                                                              TRUE);
 
+    // mark_from_all requires nonzero low bits in the first word of every live
+    // object. ByteCodeBlock flags and BackingStore vtables do not satisfy that
+    // contract: incremental rescanning would skip their new references. Use
+    // normal marked-object rescanning and request eager sweeping independently.
     s_gcKinds[HeapObjectKind::ByteCodeBlockKind] = GC_new_kind_enumerable(GC_new_free_list(),
                                                                           GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInByteCodeBlock, 3>), 0), FALSE, TRUE);
-    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::ByteCodeBlockKind], ByteCodeBlock::clearByteCodeBlockFromDisclaimGC, 1);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::ByteCodeBlockKind], ByteCodeBlock::clearByteCodeBlockFromDisclaimGC, 0);
 
-    s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind] = GC_new_kind(GC_new_free_list(),
-                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInNonSharedBackingStore, 2>), 0), FALSE, TRUE);
-    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind], NonSharedBackingStore::clearNonSharedBackingStore, 1);
+    s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInNonSharedBackingStore, 2>), 0), FALSE, TRUE);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::NonSharedBackingStoreKind], NonSharedBackingStore::clearNonSharedBackingStore, 0);
 
 #if defined(ENABLE_THREADING)
-    s_gcKinds[HeapObjectKind::SharedBackingStoreKind] = GC_new_kind(GC_new_free_list(),
-                                                                    GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInSharedBackingStore, 1>), 0), FALSE, TRUE);
-    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::SharedBackingStoreKind], SharedBackingStore::clearSharedBackingStore, 1);
+    s_gcKinds[HeapObjectKind::SharedBackingStoreKind] = GC_new_kind_enumerable(GC_new_free_list(),
+                                                                               GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInSharedBackingStore, 1>), 0), FALSE, TRUE);
+    GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::SharedBackingStoreKind], SharedBackingStore::clearSharedBackingStore, 0);
 #endif
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)

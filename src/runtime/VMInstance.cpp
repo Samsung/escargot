@@ -289,7 +289,7 @@ void vmReclaimEndCallback(void* data)
         // the pruning cycle started at MARK_START is finished.
         // dead ByteCodeBlocks already subtracted their registered size from
         // compiledByteCodeSize() through the disclaim callback (this kind is swept
-        // eagerly since it is registered with mark-unconditionally)
+        // eagerly through GC_new_kind_enumerable())
         self->m_isPruningCompiledByteCodes = false;
         ThreadLocal::pruningCompiledByteCodesVMCount()--;
         if (ThreadLocal::pruningCompiledByteCodesVMCount() == 0) {
