@@ -1,0 +1,170 @@
+name: Monthly Engine Benchmark
+
+on:
+  schedule:
+    # First Sunday at 10:00 KST, selected by the calendar job.
+    - cron: '0 1 * * 0'
+  workflow_dispatch:
+    inputs:
+      report_run_id:
+        description: 'Publish an existing validated report from this repository; blank runs new measurements'
+        type: string
+        default: ''
+      report_artifact:
+        description: 'Artifact name when publishing an existing report'
+        type: string
+        default: ''
+      score_report_run_id:
+        description: 'Optional original score report run when memory was measured separately'
+        type: string
+        default: ''
+      score_report_artifact:
+        description: 'Optional original score artifact name'
+        type: string
+        default: ''
+
+concurrency:
+  group: performance-benchmark-master
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  first-sunday:
+    if: github.repository == 'Samsung/escargot'
+    runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.calendar.outputs.run }}
+    steps:
+      - id: calendar
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$(date -u +%d)" -le 7 ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  benchmark-arm64:
+    needs: first-sunday
+    if: needs.first-sunday.outputs.run == 'true'
+    runs-on: [self-hosted, linux, arm64, test]
+    timeout-minutes: 600
+    permissions:
+      contents: write
+      actions: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Initialize benchmark and build dependencies
+        if: inputs.report_run_id == ''
+        run: git submodule update --init --jobs 8 third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane test/web-tooling-benchmark
+      - uses: actions/configure-pages@v5
+      - uses: actions/download-artifact@v5
+        if: inputs.report_run_id != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.report_run_id }}
+          name: ${{ inputs.report_artifact }}
+          path: monthly-engine-report
+      - uses: actions/download-artifact@v5
+        if: inputs.score_report_run_id != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.score_report_run_id }}
+          name: ${{ inputs.score_report_artifact }}
+          path: original-score-report
+      - name: Retain original performance logs in the combined report
+        if: inputs.score_report_run_id != ''
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, shutil
+          source = pathlib.Path('original-score-report')
+          target = pathlib.Path('monthly-engine-report')
+          data = json.loads((target / 'measurements.json').read_text())
+          scores = source / 'measurements.json'
+          if hashlib.sha256(scores.read_bytes()).hexdigest() != data['score_source_sha256']:
+              raise RuntimeError('Original score report does not match imported measurements')
+          shutil.copyfile(scores, target / 'original-score-measurements.json')
+          for pattern in ('*.log', '*.rss-kib.txt', '*.peak-rss-kib.txt'):
+              for path in source.glob(pattern):
+                  shutil.copyfile(path, target / path.name)
+          PY
+      - name: Compare engine performance and fixed-work memory
+        if: inputs.report_run_id == ''
+        shell: bash
+        env:
+          ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          lock_dir="$HOME/.cache/escargot-locks"
+          install -d -m 700 "$lock_dir"
+          mkdir -p monthly-engine-report
+          flock -x -w 3600 "$lock_dir/performance-host.lock" \
+            python3 -u tools/monthly-engine-benchmark.py 2>&1 | tee monthly-engine-report/run.log
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: monthly-engine-report-${{ github.sha }}
+          path: monthly-engine-report/
+          if-no-files-found: error
+      - name: Publish validated comparison and README table
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/escargot-monthly-pages"
+          git fetch origin gh-pages
+          git worktree add --detach "$site" FETCH_HEAD
+          python3 tools/render-project-page.py --output "$site/index.html" --readme README.md
+          python3 tools/render-engine-comparison.py --report monthly-engine-report --site "$site" --inject-landing "$site/index.html"
+          cd "$site"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html performance/monthly
+          git diff --cached --quiet || git commit -m "performance: monthly engine comparison"
+          git push origin HEAD:gh-pages
+          mkdir -p "$GITHUB_WORKSPACE/performance-pages"
+          git archive --format=tar HEAD | tar -xf - -C "$GITHUB_WORKSPACE/performance-pages"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: performance-pages
+
+  deploy-pages:
+    needs: benchmark-arm64
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Refresh the README image if GitHub still serves the old version
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.parse
+          base = 'https://samsung.github.io/escargot/performance/monthly/latest.svg'
+          rendered = urllib.request.Request('https://api.github.com/markdown', data=json.dumps({
+              'mode': 'gfm', 'text': f'![Latest ARM64 comparison]({base})'}).encode(),
+              headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Content-Type': 'application/json'})
+          import re
+          html = urllib.request.urlopen(rendered, timeout=30).read().decode()
+          matches = re.findall(r'src="(https://camo.githubusercontent.com/[^\"]+)"', html)
+          fresh = urllib.request.urlopen(base + '?cache=' + os.environ['GITHUB_RUN_ID'], timeout=30).read()
+          for camo in matches:
+              try:
+                  cached = urllib.request.urlopen(camo, timeout=30).read()
+                  if cached != fresh:
+                      request = urllib.request.Request(camo, method='PURGE')
+                      urllib.request.urlopen(request, timeout=30).close()
+              except Exception as error:
+                  print('README image cache refresh deferred:', error)
+          PY

@@ -7,53 +7,60 @@
 [![codecov](https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8)](https://codecov.io/gh/Samsung/escargot)
 
 
-Escargot is an embeddable JavaScript engine developed by
-[Samsung](https://github.com/Samsung). It is designed for products that need
-more than a minimal scripting runtime but still have to manage CPU, memory,
-and platform constraints carefully.
+**Production-proven JavaScript. Built for real memory budgets.**
 
-Rather than minimizing the engine binary at all costs, Escargot balances
-runtime memory efficiency, interpreter performance, and modern JavaScript
-functionality. Its C++ implementation and built-in features can produce a
-larger native binary than ultra-minimal engines, but the engine is designed
-to use memory efficiently as applications and object graphs grow. This makes
-it a strong fit for substantial JavaScript workloads on embedded Linux,
-mobile, IoT, and other resource-aware products.
+Escargot is an embeddable JavaScript engine for developers building products
+that need modern JavaScript, rich internationalization, and a runtime that
+uses memory efficiently. Proven in shipping products, it is ready to embed
+in your own applications through its public C++ API.
 
-Escargot compiles JavaScript to bytecode and executes it without a JIT. The
-interpreter-based architecture avoids executable-memory requirements and
-provides predictable deployment characteristics, while the standards
-implementation supplies the language and internationalization features
-expected by real products.
+Escargot runs substantial JavaScript workloads, including the parsers,
+compilers, formatters, and other tools in Web Tooling Benchmark. Its bytecode
+interpreter and compact runtime data structures are designed to keep memory
+overhead low as applications and object graphs grow. You get a capable
+JavaScript runtime with control over the features and footprint you deploy.
 
-Key capabilities include:
+### Why choose Escargot?
 
-* **Modern JavaScript and internationalization**: broad ECMAScript support,
-  including the [ECMAScript 2026 specification](https://262.ecma-international.org/17.0/),
-  plus `Intl` (ECMA-402) and `Temporal` backed by ICU.
-* **Efficient execution of growing applications**: runtime data structures
-  and interpreter optimizations target good performance without allowing
-  memory overhead to scale unnecessarily with larger programs.
-* **Product-oriented portability**: Linux, Android, Tizen, macOS, iOS,
-  Windows, and reference bare-metal/RTOS ports are supported without
-  depending on JIT availability.
-* **Flexible feature footprint**: WebAssembly, threading, code cache,
-  debugger, ICU, and small-device optimizations can be selected for the
-  target instead of imposing one fixed runtime configuration.
-* **System-provided ICU option**: instead of vendoring its own ICU, Escargot
-  can link against the ICU already installed on the target OS, trading some
-  `Intl`/`Temporal` functionality for a smaller binary.
-* **Multiple embedding surfaces**: applications can use the public C++ API
-  in [`src/api/EscargotPublic.h`](src/api/EscargotPublic.h), or enable the
-  Node-API v10 layer and C-style hosting APIs documented in
-  [`docs/n-api.md`](docs/n-api.md).
-* **Deployment-ready outputs**: CMake can produce static or shared libraries,
-  a command-line shell, and C++ tests. Memory is managed by the
-  Boehm-Demers-Weiser conservative garbage collector in
-  `third_party/GCutil`.
+* **Modern JavaScript, with internationalization included.** Escargot targets
+  [ECMAScript 2026](https://262.ecma-international.org/17.0/) and provides
+  ICU-backed `Intl` and `Temporal` for locale-aware formatting, collation,
+  dates, and times.
+* **Memory efficiency on substantial workloads.** Compare resident memory
+  and execution speed on SunSpider, Octane, and Web Tooling below. The
+  published results include engine versions, measurement conditions, repeat
+  ranges, and raw data so you can evaluate the trade-offs for your product.
+* **A broad choice of platforms.** Build for Linux, Android, Tizen, Windows,
+  macOS, and iOS across multiple CPU architectures. FreeRTOS and NuttX
+  reference ports extend the engine to bare-metal and RTOS environments.
+* **Straightforward embedding.** Integrate through the
+  [public C++ API](src/api/EscargotPublic.h), or enable the
+  [Node-API v10 hosting layer](docs/n-api.md). Build a static or shared
+  library to fit your application.
+* **Interpreter execution without a JIT requirement.** Escargot compiles
+  JavaScript to bytecode without requiring executable memory for generated
+  machine code. The comparisons include V8's `--jitless` configuration.
+* **A footprint you can configure.** Select ICU, WebAssembly, threading,
+  code cache, debugger support, and small-device options for your target.
+  Use system-provided ICU or bundle ICU with your application.
 
-Escargot powers services in Samsung products and is available as an
-LGPL-2.1 open source project for other embedders and contributors.
+### Measured performance and memory
+
+[![Latest ARM64 JavaScript engine comparison](https://samsung.github.io/escargot/performance/monthly/latest.svg)](https://samsung.github.io/escargot/performance/monthly/)
+
+The table updates automatically when CI publishes a validated comparison.
+Open the [comparison dashboard](https://samsung.github.io/escargot/performance/monthly/)
+for individual tests, measurement methods, repeat ranges, and raw data.
+Memory measurements use the same fixed amount of work for each engine.
+
+### Try it in your product
+
+Start with the [build instructions](#building-), then explore the
+[embedding API](src/api/EscargotPublic.h) and [sample applications](samples).
+The shell lets you run your own scripts and compare the workloads that
+matter to your application before integrating the engine.
+
+Escargot is developed by Samsung and available under the LGPL-2.1 license.
 
 
 ## Contents 📋
