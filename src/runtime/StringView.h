@@ -132,6 +132,15 @@ protected:
 
     ALWAYS_INLINE void initBufferAccessData(String* str, size_t start, size_t end)
     {
+        ASSERT(start <= end && end <= str->length());
+        // ParserStringView also reports isStringView(), but stores a direct
+        // character buffer. Only StringView has both flags and a parent string.
+        while (str->hasSpecialImpl() && str->isStringView()) {
+            auto* view = static_cast<StringView*>(str);
+            start += view->m_start;
+            end += view->m_start;
+            str = view->m_bufferData.bufferAsString;
+        }
         m_bufferData.hasSpecialImpl = true;
         m_bufferData.bufferAsString = str;
         m_bufferData.has8BitContent = str->has8BitContent();
