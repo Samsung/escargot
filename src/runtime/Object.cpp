@@ -559,9 +559,11 @@ Object::Object(ExecutionState& state, size_t propertyCount,
             reorderedValues[valueIndex] = m_values[i];
         }
         m_values = std::move(reorderedValues);
+        delete keyVector;
     } else if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         m_structure = new ObjectStructureWithMap(hasIndexPropertyName,
                                                  hasSymbolPropertyName, hasEnumerableProperty, std::move(*keyVector));
+        delete keyVector;
     } else {
         m_structure = new ObjectStructureWithoutTransition(keyVector,
                                                            hasIndexPropertyName, hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty);
@@ -1851,6 +1853,12 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
     // Let list be an empty List.
     // Let index be 0.
     ValueVector list;
+    // Fast arrays already have storage for their length. Reserve bounded
+    // argument lists once instead of repeatedly copying them, while still
+    // performing every indexed Get below.
+    if (o->isArrayObject() && o->asArrayObject()->isFastModeArray() && len <= ESCARGOT_ARRAY_NON_FASTMODE_MIN_SIZE) {
+        list.reserve(static_cast<size_t>(len));
+    }
     uint64_t index = 0;
     bool allTypes = (elementTypes == static_cast<uint8_t>(ElementTypes::ALL));
 

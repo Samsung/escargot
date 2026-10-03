@@ -261,9 +261,16 @@ ObjectStructure* ObjectStructureWithoutTransition::addIndexProperty(uint32_t ind
 
 ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 {
-    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
-    newProperties->resizeFitWithUninitializedValues(ps - 1);
+    ObjectStructureItemVector* newProperties;
+    if (m_isReferencedByInlineCache) {
+        newProperties = new ObjectStructureItemVector();
+        newProperties->resizeFitWithUninitializedValues(ps - 1);
+    } else {
+        // Uncached structures transfer their exclusively owned property storage.
+        // Compact it in place instead of allocating a replacement buffer.
+        newProperties = m_properties.value();
+    }
 
     size_t newIdx = 0;
     bool hasIndexString = false;
@@ -282,11 +289,11 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
         newIdx++;
     }
 
-    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     if (!m_isReferencedByInlineCache) {
+        newProperties->resizeWithUninitializedValues(ps - 1);
         m_properties = nullptr;
     }
-    return newStructure;
+    return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
@@ -1039,9 +1046,16 @@ ObjectStructure* ObjectStructureWithMap::addIndexProperty(uint32_t index, const 
 
 ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 {
-    ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
-    newProperties->resizeFitWithUninitializedValues(ps - 1);
+    ObjectStructureItemVector* newProperties;
+    if (m_isReferencedByInlineCache) {
+        newProperties = new ObjectStructureItemVector();
+        newProperties->resizeFitWithUninitializedValues(ps - 1);
+    } else {
+        // Uncached structures transfer their exclusively owned property storage.
+        // Compact it in place instead of allocating a replacement buffer.
+        newProperties = m_properties.value();
+    }
 
     size_t newIdx = 0;
     bool hasIndexString = false;
@@ -1061,8 +1075,13 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
     }
 
     if (!m_isReferencedByInlineCache) {
+        newProperties->resizeWithUninitializedValues(ps - 1);
         m_properties = nullptr;
+        auto oldMap = m_propertyNameMap;
         m_propertyNameMap = nullptr;
+        if (oldMap) {
+            delete oldMap.value();
+        }
     }
     if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         return new ObjectStructureWithMap(newProperties, nullptr, hasIndexString, hasSymbol, hasEnumerableProperty);
@@ -1315,8 +1334,12 @@ void ObjectStructureWithIndexProperties::sortIndexProperties()
         sortedProperties->push_back((*m_indexProperties.value())[ordinal]);
         sortedDescriptors->push_back((*m_indexDescriptors.value())[ordinal]);
     }
+    auto* oldProperties = m_indexProperties.value();
+    auto* oldDescriptors = m_indexDescriptors.value();
     m_indexProperties = sortedProperties;
     m_indexDescriptors = sortedDescriptors;
+    delete oldProperties;
+    delete oldDescriptors;
 }
 
 void ObjectStructureWithIndexProperties::finishConstruction()
@@ -1675,11 +1698,14 @@ ObjectStructure* ObjectStructureWithIndexProperties::addIndexProperty(uint32_t i
 
 ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t valueIndex)
 {
-    auto* namedProperties = copyProperties(m_namedProperties.value());
-    auto* symbolProperties = copyProperties(m_symbolProperties.value());
-    Optional<ObjectStructureIndexPropertyVector*> indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
+    bool removesNamedProperty = valueIndex < m_namedProperties->size();
+    bool removesSymbolProperty = !removesNamedProperty && valueIndex < namedPropertyCount();
+    bool removesIndexProperty = valueIndex >= namedPropertyCount();
+    auto* namedProperties = removesNamedProperty ? emptyProperties() : copyProperties(m_namedProperties.value());
+    auto* symbolProperties = removesSymbolProperty ? emptyProperties() : copyProperties(m_symbolProperties.value());
+    Optional<ObjectStructureIndexPropertyVector*> indexProperties = !removesIndexProperty && m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
     InlineIndexProperties inlineIndexProperties = m_inlineIndexProperties;
-    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
+    Optional<ObjectStructureIndexDescriptorVector*> indexDescriptors = !removesIndexProperty && m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
     if (valueIndex < m_namedProperties->size()) {
         auto* filtered = new ObjectStructureItemVector();
         filtered->reserve(m_namedProperties->size() - 1);
@@ -1733,7 +1759,11 @@ ObjectStructure* ObjectStructureWithIndexProperties::removeProperty(size_t value
                     allDefault &= isDefaultIndexPropertyDescriptor(descriptor);
                 }
             }
-            indexDescriptors = allDefault ? nullptr : filteredDescriptors;
+            if (allDefault) {
+                delete filteredDescriptors;
+            } else {
+                indexDescriptors = filteredDescriptors;
+            }
         }
     }
 
@@ -1807,7 +1837,9 @@ ObjectStructure* ObjectStructureWithIndexProperties::replacePropertyDescriptor(s
                     allDefault &= isDefaultIndexPropertyDescriptor(descriptor);
                 }
                 if (allDefault) {
+                    auto* discardedDescriptors = indexDescriptors.value();
                     indexDescriptors = nullptr;
+                    delete discardedDescriptors;
                 }
             }
         }
