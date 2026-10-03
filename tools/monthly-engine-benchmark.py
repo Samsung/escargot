@@ -527,13 +527,80 @@ def run_memory_comparison(data, engines, drivers):
         raise RuntimeError("Incomplete memory comparison: " + ", ".join(failures))
 
 
+def write_report_summary(data):
+    architecture = "ARM32" if data["architecture"] == "arm" else "ARM64"
+    rows = [f"# {architecture} JavaScript engine comparison", "",
+            f"Measured: {data['measured_at']}; CPU: {data['cpu']}.", "",
+            "| Engine | Version | SunSpider ms ↓ | Octane score ↑ | WTB runs/s ↑ |",
+            "|---|---|---:|---:|---:|"]
+    errors = []
+
+    def cell(name, suite, result, key, memory=False):
+        if "error" not in result and key in result:
+            if memory:
+                return f"{result[key] / 1024:.1f} / {result['peak_rss_kib'] / 1024:.1f}"
+            return f"{result[key]:.2f}"
+        pattern = f"{name}-{suite}-memory-*.log" if memory else f"{name}-{suite}*.log"
+        diagnostic = result.get("error", "Measurement missing")
+        status = "measurement failed"
+        selected_log = None
+        for log in sorted(REPORT.glob(pattern)):
+            if not memory and "-memory-" in log.name:
+                continue
+            match = re.search(r"^(SyntaxError|ReferenceError|TypeError|RangeError|Error):.*$",
+                              log.read_text(errors="replace"), re.MULTILINE)
+            if match:
+                diagnostic = match.group(0)
+                status = "source syntax error" if match.group(1) == "SyntaxError" else "runtime error"
+                selected_log = log.name
+                break
+        phase = "memory" if memory else "performance"
+        diagnostic = diagnostic.replace("|", "\\|").replace("\n", " ")
+        errors.append(f"| {name} | {suite} ({phase}) | {status}: {diagnostic} | {selected_log or 'run.log'} |")
+        return status
+
+    for name, engine in data["engines"].items():
+        values = [cell(name, suite, engine.get(suite, {}), key) for suite, key in
+                  (("sunspider", "total_milliseconds"), ("octane", "score"),
+                   ("web_tooling", "score_runs_per_second"))]
+        rows.append(f"| {name} | {engine['version']} | " + " | ".join(values) + " |")
+    rows += ["", "SunSpider: one discarded run and five fresh-process repetitions; Octane: one scored run.",
+             f"WTB: all 18 workloads, minSamples={data['wtb_min_samples']}; direct JavaScript source input.", "",
+             f"## {architecture} fixed-work memory", "",
+             "Median of three fresh processes; average RSS / kernel peak RSS, MiB.", "",
+             "| Engine | SunSpider | Octane | WTB |", "|---|---:|---:|---:|"]
+    for name, engine in data["engines"].items():
+        values = [cell(name, suite, engine.get("memory", {}).get(suite, {}), "average_rss_kib", memory=True)
+                  for suite in ("sunspider", "octane", "web_tooling")]
+        rows.append("| " + " | ".join([name] + values) + " |")
+    if errors:
+        rows += ["", "## Measurement errors", "",
+                 "Failed workloads are not omitted or represented as scores. No partial-suite results are comparable.", "",
+                 "| Engine | Workload | Failure | Artifact log |", "|---|---|---|---|", *errors]
+    run_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + \
+        os.environ.get("GITHUB_REPOSITORY", "Samsung/escargot") + "/actions/runs/" + \
+        os.environ.get("GITHUB_RUN_ID", "")
+    artifacts = f"[Actions artifacts]({run_url})" if os.environ.get("GITHUB_RUN_ID") else "Actions artifacts"
+    rows += ["", f"Raw logs and measurements are available in the {artifacts}.", ""]
+    summary = "\n".join(rows)
+    (REPORT / "summary.md").write_text(summary)
+    print(summary, flush=True)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+            output.write(summary)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--scores-only", action="store_true")
     parser.add_argument("--memory-only", action="store_true")
     parser.add_argument("--scores-json", type=Path)
     parser.add_argument("--include-hermes", action="store_true")
+    parser.add_argument("--summary-only", action="store_true")
     args = parser.parse_args()
+    if args.summary_only:
+        write_report_summary(json.loads((REPORT / "measurements.json").read_text()))
+        return
     if args.scores_only and args.memory_only:
         parser.error("--scores-only and --memory-only cannot be combined")
     if os.uname().machine not in ("aarch64", "arm64", "armv7l", "armv8l"):

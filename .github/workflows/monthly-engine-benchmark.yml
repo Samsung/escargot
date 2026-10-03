@@ -30,6 +30,10 @@ on:
         description: 'Artifact name when publishing an existing report'
         type: string
         default: ''
+      report_arm32_artifact:
+        description: 'Optional ARM32 artifact from report_run_id for summary previews'
+        type: string
+        default: ''
       score_report_run_id:
         description: 'Optional original score report run when memory was measured separately'
         type: string
@@ -91,6 +95,13 @@ jobs:
           name: ${{ inputs.report_artifact }}
           path: monthly-engine-report
       - uses: actions/download-artifact@v5
+        if: inputs.report_arm32_artifact != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.report_run_id }}
+          name: ${{ inputs.report_arm32_artifact }}
+          path: monthly-engine-report-arm32
+      - uses: actions/download-artifact@v5
         if: inputs.score_report_run_id != ''
         with:
           github-token: ${{ github.token }}
@@ -118,6 +129,7 @@ jobs:
         shell: bash
         env:
           ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+          GITHUB_STEP_SUMMARY: ''
         run: |
           set -euo pipefail
           lock_dir="$HOME/.cache/escargot-locks"
@@ -130,6 +142,7 @@ jobs:
         shell: bash
         env:
           ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+          GITHUB_STEP_SUMMARY: ''
         run: |
           set -euo pipefail
           lock_dir="$HOME/.cache/escargot-locks"
@@ -143,13 +156,14 @@ jobs:
         env:
           IMPORTED_REPORT_RUN: ${{ inputs.report_run_id }}
         run: |
-          if [ -n "$IMPORTED_REPORT_RUN" ] && [ -f monthly-engine-report/summary.md ]; then
+          if [ -n "$IMPORTED_REPORT_RUN" ]; then
             printf 'ARM64 results reused from Actions run %s.\n\n' "$IMPORTED_REPORT_RUN" >> "$GITHUB_STEP_SUMMARY"
-            cat monthly-engine-report/summary.md >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f monthly-engine-report-arm32/summary.md ]; then
-            cat monthly-engine-report-arm32/summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for report in monthly-engine-report monthly-engine-report-arm32; do
+            if [ -f "$report/measurements.json" ]; then
+              BENCHMARK_REPORT_DIR="$GITHUB_WORKSPACE/$report" python3 -u tools/monthly-engine-benchmark.py --summary-only
+            fi
+          done
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -157,7 +171,7 @@ jobs:
           path: monthly-engine-report/
           if-no-files-found: error
       - uses: actions/upload-artifact@v6
-        if: always() && (inputs.report_run_id == '' || inputs.measure_arm32 == true) && inputs.arm64_only != true
+        if: always() && (inputs.report_run_id == '' || inputs.measure_arm32 == true || inputs.report_arm32_artifact != '') && inputs.arm64_only != true
         with:
           name: monthly-engine-report-arm32-${{ github.sha }}
           path: monthly-engine-report-arm32/
