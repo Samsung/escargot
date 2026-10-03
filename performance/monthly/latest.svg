@@ -1,63 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="600" viewBox="0 0 1080 600" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="710" viewBox="0 0 1080 710" role="img" aria-labelledby="title desc">
 <title id="title">ARM64 JavaScript engine performance and fixed-work memory</title>
 <desc id="desc">Median of three memory runs. Memory uses RSS from fixed work; execution scores are measured separately.</desc>
-<rect width="1080" height="600" rx="16" fill="#0b1220"/>
+<rect width="1080" height="710" rx="16" fill="#0b1220"/>
 <text x="28" y="40" fill="#e5edf8" font-family="Arial, sans-serif" font-size="26" font-weight="bold">JavaScript engines on ARM64</text>
-<text x="28" y="70" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="normal">Measured 2026-10-02 | Escargot 60d195eb9 | CPU 0</text>
+<text x="28" y="70" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="normal">Measured 2026-10-03 | Escargot c169e3542 | CPU 0</text>
 <text x="28" y="110" fill="#7dd3fc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">Fixed-work memory: average / peak RSS (MiB)</text>
 <text x="28" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Engine</text>
 <text x="255" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Version</text>
 <text x="475" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">SunSpider</text>
 <text x="685" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Octane</text>
 <text x="865" y="142" fill="#b9c7da" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Web Tooling</text>
-<text x="28" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS</text>
+<text x="28" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS (Bellard)</text>
 <text x="255" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2026-06-04</text>
 <text x="475" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">5.3 / 9.0</text>
-<text x="685" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">161.5 / 226.5</text>
-<text x="865" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">375.7 / 546.1</text>
+<text x="685" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">161.4 / 226.5</text>
+<text x="865" y="178" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">375.9 / 546.1</text>
 <text x="28" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8</text>
 <text x="255" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">15.5.35.7</text>
-<text x="475" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">53.1 / 63.2</text>
-<text x="685" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">138.0 / 182.7</text>
-<text x="865" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">338.9 / 464.6</text>
+<text x="475" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">53.4 / 63.0</text>
+<text x="685" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">138.7 / 183.5</text>
+<text x="865" y="216" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">349.8 / 488.0</text>
 <text x="28" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8 --jitless</text>
 <text x="255" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">15.5.35.7</text>
-<text x="475" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">40.7 / 52.2</text>
-<text x="685" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">152.4 / 191.1</text>
-<text x="865" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">266.3 / 344.8</text>
+<text x="475" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">40.8 / 53.0</text>
+<text x="685" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">152.7 / 191.0</text>
+<text x="865" y="254" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">266.1 / 344.7</text>
 <rect x="14" y="267" width="1052" height="35" rx="5" fill="#17324b"/>
 <text x="28" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Escargot</text>
-<text x="255" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">60d195eb9</text>
-<text x="475" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">14.2 / 24.1</text>
-<text x="685" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">85.7 / 157.4</text>
-<text x="865" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">171.3 / 212.7</text>
-<text x="28" y="351" fill="#7dd3fc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">Execution performance (separate score runs)</text>
-<text x="28" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Engine</text>
-<text x="255" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold"></text>
-<text x="475" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">SunSpider ms ↓</text>
-<text x="685" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Octane score ↑</text>
-<text x="865" y="382" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">WTB runs/s ↑</text>
-<text x="28" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS</text>
-<text x="255" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
-<text x="475" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">980.8</text>
-<text x="685" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1,700</text>
-<text x="865" y="418" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">0.87</text>
-<text x="28" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8</text>
-<text x="255" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
-<text x="475" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">367.2</text>
-<text x="685" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">24,021</text>
-<text x="865" y="450" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">5.56</text>
-<text x="28" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8 --jitless</text>
-<text x="255" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
-<text x="475" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">689.4</text>
-<text x="685" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2,313</text>
-<text x="865" y="482" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2.03</text>
-<rect x="14" y="491" width="1052" height="31" rx="5" fill="#17324b"/>
-<text x="28" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Escargot</text>
-<text x="255" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold"></text>
-<text x="475" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">827.6</text>
-<text x="685" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">2,204</text>
-<text x="865" y="514" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">1.03</text>
-<text x="28" y="555" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.</text>
-<text x="28" y="580" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Same CPU, engine versions and work counts. Click for PSS/USS, ranges, methods and raw data.</text>
+<text x="255" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">c169e3542</text>
+<text x="475" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">14.2 / 23.5</text>
+<text x="685" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">85.6 / 157.4</text>
+<text x="865" y="292" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">171.2 / 212.7</text>
+<text x="28" y="330" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Hermes V1</text>
+<text x="255" y="330" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">260318099.0.0</text>
+<text x="475" y="330" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Runtime error</text>
+<text x="685" y="330" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">392.1 / 514.3</text>
+<text x="865" y="330" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Syntax error</text>
+<text x="28" y="389" fill="#7dd3fc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">Execution performance (separate score runs)</text>
+<text x="28" y="420" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Engine</text>
+<text x="255" y="420" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold"></text>
+<text x="475" y="420" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">SunSpider ms ↓</text>
+<text x="685" y="420" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">Octane score ↑</text>
+<text x="865" y="420" fill="#b9c7da" font-family="Arial, sans-serif" font-size="15" font-weight="bold">WTB runs/s ↑</text>
+<text x="28" y="456" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">QuickJS (Bellard)</text>
+<text x="255" y="456" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="456" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">980.8</text>
+<text x="685" y="456" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1,687</text>
+<text x="865" y="456" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">0.89</text>
+<text x="28" y="488" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8</text>
+<text x="255" y="488" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="488" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">360.8</text>
+<text x="685" y="488" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">24,088</text>
+<text x="865" y="488" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">5.68</text>
+<text x="28" y="520" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">V8 d8 --jitless</text>
+<text x="255" y="520" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="520" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">690.6</text>
+<text x="685" y="520" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2,312</text>
+<text x="865" y="520" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">2.03</text>
+<rect x="14" y="529" width="1052" height="31" rx="5" fill="#17324b"/>
+<text x="28" y="552" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Escargot</text>
+<text x="255" y="552" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold"></text>
+<text x="475" y="552" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">825.8</text>
+<text x="685" y="552" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">2,222</text>
+<text x="865" y="552" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="bold">1.08</text>
+<text x="28" y="584" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Hermes V1</text>
+<text x="255" y="584" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal"></text>
+<text x="475" y="584" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Runtime error</text>
+<text x="685" y="584" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">1,608</text>
+<text x="865" y="584" fill="#e5edf8" font-family="Arial, sans-serif" font-size="16" font-weight="normal">Syntax error</text>
+<text x="28" y="625" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.</text>
+<text x="28" y="650" fill="#b9c7da" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Same CPU and work counts for successful entries. Click for methods, errors and raw data.</text>
+<text x="28" y="680" fill="#fca5a5" font-family="Arial, sans-serif" font-size="14" font-weight="normal">Hermes: SunSpider runtime error; WTB source syntax error. Failed entries have no comparable value.</text>
 </svg>

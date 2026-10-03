@@ -4,6 +4,7 @@
 <div class="tables"><table><thead><tr><th>Engine</th><th>SunSpider</th><th>Octane</th><th>Web Tooling</th></tr></thead><tbody id="memory"></tbody></table></div>
 <h2>Execution performance</h2><div class="tables"><table><thead><tr><th>Engine</th><th>Version</th><th>SunSpider ms ↓</th><th>Octane score ↑</th><th>WTB runs/s ↑</th></tr></thead><tbody id="scores"></tbody></table></div><p><small id="score-date"></small></p>
 <p><a id="raw-json" href="latest.json">Raw measurements JSON</a> · <a id="raw-zip" href="#">All logs, samples and checkpoints</a> · <a id="full-comparison" href="./" target="_top">Full comparison</a></p>
+<section id="error-section" hidden><h2>Runtime and source errors</h2><p>Failed entries have no comparable score or memory value. These known Hermes compatibility errors are warnings, not successful workload runs. Log files are included in the raw archive above.</p><div class="tables"><table><thead><tr><th>Engine</th><th>Workload</th><th>Error</th><th>Artifact log</th></tr></thead><tbody id="errors"></tbody></table></div></section>
 <details><summary>Measurement method and interpretation</summary><ul>
 <li>Memory uses three fresh processes per engine and suite, rotating engine order. The table shows medians; ranges appear below.</li>
 <li>Within each architecture, engines use the same native ARM host, engine CPU, glibc runtime and fixed work: SunSpider 26 scripts once; Octane 18 benchmark functions once, including normal setup/teardown; Web Tooling 18 functions three times. ARM32 uses an Ubuntu ARM32 container without emulation.</li>
@@ -12,23 +13,28 @@
 <li>Peak RSS uses GNU time / wait4 ru_maxrss over the whole process lifetime, including the post-GC checkpoint. PSS/USS peaks are sampled observations.</li>
 <li>PSS apportions shared resident pages; USS is Private_Clean plus Private_Dirty. The separate post-GC view follows two explicit GC requests; it is not a JS heap-size measurement.</li>
 <li>These are shell process measurements on these workloads. They do not predict a complete application's or browser's memory use.</li>
+<li>All engines receive JavaScript source directly. Hermes V1 uses the official JSI runtime without precompiled HBC; these are not React Native AOT measurements.</li>
+<li>Known Hermes source compatibility failures are explicitly marked, not omitted or represented as numbers. Other successful cells retain the same validation requirements. Actual errors and their artifact log names appear below.</li>
 <li>ARM32 and ARM64 results retain their own dates, engine versions and runtime details. Differences between the tables are not solely the effect of pointer width and do not represent every ARM device.</li>
-</ul></details><details><summary>Ranges across three memory runs (MiB)</summary><div class="tables"><table><thead><tr><th>Engine</th><th>Suite</th><th>Average RSS range</th><th>Kernel peak RSS range</th></tr></thead><tbody id="ranges"></tbody></table></div></details><details><summary>Individual performance tests</summary><div class="tables"><table><thead><tr><th>Suite</th><th>Test</th><th>QuickJS</th><th>d8</th><th>d8 --jitless</th><th>Escargot</th></tr></thead><tbody id="subtests"></tbody></table></div></details><p><a id="history" href="history.json">Measurement history JSON</a></p>
+</ul></details><details><summary>Ranges across three memory runs (MiB)</summary><div class="tables"><table><thead><tr><th>Engine</th><th>Suite</th><th>Average RSS range</th><th>Kernel peak RSS range</th></tr></thead><tbody id="ranges"></tbody></table></div></details><details><summary>Individual performance tests</summary><div class="tables"><table><thead><tr id="subtests-head"></tr></thead><tbody id="subtests"></tbody></table></div></details><p><a id="history" href="history.json">Measurement history JSON</a></p>
 </main><script>const architecturePaths={"arm64": "", "arm32": "arm32/"};
 const defaultArchitecture="arm64";
 
-const names={quickjs:'QuickJS',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot'}, engines=Object.keys(names), suites=['sunspider','octane','web_tooling'];
-let data, requestId=0;
+const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
+let data, requestId=0, engines=[];
 const median=a=>{a=[...a].sort((a,b)=>a-b);return a[Math.floor(a.length/2)];};
 const mib=x=>(x/1024).toFixed(1);
 function addRow(parent,values,engine){const tr=document.createElement('tr');if(engine==='escargot')tr.className='escargot';for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}parent.append(tr);}
+function scoreValue(result,key,format){return result.error?(result.error_status||'Measurement failed'):format(result[key]);}
 function memory(){if(!data)return;const metric=document.getElementById('metric').value;const body=document.getElementById('memory');body.replaceChildren();for(const name of engines){const cells=[names[name]];for(const suite of suites){const m=data.engines[name].memory[suite], samples=m.samples;let avg,peak;
+if(m.error){cells.push(m.error_status||'Measurement failed');continue;}
 if(metric==='after_gc'){cells.push(mib(median(samples.map(s=>s.checkpoints.find(c=>c.label==='after_gc').uss_kib))));continue;}
 avg=m['average_'+metric+'_kib'];peak=metric==='rss'?m.peak_rss_kib:median(samples.map(s=>s['sampled_peak_'+metric+'_kib']));cells.push(mib(avg)+' / '+mib(peak));}addRow(body,cells,name);}
 document.getElementById('memory-description').textContent=metric==='after_gc'?'Private resident memory at the separate post-GC checkpoint, MiB.':(metric==='rss'?'Time-weighted average / kernel lifetime peak RSS, MiB.':'Time-weighted average / sampled peak '+metric.toUpperCase()+', MiB.');resize();}
 function resize(){if(parent!==window)parent.postMessage({type:'escargot-comparison-height',height:document.documentElement.scrollHeight},location.origin);}
 async function comparison(arch){const id=++requestId,base=architecturePaths[arch];data=undefined;
-for(const name of ['memory','scores','ranges','subtests'])document.getElementById(name)?.replaceChildren();
+for(const name of ['memory','scores','ranges','subtests','errors'])document.getElementById(name)?.replaceChildren();
+document.getElementById('error-section').hidden=true;
 document.getElementById('heading').textContent='JavaScript engines on '+arch.toUpperCase();
 document.getElementById('context').textContent='Loading validated comparison…';document.getElementById('status').textContent='';
 document.getElementById('architecture-description').textContent=arch==='arm32'?'32-bit embedded environments. Native execution on the ARM64 benchmark server.':'64-bit ARM environments.';
@@ -36,13 +42,13 @@ document.getElementById('score-date').textContent='';document.getElementById('me
 for(const button of document.querySelectorAll('[data-architecture]'))button.setAttribute('aria-pressed',String(button.dataset.architecture===arch));
 try{const response=await fetch(base+'latest.json',{cache:'no-store'});if(!response.ok)throw Error('Results unavailable');const d=await response.json();if(id!==requestId)return;
 const measuredArch=['arm','arm32','armv7l','armv8l'].includes(d.architecture)?'arm32':'arm64';if(measuredArch!==arch)throw Error('Result architecture mismatch');
-data=d;document.getElementById('context').textContent='Memory measured '+d.measured_at.slice(0,19).replace('T',' ')+' UTC · '+arch.toUpperCase()+' CPU '+d.cpu+' · Escargot '+d.escargot_source_revision.slice(0,9)+' · 3 memory runs per configuration';
-for(const name of engines){const e=d.engines[name];addRow(document.getElementById('scores'),[names[name],name==='escargot'?d.escargot_source_revision.slice(0,9):e.version,e.sunspider.total_milliseconds.toFixed(1),e.octane.score.toLocaleString('en-US'),e.web_tooling.score_runs_per_second.toFixed(2)],name);}
-for(const name of engines){for(const suite of suites){const m=d.engines[name].memory[suite];addRow(document.getElementById('ranges'),[names[name],suite,m.average_rss_kib_range.map(mib).join(' – '),m.peak_rss_kib_range.map(mib).join(' – ')]);}}
-document.getElementById('score-date').textContent='Score run: '+(d.score_measured_at||d.measured_at).slice(0,19).replace('T',' ')+' UTC. SunSpider: mean of 5 fresh-process runs; Octane: one score run; WTB: minSamples=3.';
+data=d;engines=Object.keys(names).filter(name=>d.engines[name]);document.getElementById('context').textContent='Memory measured '+d.measured_at.slice(0,19).replace('T',' ')+' UTC · '+arch.toUpperCase()+' CPU '+d.cpu+' · Escargot '+d.escargot_source_revision.slice(0,9)+' · 3 repetitions for successful memory entries';
+for(const name of engines){const e=d.engines[name];addRow(document.getElementById('scores'),[names[name],name==='escargot'?d.escargot_source_revision.slice(0,9):e.version,scoreValue(e.sunspider,'total_milliseconds',x=>x.toFixed(1)),scoreValue(e.octane,'score',x=>x.toLocaleString('en-US')),scoreValue(e.web_tooling,'score_runs_per_second',x=>x.toFixed(2))],name);}
+for(const name of engines){for(const suite of suites){const m=d.engines[name].memory[suite];addRow(document.getElementById('ranges'),[names[name],suite,...(m.error?[m.error_status,m.error_status]:[m.average_rss_kib_range.map(mib).join(' – '),m.peak_rss_kib_range.map(mib).join(' – ')])]);for(const [phase,result] of [['performance',d.engines[name][suite]],['memory',m]]){if(result.error){document.getElementById('error-section').hidden=false;addRow(document.getElementById('errors'),[names[name],suite+' ('+phase+')',result.error_detail||result.error,result.error_log||'run.log']);}}}}
+document.getElementById('score-date').textContent='Score run: '+(d.score_measured_at||d.measured_at).slice(0,19).replace('T',' ')+' UTC. SunSpider: mean of 5 fresh-process runs; Octane: one score run; WTB: all 18 workloads, minSamples=3.';
 document.getElementById('raw-json').href=base+d.published_raw_json;document.getElementById('raw-zip').href=base+d.published_raw_archive;
 document.getElementById('full-comparison').href=base||'./';const history=document.getElementById('history');if(history)history.href=base+'history.json';
-const tests=document.getElementById('subtests');if(tests){for(const [suite,key] of [['web_tooling','subtests_runs_per_second'],['octane','subtests_scores']]){const names=Object.keys(d.engines.d8[suite][key]);for(const test of names){addRow(tests,[suite,test,...engines.map(name=>d.engines[name][suite][key][test].toFixed(2))]);}}}
+const tests=document.getElementById('subtests');if(tests){const head=document.getElementById('subtests-head');head.replaceChildren();for(const label of ['Suite','Test',...engines.map(name=>names[name])]){const th=document.createElement('th');th.textContent=label;head.append(th);}for(const [suite,key] of [['web_tooling','subtests_runs_per_second'],['octane','subtests_scores']]){const names=Object.keys(d.engines.d8[suite][key]);for(const test of names){addRow(tests,[suite,test,...engines.map(name=>d.engines[name][suite].error?d.engines[name][suite].error_status:d.engines[name][suite][key][test].toFixed(2))]);}}}
 memory();}catch(e){if(id===requestId){document.getElementById('status').textContent=e.message;resize();}}}
 for(const button of document.querySelectorAll('[data-architecture]'))button.addEventListener('click',()=>comparison(button.dataset.architecture));
 comparison(defaultArchitecture);
