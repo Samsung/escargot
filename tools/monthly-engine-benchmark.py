@@ -228,6 +228,8 @@ def build_hermes():
     options = ["-DCMAKE_BUILD_TYPE=Release", "-DHERMES_ENABLE_DEBUGGER=OFF",
                "-DHERMES_ENABLE_TEST_SUITE=OFF", "-DHERMES_UNICODE_LITE=OFF",
                "-DHERMESVM_HEAP_HV_MODE=HEAP_HV_PREFER32", "-DHERMESVM_ALLOW_JIT=0"]
+    if ARCHITECTURE == "arm32":
+        options.append("-DBOOST_CONTEXT_ARCHITECTURE=arm")
     identity = hashlib.sha256((revision + sha256(shell) + str(options)).encode()).hexdigest()
     executable = CACHE / f"hermes-{ARCHITECTURE}-{identity}" / "hermes-benchmark-shell"
     if not executable.is_file():
