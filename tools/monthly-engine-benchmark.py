@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.request
 import urllib.parse
@@ -215,6 +216,60 @@ def build_escargot():
     run("cmake", "-S", str(ROOT), "-B", str(build), "-GNinja", *options, env=env)
     run("ninja", "-C", str(build), f"-j{JOBS}", "escargot", env=env)
     return build / "escargot", env
+
+
+def build_hermes():
+    revision = "6cb3676787da7878ef1fedc97a43a7fa5be3d324"
+    version = "V1 260318099.0.0-stable"
+    url = f"https://codeload.github.com/facebook/hermes/tar.gz/{revision}"
+    archive = CACHE / "downloads" / f"hermes-{revision}.tar.gz"
+    fetch(url, archive)
+    shell = ROOT / "tools/hermes-benchmark-shell.cpp"
+    options = ["-DCMAKE_BUILD_TYPE=Release", "-DHERMES_ENABLE_DEBUGGER=OFF",
+               "-DHERMES_ENABLE_TEST_SUITE=OFF", "-DHERMES_UNICODE_LITE=OFF",
+               "-DHERMESVM_HEAP_HV_MODE=HEAP_HV_PREFER32", "-DHERMESVM_ALLOW_JIT=0"]
+    identity = hashlib.sha256((revision + sha256(shell) + str(options)).encode()).hexdigest()
+    executable = CACHE / f"hermes-{ARCHITECTURE}-{identity}" / "hermes-benchmark-shell"
+    if not executable.is_file():
+        temporary_root = Path(os.environ.get("TMPDIR", os.environ.get("RUNNER_TEMP",
+                              Path.home() / ".cache/codex/tmp")))
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="hermes-benchmark-", dir=temporary_root) as temporary:
+            directory = Path(temporary)
+            source = directory / "hermes"
+            with tarfile.open(archive, "r:gz") as package:
+                for member in package.getmembers():
+                    if not member.isfile():
+                        continue
+                    relative = Path(*Path(member.name).parts[1:])
+                    if relative.is_absolute() or ".." in relative.parts:
+                        raise RuntimeError("Invalid Hermes source archive path")
+                    destination = source / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    with package.extractfile(member) as input_file, destination.open("wb") as output:
+                        shutil.copyfileobj(input_file, output)
+                    destination.chmod(member.mode)
+            shutil.copyfile(shell, directory / shell.name)
+            (directory / "CMakeLists.txt").write_text(
+                "cmake_minimum_required(VERSION 3.20)\n"
+                "project(HermesBenchmark LANGUAGES C CXX)\n"
+                "add_subdirectory(hermes)\n"
+                "add_executable(hermes-benchmark-shell hermes-benchmark-shell.cpp)\n"
+                "target_compile_features(hermes-benchmark-shell PRIVATE cxx_std_17)\n"
+                "target_include_directories(hermes-benchmark-shell PRIVATE hermes/API)\n"
+                "target_link_libraries(hermes-benchmark-shell PRIVATE hermesvm_a jsi)\n"
+                f'target_compile_definitions(hermes-benchmark-shell PRIVATE HERMES_BENCHMARK_REVISION="{revision}")\n')
+            build = directory / "build"
+            run("cmake", "-S", directory, "-B", build, "-GNinja", *options)
+            run("cmake", "--build", build, "--target", "hermes-benchmark-shell", "--parallel", str(JOBS))
+            executable.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(build / "hermes-benchmark-shell", executable)
+    return executable, {"version": version, "revision": revision, "source": url,
+                        "sha256": sha256(archive), "binary_sha256": sha256(executable),
+                        "shell_sha256": sha256(shell), "build_options": options,
+                        "input_mode": "JavaScript source via official JSI evaluateJavaScript; no precompiled HBC",
+                        "runtime_config": {"ES6BlockScoping": True, "CompilationMode": "SmartCompilation",
+                                           "EnableJIT": False}}
 
 
 def build_wtb():
@@ -475,6 +530,7 @@ def main():
     parser.add_argument("--scores-only", action="store_true")
     parser.add_argument("--memory-only", action="store_true")
     parser.add_argument("--scores-json", type=Path)
+    parser.add_argument("--include-hermes", action="store_true")
     args = parser.parse_args()
     if args.scores_only and args.memory_only:
         parser.error("--scores-only and --memory-only cannot be combined")
@@ -494,7 +550,11 @@ def main():
     d8, d8_info = install_d8(loader, runtime_dir)
     qjs, qjs_info = install_qjs()
     escargot, escargot_env = build_escargot()
-    for executable in (qjs, escargot, Path(d8[-1])):
+    hermes_binary, hermes_info = build_hermes() if args.include_hermes else (None, None)
+    executables = [qjs, escargot, Path(d8[-1])]
+    if hermes_binary:
+        executables.append(hermes_binary)
+    for executable in executables:
         with executable.open("rb") as source:
             header = source.read(20)
         if header[:4] != b"\x7fELF" or header[4] != (1 if pointer_bits == 32 else 2) or int.from_bytes(header[18:20], "little") != (40 if pointer_bits == 32 else 183):
@@ -529,6 +589,10 @@ def main():
                ("d8_jitless", [*d8, "--jitless", "--expose-gc"], os.environ.copy()),
                ("escargot", [loader, "--library-path",
                               f"{runtime_dir}:{escargot_env.get('LD_LIBRARY_PATH', '')}:{SYSTEM_LIBRARY_PATH}", escargot], escargot_env)]
+    if hermes_binary:
+        data["engines"]["hermes"] = hermes_info
+        engines.append(("hermes", [loader, "--library-path", f"{runtime_dir}:{SYSTEM_LIBRARY_PATH}",
+                                   hermes_binary], os.environ.copy()))
     if args.scores_json:
         previous = json.loads(args.scores_json.read_text())
         for key in ("architecture", "hostname", "cpu", "escargot_source_revision", "suite_revisions"):
@@ -538,6 +602,10 @@ def main():
             for key in ("version", "sha256"):
                 if previous["engines"][name][key] != data["engines"][name][key]:
                     raise RuntimeError(f"Imported engine version differs: {name}/{key}")
+        if hermes_binary:
+            for key in ("version", "sha256", "shell_sha256"):
+                if previous["engines"]["hermes"][key] != data["engines"]["hermes"][key]:
+                    raise RuntimeError(f"Imported engine version differs: hermes/{key}")
         data["score_measured_at"] = previous["measured_at"]
         data["score_source_sha256"] = sha256(args.scores_json)
         shutil.copyfile(args.scores_json, REPORT / "original-score-measurements.json")
@@ -602,17 +670,20 @@ def main():
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
             output.write(summary)
-    if failures:
-        raise RuntimeError("Benchmark failed for: " + ", ".join(failures))
+    data["scores_validated"] = not failures
     data["score_measured_at"] = data["measured_at"]
     if args.scores_only:
         (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
+        if failures:
+            raise RuntimeError("Benchmark failed for: " + ", ".join(failures))
         return
     drivers = build_memory_drivers(wtb)
     data["memory_driver_sha256"] = {kind: sha256(script) for kind, (_, script, _, _) in drivers.items()}
     data["wtb_memory_bundle_sha256"] = sha256(wtb / "dist/memory.js")
     data["monitor_sha256"] = sha256(ROOT / "tools/engine_memory_benchmark.py")
     run_memory_comparison(data, engines, drivers)
+    if failures:
+        raise RuntimeError("Benchmark failed for: " + ", ".join(failures))
 
 
 if __name__ == "__main__":

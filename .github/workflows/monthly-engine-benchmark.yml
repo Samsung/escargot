@@ -6,6 +6,10 @@ on:
     - cron: '0 1 * * 0'
   workflow_dispatch:
     inputs:
+      include_hermes:
+        description: 'Include Hermes V1 using JavaScript source input (preview only)'
+        type: boolean
+        default: false
       preview_only:
         description: 'Upload measurement artifacts without publishing the site'
         type: boolean
@@ -78,7 +82,7 @@ jobs:
         if: inputs.report_run_id == '' || inputs.measure_arm32 == true
         run: git submodule update --init --jobs 8 third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane test/web-tooling-benchmark
       - uses: actions/configure-pages@v5
-        if: inputs.preview_only != true && inputs.scores_only != true
+        if: inputs.preview_only != true && inputs.scores_only != true && inputs.include_hermes != true
       - uses: actions/download-artifact@v5
         if: inputs.report_run_id != ''
         with:
@@ -120,7 +124,7 @@ jobs:
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            python3 -u tools/monthly-engine-benchmark.py ${{ inputs.scores_only && '--scores-only' || '' }} 2>&1 | tee monthly-engine-report/run.log
+            python3 -u tools/monthly-engine-benchmark.py ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report/run.log
       - name: Compare ARM32 engines natively on the same host
         if: ${{ !cancelled() && (inputs.report_run_id == '' || inputs.measure_arm32 == true) && inputs.arm64_only != true }}
         shell: bash
@@ -132,7 +136,7 @@ jobs:
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report-arm32
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            bash tools/run-monthly-arm32-benchmark.sh ${{ inputs.scores_only && '--scores-only' || '' }} 2>&1 | tee monthly-engine-report-arm32/run.log
+            bash tools/run-monthly-arm32-benchmark.sh ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report-arm32/run.log
       - name: Show ARM32 comparison in the Actions summary
         if: always()
         shell: bash
@@ -153,7 +157,7 @@ jobs:
           path: monthly-engine-report-arm32/
           if-no-files-found: error
       - name: Publish validated comparison and README table
-        if: inputs.preview_only != true && inputs.scores_only != true
+        if: inputs.preview_only != true && inputs.scores_only != true && inputs.include_hermes != true
         shell: bash
         run: |
           set -euo pipefail
@@ -175,12 +179,12 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/performance-pages"
           git archive --format=tar HEAD | tar -xf - -C "$GITHUB_WORKSPACE/performance-pages"
       - uses: actions/upload-pages-artifact@v3
-        if: inputs.preview_only != true && inputs.scores_only != true
+        if: inputs.preview_only != true && inputs.scores_only != true && inputs.include_hermes != true
         with:
           path: performance-pages
 
   deploy-pages:
-    if: inputs.preview_only != true && inputs.scores_only != true
+    if: inputs.preview_only != true && inputs.scores_only != true && inputs.include_hermes != true
     needs: benchmark-arm
     runs-on: ubuntu-24.04
     permissions:
