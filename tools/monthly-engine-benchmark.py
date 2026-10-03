@@ -460,7 +460,8 @@ def run_memory_comparison(data, engines, drivers):
     rows.extend(["", "All suites use fixed work and natural GC. Loading is included; checkpoint waits are excluded.",
                  "Raw data includes timestamped RSS/PSS/USS samples, exact phase snapshots, per-run peaks and ranges.", ""])
     summary = "\n".join(rows)
-    (REPORT / "summary.md").write_text(summary)
+    with (REPORT / "summary.md").open("a") as output:
+        output.write("\n" + summary)
     print(summary, flush=True)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
@@ -471,9 +472,12 @@ def run_memory_comparison(data, engines, drivers):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--scores-only", action="store_true")
     parser.add_argument("--memory-only", action="store_true")
     parser.add_argument("--scores-json", type=Path)
     args = parser.parse_args()
+    if args.scores_only and args.memory_only:
+        parser.error("--scores-only and --memory-only cannot be combined")
     if os.uname().machine not in ("aarch64", "arm64", "armv7l", "armv8l"):
         raise RuntimeError("This benchmark must run on native ARM hardware")
     pointer_bits = struct.calcsize("P") * 8
@@ -601,6 +605,9 @@ def main():
     if failures:
         raise RuntimeError("Benchmark failed for: " + ", ".join(failures))
     data["score_measured_at"] = data["measured_at"]
+    if args.scores_only:
+        (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
+        return
     drivers = build_memory_drivers(wtb)
     data["memory_driver_sha256"] = {kind: sha256(script) for kind, (_, script, _, _) in drivers.items()}
     data["wtb_memory_bundle_sha256"] = sha256(wtb / "dist/memory.js")
