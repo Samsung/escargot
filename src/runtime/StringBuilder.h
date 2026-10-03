@@ -39,13 +39,31 @@ public:
         m_piecesInlineStorageUsage = 0;
     }
 
+    StringBuilderBase(const StringBuilderBase&) = delete;
+    StringBuilderBase& operator=(const StringBuilderBase&) = delete;
+
+    ~StringBuilderBase()
+    {
+        clear();
+    }
+
     void clear()
     {
         m_has8BitContent = true;
         m_contentLength = 0;
         m_piecesInlineStorageUsage = 0;
         m_pieces.clear();
+        if (m_rootedStringSet) {
+            auto* strings = m_rootedStringSet.value();
+            strings->~StringSet();
+            GC_FREE(strings);
+        }
         m_rootedStringSet.reset();
+        if (m_numberScratch) {
+            auto* scratch = m_numberScratch.value();
+            scratch->~NumberScratch();
+            GC_FREE(scratch);
+        }
         m_numberScratch.reset();
     }
 
@@ -114,7 +132,8 @@ protected:
     // backing storage for Digits pieces - plain (non-GC) bytes, never a GC pointer,
     // so (like m_rootedStringSet) it costs nothing beyond one pointer's worth of
     // space until the first non-integer appendNumber() call actually allocates it
-    Optional<std::vector<char>*> m_numberScratch;
+    using NumberScratch = std::vector<char>;
+    Optional<NumberScratch*> m_numberScratch;
 };
 
 // number of decimal digits int32Digits() will write, including a leading '-'
