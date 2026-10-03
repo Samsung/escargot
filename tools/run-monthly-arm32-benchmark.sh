@@ -32,5 +32,5 @@ docker run --rm --platform linux/arm/v7 --hostname "$(hostname)" \
             ninja-build pkg-config libicu-dev gcc g++ make python3 nodejs npm \
             time util-linux
         exec setpriv --reuid="$BENCHMARK_UID" --regid="$BENCHMARK_GID" \
-            --clear-groups python3 -u tools/monthly-engine-benchmark.py
-    '
+            --clear-groups python3 -u tools/monthly-engine-benchmark.py "$@"
+    ' benchmark "$@"

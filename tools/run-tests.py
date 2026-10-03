@@ -1074,15 +1074,6 @@ def run_web_tooling_benchmark(engine, arch, extra_arg):
             # minimize sample count to 1
             f.write(re.sub(r'minSamples: 20', 'minSamples: 1', line))
 
-    flag_file = join(WEB_TOOLING_SRC_DIR, 'cli-flags-helper.js')
-    with open(flag_file, "r") as f:
-        lines = f.readlines()
-    with open(flag_file, "w") as f:
-        for line in lines:
-            # exclude long running tests
-            if "babel" not in line and "babylon" not in line and "chai" not in line:
-                f.write(line)
-
     proc = Popen(['npx', 'npm@6', 'install'], cwd=WEB_TOOLING_DIR, stdout=PIPE)
     proc.wait()
 

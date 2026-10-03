@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.request
 import urllib.parse
@@ -37,6 +38,22 @@ if CPU not in os.sched_getaffinity(0):
     raise ValueError("BENCHMARK_CPU is outside the allowed CPU affinity")
 LIBRARY_TRIPLET = "arm-linux-gnueabihf" if ARCHITECTURE == "arm32" else "aarch64-linux-gnu"
 SYSTEM_LIBRARY_PATH = f"/lib/{LIBRARY_TRIPLET}:/usr/lib/{LIBRARY_TRIPLET}:/lib:/usr/lib"
+
+
+class HermesCompatibilityError(RuntimeError):
+    pass
+
+
+def known_hermes_error(name, kind, log):
+    if name != "hermes" or not log.is_file():
+        return False
+    contents = log.read_text(errors="replace")
+    if kind == "sunspider":
+        return re.search(r"^ReferenceError: Property 'Y' doesn't exist\s*$", contents, re.MULTILINE) is not None
+    if kind == "web_tooling":
+        return re.search(r"^SyntaxError: (?:\d+:\d+:\s*)?invalid assignment left-hand side\s*$",
+                         contents, re.MULTILINE) is not None
+    return False
 
 
 def run(*args, cwd=None, env=None):
@@ -217,6 +234,62 @@ def build_escargot():
     return build / "escargot", env
 
 
+def build_hermes():
+    revision = "6cb3676787da7878ef1fedc97a43a7fa5be3d324"
+    version = "V1 260318099.0.0-stable"
+    url = f"https://codeload.github.com/facebook/hermes/tar.gz/{revision}"
+    archive = CACHE / "downloads" / f"hermes-{revision}.tar.gz"
+    fetch(url, archive)
+    shell = ROOT / "tools/hermes-benchmark-shell.cpp"
+    options = ["-DCMAKE_BUILD_TYPE=Release", "-DHERMES_ENABLE_DEBUGGER=OFF",
+               "-DHERMES_ENABLE_TEST_SUITE=OFF", "-DHERMES_UNICODE_LITE=OFF",
+               "-DHERMESVM_HEAP_HV_MODE=HEAP_HV_PREFER32", "-DHERMESVM_ALLOW_JIT=0"]
+    if ARCHITECTURE == "arm32":
+        options.append("-DBOOST_CONTEXT_ARCHITECTURE=arm")
+    identity = hashlib.sha256((revision + sha256(shell) + str(options)).encode()).hexdigest()
+    executable = CACHE / f"hermes-{ARCHITECTURE}-{identity}" / "hermes-benchmark-shell"
+    if not executable.is_file():
+        temporary_root = Path(os.environ.get("TMPDIR", os.environ.get("RUNNER_TEMP",
+                              Path.home() / ".cache/codex/tmp")))
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="hermes-benchmark-", dir=temporary_root) as temporary:
+            directory = Path(temporary)
+            source = directory / "hermes"
+            with tarfile.open(archive, "r:gz") as package:
+                for member in package.getmembers():
+                    if not member.isfile():
+                        continue
+                    relative = Path(*Path(member.name).parts[1:])
+                    if relative.is_absolute() or ".." in relative.parts:
+                        raise RuntimeError("Invalid Hermes source archive path")
+                    destination = source / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    with package.extractfile(member) as input_file, destination.open("wb") as output:
+                        shutil.copyfileobj(input_file, output)
+                    destination.chmod(member.mode)
+            shutil.copyfile(shell, directory / shell.name)
+            (directory / "CMakeLists.txt").write_text(
+                "cmake_minimum_required(VERSION 3.20)\n"
+                "project(HermesBenchmark LANGUAGES C CXX)\n"
+                "add_subdirectory(hermes)\n"
+                "add_executable(hermes-benchmark-shell hermes-benchmark-shell.cpp)\n"
+                "target_compile_features(hermes-benchmark-shell PRIVATE cxx_std_17)\n"
+                "target_include_directories(hermes-benchmark-shell PRIVATE hermes/API)\n"
+                "target_link_libraries(hermes-benchmark-shell PRIVATE hermesvm_a jsi)\n"
+                f'target_compile_definitions(hermes-benchmark-shell PRIVATE HERMES_BENCHMARK_REVISION="{revision}")\n')
+            build = directory / "build"
+            run("cmake", "-S", directory, "-B", build, "-GNinja", *options)
+            run("cmake", "--build", build, "--target", "hermes-benchmark-shell", "--parallel", str(JOBS))
+            executable.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(build / "hermes-benchmark-shell", executable)
+    return executable, {"version": version, "revision": revision, "source": url,
+                        "sha256": sha256(archive), "binary_sha256": sha256(executable),
+                        "shell_sha256": sha256(shell), "build_options": options,
+                        "input_mode": "JavaScript source via official JSI evaluateJavaScript; no precompiled HBC",
+                        "runtime_config": {"ES6BlockScoping": True, "CompilationMode": "SmartCompilation",
+                                           "EnableJIT": False}}
+
+
 def build_wtb():
     directory = ROOT / "test" / "web-tooling-benchmark"
     suite = directory / "src" / "suite.js"
@@ -304,6 +377,8 @@ def measure(name, command, directory, env, script="dist/cli.js", kind="web_tooli
     contents = log.read_text(errors="replace")
     print(contents[-2000:], flush=True)
     if code:
+        if code == 1 and known_hermes_error(name.split("-", 1)[0], kind, log):
+            raise HermesCompatibilityError(f"{name} has a known Hermes source compatibility error; see {log.name}")
         raise RuntimeError(f"{name} exited with status {code}; see {log.name}")
     rss_file = REPORT / f"{name}.rss-kib.txt"
     rss_file.write_text("".join(f"{sample}\n" for sample in rss))
@@ -419,6 +494,8 @@ def run_memory_comparison(data, engines, drivers):
         "gc_policy": "natural GC during work; two explicit gc calls only for the separate after_gc checkpoint",
         "peak_method": "whole-process lifetime GNU time ru_maxrss; sampled smaps peaks also retained"}
     failures = []
+    fatal_failures = []
+    warnings = []
     signatures = {}
     # Rotate engine order between repeats to reduce systematic order effects.
     for repetition in range(3):
@@ -429,6 +506,7 @@ def run_memory_comparison(data, engines, drivers):
             memory = engine.setdefault("memory", {})
             for kind, (directory, script, count, iterations) in drivers.items():
                 entry = memory.setdefault(kind, {"samples": []})
+                sample = None
                 try:
                     sample = measure_memory(f"{name}-{kind}-memory-{repetition + 1}", name,
                                             command, directory, env, script, REPORT, CPU, monitor_cpu)
@@ -440,12 +518,23 @@ def run_memory_comparison(data, engines, drivers):
                     signatures[kind] = sample["work_signature"]
                     entry["samples"].append(sample)
                     memory[kind] = aggregate(entry["samples"])
+                    if "error" in entry:
+                        memory[kind]["error"] = entry["error"]
                 except Exception as error:
                     entry["error"] = str(error)
                     failures.append(f"{name}/{kind}/{repetition + 1}")
+                    log = REPORT / f"{name}-{kind}-memory-{repetition + 1}.log"
+                    engine_exit = str(error).startswith(f"{name}-{kind}-memory-{repetition + 1} exited 1;") or \
+                        str(error) == "Engine exited without workload_end checkpoint"
+                    if sample is None and engine_exit and known_hermes_error(name, kind, log):
+                        warnings.append(failures[-1])
+                        print(f"::warning::Known Hermes source compatibility failure: {failures[-1]}; see {log.name}", flush=True)
+                    else:
+                        fatal_failures.append(failures[-1])
                     print(f"Memory run failed: {failures[-1]}: {error}", file=sys.stderr, flush=True)
                 (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
     data["memory_validated"] = not failures
+    data["memory_compatibility_warnings"] = warnings
     (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
     rows = [f"# {ARCHITECTURE.upper()} fixed-work memory comparison", "", data["measured_date_kst"], "",
             "Median of three fresh processes; MiB. Average RSS / kernel peak RSS.", "",
@@ -460,20 +549,95 @@ def run_memory_comparison(data, engines, drivers):
     rows.extend(["", "All suites use fixed work and natural GC. Loading is included; checkpoint waits are excluded.",
                  "Raw data includes timestamped RSS/PSS/USS samples, exact phase snapshots, per-run peaks and ranges.", ""])
     summary = "\n".join(rows)
+    with (REPORT / "summary.md").open("a") as output:
+        output.write("\n" + summary)
+    print(summary, flush=True)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+            output.write(summary)
+    if fatal_failures:
+        raise RuntimeError("Incomplete memory comparison: " + ", ".join(fatal_failures))
+
+
+def write_report_summary(data):
+    architecture = "ARM32" if data["architecture"] == "arm" else "ARM64"
+    rows = [f"# {architecture} JavaScript engine comparison", "",
+            f"Measured: {data['measured_at']}; CPU: {data['cpu']}.", "",
+            "| Engine | Version | SunSpider ms ↓ | Octane score ↑ | WTB runs/s ↑ |",
+            "|---|---|---:|---:|---:|"]
+    errors = []
+
+    def cell(name, suite, result, key, memory=False):
+        if "error" not in result and key in result:
+            if memory:
+                return f"{result[key] / 1024:.1f} / {result['peak_rss_kib'] / 1024:.1f}"
+            return f"{result[key]:.2f}"
+        pattern = f"{name}-{suite}-memory-*.log" if memory else f"{name}-{suite}*.log"
+        diagnostic = result.get("error", "Measurement missing")
+        status = "measurement failed"
+        selected_log = None
+        for log in sorted(REPORT.glob(pattern)):
+            if not memory and "-memory-" in log.name:
+                continue
+            match = re.search(r"^(SyntaxError|ReferenceError|TypeError|RangeError|Error):.*$",
+                              log.read_text(errors="replace"), re.MULTILINE)
+            if match:
+                diagnostic = match.group(0)
+                status = "source syntax error" if match.group(1) == "SyntaxError" else "runtime error"
+                selected_log = log.name
+                break
+        phase = "memory" if memory else "performance"
+        diagnostic = diagnostic.replace("|", "\\|").replace("\n", " ")
+        errors.append(f"| {name} | {suite} ({phase}) | {status}: {diagnostic} | {selected_log or 'run.log'} |")
+        return status
+
+    for name, engine in data["engines"].items():
+        values = [cell(name, suite, engine.get(suite, {}), key) for suite, key in
+                  (("sunspider", "total_milliseconds"), ("octane", "score"),
+                   ("web_tooling", "score_runs_per_second"))]
+        rows.append(f"| {name} | {engine['version']} | " + " | ".join(values) + " |")
+    rows += ["", "SunSpider: one discarded run and five fresh-process repetitions; Octane: one scored run.",
+             f"WTB: all 18 workloads, minSamples={data['wtb_min_samples']}; direct JavaScript source input.", "",
+             f"## {architecture} fixed-work memory", "",
+             "Median of three fresh processes; average RSS / kernel peak RSS, MiB.", "",
+             "| Engine | SunSpider | Octane | WTB |", "|---|---:|---:|---:|"]
+    for name, engine in data["engines"].items():
+        values = [cell(name, suite, engine.get("memory", {}).get(suite, {}), "average_rss_kib", memory=True)
+                  for suite in ("sunspider", "octane", "web_tooling")]
+        rows.append("| " + " | ".join([name] + values) + " |")
+    if errors:
+        rows += ["", "## Measurement errors", "",
+                 "Failed workloads are not omitted or represented as scores. No partial-suite results are comparable.", "",
+                 "| Engine | Workload | Failure | Artifact log |", "|---|---|---|---|", *errors]
+        if data.get("score_compatibility_warnings") or data.get("memory_compatibility_warnings"):
+            rows += ["", "Known Hermes compatibility failures are warnings; failed entries remain invalid.",
+                     "Build, measurement-tool and unexpected engine failures still fail the job."]
+    run_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + \
+        os.environ.get("GITHUB_REPOSITORY", "Samsung/escargot") + "/actions/runs/" + \
+        os.environ.get("GITHUB_RUN_ID", "")
+    artifacts = f"[Actions artifacts]({run_url})" if os.environ.get("GITHUB_RUN_ID") else "Actions artifacts"
+    rows += ["", f"Raw logs and measurements are available in the {artifacts}.", ""]
+    summary = "\n".join(rows)
     (REPORT / "summary.md").write_text(summary)
     print(summary, flush=True)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
             output.write(summary)
-    if failures:
-        raise RuntimeError("Incomplete memory comparison: " + ", ".join(failures))
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--scores-only", action="store_true")
     parser.add_argument("--memory-only", action="store_true")
     parser.add_argument("--scores-json", type=Path)
+    parser.add_argument("--include-hermes", action="store_true")
+    parser.add_argument("--summary-only", action="store_true")
     args = parser.parse_args()
+    if args.summary_only:
+        write_report_summary(json.loads((REPORT / "measurements.json").read_text()))
+        return
+    if args.scores_only and args.memory_only:
+        parser.error("--scores-only and --memory-only cannot be combined")
     if os.uname().machine not in ("aarch64", "arm64", "armv7l", "armv8l"):
         raise RuntimeError("This benchmark must run on native ARM hardware")
     pointer_bits = struct.calcsize("P") * 8
@@ -490,7 +654,11 @@ def main():
     d8, d8_info = install_d8(loader, runtime_dir)
     qjs, qjs_info = install_qjs()
     escargot, escargot_env = build_escargot()
-    for executable in (qjs, escargot, Path(d8[-1])):
+    hermes_binary, hermes_info = build_hermes() if args.include_hermes else (None, None)
+    executables = [qjs, escargot, Path(d8[-1])]
+    if hermes_binary:
+        executables.append(hermes_binary)
+    for executable in executables:
         with executable.open("rb") as source:
             header = source.read(20)
         if header[:4] != b"\x7fELF" or header[4] != (1 if pointer_bits == 32 else 2) or int.from_bytes(header[18:20], "little") != (40 if pointer_bits == 32 else 183):
@@ -525,6 +693,10 @@ def main():
                ("d8_jitless", [*d8, "--jitless", "--expose-gc"], os.environ.copy()),
                ("escargot", [loader, "--library-path",
                               f"{runtime_dir}:{escargot_env.get('LD_LIBRARY_PATH', '')}:{SYSTEM_LIBRARY_PATH}", escargot], escargot_env)]
+    if hermes_binary:
+        data["engines"]["hermes"] = hermes_info
+        engines.append(("hermes", [loader, "--library-path", f"{runtime_dir}:{SYSTEM_LIBRARY_PATH}",
+                                   hermes_binary], os.environ.copy()))
     if args.scores_json:
         previous = json.loads(args.scores_json.read_text())
         for key in ("architecture", "hostname", "cpu", "escargot_source_revision", "suite_revisions"):
@@ -534,6 +706,10 @@ def main():
             for key in ("version", "sha256"):
                 if previous["engines"][name][key] != data["engines"][name][key]:
                     raise RuntimeError(f"Imported engine version differs: {name}/{key}")
+        if hermes_binary:
+            for key in ("version", "sha256", "shell_sha256"):
+                if previous["engines"]["hermes"][key] != data["engines"]["hermes"][key]:
+                    raise RuntimeError(f"Imported engine version differs: hermes/{key}")
         data["score_measured_at"] = previous["measured_at"]
         data["score_source_sha256"] = sha256(args.scores_json)
         shutil.copyfile(args.scores_json, REPORT / "original-score-measurements.json")
@@ -551,6 +727,8 @@ def main():
         run_memory_comparison(data, engines, drivers)
         return
     failures = []
+    fatal_failures = []
+    warnings = []
     for name, command, env in engines:
         result = data["engines"][name]
         result["command"] = list(map(str, command))
@@ -574,6 +752,11 @@ def main():
             except Exception as error:
                 result[kind] = {"error": str(error)}
                 failures.append(f"{name}/{kind}")
+                if isinstance(error, HermesCompatibilityError):
+                    warnings.append(failures[-1])
+                    print(f"::warning::Known Hermes source compatibility failure: {failures[-1]}; {error}", flush=True)
+                else:
+                    fatal_failures.append(failures[-1])
                 print(f"{name}/{kind}: {error}", file=sys.stderr, flush=True)
             (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
     rows = [f"# {ARCHITECTURE.upper()} JavaScript engine comparison", "", data["measured_date_kst"], "",
@@ -598,14 +781,21 @@ def main():
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
             output.write(summary)
-    if failures:
-        raise RuntimeError("Benchmark failed for: " + ", ".join(failures))
+    data["scores_validated"] = not failures
+    data["score_compatibility_warnings"] = warnings
     data["score_measured_at"] = data["measured_at"]
+    if args.scores_only:
+        (REPORT / "measurements.json").write_text(json.dumps(data, indent=2) + "\n")
+        if fatal_failures:
+            raise RuntimeError("Benchmark failed for: " + ", ".join(fatal_failures))
+        return
     drivers = build_memory_drivers(wtb)
     data["memory_driver_sha256"] = {kind: sha256(script) for kind, (_, script, _, _) in drivers.items()}
     data["wtb_memory_bundle_sha256"] = sha256(wtb / "dist/memory.js")
     data["monitor_sha256"] = sha256(ROOT / "tools/engine_memory_benchmark.py")
     run_memory_comparison(data, engines, drivers)
+    if fatal_failures:
+        raise RuntimeError("Benchmark failed for: " + ", ".join(fatal_failures))
 
 
 if __name__ == "__main__":

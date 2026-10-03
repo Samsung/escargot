@@ -9,8 +9,8 @@ from pathlib import Path
 import re
 import zipfile
 
-ENGINES = ("quickjs", "d8", "d8_jitless", "escargot")
-NAMES = {"quickjs": "QuickJS", "d8": "V8 d8", "d8_jitless": "V8 d8 --jitless", "escargot": "Escargot"}
+ENGINES = ("quickjs", "d8", "d8_jitless", "escargot", "hermes")
+NAMES = {"quickjs": "QuickJS (Bellard)", "d8": "V8 d8", "d8_jitless": "V8 d8 --jitless", "escargot": "Escargot", "hermes": "Hermes V1"}
 SUITES = ("sunspider", "octane", "web_tooling")
 TITLES = {"sunspider": "SunSpider", "octane": "Octane", "web_tooling": "Web Tooling"}
 METHOD = "fixed-work-smaps-rollup-v2"
@@ -25,17 +25,55 @@ def architecture(data):
     raise ValueError(f"Unsupported comparison architecture: {value}")
 
 
-def validate(data):
+def engines(data):
+    return [name for name in ENGINES if name in data["engines"]]
+
+
+def compatibility_error(engine, suite, log):
+    if engine != "hermes" or not log.is_file():
+        return None
+    pattern = {"sunspider": r"^ReferenceError: Property 'Y' doesn't exist\s*$",
+               "web_tooling": r"^SyntaxError: (?:\d+:\d+:\s*)?invalid assignment left-hand side\s*$"}.get(suite)
+    if not pattern:
+        return None
+    match = re.search(pattern, log.read_text(errors="replace"), re.MULTILINE)
+    return match.group(0).strip() if match else None
+
+
+def validate(data, report=None):
     arch = architecture(data)
     if arch == "arm32" and (data.get("pointer_bits") != 32 or data.get("execution_mode") != "native"):
         raise ValueError("ARM32 comparisons require verified native 32-bit engines")
-    if not data.get("memory_validated") or data.get("memory_method") != METHOD:
+    if data.get("memory_method") != METHOD:
         raise ValueError("Only validated fixed-work memory comparisons may be published")
+    if not set(ENGINES[:4]).issubset(data["engines"]) or set(data["engines"]) - set(ENGINES):
+        raise ValueError("Unexpected or missing engine configuration")
     signatures = {}
+    known_failures = []
     expected_work = {"sunspider": (26, 1), "octane": (18, 1), "web_tooling": (18, 3)}
-    for engine in ENGINES:
+    for engine in engines(data):
         for suite in SUITES:
             memory = data["engines"][engine]["memory"][suite]
+            score = data["engines"][engine].get(suite, {})
+            if "error" in memory or "error" in score:
+                if report is None or "error" not in memory or "error" not in score:
+                    raise ValueError(f"Incomplete measurement: {engine}/{suite}")
+                score_exit = "exited with status 1;" in score["error"] or "known Hermes source compatibility error;" in score["error"]
+                memory_exit = memory["error"].startswith(f"{engine}-{suite}-memory-3 exited 1;") or \
+                    memory["error"] == "Engine exited without workload_end checkpoint"
+                if not score_exit or not memory_exit:
+                    raise ValueError(f"Unrecognized measurement failure: {engine}/{suite}")
+                score_log = report / (f"{engine}-{suite}-warmup.log" if suite == "sunspider" else f"{engine}-{suite}.log")
+                diagnostic = compatibility_error(engine, suite, score_log)
+                memory_logs = [report / f"{engine}-{suite}-memory-{index}.log" for index in range(1, 4)]
+                if not diagnostic or not all(compatibility_error(engine, suite, log) for log in memory_logs):
+                    raise ValueError(f"Unrecognized measurement failure: {engine}/{suite}")
+                status = "Syntax error" if diagnostic.startswith("SyntaxError:") else "Runtime error"
+                score.update(error_status=status, error_detail=diagnostic, error_log=score_log.name)
+                memory.update(error_status=status, error_detail=compatibility_error(engine, suite, memory_logs[0]),
+                              error_log=memory_logs[0].name)
+                known_failures.append(f"{engine}/{suite}")
+                continue
             if "error" in memory or len(memory["samples"]) != 3:
                 raise ValueError(f"Incomplete measurement: {engine}/{suite}")
             for sample in memory["samples"]:
@@ -56,30 +94,39 @@ def validate(data):
                 if suite in signatures and signatures[suite] != signature:
                     raise ValueError("Inconsistent work counts")
                 signatures[suite] = signature
-            score = data["engines"][engine].get(suite, {})
             key = {"sunspider": "total_milliseconds", "octane": "score", "web_tooling": "score_runs_per_second"}[suite]
             if key not in score or not math.isfinite(score[key]) or score[key] <= 0:
                 raise ValueError(f"Missing performance result: {engine}/{suite}")
+    if not data.get("memory_validated") and not known_failures:
+        raise ValueError("Unvalidated memory comparison")
+    data["published_compatibility_failures"] = known_failures
 
 
 def version(data, engine):
     if engine == "escargot":
         return data["escargot_source_revision"][:9]
+    if engine == "hermes":
+        return data["engines"][engine]["version"].removeprefix("V1 ").removesuffix("-stable")
     return data["engines"][engine]["version"]
 
 
 def scores(data, engine):
     e = data["engines"][engine]
-    return [f"{e['sunspider']['total_milliseconds']:.1f}",
-            f"{e['octane']['score']:,.0f}", f"{e['web_tooling']['score_runs_per_second']:.2f}"]
+    return [e[suite].get("error_status") or format(e[suite][key], spec) for suite, key, spec in
+            (("sunspider", "total_milliseconds", ".1f"), ("octane", "score", ",.0f"),
+             ("web_tooling", "score_runs_per_second", ".2f"))]
 
 
 def svg(data):
     label = architecture(data).upper()
-    elements = ['<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="600" viewBox="0 0 1080 600" role="img" aria-labelledby="title desc">',
+    count = len(engines(data))
+    shift = (count - 4) * 38
+    footer_shift = shift + (count - 4) * 32
+    height = 600 + footer_shift + (40 if data.get("published_compatibility_failures") else 0)
+    elements = [f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="{height}" viewBox="0 0 1080 {height}" role="img" aria-labelledby="title desc">',
                 f'<title id="title">{label} JavaScript engine performance and fixed-work memory</title>',
                 '<desc id="desc">Median of three memory runs. Memory uses RSS from fixed work; execution scores are measured separately.</desc>',
-                '<rect width="1080" height="600" rx="16" fill="#0b1220"/>']
+                f'<rect width="1080" height="{height}" rx="16" fill="#0b1220"/>']
     def text(x, y, value, size=16, color="#e5edf8", weight="normal"):
         elements.append(f'<text x="{x}" y="{y}" fill="{color}" font-family="Arial, sans-serif" font-size="{size}" font-weight="{weight}">{html.escape(str(value))}</text>')
     text(28, 40, f"JavaScript engines on {label}", 26, weight="bold")
@@ -88,25 +135,28 @@ def svg(data):
     text(28, 110, "Fixed-work memory: average / peak RSS (MiB)", 20, "#7dd3fc", "bold")
     for col, value in enumerate(["Engine", "Version", "SunSpider", "Octane", "Web Tooling"]):
         text(x[col], 142, value, 16, "#b9c7da", "bold")
-    for index, engine in enumerate(ENGINES):
+    for index, engine in enumerate(engines(data)):
         y = 178 + index * 38
         if engine == "escargot":
             elements.append(f'<rect x="14" y="{y-25}" width="1052" height="35" rx="5" fill="#17324b"/>')
         values = [NAMES[engine], version(data, engine)]
-        values += [f"{data['engines'][engine]['memory'][s]['average_rss_kib']/1024:.1f} / {data['engines'][engine]['memory'][s]['peak_rss_kib']/1024:.1f}" for s in SUITES]
+        values += [data['engines'][engine]['memory'][s].get('error_status') or
+                   f"{data['engines'][engine]['memory'][s]['average_rss_kib']/1024:.1f} / {data['engines'][engine]['memory'][s]['peak_rss_kib']/1024:.1f}" for s in SUITES]
         for col, value in enumerate(values):
             text(x[col], y, value, 16, weight="bold" if engine == "escargot" else "normal")
-    text(28, 351, "Execution performance (separate score runs)", 20, "#7dd3fc", "bold")
+    text(28, 351 + shift, "Execution performance (separate score runs)", 20, "#7dd3fc", "bold")
     for col, value in enumerate(["Engine", "", "SunSpider ms ↓", "Octane score ↑", "WTB runs/s ↑"]):
-        text(x[col], 382, value, 15, "#b9c7da", "bold")
-    for index, engine in enumerate(ENGINES):
-        y = 418 + index * 32
+        text(x[col], 382 + shift, value, 15, "#b9c7da", "bold")
+    for index, engine in enumerate(engines(data)):
+        y = 418 + shift + index * 32
         if engine == "escargot":
             elements.append(f'<rect x="14" y="{y-23}" width="1052" height="31" rx="5" fill="#17324b"/>')
         for col, value in enumerate([NAMES[engine], "", *scores(data, engine)]):
             text(x[col], y, value, 16, weight="bold" if engine == "escargot" else "normal")
-    text(28, 555, "Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.", 14, "#b9c7da")
-    text(28, 580, "Same CPU, engine versions and work counts. Click for PSS/USS, ranges, methods and raw data.", 14, "#b9c7da")
+    text(28, 555 + footer_shift, "Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.", 14, "#b9c7da")
+    text(28, 580 + footer_shift, "Same CPU and work counts for successful entries. Click for methods, errors and raw data.", 14, "#b9c7da")
+    if data.get("published_compatibility_failures"):
+        text(28, 610 + footer_shift, "Hermes: SunSpider runtime error; WTB source syntax error. Failed entries have no comparable value.", 14, "#fca5a5")
     elements.append('</svg>')
     return '\n'.join(elements) + '\n'
 
@@ -118,18 +168,21 @@ def page(embed=False, arm32=False, default_architecture="arm64"):
     if arm32:
         paths["arm32"] = "" if default_architecture == "arm32" else "arm32/"
     script = 'const architecturePaths=' + json.dumps(paths) + ';\nconst defaultArchitecture=' + json.dumps(default_architecture) + ';\n' + r'''
-const names={quickjs:'QuickJS',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot'}, engines=Object.keys(names), suites=['sunspider','octane','web_tooling'];
-let data, requestId=0;
+const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
+let data, requestId=0, engines=[];
 const median=a=>{a=[...a].sort((a,b)=>a-b);return a[Math.floor(a.length/2)];};
 const mib=x=>(x/1024).toFixed(1);
 function addRow(parent,values,engine){const tr=document.createElement('tr');if(engine==='escargot')tr.className='escargot';for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}parent.append(tr);}
+function scoreValue(result,key,format){return result.error?(result.error_status||'Measurement failed'):format(result[key]);}
 function memory(){if(!data)return;const metric=document.getElementById('metric').value;const body=document.getElementById('memory');body.replaceChildren();for(const name of engines){const cells=[names[name]];for(const suite of suites){const m=data.engines[name].memory[suite], samples=m.samples;let avg,peak;
+if(m.error){cells.push(m.error_status||'Measurement failed');continue;}
 if(metric==='after_gc'){cells.push(mib(median(samples.map(s=>s.checkpoints.find(c=>c.label==='after_gc').uss_kib))));continue;}
 avg=m['average_'+metric+'_kib'];peak=metric==='rss'?m.peak_rss_kib:median(samples.map(s=>s['sampled_peak_'+metric+'_kib']));cells.push(mib(avg)+' / '+mib(peak));}addRow(body,cells,name);}
 document.getElementById('memory-description').textContent=metric==='after_gc'?'Private resident memory at the separate post-GC checkpoint, MiB.':(metric==='rss'?'Time-weighted average / kernel lifetime peak RSS, MiB.':'Time-weighted average / sampled peak '+metric.toUpperCase()+', MiB.');resize();}
 function resize(){if(parent!==window)parent.postMessage({type:'escargot-comparison-height',height:document.documentElement.scrollHeight},location.origin);}
 async function comparison(arch){const id=++requestId,base=architecturePaths[arch];data=undefined;
-for(const name of ['memory','scores','ranges','subtests'])document.getElementById(name)?.replaceChildren();
+for(const name of ['memory','scores','ranges','subtests','errors'])document.getElementById(name)?.replaceChildren();
+document.getElementById('error-section').hidden=true;
 document.getElementById('heading').textContent='JavaScript engines on '+arch.toUpperCase();
 document.getElementById('context').textContent='Loading validated comparison…';document.getElementById('status').textContent='';
 document.getElementById('architecture-description').textContent=arch==='arm32'?'32-bit embedded environments. Native execution on the ARM64 benchmark server.':'64-bit ARM environments.';
@@ -137,13 +190,13 @@ document.getElementById('score-date').textContent='';document.getElementById('me
 for(const button of document.querySelectorAll('[data-architecture]'))button.setAttribute('aria-pressed',String(button.dataset.architecture===arch));
 try{const response=await fetch(base+'latest.json',{cache:'no-store'});if(!response.ok)throw Error('Results unavailable');const d=await response.json();if(id!==requestId)return;
 const measuredArch=['arm','arm32','armv7l','armv8l'].includes(d.architecture)?'arm32':'arm64';if(measuredArch!==arch)throw Error('Result architecture mismatch');
-data=d;document.getElementById('context').textContent='Memory measured '+d.measured_at.slice(0,19).replace('T',' ')+' UTC · '+arch.toUpperCase()+' CPU '+d.cpu+' · Escargot '+d.escargot_source_revision.slice(0,9)+' · 3 memory runs per configuration';
-for(const name of engines){const e=d.engines[name];addRow(document.getElementById('scores'),[names[name],name==='escargot'?d.escargot_source_revision.slice(0,9):e.version,e.sunspider.total_milliseconds.toFixed(1),e.octane.score.toLocaleString('en-US'),e.web_tooling.score_runs_per_second.toFixed(2)],name);}
-for(const name of engines){for(const suite of suites){const m=d.engines[name].memory[suite];addRow(document.getElementById('ranges'),[names[name],suite,m.average_rss_kib_range.map(mib).join(' – '),m.peak_rss_kib_range.map(mib).join(' – ')]);}}
-document.getElementById('score-date').textContent='Score run: '+(d.score_measured_at||d.measured_at).slice(0,19).replace('T',' ')+' UTC. SunSpider: mean of 5 fresh-process runs; Octane: one score run; WTB: minSamples=3.';
+data=d;engines=Object.keys(names).filter(name=>d.engines[name]);document.getElementById('context').textContent='Memory measured '+d.measured_at.slice(0,19).replace('T',' ')+' UTC · '+arch.toUpperCase()+' CPU '+d.cpu+' · Escargot '+d.escargot_source_revision.slice(0,9)+' · 3 repetitions for successful memory entries';
+for(const name of engines){const e=d.engines[name];addRow(document.getElementById('scores'),[names[name],name==='escargot'?d.escargot_source_revision.slice(0,9):e.version,scoreValue(e.sunspider,'total_milliseconds',x=>x.toFixed(1)),scoreValue(e.octane,'score',x=>x.toLocaleString('en-US')),scoreValue(e.web_tooling,'score_runs_per_second',x=>x.toFixed(2))],name);}
+for(const name of engines){for(const suite of suites){const m=d.engines[name].memory[suite];addRow(document.getElementById('ranges'),[names[name],suite,...(m.error?[m.error_status,m.error_status]:[m.average_rss_kib_range.map(mib).join(' – '),m.peak_rss_kib_range.map(mib).join(' – ')])]);for(const [phase,result] of [['performance',d.engines[name][suite]],['memory',m]]){if(result.error){document.getElementById('error-section').hidden=false;addRow(document.getElementById('errors'),[names[name],suite+' ('+phase+')',result.error_detail||result.error,result.error_log||'run.log']);}}}}
+document.getElementById('score-date').textContent='Score run: '+(d.score_measured_at||d.measured_at).slice(0,19).replace('T',' ')+' UTC. SunSpider: mean of 5 fresh-process runs; Octane: one score run; WTB: all 18 workloads, minSamples=3.';
 document.getElementById('raw-json').href=base+d.published_raw_json;document.getElementById('raw-zip').href=base+d.published_raw_archive;
 document.getElementById('full-comparison').href=base||'./';const history=document.getElementById('history');if(history)history.href=base+'history.json';
-const tests=document.getElementById('subtests');if(tests){for(const [suite,key] of [['web_tooling','subtests_runs_per_second'],['octane','subtests_scores']]){const names=Object.keys(d.engines.d8[suite][key]);for(const test of names){addRow(tests,[suite,test,...engines.map(name=>d.engines[name][suite][key][test].toFixed(2))]);}}}
+const tests=document.getElementById('subtests');if(tests){const head=document.getElementById('subtests-head');head.replaceChildren();for(const label of ['Suite','Test',...engines.map(name=>names[name])]){const th=document.createElement('th');th.textContent=label;head.append(th);}for(const [suite,key] of [['web_tooling','subtests_runs_per_second'],['octane','subtests_scores']]){const names=Object.keys(d.engines.d8[suite][key]);for(const test of names){addRow(tests,[suite,test,...engines.map(name=>d.engines[name][suite].error?d.engines[name][suite].error_status:d.engines[name][suite][key][test].toFixed(2))]);}}}
 memory();}catch(e){if(id===requestId){document.getElementById('status').textContent=e.message;resize();}}}
 for(const button of document.querySelectorAll('[data-architecture]'))button.addEventListener('click',()=>comparison(button.dataset.architecture));
 comparison(defaultArchitecture);
@@ -157,9 +210,11 @@ document.getElementById('metric').addEventListener('change',memory);window.addEv
 <li>Peak RSS uses GNU time / wait4 ru_maxrss over the whole process lifetime, including the post-GC checkpoint. PSS/USS peaks are sampled observations.</li>
 <li>PSS apportions shared resident pages; USS is Private_Clean plus Private_Dirty. The separate post-GC view follows two explicit GC requests; it is not a JS heap-size measurement.</li>
 <li>These are shell process measurements on these workloads. They do not predict a complete application's or browser's memory use.</li>
+<li>All engines receive JavaScript source directly. Hermes V1 uses the official JSI runtime without precompiled HBC; these are not React Native AOT measurements.</li>
+<li>Known Hermes source compatibility failures are explicitly marked, not omitted or represented as numbers. Other successful cells retain the same validation requirements. Actual errors and their artifact log names appear below.</li>
 <li>ARM32 and ARM64 results retain their own dates, engine versions and runtime details. Differences between the tables are not solely the effect of pointer width and do not represent every ARM device.</li>
 </ul></details>'''
-    extra = '' if embed else '''<details><summary>Individual performance tests</summary><div class="tables"><table><thead><tr><th>Suite</th><th>Test</th><th>QuickJS</th><th>d8</th><th>d8 --jitless</th><th>Escargot</th></tr></thead><tbody id="subtests"></tbody></table></div></details><p><a id="history" href="history.json">Measurement history JSON</a></p>'''
+    extra = '' if embed else '''<details><summary>Individual performance tests</summary><div class="tables"><table><thead><tr id="subtests-head"></tr></thead><tbody id="subtests"></tbody></table></div></details><p><a id="history" href="history.json">Measurement history JSON</a></p>'''
     buttons = ''.join(f'<button type="button" data-architecture="{arch}" aria-pressed="{str(arch == default_architecture).lower()}">{arch.upper()}</button>' for arch in paths)
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot engine comparison</title><style>{css}</style></head><body><main>
 <h1 id="heading">JavaScript engines on {default_architecture.upper()}</h1><nav class="architectures" aria-label="Benchmark architecture">{buttons}</nav><p id="architecture-description"></p><p id="context">Loading validated comparison…</p><p id="status" role="status"></p>
@@ -167,6 +222,7 @@ document.getElementById('metric').addEventListener('change',memory);window.addEv
 <div class="tables"><table><thead><tr><th>Engine</th><th>SunSpider</th><th>Octane</th><th>Web Tooling</th></tr></thead><tbody id="memory"></tbody></table></div>
 <h2>Execution performance</h2><div class="tables"><table><thead><tr><th>Engine</th><th>Version</th><th>SunSpider ms ↓</th><th>Octane score ↑</th><th>WTB runs/s ↑</th></tr></thead><tbody id="scores"></tbody></table></div><p><small id="score-date"></small></p>
 <p><a id="raw-json" href="latest.json">Raw measurements JSON</a> · <a id="raw-zip" href="#">All logs, samples and checkpoints</a> · <a id="full-comparison" href="./" target="_top">Full comparison</a></p>
+<section id="error-section" hidden><h2>Runtime and source errors</h2><p>Failed entries have no comparable score or memory value. These known Hermes compatibility errors are warnings, not successful workload runs. Log files are included in the raw archive above.</p><div class="tables"><table><thead><tr><th>Engine</th><th>Workload</th><th>Error</th><th>Artifact log</th></tr></thead><tbody id="errors"></tbody></table></div></section>
 {methods}<details><summary>Ranges across three memory runs (MiB)</summary><div class="tables"><table><thead><tr><th>Engine</th><th>Suite</th><th>Average RSS range</th><th>Kernel peak RSS range</th></tr></thead><tbody id="ranges"></tbody></table></div></details>{extra}
 </main><script>{script}</script></body></html>\n'''
 
@@ -198,7 +254,7 @@ def main():
         if not args.site:
             parser.error('--site is required with --report')
         data = json.loads((args.report / 'measurements.json').read_text())
-        validate(data)
+        validate(data, args.report)
         comparison_root = args.site / 'performance/monthly'
         arch = architecture(data)
         root = comparison_root / 'arm32' if arch == 'arm32' else comparison_root

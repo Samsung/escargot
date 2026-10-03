@@ -72,7 +72,7 @@ def measure_memory(name, engine, command, directory, env, script, report, cpu, m
     bridge = report / f"{name}.bridge.js"
     if engine == "quickjs":
         wait = "std.out.flush(); var ack = std.in.getline();"
-    elif engine in ("d8", "d8_jitless"):
+    elif engine in ("d8", "d8_jitless", "hermes"):
         wait = "var ack = readline();"
     elif engine == "escargot":
         wait = "var ack = read(" + json.dumps(str(fifo)) + ");"

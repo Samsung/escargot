@@ -6,12 +6,32 @@ on:
     - cron: '0 1 * * 0'
   workflow_dispatch:
     inputs:
+      include_hermes:
+        description: 'Include Hermes V1 using JavaScript source input'
+        type: boolean
+        default: false
+      preview_only:
+        description: 'Upload measurement artifacts without publishing the site'
+        type: boolean
+        default: false
+      arm64_only:
+        description: 'Measure ARM64 only'
+        type: boolean
+        default: false
+      scores_only:
+        description: 'Measure performance scores only, without fixed-work memory'
+        type: boolean
+        default: false
       report_run_id:
         description: 'Publish an existing validated report from this repository; blank runs new measurements'
         type: string
         default: ''
       report_artifact:
         description: 'Artifact name when publishing an existing report'
+        type: string
+        default: ''
+      report_arm32_artifact:
+        description: 'Optional ARM32 artifact from report_run_id for summary previews'
         type: string
         default: ''
       score_report_run_id:
@@ -66,6 +86,7 @@ jobs:
         if: inputs.report_run_id == '' || inputs.measure_arm32 == true
         run: git submodule update --init --jobs 8 third_party/GCutil third_party/walrus third_party/icu test/vendortest test/octane test/web-tooling-benchmark
       - uses: actions/configure-pages@v5
+        if: inputs.preview_only != true && inputs.scores_only != true
       - uses: actions/download-artifact@v5
         if: inputs.report_run_id != ''
         with:
@@ -73,6 +94,13 @@ jobs:
           run-id: ${{ inputs.report_run_id }}
           name: ${{ inputs.report_artifact }}
           path: monthly-engine-report
+      - uses: actions/download-artifact@v5
+        if: inputs.report_arm32_artifact != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.report_run_id }}
+          name: ${{ inputs.report_arm32_artifact }}
+          path: monthly-engine-report-arm32
       - uses: actions/download-artifact@v5
         if: inputs.score_report_run_id != ''
         with:
@@ -101,25 +129,41 @@ jobs:
         shell: bash
         env:
           ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+          GITHUB_STEP_SUMMARY: ''
         run: |
           set -euo pipefail
           lock_dir="$HOME/.cache/escargot-locks"
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            python3 -u tools/monthly-engine-benchmark.py 2>&1 | tee monthly-engine-report/run.log
+            python3 -u tools/monthly-engine-benchmark.py ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report/run.log
       - name: Compare ARM32 engines natively on the same host
-        if: inputs.report_run_id == '' || inputs.measure_arm32 == true
+        if: ${{ !cancelled() && (inputs.report_run_id == '' || inputs.measure_arm32 == true) && inputs.arm64_only != true }}
         shell: bash
         env:
           ESCARGOT_SOURCE_REVISION: ${{ github.sha }}
+          GITHUB_STEP_SUMMARY: ''
         run: |
           set -euo pipefail
           lock_dir="$HOME/.cache/escargot-locks"
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report-arm32
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            bash tools/run-monthly-arm32-benchmark.sh 2>&1 | tee monthly-engine-report-arm32/run.log
+            bash tools/run-monthly-arm32-benchmark.sh ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report-arm32/run.log
+      - name: Show comparison tables in the Actions summary
+        if: always()
+        shell: bash
+        env:
+          IMPORTED_REPORT_RUN: ${{ inputs.report_run_id }}
+        run: |
+          if [ -n "$IMPORTED_REPORT_RUN" ]; then
+            printf 'ARM64 results reused from Actions run %s.\n\n' "$IMPORTED_REPORT_RUN" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          for report in monthly-engine-report monthly-engine-report-arm32; do
+            if [ -f "$report/measurements.json" ]; then
+              BENCHMARK_REPORT_DIR="$GITHUB_WORKSPACE/$report" python3 -u tools/monthly-engine-benchmark.py --summary-only
+            fi
+          done
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -127,12 +171,13 @@ jobs:
           path: monthly-engine-report/
           if-no-files-found: error
       - uses: actions/upload-artifact@v6
-        if: always() && (inputs.report_run_id == '' || inputs.measure_arm32 == true)
+        if: always() && (inputs.report_run_id == '' || inputs.measure_arm32 == true || inputs.report_arm32_artifact != '') && inputs.arm64_only != true
         with:
           name: monthly-engine-report-arm32-${{ github.sha }}
           path: monthly-engine-report-arm32/
           if-no-files-found: error
       - name: Publish validated comparison and README table
+        if: inputs.preview_only != true && inputs.scores_only != true
         shell: bash
         run: |
           set -euo pipefail
@@ -154,10 +199,12 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/performance-pages"
           git archive --format=tar HEAD | tar -xf - -C "$GITHUB_WORKSPACE/performance-pages"
       - uses: actions/upload-pages-artifact@v3
+        if: inputs.preview_only != true && inputs.scores_only != true
         with:
           path: performance-pages
 
   deploy-pages:
+    if: inputs.preview_only != true && inputs.scores_only != true
     needs: benchmark-arm
     runs-on: ubuntu-24.04
     permissions:
