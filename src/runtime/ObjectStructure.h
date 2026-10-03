@@ -616,6 +616,11 @@ public:
     explicit PropertyNameMapWithCache(const ObjectStructureItemTightVector& properties);
     explicit PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties);
 
+    ~PropertyNameMapWithCache()
+    {
+        GC_FREE(m_entries.unwrap());
+    }
+
     size_t size() const
     {
         return m_size;
