@@ -25,6 +25,7 @@
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
 #include "runtime/SetAssociativeCache.h"
+#include "runtime/ExecutionState.h"
 
 namespace Escargot {
 
@@ -115,6 +116,11 @@ public:
 
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
     ~VMInstance();
+
+    ControlFlowRecordPool& controlFlowRecordPool()
+    {
+        return m_controlFlowRecordPool;
+    }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -601,6 +607,8 @@ private:
 
     // job queue
     JobQueue* m_jobQueue;
+
+    ControlFlowRecordPool m_controlFlowRecordPool;
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     void ensureIntlSupportedLocales();

@@ -30,6 +30,32 @@
 
 namespace Escargot {
 
+void ExecutionPauser::release()
+{
+    // Completion can bypass the normal scope pops, for example when a resumed
+    // finally throws. No interpreter retains active completions after release.
+    Optional<ExecutionState*> state = m_executionState;
+    while (state) {
+        if (state->hasRareData()) {
+            state->rareData()->m_ownedControlFlowRecordStack.clearToDepth(0);
+        }
+        auto source = state->pauseSource();
+        if (source && source.value() == this) {
+            break;
+        }
+        state = state->parent();
+    }
+    m_executionState = nullptr;
+    m_registerFile = nullptr;
+    m_byteCodeBlock = nullptr;
+    m_pausedCode.clear();
+    m_pauseValue = nullptr;
+    m_resumeValue = EncodedValue();
+    m_promiseCapability.m_promise = nullptr;
+    m_promiseCapability.m_resolveFunction = nullptr;
+    m_promiseCapability.m_rejectFunction = nullptr;
+}
+
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Yield == (int)ExecutionPause::Yield, "");
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::Await == (int)ExecutionPause::Await, "");
 COMPILE_ASSERT((int)ExecutionPauser::PauseReason::GeneratorsInitialize == (int)ExecutionPause::GeneratorsInitialize, "");
@@ -199,6 +225,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             self->m_pauseValue = nullptr;
             result = exitValue->m_value;
             auto pauseReason = exitValue->m_pauseReason;
+            GC_FREE(exitValue);
 
             if (pauseReason == ExecutionPauser::PauseReason::GeneratorsInitialize) {
                 return result;

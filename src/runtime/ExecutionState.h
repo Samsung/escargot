@@ -37,39 +37,71 @@ class GeneratorObject;
 class FunctionObject;
 class NativeFunctionObject;
 class HeapSnapshot;
+class VMInstance;
 
-typedef VectorWithInlineStorage<2, ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
+struct ControlFlowRecordNode;
+
+struct ControlFlowRecordPool {
+    static constexpr size_t MaxIdleNodeCount = 64;
+    Optional<ControlFlowRecordNode*> m_head;
+    size_t m_size = 0;
+
+    void clear();
+};
+
+class ControlFlowRecordStack {
+public:
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    void setPool(ControlFlowRecordPool* pool)
+    {
+        ASSERT(!m_pool);
+        m_pool = pool;
+    }
+
+    void push();
+    Optional<ControlFlowRecord*> back();
+    void setBack(const ControlFlowRecord& record);
+    void clearBack();
+    Optional<ControlFlowRecord> takeBack();
+    void clearToDepth(size_t depth);
+
+private:
+    Optional<ControlFlowRecordNode*> m_head;
+    Optional<ControlFlowRecordPool*> m_pool;
+    size_t m_size = 0;
+};
 
 struct ExecutionStateRareData : public gc {
     InterpretedCodeBlock* m_codeBlock; // for local eval code
     ExecutionPauser* m_pauseSource;
-    ControlFlowRecordVector* m_controlFlowRecordVector;
+    // Scope states share this holder. Their parent chain keeps its owning
+    // execution state alive, including while a pauser retains that chain.
+    ControlFlowRecordStack m_ownedControlFlowRecordStack;
+    Optional<ControlFlowRecordStack*> m_controlFlowRecordStack;
     size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
         : m_codeBlock(nullptr)
         , m_pauseSource(nullptr)
-        , m_controlFlowRecordVector(nullptr)
+        , m_controlFlowRecordStack(nullptr)
         , m_programCounterWhenItStoppedByYield(SIZE_MAX)
     {
     }
 
-    ControlFlowRecordVector* ensureControlFlowRecordVector()
+    ControlFlowRecordStack* ensureControlFlowRecordStack(VMInstance* instance);
+
+    Optional<ControlFlowRecordStack*> controlFlowRecordStack()
     {
-        if (m_controlFlowRecordVector == nullptr) {
-            m_controlFlowRecordVector = new ControlFlowRecordVector;
-        }
-        return m_controlFlowRecordVector;
+        return m_controlFlowRecordStack;
     }
 
-    ControlFlowRecordVector* controlFlowRecordVector()
+    void setControlFlowRecordStack(Optional<ControlFlowRecordStack*> v)
     {
-        return m_controlFlowRecordVector;
-    }
-
-    void setControlFlowRecordVector(ControlFlowRecordVector* v)
-    {
-        m_controlFlowRecordVector = v;
+        m_controlFlowRecordStack = v;
     }
 };
 

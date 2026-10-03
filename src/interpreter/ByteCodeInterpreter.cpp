@@ -67,6 +67,32 @@ const void* FillOpcodeTableAddress[] = { &FillOpcodeTableAsmLbl[0] };
 
 namespace Escargot {
 
+class ControlFlowRecordStackUnwindGuard {
+public:
+    explicit ControlFlowRecordStackUnwindGuard(ControlFlowRecordStack* stack)
+        : m_stack(stack)
+        , m_depth(stack->size())
+    {
+    }
+
+    ~ControlFlowRecordStackUnwindGuard()
+    {
+        // Suspended interpreters return normally and keep their active nodes.
+        // An escaping exception abandons this scope and all scopes inside it.
+#if __cplusplus >= 201703L
+        if (std::uncaught_exceptions()) {
+#else
+        if (std::uncaught_exception()) {
+#endif
+            m_stack->clearToDepth(m_depth);
+        }
+    }
+
+private:
+    ControlFlowRecordStack* m_stack;
+    size_t m_depth;
+};
+
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
 // r15/x27 is callee-saved. Restore the caller's value on every return and
 // exception path, while -ffixed-* keeps the interpreter compiler off it.
@@ -1870,8 +1896,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(CloseLexicalEnvironment)
             :
         {
-            ASSERT(state->rareData()->controlFlowRecordVector()->size() > 0);
-            (*(state->rareData()->controlFlowRecordVector()))[state->rareData()->controlFlowRecordVector()->size() - 1] = nullptr;
+            ASSERT(state->rareData()->controlFlowRecordStack()->size() > 0);
+            state->rareData()->controlFlowRecordStack()->clearBack();
             return Value(Value::EmptyValue);
         }
 
@@ -1896,7 +1922,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             JumpComplexCase* code = (JumpComplexCase*)programCounter;
-            state->rareData()->controlFlowRecordVector()->back() = byteCodeBlock->m_jumpFlowRecordData[code->m_recordIndex].createControlFlowRecord();
+            state->rareData()->controlFlowRecordStack()->setBack(byteCodeBlock->m_jumpFlowRecordData[code->m_recordIndex].createControlFlowRecord());
             return Value(Value::EmptyValue);
         }
 
@@ -2095,8 +2121,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             ReturnFunctionSlowCase* code = (ReturnFunctionSlowCase*)programCounter;
-            if (UNLIKELY(state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size())) {
-                state->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, registerFile[code->m_registerIndex], state->rareData()->controlFlowRecordVector()->size());
+            if (UNLIKELY(state->rareData()->controlFlowRecordStack() && state->rareData()->controlFlowRecordStack()->size())) {
+                state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsReturn, registerFile[code->m_registerIndex], state->rareData()->controlFlowRecordStack()->size()));
             }
             return Value(Value::EmptyValue);
         }
@@ -2198,6 +2224,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 EnumerateObject* enumObj = (EnumerateObject*)iterOrEnum.asPointerValue();
                 result = new Object(*state);
                 enumObj->fillRestElement(*state, result);
+                registerFile[code->m_iterOrEnumIndex] = Value();
+                delete enumObj;
             } else {
                 result = InterpreterSlowPath::restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord());
             }
@@ -2536,11 +2564,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             ASSERT(callee.isObject() && callee.asObject()->isScriptFunctionObject());
             ASSERT(callee.asObject()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-            ASSERT(state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size());
+            ASSERT(state->rareData()->controlFlowRecordStack() && state->rareData()->controlFlowRecordStack()->size());
 
             // postpone recursion call
             // because we need to close the current interpreter routine which is called inside try operation
-            state->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsRecursion, callee, code->m_argumentCount, code->m_argumentsStartIndex);
+            state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsRecursion, callee, code->m_argumentCount, code->m_argumentsStartIndex));
             return Value(Value::EmptyValue);
         }
 #endif
@@ -3595,7 +3623,9 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         }
 
         auto inlineCache = code->m_complexInlineCache;
+        Optional<ObjectStructure**> evictedChain;
         if (inlineCache->m_cache.size() > GetObjectInlineCacheData::MaxCacheCount) {
+            evictedChain = inlineCache->m_cache.back().m_cachedhiddenClassChain;
             for (size_t i = inlineCache->m_cache.size() - 1; i > 0; i--) {
                 inlineCache->m_cache[i] = inlineCache->m_cache[i - 1];
             }
@@ -3612,6 +3642,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         memcpy(newItem.m_cachedhiddenClassChain, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * cachedhiddenClassChain.size());
         newItem.m_cachedIndex = cachedIndex;
         newItem.m_isPlainDataProperty = isPlainDataProperty;
+        GC_FREE(evictedChain.unwrap());
 
         if (newItem.m_cachedIndex != GetObjectInlineCacheData::CachedIndexMax) {
             ASSERT(obj->structure() == cachedhiddenClassChain[cachedhiddenClassChain.size() - 1]);
@@ -3629,6 +3660,9 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
     return;
 
 GiveUp:
+    if (code->m_inlineCacheMode == GetObjectPreComputedCase::Complex) {
+        code->m_complexInlineCache->clear();
+    }
     code->changeOpcode(Opcode::GetObjectPreComputedCaseOpcode);
     code->m_inlineCacheMode = GetObjectPreComputedCase::None;
     code->m_propertyName = propertyName;
@@ -3770,6 +3804,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
     auto inlineCache = code->m_inlineCache;
     SetObjectInlineCacheData newItem;
+    Optional<ObjectStructure**> evictedChain;
 
     auto findResult = originalObject->structure()->findProperty(code->m_propertyName);
     if (findResult.first != SIZE_MAX) {
@@ -3852,7 +3887,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         if (UNLIKELY(!originalObject->set(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject))) {
             // set a new property failed
             // giveup w/o set call
-            inlineCache->m_cache.clear();
+            inlineCache->clear(code->m_inlineCacheProtoTraverseMaxIndex > 0);
             code->m_inlineCache = nullptr;
             code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
             code->m_inlineCacheProtoTraverseMaxIndex = 0;
@@ -3871,7 +3906,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         if (UNLIKELY(!originalObject->structure()->inTransitionMode() || propertyResult.first == SIZE_MAX || !propertyResult.second->isWritable())) {
             // clear cache
             // giveup w/o set call
-            inlineCache->m_cache.clear();
+            inlineCache->clear(code->m_inlineCacheProtoTraverseMaxIndex > 0);
             code->m_inlineCache = nullptr;
             code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
             code->m_inlineCacheProtoTraverseMaxIndex = 0;
@@ -3914,6 +3949,9 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     // finally, insert a valid new cache item at the end
     // because an exception could occur ahead which makes insertion of cache item invalid
     if (inlineCache->m_cache.size() > SetObjectInlineCacheData::MaxCacheCount) {
+        if (code->m_inlineCacheProtoTraverseMaxIndex > 0) {
+            evictedChain = inlineCache->m_cache.back().m_cachedHiddenClassChainData;
+        }
         for (size_t i = inlineCache->m_cache.size() - 1; i > 0; i--) {
             inlineCache->m_cache[i] = inlineCache->m_cache[i - 1];
         }
@@ -3922,6 +3960,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     }
 
     inlineCache->m_cache[0] = newItem;
+    GC_FREE(evictedChain.unwrap());
 
     // promote to a fast path opcode: Simple if every cached entry is an own-property write
     // (no proto chain to verify), Complex once any entry needs chain verification -- see
@@ -3936,7 +3975,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
 GiveUp:
     // clear cache and then set the property value
-    inlineCache->m_cache.clear();
+    inlineCache->clear(code->m_inlineCacheProtoTraverseMaxIndex > 0);
     code->m_inlineCache = nullptr;
     code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
     code->m_inlineCacheProtoTraverseMaxIndex = 0;
@@ -4123,7 +4162,15 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
             if (data->m_bigFilter) {
                 GC_FREE(data->m_bigFilter.value());
             }
+        } else if (isAsyncOrGenerator && data->m_needsToUsePropertyFilterOnInterpreter) {
+            // Synchronous small filters live in the register file. Pausers
+            // allocate a separate, exclusively owned atomic filter instead.
+            GC_FREE(data->m_filter.unwrap());
         }
+
+        // Descriptors are copied into the structure, and values are transferred
+        // or copied above. Release the remaining temporary GC buffers.
+        data->~CreateObjectData();
 
         if (isAsyncOrGenerator) {
             GC_FREE(data);
@@ -4424,6 +4471,7 @@ NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(Execut
 
 NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
     uint8_t* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
 
@@ -4447,8 +4495,8 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #endif /* ESCARGOT_DEBUGGER */
 
     if (LIKELY(!inPauserResumeProcess)) {
-        state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
-        newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+        state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance())->push();
+        newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
     }
 
     StackTraceDataOnStackVector stackTraceDataVector;
@@ -4478,7 +4526,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode()); //
-                newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+                newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
             }
         } catch (const Value& val) {
             if (UNLIKELY(code->m_isTryResumeProcess)) {
@@ -4489,7 +4537,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
-                newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+                newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
             }
 
             newState->context()->vmInstance()->currentSandBox()->fillStackDataIntoErrorObject(val);
@@ -4506,7 +4554,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #endif
             stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
             if (!code->m_hasCatch) {
-                newState->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+                newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
             } else {
                 stackTraceDataVector.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
@@ -4525,7 +4573,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                     }
                 } catch (const Value& val) {
                     stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
-                    newState->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+                    newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
                 }
             }
         }
@@ -4547,7 +4595,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             state = newState->parent();
             state->m_programCounter = &programCounter;
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
-            state->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
+            state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
         }
     }
 
@@ -4573,7 +4621,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             state->m_programCounter = &programCounter;
             code = (TryOperation*)(codeBuffer + newState->rareData()->m_programCounterWhenItStoppedByYield);
             newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
-            newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+            newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
         }
 #if defined(ENABLE_EXTENDED_API)
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
@@ -4592,15 +4640,14 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     Debugger::updateStopState(state->context()->debugger(), newState, state);
 #endif /* ESCARGOT_DEBUGGER */
 
-    ControlFlowRecord* record = state->rareData()->controlFlowRecordVector()->back();
-    state->rareData()->controlFlowRecordVector()->pop_back();
+    auto record = state->rareData()->controlFlowRecordStack()->takeBack();
 
-    if (record != nullptr) {
+    if (record) {
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
                 return Value();
             } else {
                 programCounter = jumpTo(codeBuffer, pos);
@@ -4617,7 +4664,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
         } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
             record->m_count--;
             if (record->count()) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
             return record->value();
         } else {
@@ -4898,6 +4945,7 @@ NEVER_INLINE void InterpreterSlowPath::complexGetObjectOperation(ExecutionState&
 
 NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
     OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
     bool inWithStatement = code->m_kind == OpenLexicalEnvironment::WithStatement;
 
@@ -4906,7 +4954,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
     if (LIKELY(inWithStatement)) {
         // with statement case
         LexicalEnvironment* env = state->lexicalEnvironment();
-        state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
+        state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance())->push();
         size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
         uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
@@ -4915,7 +4963,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
         LexicalEnvironment* newEnv = new LexicalEnvironment(newRecord, env);
 
         newState = new ExtendedExecutionState(state, newEnv, state->inStrictMode());
-        newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+        newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
     } else {
         // resume execution case
         ASSERT(code->m_kind == OpenLexicalEnvironment::ResumeExecution);
@@ -4945,15 +4993,14 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
     Debugger::updateStopState(state->context()->debugger(), newState, state);
 #endif /* ESCARGOT_DEBUGGER */
 
-    ControlFlowRecord* record = state->rareData()->controlFlowRecordVector()->back();
-    state->rareData()->controlFlowRecordVector()->pop_back();
+    auto record = state->rareData()->controlFlowRecordStack()->takeBack();
 
     if (record) {
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
                 return Value();
             } else {
                 programCounter = jumpTo(codeBuffer, pos);
@@ -4963,7 +5010,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
             record->m_count--;
             if (record->count()) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
             return record->value();
         }
@@ -5006,10 +5053,9 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
 
 NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    // Push the null sentinel BEFORE sharing the vector with newState.
-    // ensureControlFlowRecordVector() creates the vector if it doesn't exist yet,
-    // so the subsequent setControlFlowRecordVector() always receives a non-null pointer.
-    state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
+    ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
+    // Push an empty completion before sharing the stack with newState.
+    state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance())->push();
     size_t newPc = programCounter + sizeof(BlockOperation);
     uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
@@ -5072,7 +5118,7 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
 #endif /* ESCARGOT_DEBUGGER */
 
     if (!LIKELY(inPauserResumeProcess)) {
-        newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
+        newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
     }
 
     // Track the byte offset of the first instruction in this block so we can
@@ -5097,10 +5143,9 @@ interpretBlock:
     Debugger::updateStopState(state->context()->debugger(), newState, state);
 #endif /* ESCARGOT_DEBUGGER */
 
-    ControlFlowRecord* record = state->rareData()->controlFlowRecordVector()->back();
-    state->rareData()->controlFlowRecordVector()->pop_back();
+    auto record = state->rareData()->controlFlowRecordStack()->takeBack();
 
-    if (record != nullptr) {
+    if (record) {
         if (record->reason() == ControlFlowRecord::NeedsJump) {
             size_t pos = record->wordValue();
             record->m_count--;
@@ -5110,11 +5155,11 @@ interpretBlock:
             // because the destination may be within this block regardless of count.
             if (!inPauserResumeProcess && pos >= blockStartOffset && pos < code->m_blockEndPosition) {
                 innerPc = jumpTo(codeBuffer, pos);
-                state->rareData()->controlFlowRecordVector()->push_back(nullptr);
+                state->rareData()->controlFlowRecordStack()->push();
                 goto interpretBlock;
             }
             if (record->count() && (record->outerLimitCount() < record->count())) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
                 return Value();
             } else {
                 programCounter = jumpTo(codeBuffer, pos);
@@ -5124,7 +5169,7 @@ interpretBlock:
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
             record->m_count--;
             if (record->count()) {
-                state->rareData()->controlFlowRecordVector()->back() = record;
+                state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
             return record->value();
         }
@@ -5573,6 +5618,7 @@ NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& sta
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
     if (data->checkLastEnumerateKey(state)) {
+        registerFile[code->m_registerIndex] = Value();
         delete data;
         programCounter = jumpTo(codeBuffer, code->m_exitPosition);
     } else {
@@ -5701,8 +5747,8 @@ NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*
 
     if (!state->executionPauser()->m_resumeStateStore) {
         if (needsReturn) {
-            if (state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size()) {
-                state->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->controlFlowRecordVector()->size());
+            if (state->rareData()->controlFlowRecordStack() && state->rareData()->controlFlowRecordStack()->size()) {
+                state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->controlFlowRecordStack()->size()));
             }
             return data->m_resumeValue;
         } else if (needsThrow) {
@@ -6223,8 +6269,8 @@ NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                 if (resultIsError) {
                     // If completion is a throw completion, then
                     ASSERT(state.hasRareData());
-                    if (state.rareData()->controlFlowRecordVector()->back()
-                        && state.rareData()->controlFlowRecordVector()->back()->reason() == ControlFlowRecord::NeedsThrow) {
+                    if (state.rareData()->controlFlowRecordStack()->back()
+                        && state.rareData()->controlFlowRecordStack()->back()->reason() == ControlFlowRecord::NeedsThrow) {
                         // Set result to result.[[Value]].
                         // Let suppressed be completion.[[Value]].
                         // Let error be a newly created SuppressedError object.
@@ -6232,13 +6278,13 @@ NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                         // Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
                         auto supressedError = new SuppressedErrorObject(state, state.context()->globalObject()->suppressedErrorPrototype(),
                                                                         new ASCIIStringFromExternalMemory("An error was suppressed during disposal"),
-                                                                        true, true, result, state.rareData()->controlFlowRecordVector()->back()->value());
+                                                                        true, true, result, state.rareData()->controlFlowRecordStack()->back()->value());
                         // Set completion to ThrowCompletion(error).
-                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, supressedError);
+                        state.rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, supressedError));
                     } else {
                         // Else,
                         // Set completion to result.
-                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, result);
+                        state.rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, result));
                     }
                 }
             } else if (record.m_isAsyncDisposableResource) {
@@ -6350,7 +6396,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             IteratorObject::iteratorClose(state, iteratorRecord, registerFile[code->m_iteratorCloseData.m_execeptionRegisterIndexIfExists], true);
         } else {
-            bool exceptionWasThrown = state.rareData()->controlFlowRecordVector() && state.rareData()->controlFlowRecordVector()->back() && state.rareData()->controlFlowRecordVector()->back()->reason() == ControlFlowRecord::NeedsThrow;
+            bool exceptionWasThrown = state.rareData()->controlFlowRecordStack() && state.rareData()->controlFlowRecordStack()->back() && state.rareData()->controlFlowRecordStack()->back()->reason() == ControlFlowRecord::NeedsThrow;
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             if (LIKELY(IteratorObject::directArrayIterationClosesWithoutReturn(state, iteratorRecord))) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
@@ -6451,7 +6497,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
         registerFile[code->m_iteratorValueData.m_dstRegisterIndex] = IteratorObject::iteratorValue(state, registerFile[code->m_iteratorValueData.m_srcRegisterIndex].asObject());
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose) {
-        ControlFlowRecord* record = state.rareData()->controlFlowRecordVector()->back();
+        auto record = state.rareData()->controlFlowRecordStack()->back();
         if (record && record->reason() == ControlFlowRecord::NeedsThrow) {
             state.context()->throwException(state, record->value());
         }

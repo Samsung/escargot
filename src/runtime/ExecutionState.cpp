@@ -25,9 +25,106 @@
 #include "FunctionObject.h"
 #include "NativeFunctionObject.h"
 #include "ScriptClassConstructorFunctionObject.h"
+#include "runtime/VMInstance.h"
+#include "interpreter/ByteCode.h"
 #include "../src/debugger/HeapSnapshot.h"
 
 namespace Escargot {
+
+struct ControlFlowRecordNode : public gc {
+    Optional<ControlFlowRecordNode*> m_next;
+    ControlFlowRecord m_record;
+    bool m_hasRecord = false;
+};
+
+void ControlFlowRecordPool::clear()
+{
+    while (m_head) {
+        auto* node = m_head.value();
+        m_head = node->m_next;
+        delete node;
+    }
+    m_size = 0;
+}
+
+ControlFlowRecordStack* ExecutionStateRareData::ensureControlFlowRecordStack(VMInstance* instance)
+{
+    if (!m_controlFlowRecordStack) {
+        m_ownedControlFlowRecordStack.setPool(&instance->controlFlowRecordPool());
+        m_controlFlowRecordStack = &m_ownedControlFlowRecordStack;
+    }
+    return m_controlFlowRecordStack.value();
+}
+
+void ControlFlowRecordStack::push()
+{
+    auto& pool = *m_pool.value();
+    ControlFlowRecordNode* node;
+    if (pool.m_head) {
+        node = pool.m_head.value();
+        pool.m_head = node->m_next;
+        pool.m_size--;
+    } else {
+        node = new ControlFlowRecordNode;
+    }
+    node->m_next = m_head;
+    m_head = node;
+    m_size++;
+}
+
+Optional<ControlFlowRecord*> ControlFlowRecordStack::back()
+{
+    ASSERT(m_head);
+    return m_head->m_hasRecord ? &m_head->m_record : nullptr;
+}
+
+void ControlFlowRecordStack::setBack(const ControlFlowRecord& record)
+{
+    ASSERT(m_head);
+    m_head->m_record = record;
+    m_head->m_hasRecord = true;
+}
+
+void ControlFlowRecordStack::clearBack()
+{
+    ASSERT(m_head);
+    m_head->m_record = ControlFlowRecord();
+    m_head->m_hasRecord = false;
+}
+
+Optional<ControlFlowRecord> ControlFlowRecordStack::takeBack()
+{
+    ASSERT(m_head);
+    Optional<ControlFlowRecord> record;
+    if (m_head->m_hasRecord) {
+        record = m_head->m_record;
+    }
+    auto* node = m_head.value();
+    m_head = node->m_next;
+    m_size--;
+
+    // Copy completions before recycling their node. The caller can propagate
+    // the copy into an outer scope, or keep it alive across reentrant JS calls.
+    node->m_record = ControlFlowRecord();
+    node->m_hasRecord = false;
+    auto& pool = *m_pool.value();
+    if (pool.m_size < ControlFlowRecordPool::MaxIdleNodeCount) {
+        node->m_next = pool.m_head;
+        pool.m_head = node;
+        pool.m_size++;
+    } else {
+        node->m_next.reset();
+        delete node;
+    }
+    return record;
+}
+
+void ControlFlowRecordStack::clearToDepth(size_t depth)
+{
+    while (m_size > depth) {
+        takeBack();
+    }
+}
 
 ExecutionState::ExecutionState()
     : m_context(nullptr)
