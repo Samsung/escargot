@@ -55,18 +55,7 @@ public:
         EncodedValue m_value;
     };
 
-    void release()
-    {
-        m_executionState = nullptr;
-        m_registerFile = nullptr;
-        m_byteCodeBlock = nullptr;
-        m_pausedCode.clear();
-        m_pauseValue = nullptr;
-        m_resumeValue = EncodedValue();
-        m_promiseCapability.m_promise = nullptr;
-        m_promiseCapability.m_resolveFunction = nullptr;
-        m_promiseCapability.m_rejectFunction = nullptr;
-    }
+    void release();
 
     enum StartFrom {
         Generator,

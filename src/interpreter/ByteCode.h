@@ -1559,6 +1559,14 @@ struct GetObjectInlineCacheData {
 typedef Vector<GetObjectInlineCacheData, GCUtil::gc_malloc_allocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCacheComplexCaseData {
+    void clear()
+    {
+        for (auto& item : m_cache) {
+            GC_FREE(item.m_cachedhiddenClassChain);
+        }
+        m_cache.clear();
+    }
+
     GetObjectInlineCacheComplexCaseData(ObjectStructurePropertyName propertyName)
         : m_propertyName(propertyName)
     {
@@ -1719,6 +1727,16 @@ struct SetObjectInlineCacheData {
 typedef Vector<SetObjectInlineCacheData, GCUtil::gc_malloc_allocator<SetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> SetObjectInlineCacheDataVector;
 
 struct SetObjectInlineCache {
+    void clear(bool hasChainBuffers)
+    {
+        if (hasChainBuffers) {
+            for (auto& item : m_cache) {
+                GC_FREE(item.m_cachedHiddenClassChainData);
+            }
+        }
+        m_cache.clear();
+    }
+
     SetObjectInlineCache()
     {
     }
@@ -2245,7 +2263,7 @@ public:
 #endif
 };
 
-class ControlFlowRecord : public gc {
+class ControlFlowRecord {
     friend class InterpreterSlowPath;
 
 public:
@@ -2258,7 +2276,7 @@ public:
 #endif
     };
 
-    ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
+    ControlFlowRecord(const ControlFlowReason& reason = NeedsReturn, const Value& value = Value(), size_t count = 0, size_t outerLimitCount = SIZE_MAX)
         : m_reason(reason)
         , m_value(value)
         , m_count(count)
@@ -2268,10 +2286,11 @@ public:
 
     ControlFlowRecord(const ControlFlowReason& reason, const size_t value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
         : m_reason(reason)
-        , m_wordValue(value)
+        , m_value()
         , m_count(count)
         , m_outerLimitCount(outerLimitCount)
     {
+        m_wordValue = value;
     }
 
     const ControlFlowReason& reason()
@@ -2309,11 +2328,6 @@ public:
         return m_outerLimitCount;
     }
 
-    ControlFlowRecord* clone()
-    {
-        return new ControlFlowRecord(m_reason, m_value, m_count, m_outerLimitCount);
-    }
-
 private:
     ControlFlowReason m_reason;
     union {
@@ -2340,9 +2354,9 @@ public:
 
     MAKE_STACK_ALLOCATED();
 
-    ControlFlowRecord* createControlFlowRecord()
+    ControlFlowRecord createControlFlowRecord()
     {
-        return new ControlFlowRecord(ControlFlowRecord::ControlFlowRecord::NeedsJump, m_wordValue, m_count, m_outerLimitCount);
+        return ControlFlowRecord(ControlFlowRecord::NeedsJump, m_wordValue, m_count, m_outerLimitCount);
     }
 
     size_t m_wordValue;

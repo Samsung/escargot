@@ -187,6 +187,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_controlFlowRecordPool.m_head));
 #if defined(ENABLE_INTL)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlAvailableLocales));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlCollatorAvailableLocales));
@@ -311,6 +312,7 @@ VMInstance::~VMInstance()
     // set this first; the ByteCodeBlock disclaim callback reads it (through
     // CodeBlocks which outlive this VMInstance) to skip touching dead owners
     m_isFinalized = true;
+    m_controlFlowRecordPool.clear();
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     {
