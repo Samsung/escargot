@@ -393,6 +393,12 @@ public:
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
     {
         if (newSize) {
+            // Allocate the first buffer through Allocator so custom GC kinds
+            // are retained. Realloc preserves that kind when the buffer moves.
+            if (std::is_fundamental<T>::value && m_buffer) {
+                m_buffer = reinterpret_cast<T*>(GC_REALLOC(m_buffer, newSize * sizeof(T)));
+                return;
+            }
             T* newBuffer = Allocator().allocate(newSize);
             VectorCopier<T>::copy(newBuffer, m_buffer, std::min(oldSize, newSize));
 

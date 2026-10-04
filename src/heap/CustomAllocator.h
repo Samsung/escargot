@@ -56,6 +56,7 @@ enum HeapObjectKind : unsigned {
 #endif
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     EncodedSmallValueVectorKind,
+    FunctionEnvironmentRecordKind,
 #endif
     ArrayObjectKind,
     InterpretedCodeBlockKind,
@@ -66,6 +67,10 @@ enum HeapObjectKind : unsigned {
 void initializeCustomAllocators();
 void setInterpretedCodeBlockDescriptorToProc();
 void setInterpretedCodeBlockDescriptorToTyped();
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void* allocateFunctionEnvironmentRecord(size_t size);
+#endif
 
 // Tests whether `ptr` is a heap object that survived the most recent collection.
 //

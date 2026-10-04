@@ -807,36 +807,38 @@ struct FunctionEnvironmentRecordPiece<true, true> {
 
 class FunctionEnvironmentRecord : public DeclarativeEnvironmentRecord {
     friend class ScriptFunctionObject;
+    friend GC_ms_entry* markFunctionEnvironmentRecord(GC_word*, GC_ms_entry*, GC_ms_entry*, GC_word);
 
 public:
     FunctionEnvironmentRecord(ScriptFunctionObject* function)
         : DeclarativeEnvironmentRecord()
         , m_functionObject(function)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        , m_indexedHeapStorage(nullptr)
-#endif
     {
     }
 
     // Non-virtual access to the indexed binding storage of FunctionEnvironmentRecordOnHeap.
-    ALWAYS_INLINE EncodedValueVectorElement* heapStorageData()
+    static constexpr size_t indexedHeapStorageOffset()
     {
-        ASSERT(isFunctionEnvironmentRecordOnHeap());
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        return m_indexedHeapStorage;
+        // Keep the binding count in the allocation, rather than consulting
+        // the function object from a GC mark procedure. Unreachable records
+        // can still be scanned after their function has been reclaimed.
+        return sizeof(FunctionEnvironmentRecord) + sizeof(uint32_t);
 #else
-        return reinterpret_cast<EncodedValueVectorElement*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord));
+        return sizeof(FunctionEnvironmentRecord);
 #endif
     }
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    void initializeIndexedHeapStorage(size_t count)
+    ALWAYS_INLINE EncodedValueVectorElement* heapStorageData()
     {
-        if (count) {
-            EncodedValueVector storage;
-            storage.resize(count, EncodedValueVectorElement());
-            m_indexedHeapStorage = storage.takeBuffer();
-        }
+        ASSERT(isFunctionEnvironmentRecordOnHeap());
+        return reinterpret_cast<EncodedValueVectorElement*>(reinterpret_cast<uintptr_t>(this) + indexedHeapStorageOffset());
+    }
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    size_t indexedHeapStorageCount() const
+    {
+        return *reinterpret_cast<const uint32_t*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord));
     }
 #endif
 
@@ -943,10 +945,6 @@ private:
         ScriptFunctionObject* m_functionObject;
         ArgumentsObject* m_argumentsObject;
     };
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    // Compressed values need the collector's EncodedSmallValue vector kind.
-    EncodedValueVectorElement* m_indexedHeapStorage;
-#endif
 };
 
 template <bool canBindThisValue, bool hasNewTarget>
@@ -1003,10 +1001,9 @@ public:
     }
 };
 
-// On 32-bit builds the binding storage is a tail array, followed by the
-// this/new.target piece. Compressed values on 64-bit builds need a separately
-// allocated vector so the collector can trace the 32-bit pointer payloads.
-// Both layouts let LoadByHeapIndex read a binding without touching the vtable.
+// The binding storage is a tail array, followed by the this/new.target piece.
+// Compressed builds use a custom GC kind to trace the inline 32-bit payloads.
+// LoadByHeapIndex reads a binding without touching the vtable.
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
@@ -1018,7 +1015,7 @@ public:
 
     static constexpr size_t heapStorageOffset()
     {
-        return sizeof(FunctionEnvironmentRecord);
+        return FunctionEnvironmentRecord::indexedHeapStorageOffset();
     }
 
     ALWAYS_INLINE EncodedValueVectorElement* heapStorage()
@@ -1137,9 +1134,12 @@ public:
     }
 
 private:
-    explicit FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function)
+    explicit FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function, size_t heapStorageCount)
         : FunctionEnvironmentRecord(function)
     {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord)) = static_cast<uint32_t>(heapStorageCount);
+#endif
     }
 
     // size of the whole record including the tail storage and the tail piece
@@ -1151,9 +1151,7 @@ private:
     static size_t pieceOffset(size_t heapStorageCount)
     {
         size_t offset = heapStorageOffset();
-#if !defined(ESCARGOT_64) || !defined(ESCARGOT_USE_32BIT_IN_64BIT)
         offset += heapStorageCount * sizeof(EncodedValueVectorElement);
-#endif
         return (offset + alignof(Piece) - 1) & ~(alignof(Piece) - 1);
     }
 
