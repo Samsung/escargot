@@ -94,6 +94,10 @@ private:
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_promise));
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_resolveFunction));
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_rejectFunction));
+#ifdef ESCARGOT_DEBUGGER
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_promiseCapability.m_savedStackTrace));
+        GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_executionPauser.m_savedStackTrace));
+#endif /* ESCARGOT_DEBUGGER */
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_asyncGeneratorQueue));
     }
 

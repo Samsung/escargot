@@ -32,6 +32,7 @@
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
+#include "runtime/EnvironmentRecord.h"
 
 typedef int(GC_get_sub_pointer_proc)(void* ptr,
                                      struct GC_mark_pair* sub_ptrs);
@@ -214,14 +215,10 @@ GC_ms_entry* markSetObjectInlineCacheDataVector(GC_word* addr,
 }
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
-                                         struct GC_ms_entry* mark_stack_ptr,
-                                         struct GC_ms_entry* mark_stack_limit,
-                                         GC_word env)
+static GC_ms_entry* markEncodedSmallValueRange(const char* start, const char* end,
+                                               GC_ms_entry* mark_stack_ptr,
+                                               GC_ms_entry* mark_stack_limit)
 {
-    const char* start = (const char*)addr;
-    const char* end = ((char*)addr) + GC_size(addr);
-
     constexpr size_t batchSize = 32;
     GC_mark_pair_32bit buffer[batchSize];
     int count = 0;
@@ -249,6 +246,63 @@ GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
                                                 buffer, count);
     }
 
+    return mark_stack_ptr;
+}
+
+GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
+                                         GC_ms_entry* mark_stack_ptr,
+                                         GC_ms_entry* mark_stack_limit,
+                                         GC_word env)
+{
+#if defined(GC_DEBUG)
+    const char* start = (const char*)GC_USR_PTR_FROM_BASE(addr);
+#else
+    const char* start = (const char*)addr;
+#endif
+    return markEncodedSmallValueRange(start, (const char*)addr + GC_size(addr),
+                                      mark_stack_ptr, mark_stack_limit);
+}
+
+GC_ms_entry* markFunctionEnvironmentRecord(GC_word* addr,
+                                           GC_ms_entry* mark_stack_ptr,
+                                           GC_ms_entry* mark_stack_limit,
+                                           GC_word env)
+{
+#if defined(GC_DEBUG)
+    auto current = reinterpret_cast<FunctionEnvironmentRecord*>(GC_USR_PTR_FROM_BASE(addr));
+#else
+    auto current = reinterpret_cast<FunctionEnvironmentRecord*>(addr);
+#endif
+    // Mark procedures may also visit cleared free-list objects, whose first
+    // word is a free-list link rather than a vtable. The function field is
+    // cleared in that case, so do not inspect the record's layout further.
+    Optional<ScriptFunctionObject*> functionOrArguments = current->m_functionObject;
+    if (!functionOrArguments) {
+        return mark_stack_ptr;
+    }
+    GC_mark_pair functionPointer = { reinterpret_cast<GC_word*>(&current->m_functionObject),
+                                     reinterpret_cast<GC_word*>(functionOrArguments.value()) };
+    mark_stack_ptr = GC_mark_and_push_ptrs(mark_stack_ptr, mark_stack_limit, &functionPointer, 1);
+
+    const size_t count = current->indexedHeapStorageCount();
+    const char* storage = reinterpret_cast<const char*>(current) + FunctionEnvironmentRecord::indexedHeapStorageOffset();
+    const char* allocationEnd = reinterpret_cast<const char*>(addr) + GC_size(addr);
+    // Debug frees poison the payload until reclamation. Do not interpret a
+    // poisoned binding count as a range outside this allocation.
+    if (count > static_cast<size_t>(allocationEnd - storage) / sizeof(EncodedSmallValue)) {
+        return mark_stack_ptr;
+    }
+    const char* storageEnd = storage + count * sizeof(EncodedSmallValue);
+    mark_stack_ptr = markEncodedSmallValueRange(storage, storageEnd, mark_stack_ptr, mark_stack_limit);
+
+    // The this/new.target piece contains native-width pointer payloads and
+    // starts at a pointer-aligned offset after the compressed binding array.
+    const uintptr_t tail = (reinterpret_cast<uintptr_t>(storageEnd) + sizeof(GC_word) - 1) & ~(sizeof(GC_word) - 1);
+    const uintptr_t end = reinterpret_cast<uintptr_t>(allocationEnd);
+    for (uintptr_t ptr = tail; ptr + sizeof(GC_word) <= end; ptr += sizeof(GC_word)) {
+        GC_mark_pair pointer = { reinterpret_cast<GC_word*>(ptr), reinterpret_cast<GC_word*>(*reinterpret_cast<GC_word*>(ptr)) };
+        mark_stack_ptr = GC_mark_and_push_ptrs(mark_stack_ptr, mark_stack_limit, &pointer, 1);
+    }
     return mark_stack_ptr;
 }
 #endif
@@ -398,6 +452,10 @@ void initializeCustomAllocators()
                                                                          GC_MAKE_PROC(GC_new_proc(markEncodedSmallValueVector), 0),
                                                                          FALSE,
                                                                          TRUE);
+    s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind] = GC_new_kind(GC_new_free_list(),
+                                                                           GC_MAKE_PROC(GC_new_proc(markFunctionEnvironmentRecord), 0),
+                                                                           FALSE,
+                                                                           TRUE);
 #endif
 
     // m_src is marked through the single bit of its leading ScriptSource pointer
@@ -527,6 +585,11 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
 #endif
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void* allocateFunctionEnvironmentRecord(size_t size)
+{
+    return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind]);
+}
+
 template <>
 EncodedSmallValue* CustomAllocator<EncodedSmallValue>::allocate(size_type GC_n, const void*)
 {
