@@ -140,6 +140,11 @@ void StaticStrings::initStaticStrings()
 #if defined(ESCARGOT_DEBUGGER)
     INIT_STATIC_STRING(sectionPrototype, "[[Prototype]]");
     INIT_STATIC_STRING(sectionEntries, "[[Entries]]");
+    INIT_STATIC_STRING(sectionInt8Array, "[[Int8Array]]");
+    INIT_STATIC_STRING(sectionUint8Array, "[[Uint8Array]]");
+    INIT_STATIC_STRING(sectionInt16Array, "[[Int16Array]]");
+    INIT_STATIC_STRING(sectionInt32Array, "[[Int32Array]]");
+    INIT_STATIC_STRING(sectionArrayBufferByteLength, "[[ArrayBufferByteLength]]");
     INIT_STATIC_STRING(key, "key");
 #else
 #endif

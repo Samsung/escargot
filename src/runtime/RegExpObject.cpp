@@ -687,6 +687,48 @@ Optional<String*> RegExpObject::checkRegExpSyntax(String* pattern, String* flags
     return nullptr;
 }
 
+uint32_t RegExpObject::getOptions(ExecutionState& state)
+{
+    if (!hasOwnRegExpProperty(state, this)) {
+        return this->asRegExpObject()->option();
+    }
+
+    uint32_t options = 0;
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().hasIndices)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::HasIndices;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::Global;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::IgnoreCase;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::MultiLine;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::DotAll;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::Unicode;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicodeSets)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::UnicodeSets;
+    }
+
+    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean()) {
+        options |= RegExpObject::Option::Sticky;
+    }
+    return options;
+}
+
 String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* obj)
 {
     char flags[8] = { 0 };

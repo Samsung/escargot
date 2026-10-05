@@ -1062,6 +1062,11 @@ namespace Escargot {
 #define FOR_EACH_DEBUGGER_STATIC_STRING(F) \
     F(sectionPrototype)                    \
     F(sectionEntries)                      \
+    F(sectionInt8Array)                    \
+    F(sectionUint8Array)                   \
+    F(sectionInt16Array)                   \
+    F(sectionInt32Array)                   \
+    F(sectionArrayBufferByteLength)        \
     F(key)
 #else
 #define FOR_EACH_DEBUGGER_STATIC_STRING(F)
