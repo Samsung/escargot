@@ -36,3 +36,9 @@ Embedding and tooling
 - Add a shell option for incremental GC and improve memory profiling support.
 - Publish Android Maven artifacts through the Android release workflow.
 - Expand scheduled engine comparisons, including native ARM and Hermes.
+
+## Contributors
+
+- @ksh8281
+- @matetokodi
+- @kwy404
