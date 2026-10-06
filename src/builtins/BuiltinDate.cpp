@@ -74,7 +74,7 @@ bool isInValidRange(double year, double month, double date, double hour, double 
 static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        DateObject d(state);
+        DateObject d(DateObject::StackAllocated);
         d.setTimeValue(DateObject::currentTime());
         return d.toFullString(state);
     } else {
@@ -150,7 +150,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
 {
     Value str = argv[0].toPrimitive(state, Value::PreferString);
     if (str.isString()) {
-        DateObject d(state);
+        DateObject d(DateObject::StackAllocated);
         d.setTimeValue(state, str);
         return Value(Value::DoubleToIntConvertibleTestNeeds, d.primitiveValue());
     }
@@ -159,7 +159,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    DateObject d(state);
+    DateObject d(DateObject::StackAllocated);
     double args[7] = { std::numeric_limits<double>::quiet_NaN(), 0, 1, 0, 0, 0, 0 }; // default value of year, month, date, hour, minute, second, millisecond
     argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
     for (size_t i = 0; i < argc; i++) {
