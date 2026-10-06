@@ -23,6 +23,7 @@ using namespace Escargot;
 
 #include "gtest/gtest.h"
 #include "gc/gc_mark.h"
+#include "gc/gc_disclaim.h"
 
 #include <algorithm>
 #include <vector>
@@ -414,13 +415,13 @@ int main(int argc, char* argv[])
     g_instance = VMInstanceRef::create();
     g_context = createEscargotContext(g_instance.get());
 
-    RUN_ALL_TESTS();
+    const int testResult = RUN_ALL_TESTS();
 
     g_context.release();
     g_instance.release();
     Globals::finalize();
 
-    return 0;
+    return testResult;
 }
 
 TEST(ValueRef, Basic1)
@@ -3649,6 +3650,133 @@ static void collectEverythingUnreachable()
         Memory::gc();
     }
 }
+
+TEST(GCLeak, FinalizationRegistryCollectsPrivateSelfCycles)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII(R"(
+        var collected = 0;
+        var registry = new FinalizationRegistry(() => { collected++; });
+        class Target { #self = this; }
+        function makeTargets() {
+            for (let i = 0; i < 32; i++) registry.register(new Target(), i);
+        }
+        makeTargets();
+        'ready';
+    )"),
+                         StringRef::createFromASCII("private-finalizer-cycle.js"), false),
+              "ready");
+
+    clearWeakTestStack();
+    collectEverythingUnreachable();
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("registry.cleanupSome(); collected;"),
+                         StringRef::createFromASCII("private-finalizer-cleanup.js"), false),
+              "32");
+    collectEverythingUnreachable();
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("registry.cleanupSome(); collected;"),
+                         StringRef::createFromASCII("private-finalizer-cleanup-again.js"), false),
+              "32");
+}
+
+#if defined(__GNUC__)
+__attribute__((noinline))
+#endif
+static void
+createObjectFinalizerCycles(ContextRef* context, size_t* counter)
+{
+    auto result = Evaluator::execute(context, [](ExecutionStateRef* state, size_t* counter) -> ValueRef* {
+        for (size_t i = 0; i < 32; i++) {
+            ObjectRef* target = ObjectRef::create(state);
+            // Native extra data can also refer back to its owning object.
+            target->setExtraData(target);
+            Memory::gcRegisterFinalizer(target, finalizerTester, counter);
+            Memory::gcUnregisterFinalizer(target, finalizerTester, counter);
+            EXPECT_FALSE(Memory::gcHasFinalizer(target));
+            Memory::gcRegisterFinalizer(target, finalizerTester, counter);
+        }
+        return ValueRef::createUndefined(); }, counter);
+    EXPECT_TRUE(result.isSuccessful());
+}
+
+TEST(GCLeak, ObjectFinalizersCollectExtraDataSelfCycles)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    size_t counter = 0;
+    createObjectFinalizerCycles(context.get(), &counter);
+    clearWeakTestStack();
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter, 32u);
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter, 32u);
+}
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT) && defined(ENABLE_ICU) && defined(ENABLE_INTL)
+struct NativeFinalizerCounter {
+    GC_finalizer_closure cleanup = { nullptr, nullptr };
+    size_t nativeCount = 0;
+    size_t objectCount = 0;
+};
+
+static void countedNativeFinalizer(void* object, void* data)
+{
+    auto* counter = static_cast<NativeFinalizerCounter*>(data);
+    ++counter->nativeCount;
+    counter->cleanup.proc(object, counter->cleanup.cd);
+}
+
+#if defined(__GNUC__)
+__attribute__((noinline))
+#endif
+static void
+createIntlFinalizerTargets(ContextRef* context, NativeFinalizerCounter* counter)
+{
+    auto result = Evaluator::execute(context, [](ExecutionStateRef* state, NativeFinalizerCounter* counter) -> ValueRef* {
+        auto constructor = state->context()->globalObject()->get(state, StringRef::createFromASCII("Intl"))
+                               ->asObject()->get(state, StringRef::createFromASCII("DateTimeFormat"));
+        for (size_t i = 0; i < 32; i++) {
+            ObjectRef* target = constructor->construct(state, 0, nullptr)->asObject();
+            // Observe the actual Intl resource cleanup, rather than substituting
+            // an unrelated finalizer or inferring cleanup from RSS.
+            GC_REGISTER_FINALIZER_NO_ORDER(target, countedNativeFinalizer, counter,
+                                           &counter->cleanup.proc, &counter->cleanup.cd);
+            EXPECT_NE(counter->cleanup.proc, nullptr);
+            Memory::gcRegisterFinalizer(target, finalizerTester, &counter->objectCount);
+            Memory::gcUnregisterFinalizer(target, finalizerTester, &counter->objectCount);
+            EXPECT_FALSE(Memory::gcHasFinalizer(target));
+            if (i % 2 == 0) {
+                Memory::gcRegisterFinalizer(target, finalizerTester, &counter->objectCount);
+            }
+            auto registry = state->context()->globalObject()->get(state, StringRef::createFromASCII("registry"))->asObject();
+            ValueRef* args[] = { target, ValueRef::create(i) };
+            registry->get(state, StringRef::createFromASCII("register"))->call(state, registry, 2, args);
+        }
+        return ValueRef::createUndefined(); }, counter);
+    EXPECT_TRUE(result.isSuccessful());
+}
+
+TEST(GCLeak, IntlNativeCleanupSurvivesObjectFinalizers)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("var collected = 0; var registry = new FinalizationRegistry(() => { collected++; }); 'ready';"),
+                         StringRef::createFromASCII("intl-finalizer.js"), false),
+              "ready");
+    NativeFinalizerCounter counter;
+    createIntlFinalizerTargets(context.get(), &counter);
+    clearWeakTestStack();
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter.nativeCount, 32u);
+    EXPECT_EQ(counter.objectCount, 16u);
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("registry.cleanupSome(); collected;"),
+                         StringRef::createFromASCII("intl-finalizer-cleanup.js"), false),
+              "32");
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter.nativeCount, 32u);
+    EXPECT_EQ(counter.objectCount, 16u);
+}
+#endif
 
 TEST(GCLeak, PrunedByteCodeOfLiveFunctionIsRecompiled)
 {

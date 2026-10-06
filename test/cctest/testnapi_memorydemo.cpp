@@ -106,13 +106,11 @@ TEST(NapiMemoryDemo, CompressibleStringRSS)
     NapiEnv::globalInit();
     NapiEnv* napiEnv = NapiEnv::create();
 
-    // ~40MB of logical text, split across many document-sized strings - well
-    // above napi_create_string_utf8's compressible-string threshold
-    // (kCompressibleStringThreshold, NapiTypes.h) per string, and large
-    // enough in aggregate for the RSS difference to be clearly visible over
-    // background noise.
-    const size_t kStringCount = 20000;
-    const size_t kStringBytes = 2048;
+    // Keep the same ~40 MB of logical text in page-backed buffers. Smaller
+    // malloc buffers may be freed correctly while their arena stays resident,
+    // which cannot establish whether idle compression released the storage.
+    const size_t kStringCount = 625;
+    const size_t kStringBytes = 64 * 1024;
     const size_t kLogicalBytes = kStringCount * kStringBytes;
 
     size_t baselineRSS = CurrentRSSBytes();
@@ -179,17 +177,8 @@ TEST(NapiMemoryDemo, CompressibleStringRSS)
            static_cast<double>(saved) / (1024.0 * 1024.0), percentSaved);
     printf("====================================================\n");
 
-    // A real, reproducible regression guard - not a faked number. Guard on the
-    // absolute number of bytes handed back, not on a percentage: the percentage
-    // is taken against the whole process RSS, so it also moves with whatever
-    // else the process happens to be holding. Run as part of the full cctest
-    // binary, the earlier tests leave tens of MB of warm, fragmented heap
-    // behind, which both inflates that denominator and leaves the freed string
-    // blocks sharing pages with live objects, so a healthy run legitimately
-    // reports a much smaller percentage there than the same workload does
-    // standalone. The threshold is intentionally well below what either case
-    // shows, to avoid a flaky test while still catching a real regression
-    // (e.g. compression silently not happening at all, which would show ~0).
+    // Measure returned pages, independently of the process-wide RSS percentage
+    // and of fragmentation left behind by earlier tests.
     EXPECT_GT(saved, 4 * 1024 * 1024);
 
     // keep the reference alive (and therefore silence "unused" concerns)
