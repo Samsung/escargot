@@ -33,6 +33,6 @@ Embedding and tooling
 - Add Memory::setStackBottom and use it in the shell to establish GC roots.
 - Enable compressed pointers by default on supported 64-bit hosts.
 - Extend DevTools debugger previews to collections and additional objects.
-- Add incremental GC release checks and improve memory profiling support.
+- Add a shell option for incremental GC and improve memory profiling support.
 - Publish Android Maven artifacts through the Android release workflow.
 - Expand scheduled engine comparisons, including native ARM and Hermes.

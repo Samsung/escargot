@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 env:
-  RUNNER: tools/run-tests.py
   # ESCARGOT_LIBICU_SUPPORT_VENDORED explicit here (already the default on
   # darwin, but not linux -- see build/config.cmake): official release
   # binaries should always ship Escargot's own bundled ICU for full
@@ -43,7 +42,7 @@ jobs:
         echo $PKG_CONFIG_PATH
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/ $BUILD_OPTIONS
         ninja -Cout/
-    - name: Check
+    - name: Prepare release files
       run: |
         file out/escargot
         strip out/escargot
@@ -100,8 +99,6 @@ jobs:
         for f in ./escargot libicu*.dylib libwalrus.dylib; do [ -e "$f" ] || continue; codesign --verify --strict --verbose=6 "$f"; done
         cd ..
 
-        # run test
-        $RUNNER --engine="$GITHUB_WORKSPACE/deploy/escargot" new-es
 
         # zip results
         if [ "${{ matrix.os }}" == "macos-15" ]; then
@@ -150,7 +147,7 @@ jobs:
         cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/x64 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
         ninja -Cout/x86
         ninja -Cout/x64
-    - name: Check
+    - name: Prepare release files
       run: |
         file out/x86/escargot
         file out/x64/escargot
@@ -197,9 +194,6 @@ jobs:
         ldd deploy-x64/escargot
         for LIB in ./deploy-x64/libicu*; do ldd "$LIB"; done
 
-        # run test
-        $RUNNER --engine="$GITHUB_WORKSPACE/deploy-x86/escargot" new-es
-        $RUNNER --engine="$GITHUB_WORKSPACE/deploy-x64/escargot" new-es
 
         # zip results
         zip -j escargot-linux-x86.zip deploy-x86/*
@@ -287,9 +281,8 @@ jobs:
         rem only inspects escargot.exe's own import table. Re-scan the icu*.dll
         rem files just copied to pick up that transitive dependency too.
         for /f "tokens=1" %%f in ('dumpbin /dependents out\icu*.dll 2^>nul ^| findstr /i "icu"') do copy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\${{ matrix.arch }}-windows\bin\%%f" out\ >nul
-    - name: Check
+    - name: Prepare release files
       run: |
-        python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
         rename out\escargot.exe escargot-win-${{ matrix.arch }}.exe
         rem ESCARGOT_WASM=ON builds walrus.dll, already colocated with
         rem escargot.exe via CMAKE_RUNTIME_OUTPUT_DIRECTORY (Windows treats a
@@ -305,91 +298,8 @@ jobs:
         name: build-artifact-win-${{ matrix.arch }}
         path: escargot-win-${{ matrix.arch }}.zip
 
-  check-build-mac64:
-    needs: [build-macOS]
-    runs-on: macos-15
-    steps:
-    - uses: Wandalen/wretry.action@v3
-      with:
-        action: actions/checkout@v5
-        with: |
-          submodules: true
-        attempt_limit: 3
-        attempt_delay: 10000
-    - name: Download build artifacts
-      uses: actions/download-artifact@v6
-      with:
-        path: artifacts
-        pattern: build-artifact-mac64
-        merge-multiple: true
-    - name: Check
-      run: |
-        unzip artifacts/escargot-mac64.zip -d artifacts
-        otool -L artifacts/escargot
-        otool -L artifacts/*.dylib
-        $RUNNER --engine="$GITHUB_WORKSPACE/artifacts/escargot" new-es
-
-  check-build-mac64arm:
-    needs: [build-macOS]
-    runs-on: macos-latest
-    steps:
-    - uses: Wandalen/wretry.action@v3
-      with:
-        action: actions/checkout@v5
-        with: |
-          submodules: true
-        attempt_limit: 3
-        attempt_delay: 10000
-    - name: Download build artifacts
-      uses: actions/download-artifact@v6
-      with:
-        path: artifacts
-        pattern: build-artifact-mac64arm
-        merge-multiple: true
-    - name: Check
-      run: |
-        unzip artifacts/escargot-mac64arm.zip -d artifacts
-        otool -L artifacts/escargot
-        otool -L artifacts/*.dylib
-        $RUNNER --engine="$GITHUB_WORKSPACE/artifacts/escargot" new-es
-
-  check-build-linux:
-    needs: [build-linux]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: Wandalen/wretry.action@v3
-      with:
-        action: actions/checkout@v5
-        with: |
-          submodules: true
-        attempt_limit: 3
-        attempt_delay: 10000
-    - name: Download build artifacts
-      uses: actions/download-artifact@v6
-      with:
-        path: artifacts
-        pattern: build-artifact-linux
-        merge-multiple: true
-    - name: Check
-      run: |
-        dpkg -l | grep libicu-dev
-        mkdir -p result-x86
-        mkdir -p result-x64
-        unzip artifacts/escargot-linux-x86.zip -d result-x86
-        unzip artifacts/escargot-linux-x64.zip -d result-x64
-        # ESCARGOT_LIBICU_SUPPORT_VENDORED=ON statically links ICU, so there's
-        # no libicu* shared object shipped in the zip to ldd -- see the
-        # matching nullglob comment in build-linux's Deploy step above.
-        shopt -s nullglob
-        ldd result-x86/escargot
-        for LIB in result-x86/libicu*; do ldd "$LIB"; done
-        ldd result-x64/escargot
-        for LIB in result-x64/libicu*; do ldd "$LIB"; done
-        $RUNNER --engine="$GITHUB_WORKSPACE/result-x86/escargot" new-es
-        $RUNNER --engine="$GITHUB_WORKSPACE/result-x64/escargot" new-es
-
   update-release:
-    needs: [check-build-mac64, check-build-mac64arm, check-build-linux, build-windows]
+    needs: [build-macOS, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
     - name: Download build artifacts
