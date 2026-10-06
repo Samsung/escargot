@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       include_hermes:
-        description: 'Include Hermes V1 using JavaScript source input'
+        description: 'Include Hermes V1 using JavaScript source input (always included in scheduled runs)'
         type: boolean
-        default: false
+        default: true
       preview_only:
         description: 'Upload measurement artifacts without publishing the site'
         type: boolean
@@ -136,7 +136,7 @@ jobs:
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            python3 -u tools/monthly-engine-benchmark.py ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report/run.log
+            python3 -u tools/monthly-engine-benchmark.py ${{ inputs.scores_only && '--scores-only' || '' }} ${{ (github.event_name == 'schedule' || inputs.include_hermes) && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report/run.log
       - name: Compare ARM32 engines natively on the same host
         if: ${{ !cancelled() && (inputs.report_run_id == '' || inputs.measure_arm32 == true) && inputs.arm64_only != true }}
         shell: bash
@@ -149,7 +149,7 @@ jobs:
           install -d -m 700 "$lock_dir"
           mkdir -p monthly-engine-report-arm32
           flock -x -w 3600 "$lock_dir/performance-host.lock" \
-            bash tools/run-monthly-arm32-benchmark.sh ${{ inputs.scores_only && '--scores-only' || '' }} ${{ inputs.include_hermes && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report-arm32/run.log
+            bash tools/run-monthly-arm32-benchmark.sh ${{ inputs.scores_only && '--scores-only' || '' }} ${{ (github.event_name == 'schedule' || inputs.include_hermes) && '--include-hermes' || '' }} 2>&1 | tee monthly-engine-report-arm32/run.log
       - name: Show comparison tables in the Actions summary
         if: always()
         shell: bash

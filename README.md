@@ -7,47 +7,46 @@
 [![codecov](https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8)](https://codecov.io/gh/Samsung/escargot)
 
 
-**Production-proven JavaScript. Built for real memory budgets.**
+**Modern JavaScript for memory-constrained applications.**
 
-Escargot is an embeddable JavaScript engine for developers building products
-that need modern JavaScript, rich internationalization, and a runtime that
-uses memory efficiently. Proven in shipping products, it is ready to embed
-in your own applications through its public C++ API.
+Escargot is an embeddable JavaScript engine developed by Samsung and used
+in shipping products. It combines modern JavaScript and ICU-backed
+internationalization with a bytecode interpreter designed to keep memory
+use low as workloads grow.
 
-Escargot runs substantial JavaScript workloads, including the parsers,
-compilers, formatters, and other tools in Web Tooling Benchmark. Its bytecode
-interpreter and compact runtime data structures are designed to keep memory
-overhead low as applications and object graphs grow. You get a capable
-JavaScript runtime with control over the features and footprint you deploy.
+Embed it through the C++ API or the optional Node-API hosting layer, and
+choose the features you ship. JavaScript execution does not require a JIT
+or executable memory for generated machine code.
 
-### Why choose Escargot?
+[Quick start](#quick-start) · [Compare engines](#measured-performance-and-memory) ·
+[Embedding](#embed-in-your-application) · [ICU configuration](#icu-configuration)
 
-* **Modern JavaScript, with internationalization included.** Escargot targets
-  [ECMAScript 2026](https://262.ecma-international.org/17.0/) and provides
-  ICU-backed `Intl` and `Temporal` for locale-aware formatting, collation,
-  dates, and times.
-* **Memory efficiency on substantial workloads.** Compare resident memory
-  and execution speed on SunSpider, Octane, and Web Tooling below. The
-  published results include engine versions, measurement conditions, repeat
-  ranges, and raw data so you can evaluate the trade-offs for your product.
-* **A broad choice of platforms.** Build for Linux, Android, Tizen, Windows,
-  macOS, and iOS across multiple CPU architectures. FreeRTOS and NuttX
-  reference ports extend the engine to bare-metal and RTOS environments.
-* **Straightforward embedding.** Integrate through the
-  [public C++ API](src/api/EscargotPublic.h), or enable the
-  [Node-API v10 hosting layer](docs/n-api.md). Build a static or shared
-  library to fit your application.
-* **Interpreter execution without a JIT requirement.** Escargot compiles
-  JavaScript to bytecode without requiring executable memory for generated
-  machine code. The comparisons include V8's `--jitless` configuration.
-* **A footprint you can configure.** Select ICU, WebAssembly, threading,
-  code cache, debugger support, and small-device options for your target.
-  Use system-provided ICU or bundle ICU with your application.
+### Why Escargot?
+
+* **Modern language support.** Targets
+  [ECMAScript 2026](https://262.ecma-international.org/17.0/), with ICU-backed
+  `Intl` and `Temporal`. Available internationalization features depend on
+  your [ICU configuration and version](#icu-configuration).
+* **Memory use on substantial workloads.** The comparisons below cover
+  SunSpider, Octane, and Web Tooling, including parsers, compilers, and
+  formatters. Inspect execution speed and resident memory together to
+  evaluate the trade-off for your application.
+* **Control over deployment size.** Reuse a suitable system ICU to avoid
+  shipping another copy, or bundle a version with your application. Select
+  WebAssembly, threading, code cache, and debugger support through
+  [build options](#build-options).
+* **A choice of targets.** Build for Linux, Android, Tizen, Windows, macOS,
+  and iOS. FreeRTOS and NuttX reference ports are also available; see the
+  [platform table](#supported-platforms-and-architectures) for architectures
+  and validation scope.
 
 ### Measured performance and memory
 
-Choose the architecture used by your product to see execution performance
-and memory use on the same fixed amount of work.
+Compare Escargot with QuickJS and V8, including V8's `--jitless` mode.
+Hermes V1 results, when available, include explicit compatibility failures.
+Choose your target architecture below. Execution scores and memory are
+measured separately; memory comparisons use a fixed amount of work for
+each engine.
 
 <div id="engine-comparison-selector">
 
@@ -71,31 +70,67 @@ Both views update automatically when CI publishes a validated comparison.
 Open the [comparison dashboard](https://samsung.github.io/escargot/performance/monthly/)
 for individual tests, measurement methods, repeat ranges, and raw data.
 
-### Try it in your product
+These suites cover different kinds of work: small scripts in SunSpider,
+longer benchmark workloads in Octane, and JavaScript development tools in
+Web Tooling. Use them to narrow your choices, then measure your own scripts
+on your target device.
 
-Start with the [build instructions](#building-), then explore the
-[embedding API](src/api/EscargotPublic.h) and [sample applications](samples).
-The shell lets you run your own scripts and compare the workloads that
-matter to your application before integrating the engine.
+### Quick start
 
-Escargot is developed by Samsung and available under the LGPL-2.1 license.
+On Debian or Ubuntu, install the build prerequisites and build the shell:
+
+```sh
+sudo apt-get install build-essential cmake git libicu-dev pkg-config python3
+git clone https://github.com/Samsung/escargot.git
+cd escargot
+git submodule update --init third_party
+cmake -S . -B out -DCMAKE_BUILD_TYPE=Release -DESCARGOT_ENABLE_SHELL=ON
+cmake --build out --parallel
+./out/escargot -e 'print("Hello from Escargot!")'
+```
+
+Run a file with `./out/escargot path/to/script.js`. This Linux configuration
+uses system ICU; see [ICU configuration](#icu-configuration) for feature
+requirements and alternatives. For other systems, follow the
+[platform-specific build instructions](#supported-platforms-and-architectures).
+
+### Embed in your application
+
+The default build produces `out/libescargot.a` and the command-line shell.
+Choose the integration that fits your host application:
+
+* **C++:** start with the [public API](src/api/EscargotPublic.h). The
+  [shell implementation](src/shell/Shell.cpp) shows how the API is used to
+  initialize the engine, create a context, and evaluate scripts.
+* **Node-API:** enable the optional [Node-API v10 hosting layer](docs/n-api.md)
+  for C-style hosting APIs and native addons. Consult its integration guide
+  for configuration and host responsibilities.
+* **RTOS:** use the [porting guide](docs/porting/RTOS_PORTING_GUIDE.md) and
+  [reference applications](samples/rtos) for platform integration.
+
+Set `ESCARGOT_BUILD_SHARED_LIBS=ON` for a shared library, or
+`ESCARGOT_ENABLE_SHELL=OFF` to build without the C++ shell. Run the
+[benchmark and conformance suites](#testing-) as part of your evaluation.
+
+Escargot is available under the [LGPL-2.1 license](LICENSE).
+Bug reports and contributions are welcome; see [Contributing](#contributing-).
 
 
 ## Contents 📋
-* [Building](#Building-)
-  * [Linux](#Linux)
-  * [macOS](#macOS)
-  * [iOS](#iOS)
-  * [Android](#Android)
-  * [Tizen](#Tizen)
-  * [Windows](#Windows)
-  * [Bare-metal / RTOS](#Bare-metal--RTOS)
-  * [Vendored ICU](#Vendored-ICU)
-* [Debugger](#Debugger)
-* [Testing](#Testing-)
-* [Contributing](#Contributing-)
-* [Research Papers](#Research-Papers-)
-* [License](#License-)
+* [Building](#building-)
+  * [Linux](#linux)
+  * [macOS](#macos)
+  * [iOS](#ios)
+  * [Android](#android)
+  * [Tizen](#tizen)
+  * [Windows](#windows)
+  * [Bare-metal / RTOS](#bare-metal--rtos)
+  * [ICU configuration](#icu-configuration)
+* [Debugger](#debugger)
+* [Testing](#testing-)
+* [Contributing](#contributing-)
+* [Research Papers](#research-papers-)
+* [License](#license-)
 
 ## Building 🛠️
 
@@ -125,6 +160,8 @@ Pass these options when configuring with CMake.
 | -DESCARGOT_ENABLE_SHELL | Build the Escargot shell (`-DENABLE_SHELL` remains a legacy alias) | ON/OFF | ON, except OFF when ESCARGOT_NAPI is ON |
 | -DESCARGOT_BUILD_CCTEST | Build the C++ tests | ON/OFF | OFF |
 | -DESCARGOT_LIBICU_SUPPORT | Include libicu library | ON/OFF | ON, except OFF on bare-metal |
+| -DESCARGOT_LIBICU_SUPPORT_VENDORED | Bundle ICU; see [ICU configuration](#icu-configuration) | ON/OFF | ON on Windows, macOS, and iOS; OFF elsewhere |
+| -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | Load ICU at runtime instead of linking directly | ON/OFF | ON unless vendored ICU is selected; OFF on macOS and iOS; unsupported on iOS |
 | -DESCARGOT_WASM | Enable WebAssembly support | ON/OFF | OFF |
 | -DESCARGOT_CODE_CACHE | Enable code cache | ON/OFF | OFF |
 | -DESCARGOT_TCO | Enable tail call optimization | ON/OFF | OFF |
@@ -147,8 +184,6 @@ Pass these options when configuring with CMake.
 | **-DESCARGOT_ASAN** | Build with AddressSanitizer | ON/OFF | OFF |
 | **-DESCARGOT_COVERAGE** | Build with gcov/Codecov instrumentation | ON/OFF | OFF |
 | **-DESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | ON/OFF | OFF |
-| **-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN** | Load libicu at runtime via dlopen() instead of linking directly | ON/OFF | ON, except OFF on macOS (dlopen-loaded ICU doesn't work correctly there), disallowed entirely on iOS, and OFF when ESCARGOT_LIBICU_SUPPORT_VENDORED is ON |
-| **-DESCARGOT_LIBICU_SUPPORT_VENDORED** | Build/ship Escargot's own ICU instead of relying on a system-provided one (see "Vendored ICU" below) | ON/OFF | ON on windows, macOS and iOS (the only ICU option there), OFF elsewhere (available on linux too) |
 | **-DESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | ON/OFF | ON when NAPI is ON, otherwise OFF |
 | **-DESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | ON/OFF | OFF |
 | **-DESCARGOT_YARR_START_CHAR_FILTER** | Enable the Yarr interpreter first-character prefilter | ON/OFF | ON |
@@ -538,17 +573,84 @@ See the `build-on-ios-device-arm64` CI job
 (`.github/workflows/es-actions.yml`) for the exact commands and
 verification steps.
 
-### Vendored ICU
+### ICU configuration
 
-By default, Escargot loads ICU from wherever the target OS/dev environment
-already provides it (system package on linux/Android, Homebrew on macOS,
-OS-built-in on Windows) -- except on iOS, which has no system ICU at all.
-`-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON` (the windows, macOS and iOS default
--- and, on iOS, the only supported ICU option, see the "iOS" section above;
-opt-in on linux) makes Escargot bring/build its own ICU instead -- useful for
-targets with no usable system ICU, or to pin an exact ICU version/build
-independent of the host. The actual mechanism differs per host, since ICU's
-own build system does too:
+Escargot can use ICU already installed on your target or bundle ICU with
+your application. Reusing system ICU avoids distributing another copy of
+its libraries and locale data. Bundling lets you pin the ICU version
+independently of the target OS. This is a deployment choice; runtime memory
+use still depends on the libraries, data, and workload in use.
+
+| Target | Default ICU source | Alternatives |
+|---|---|---|
+| Linux | System ICU, loaded at runtime | Vendored ICU, direct linking, or ICU disabled |
+| Android / Tizen | System ICU, loaded at runtime | ICU disabled |
+| macOS | Vendored ICU | Homebrew/system ICU via direct linking, or ICU disabled |
+| Windows | vcpkg ICU, with a system-ICU fallback if vcpkg ICU is unavailable | Explicitly select Windows ICU, or disable ICU; see [Windows](#windows) |
+| iOS | Vendored ICU | ICU disabled |
+| Bare-metal / RTOS | ICU disabled | Requires target-specific integration |
+
+#### Choose a configuration
+
+For Linux, pass one of these configurations to CMake, using a separate build
+directory for each. All examples assume the submodules have been initialized.
+
+```sh
+# Reuse system ICU (the Linux default).
+cmake -S . -B out-system -DCMAKE_BUILD_TYPE=Release \
+    -DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF \
+    -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=ON
+
+# Build and statically link the vendored ICU, including its filtered data.
+cmake -S . -B out-vendored -DCMAKE_BUILD_TYPE=Release \
+    -DESCARGOT_LIBICU_SUPPORT_VENDORED=ON
+
+# Omit ICU-backed features, including Intl and Temporal.
+cmake -S . -B out-noicu -DCMAKE_BUILD_TYPE=Release \
+    -DESCARGOT_LIBICU_SUPPORT=OFF -DESCARGOT_TEMPORAL=OFF
+```
+
+Then run `cmake --build <build-directory> --parallel`. To link directly
+against a system ICU development package on Linux, set both
+`ESCARGOT_LIBICU_SUPPORT_VENDORED=OFF` and
+`ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF`; CMake locates it through
+`pkg-config`. See the platform instructions for macOS, Windows, and iOS.
+
+#### System ICU version requirements
+
+Required versions depend on the features your application uses. The runtime
+binder searches versioned ICU libraries starting at ICU 49; that is a
+library-discovery bound, **not a minimum version for all Intl and Temporal
+features**. The following checks apply to the runtime-binding path:
+
+| Feature or operation | Version checked by Escargot |
+|---|---|
+| `Intl.NumberFormat` and `Intl.DisplayNames` initialization | ICU 62+ |
+| `Intl.ListFormat` and `Intl.DurationFormat` initialization | ICU 67+ |
+| `Intl.DateTimeFormat` date-range formatting path | ICU 67+ |
+| `Intl.RelativeTimeFormat` initialization | ICU 68+ |
+| `Intl.Segmenter` initialization | ICU 69+ |
+| Temporal local-time-zone offset calculation | ICU 69+ |
+
+These checks do not guarantee every option is available. Some operations
+have additional version or symbol requirements; for example, number-range
+formatting probes for the required symbols because Windows' system ICU may
+not export them. Guarded operations reject unsupported versions, while a
+missing required ICU symbol can terminate the process. Validate the features
+you need against the ICU supplied by your deployment target.
+
+The vendored source is pinned to ICU **78.1**. See the
+[runtime binder](third_party/runtime_icu_binder/RuntimeICUBinder.cpp),
+[Intl implementations](src/intl), and
+[Temporal implementation](src/runtime/TemporalObject.cpp) for the checks.
+
+#### Vendored ICU
+
+`ESCARGOT_LIBICU_SUPPORT_VENDORED=ON` selects the following platform-specific
+integration and disables runtime loading through the binder:
+
+<details>
+<summary>Vendored ICU build and packaging details</summary>
 
 - **linux** and **macOS**: both build the `third_party/icu` submodule
   (pinned to tag `release-78.1`, matching this repo's CI pin) from source --
@@ -588,6 +690,8 @@ See `build/VendoredICU.cmake` for the implementation and
 `build-on-ios-device-arm64` jobs for full end-to-end examples (build, verify
 static linking via `ldd`/`otool -L`, run tests, and for the iOS Simulator
 run the Octane benchmark).
+
+</details>
 
 ## Debugger
 

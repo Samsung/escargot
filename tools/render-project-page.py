@@ -2,6 +2,7 @@
 """Render the project introduction from its README for GitHub Pages."""
 
 import argparse
+import html
 import subprocess
 import pathlib
 import re
@@ -35,7 +36,24 @@ def rewrite_links(html):
     pattern = r'(href|src)=(["\'])(.*?)\2'
     return re.sub(pattern, replacer, html)
 
-processed_html = rewrite_links(readme_html)
+def add_heading_ids(source):
+    used = set()
+
+    def heading(match):
+        level, content = match.groups()
+        label = html.unescape(re.sub(r'<[^>]+>', '', content)).lower()
+        base = re.sub(r'[^\w\- ]', '', label).replace(' ', '-')
+        anchor, suffix = base, 0
+        while anchor in used:
+            suffix += 1
+            anchor = f'{base}-{suffix}'
+        used.add(anchor)
+        return f'<h{level} id="{anchor}">{content}</h{level}>'
+
+    return re.sub(r'<h([1-6])>(.*?)</h\1>', heading, source, flags=re.S)
+
+
+processed_html = rewrite_links(add_heading_ids(readme_html))
 
 template = f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Escargot</title>
 <style>
@@ -72,8 +90,9 @@ template = f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="
   <div class="hero">
     <div class="mark">Embeddable JavaScript engine</div>
     <h1>Escargot</h1>
-    <p class="lead">Production-proven JavaScript. Built for real memory budgets.</p>
+    <p class="lead">Modern JavaScript for memory-constrained applications.</p>
     <div class="links">
+      <a href="#quick-start">Quick start</a>
       <a href="https://github.com/Samsung/escargot">GitHub repository</a>
       <a href="performance/monthly/">Compare engines</a>
       <a href="performance/">Performance history</a>
