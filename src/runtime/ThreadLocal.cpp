@@ -582,7 +582,6 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     // before this thread performs any application allocation.
     GC_REGISTER_DISPLACEMENT(OtherPointerKind);
     GC_REGISTER_DISPLACEMENT(NumberPointerKind);
-    GC_REGISTER_DISPLACEMENT(GC_FINALIZED_MALLOC_USER_OFFSET + OtherPointerKind);
 
     if (!ThreadLocal::g_emptyStringInstance) {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
