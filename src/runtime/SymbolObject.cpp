@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "SymbolObject.h"
 #include "Context.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -36,6 +37,15 @@ SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
 
 void* SymbolObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::SymbolObject))) {
+        GC_word bitmap[(sizeof(SymbolObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(SymbolObject, m_primitiveValue) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::SymbolObject, size, bitmap, sizeof(SymbolObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::SymbolObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -46,5 +56,6 @@ void* SymbolObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 } // namespace Escargot

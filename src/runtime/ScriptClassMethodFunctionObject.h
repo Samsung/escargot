@@ -43,8 +43,11 @@ public:
         return m_homeObject;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
-    Object* m_homeObject;
+    CompressibleHeapPointer<Object> m_homeObject;
 };
 } // namespace Escargot
 

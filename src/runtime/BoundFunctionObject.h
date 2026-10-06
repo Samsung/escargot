@@ -40,7 +40,8 @@ public:
 
     virtual bool isConstructor() const override
     {
-        return Value(m_boundTargetFunction).isConstructor();
+        Object* target = m_boundTargetFunction;
+        return Value(target).isConstructor();
     }
 
     Value targetFunction()
@@ -53,13 +54,16 @@ public:
         return m_boundTargetFunction->getFunctionRealm(state);
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv) override;
     virtual Value construct(ExecutionState& state, const size_t calledArgc, Value* calledArgv, Object* newTarget) override;
 
-    Object* m_boundTargetFunction;
-    EncodedValue m_boundThis;
-    EncodedValueVector m_boundArguments;
+    CompressibleHeapPointer<Object> m_boundTargetFunction;
+    HeapEncodedValue m_boundThis;
+    CompressibleHeapVectorOwner<EncodedValueVector, EncodedValueVectorElement> m_boundArguments;
 };
 } // namespace Escargot
 

@@ -158,6 +158,15 @@ public:
     bool hasRejectHandlers() const { return m_rejectReactions.size() > 0; }
 
 protected:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static inline void fillCompressedGCDescriptor(GC_word* desc)
+    {
+        Object::fillCompressedGCDescriptor(desc);
+        GC_set_bit(desc, offsetof(PromiseObject, m_promiseResult) / 4);
+        GC_set_bit(desc, offsetof(PromiseObject, m_fulfillReactions) / 4);
+        GC_set_bit(desc, offsetof(PromiseObject, m_rejectReactions) / 4);
+    }
+#endif
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
@@ -167,9 +176,9 @@ protected:
     }
 
     PromiseState m_state;
-    EncodedValue m_promiseResult;
-    Reactions m_fulfillReactions;
-    Reactions m_rejectReactions;
+    HeapEncodedValue m_promiseResult;
+    CompressibleHeapVectorOwner<Reactions, PromiseReaction> m_fulfillReactions;
+    CompressibleHeapVectorOwner<Reactions, PromiseReaction> m_rejectReactions;
 };
 } // namespace Escargot
 #endif // __EscargotPromiseObject__

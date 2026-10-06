@@ -24,8 +24,43 @@
 #include "FunctionObjectInlines.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ScriptVirtualArrowFunctionObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* ScriptClassConstructorPrototypeObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptClassConstructorPrototypeObject))) {
+        GC_word bitmap[(sizeof(ScriptClassConstructorPrototypeObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorPrototypeObject, m_constructor) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptClassConstructorPrototypeObject, size, bitmap, sizeof(ScriptClassConstructorPrototypeObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptClassConstructorPrototypeObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
+void* ScriptClassConstructorFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptClassConstructorFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptClassConstructorFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        ScriptFunctionObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorFunctionObject, m_homeObject) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorFunctionObject, m_outerClassConstructor) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorFunctionObject, m_classSourceCode) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorFunctionObject, m_instanceFieldInitData) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptClassConstructorFunctionObject, m_staticFieldInitData) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptClassConstructorFunctionObject, size, bitmap, sizeof(ScriptClassConstructorFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptClassConstructorFunctionObject, size);
+#else
+    return ScriptFunctionObject::operator new(size);
+#endif
+}
 ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock,
                                                                            LexicalEnvironment* outerEnvironment, Object* homeObject, Optional<Object*> outerClassConstructor,
                                                                            ClassSourceText* classSourceCode, const Optional<AtomicString>& name)

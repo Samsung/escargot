@@ -21,6 +21,7 @@
 
 #include "Escargot.h"
 #include "wasm.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayBufferObject.h"
@@ -81,6 +82,14 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_mo
 
 void* WASMModuleObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMModuleObject))) {
+        GC_word bitmap[(sizeof(WASMModuleObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMModuleObject, size, bitmap, sizeof(WASMModuleObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMModuleObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -90,6 +99,7 @@ void* WASMModuleObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 WASMInstanceObject::WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports)
@@ -113,6 +123,15 @@ WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, was
 
 void* WASMInstanceObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMInstanceObject))) {
+        GC_word bitmap[(sizeof(WASMInstanceObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WASMInstanceObject, m_exports) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMInstanceObject, size, bitmap, sizeof(WASMInstanceObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMInstanceObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -123,6 +142,7 @@ void* WASMInstanceObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBuffer* buffer)
@@ -152,6 +172,15 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 
 void* WASMMemoryObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMMemoryObject))) {
+        GC_word bitmap[(sizeof(WASMMemoryObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WASMMemoryObject, m_buffer) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMMemoryObject, size, bitmap, sizeof(WASMMemoryObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMMemoryObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -162,6 +191,7 @@ void* WASMMemoryObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wasm_memory_t* memaddr)
@@ -236,6 +266,14 @@ WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_tabl
 
 void* WASMTableObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMTableObject))) {
+        GC_word bitmap[(sizeof(WASMTableObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMTableObject, size, bitmap, sizeof(WASMTableObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMTableObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -245,6 +283,7 @@ void* WASMTableObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_table_t* tableaddr)
@@ -291,6 +330,14 @@ WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_gl
 
 void* WASMGlobalObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMGlobalObject))) {
+        GC_word bitmap[(sizeof(WASMGlobalObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMGlobalObject, size, bitmap, sizeof(WASMGlobalObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMGlobalObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -300,6 +347,7 @@ void* WASMGlobalObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wasm_global_t* globaladdr)

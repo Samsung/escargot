@@ -25,6 +25,7 @@
 
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ErrorObject.h"
@@ -45,6 +46,34 @@
 #include "heap/LeakCheckerBridge.h"
 
 namespace Escargot {
+
+void* GlobalObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::GlobalObject))) {
+        GC_word bitmap[(sizeof(GlobalObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(GlobalObject, m_context) / 4);
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+        GC_set_bit(bitmap, offsetof(GlobalObject, m_intlLegacyConstructedSymbol) / 4);
+        for (size_t i = 0; i < 3; ++i) {
+            GC_set_bit(bitmap, offsetof(GlobalObject, m_defaultDateTimeFormat) / 4 + i);
+        }
+#endif
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
+        GC_set_bit(bitmap, offsetof(GlobalObject, m_defaultNumberFormat) / 4);
+#endif
+#define MARK_BUILTIN_VALUE(builtin, TYPE, objName) \
+    GC_set_bit(bitmap, offsetof(GlobalObject, m_##builtin) / 4);
+        GLOBALOBJECT_BUILTIN_ALL_LIST(MARK_BUILTIN_VALUE)
+#undef MARK_BUILTIN_VALUE
+        Heap::initializeCompressedType(Heap::CompressedType::GlobalObject, size, bitmap, sizeof(GlobalObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::GlobalObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 FunctionObject* Object::defineBuiltinFunction(ExecutionState& state, const AtomicString& name, NativeFunctionPointer fn, size_t argc)
 {
@@ -72,7 +101,8 @@ GlobalObject::GlobalObject(ExecutionState& state)
 #undef INIT_BUILTIN_VALUE
 {
     // m_objectPrototype should be initialized ahead of any other builtins
-    m_objectPrototype = m_prototype;
+    Object* prototype = m_prototype;
+    m_objectPrototype = prototype;
 
     Object::setGlobalIntrinsicObject(state);
 }

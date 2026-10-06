@@ -591,7 +591,7 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 #endif
         // mark empty string as AtomicString source
         // because empty string is the default string value of empty AtomicString
-        emptyStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)emptyStr;
+        emptyStr->setAtomicStringSource(emptyStr);
         ASSERT(emptyStr->isAtomicStringSource());
         ThreadLocal::g_emptyStringInstance = emptyStr;
     }

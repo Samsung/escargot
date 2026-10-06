@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "runtime/SetObject.h"
+#include "heap/Heap.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/Context.h"
 #include "runtime/KeyedCollectionHashIndex.h"
@@ -43,6 +44,16 @@ SetObject::SetObject(ExecutionState& state, Object* proto, SetObjectData&& data)
 
 void* SetObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::SetObject))) {
+        GC_word bitmap[(sizeof(SetObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(SetObject, m_storage) / 4);
+        GC_set_bit(bitmap, offsetof(SetObject, m_hashIndex) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::SetObject, size, bitmap, sizeof(SetObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::SetObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -54,6 +65,7 @@ void* SetObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 void SetObject::clear(ExecutionState& state)
@@ -222,7 +234,7 @@ size_t SetObject::size() const
 }
 ArrayObject* SetObject::createDenseArrayCopy(ExecutionState& state, SetObject* src)
 {
-    const SetObjectData& storage = src->m_storage;
+    const SetObjectData& storage = src->storage();
     ValueVector buffer;
     buffer.reserve(src->size());
     for (size_t i = 0; i < storage.size(); i++) {
@@ -261,6 +273,15 @@ SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type
 
 void* SetIteratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::SetIteratorObject))) {
+        GC_word bitmap[(sizeof(SetIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(SetIteratorObject, m_set) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::SetIteratorObject, size, bitmap, sizeof(SetIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::SetIteratorObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -271,6 +292,7 @@ void* SetIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 std::pair<Value, bool> SetIteratorObject::advance(ExecutionState& state)

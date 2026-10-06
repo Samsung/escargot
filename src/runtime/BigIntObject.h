@@ -47,8 +47,13 @@ public:
         m_primitiveValue = data;
     }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+#endif
+
 private:
-    BigInt* m_primitiveValue;
+    CompressibleHeapPointer<BigInt> m_primitiveValue;
 };
 } // namespace Escargot
 

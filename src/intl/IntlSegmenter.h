@@ -51,8 +51,8 @@ public:
     IntlSegmentsObject* segment(ExecutionState& state, String* string);
 
 protected:
-    String* m_locale;
-    String* m_granularity;
+    CompressibleHeapPointer<String> m_locale;
+    CompressibleHeapPointer<String> m_granularity;
 
     UBreakIterator* m_icuSegmenter;
 };
@@ -60,6 +60,8 @@ protected:
 class IntlSegmentsObject : public DerivedObject {
 public:
     IntlSegmentsObject(ExecutionState& state, String* string, String* u16String, String* granularity, UBreakIterator* icuSegmenter);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     virtual bool isIntlSegmentsObject() const override
     {
@@ -85,15 +87,18 @@ public:
     }
 
 protected:
-    String* m_string;
-    String* m_u16String;
-    String* m_granularity;
+    CompressibleHeapPointer<String> m_string;
+    CompressibleHeapPointer<String> m_u16String;
+    CompressibleHeapPointer<String> m_granularity;
+
     UBreakIterator* m_icuSegmenter;
 };
 
 class IntlSegmentsIteratorObject : public IteratorObject {
 public:
     IntlSegmentsIteratorObject(ExecutionState& state, IntlSegmentsObject* segments, UBreakIterator* icuSegmenter);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     virtual bool isIntlSegmentsIteratorObject() const override
     {
@@ -103,7 +108,8 @@ public:
     virtual std::pair<Value, bool> advance(ExecutionState& state) override;
 
 private:
-    IntlSegmentsObject* m_segments;
+    CompressibleHeapPointer<IntlSegmentsObject> m_segments;
+
     UBreakIterator* m_icuSegmenter;
 };
 

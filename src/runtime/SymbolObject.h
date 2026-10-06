@@ -49,7 +49,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Symbol* m_primitiveValue;
+    CompressibleHeapPointer<Symbol> m_primitiveValue;
 };
 } // namespace Escargot
 

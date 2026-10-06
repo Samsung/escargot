@@ -62,9 +62,9 @@ public:
     Value formatToParts(ExecutionState& state, const Value& list);
 
 protected:
-    String* m_locale;
-    String* m_type;
-    String* m_style;
+    CompressibleHeapPointer<String> m_locale;
+    CompressibleHeapPointer<String> m_type;
+    CompressibleHeapPointer<String> m_style;
 
     UListFormatter* m_icuListFormatter;
 };

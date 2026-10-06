@@ -58,7 +58,7 @@ public:
 
     const WeakMapObjectData& storage() const
     {
-        return m_storage;
+        return m_storage.vector();
     }
 
 private:
@@ -71,8 +71,8 @@ private:
     static GC_ms_entry* markEphemerons(GC_ms_entry* markStackTop, GC_ms_entry* markStackLimit, void* data);
     static void removeEphemeronListener(PointerValue* self, void* data);
 
-    WeakMapObjectData m_storage;
-    Optional<KeyedCollectionHashIndex*> m_hashIndex;
+    CompressibleHeapVectorOwner<WeakMapObjectData, WeakMapObjectDataItem*> m_storage;
+    CompressibleHeapPointer<KeyedCollectionHashIndex> m_hashIndex;
 };
 } // namespace Escargot
 

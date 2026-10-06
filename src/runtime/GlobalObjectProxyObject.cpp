@@ -19,8 +19,24 @@
 
 #include "Escargot.h"
 #include "GlobalObjectProxyObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* GlobalObjectProxyObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::GlobalObjectProxyObject))) {
+        GC_word bitmap[(sizeof(GlobalObjectProxyObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(GlobalObjectProxyObject, m_target) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::GlobalObjectProxyObject, size, bitmap, sizeof(GlobalObjectProxyObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::GlobalObjectProxyObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 ObjectGetResult GlobalObjectProxyObject::get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver)
 {

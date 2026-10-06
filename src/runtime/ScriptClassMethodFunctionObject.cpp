@@ -19,8 +19,23 @@
 
 #include "Escargot.h"
 #include "ScriptClassMethodFunctionObject.h"
+#include "heap/Heap.h"
 
 #include "FunctionObjectInlines.h"
 
 namespace Escargot {
+void* ScriptClassMethodFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptClassMethodFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptClassMethodFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        ScriptFunctionObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptClassMethodFunctionObject, m_homeObject) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptClassMethodFunctionObject, size, bitmap, sizeof(ScriptClassMethodFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptClassMethodFunctionObject, size);
+#else
+    return ScriptFunctionObject::operator new(size);
+#endif
 }
+} // namespace Escargot

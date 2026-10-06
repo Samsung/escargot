@@ -116,7 +116,17 @@ public:
 
     bool setName(AtomicString name);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 protected:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static inline void fillCompressedGCDescriptor(GC_word* desc)
+    {
+        Object::fillCompressedGCDescriptor(desc);
+        GC_set_bit(desc, offsetof(FunctionObject, m_codeBlock) / 4);
+    }
+#endif
     FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
     FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto); // ctor for FunctionTemplate
     FunctionObject() // ctor for reading tag
@@ -162,7 +172,7 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(FunctionObject, m_codeBlock));
     }
 
-    CodeBlock* m_codeBlock;
+    CompressibleHeapPointer<CodeBlock> m_codeBlock;
 };
 } // namespace Escargot
 

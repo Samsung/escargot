@@ -21,6 +21,7 @@
 #include "runtime/VMInstance.h"
 #include "runtime/BackingStore.h"
 #include "runtime/ArrayBufferObject.h"
+#include "heap/Heap.h"
 #include "runtime/TypedArrayInlines.h"
 
 namespace Escargot {
@@ -163,6 +164,16 @@ void ArrayBufferObject::detachArrayBuffer()
 
 void* ArrayBufferObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ArrayBufferObject))) {
+        GC_word bitmap[(sizeof(ArrayBufferObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ArrayBufferObject, m_observerItems) / 4);
+        GC_set_bit(bitmap, offsetof(ArrayBufferObject, m_backingStore) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ArrayBufferObject, size, bitmap, sizeof(ArrayBufferObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ArrayBufferObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -174,6 +185,7 @@ void* ArrayBufferObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)

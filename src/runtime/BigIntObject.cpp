@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "BigIntObject.h"
 #include "Context.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -33,5 +34,18 @@ BigIntObject::BigIntObject(ExecutionState& state, Object* proto, BigInt* value)
     , m_primitiveValue(value)
 {
 }
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void* BigIntObject::operator new(size_t size)
+{
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::BigIntObject))) {
+        GC_word bitmap[(sizeof(BigIntObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(BigIntObject, m_primitiveValue) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::BigIntObject, size, bitmap, sizeof(BigIntObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::BigIntObject, size);
+}
+#endif
 
 } // namespace Escargot

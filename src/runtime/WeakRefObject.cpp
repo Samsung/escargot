@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "WeakRefObject.h"
+#include "heap/Heap.h"
 #include "ArrayObject.h"
 #include "Context.h"
 
@@ -35,11 +36,23 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, PointerValue*
 {
     ASSERT(m_target);
     ASSERT(m_target->isObject() || m_target->isSymbol());
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_COMPRESSED_SAFE(&m_target, m_target.value());
+#else
     GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_target), m_target.value());
+#endif
 }
 
 void* WeakRefObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WeakRefObject))) {
+        GC_word bitmap[(sizeof(WeakRefObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::WeakRefObject, size, bitmap, sizeof(WeakRefObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WeakRefObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -49,12 +62,17 @@ void* WeakRefObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 bool WeakRefObject::deleteOperation(ExecutionState& state)
 {
     if (m_target) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        GC_unregister_disappearing_link_compressed(&m_target);
+#else
         GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_target));
+#endif
         m_target = nullptr;
         return true;
     }

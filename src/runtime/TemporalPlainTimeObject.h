@@ -29,6 +29,9 @@ class TemporalPlainTimeObject : public DerivedObject {
 public:
     TemporalPlainTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainTime plainTime);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     virtual bool isTemporalPlainTimeObject() const override
     {
         return true;
@@ -90,7 +93,7 @@ private:
     };
     ISO8601::Duration differenceTemporalPlainTime(ExecutionState& state, DifferenceTemporalPlainTime operation, Value other, Value options);
 
-    ISO8601::PlainTime* m_plainTime;
+    CompressibleHeapPointer<ISO8601::PlainTime> m_plainTime;
 };
 
 } // namespace Escargot

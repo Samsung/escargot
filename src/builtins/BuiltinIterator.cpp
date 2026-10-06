@@ -227,7 +227,7 @@ static Value builtinWrapForValidIteratorPrototypeNext(ExecutionState& state, Val
     // Let iteratorRecord be O.[[Iterated]].
     IteratorRecord* iteratorRecord = O->iterated();
     // Return ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-    return Object::call(state, iteratorRecord->m_nextMethod, iteratorRecord->iterator(state), 0, nullptr);
+    return Object::call(state, iteratorRecord->nextMethod(), iteratorRecord->iterator(state), 0, nullptr);
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.return

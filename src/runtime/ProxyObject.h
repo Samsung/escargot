@@ -134,8 +134,8 @@ private:
     bool m_isCallable : 1;
     bool m_isConstructible : 1;
 
-    Object* m_target;
-    Object* m_handler;
+    CompressibleHeapPointer<Object> m_target;
+    CompressibleHeapPointer<Object> m_handler;
 };
 } // namespace Escargot
 

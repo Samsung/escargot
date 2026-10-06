@@ -36,6 +36,8 @@ public:
         , m_constructor(nullptr)
     {
     }
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     virtual bool isScriptClassConstructorPrototypeObject() const override
     {
@@ -48,7 +50,7 @@ public:
     }
 
 private:
-    ScriptClassConstructorFunctionObject* m_constructor;
+    CompressibleHeapPointer<ScriptClassConstructorFunctionObject> m_constructor;
 };
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
@@ -58,6 +60,8 @@ class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment,
                                          Object* homeObject, Optional<Object*> outerClassConstructor, ClassSourceText* classSourceCode, const Optional<AtomicString>& name);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
@@ -104,11 +108,11 @@ private:
     }
 
     size_t m_prototypeIndex;
-    Object* m_homeObject;
-    Optional<Object*> m_outerClassConstructor;
-    ClassSourceText* m_classSourceCode;
-    TightVector<std::tuple<EncodedValue, EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, EncodedValue, size_t>>> m_instanceFieldInitData;
-    VectorWithNoSize<std::tuple<EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, size_t>>> m_staticFieldInitData;
+    CompressibleHeapPointer<Object> m_homeObject;
+    CompressibleHeapPointer<Object> m_outerClassConstructor;
+    CompressibleHeapPointer<ClassSourceText> m_classSourceCode;
+    CompressibleHeapVectorOwner<TightVector<std::tuple<EncodedValue, EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, EncodedValue, size_t>>>, std::tuple<EncodedValue, EncodedValue, size_t>> m_instanceFieldInitData;
+    CompressibleHeapVectorOwner<VectorWithNoSize<std::tuple<EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, size_t>>>, std::tuple<EncodedValue, size_t>> m_staticFieldInitData;
 };
 } // namespace Escargot
 

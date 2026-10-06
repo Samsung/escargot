@@ -73,11 +73,11 @@ public:
     ArrayObject* formatToParts(ExecutionState& state, double value, String* unit);
 
 protected:
-    String* m_locale;
-    String* m_dataLocale;
-    String* m_numberingSystem;
-    String* m_style;
-    String* m_numeric;
+    CompressibleHeapPointer<String> m_locale;
+    CompressibleHeapPointer<String> m_dataLocale;
+    CompressibleHeapPointer<String> m_numberingSystem;
+    CompressibleHeapPointer<String> m_style;
+    CompressibleHeapPointer<String> m_numeric;
 
     URelativeDateTimeFormatter* m_icuRelativeDateTimeFormatter;
     UNumberFormat* m_icuNumberFormat;

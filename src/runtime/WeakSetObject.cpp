@@ -38,6 +38,16 @@ WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
 
 void* WeakSetObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WeakSetObject))) {
+        GC_word bitmap[(sizeof(WeakSetObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WeakSetObject, m_storage) / 4);
+        GC_set_bit(bitmap, offsetof(WeakSetObject, m_hashIndex) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WeakSetObject, size, bitmap, sizeof(WeakSetObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WeakSetObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -49,6 +59,7 @@ void* WeakSetObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 size_t WeakSetObject::findKeyIndex(PointerValue* key)

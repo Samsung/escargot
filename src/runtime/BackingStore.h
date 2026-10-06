@@ -85,7 +85,7 @@ protected:
         }
     };
 
-    TightVector<ObserverVectorItem*, GCUtil::gc_malloc_allocator<ObserverVectorItem*>> m_observerItems;
+    CompressibleHeapTightVector<ObserverVectorItem*, GCUtil::gc_malloc_allocator<ObserverVectorItem*>> m_observerItems;
 
 #ifndef NDEBUG
     bool m_isUpdating;

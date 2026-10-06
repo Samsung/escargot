@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "AsyncGeneratorObject.h"
+#include "heap/Heap.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "runtime/Context.h"
 #include "runtime/PromiseObject.h"
@@ -32,12 +33,26 @@ namespace Escargot {
 AsyncGeneratorObject::AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
     : DerivedObject(state, proto)
     , m_asyncGeneratorState(SuspendedStart)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_executionPauser(new ExecutionPauser(state, this, executionState, registerFile, blk))
+#else
     , m_executionPauser(state, this, executionState, registerFile, blk)
+#endif
 {
 }
 
 void* AsyncGeneratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::AsyncGeneratorObject))) {
+        GC_word bitmap[(sizeof(AsyncGeneratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(AsyncGeneratorObject, m_executionPauser) / 4);
+        GC_set_bit(bitmap, offsetof(AsyncGeneratorObject, m_asyncGeneratorQueue) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::AsyncGeneratorObject, size, bitmap, sizeof(AsyncGeneratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::AsyncGeneratorObject, size);
+#else
     ASSERT(size == sizeof(AsyncGeneratorObject));
 
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -49,6 +64,7 @@ void* AsyncGeneratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/index.html#async-generator-resume-next-return-processor-fulfilled
@@ -202,7 +218,7 @@ Value AsyncGeneratorObject::asyncGeneratorResumeNext(ExecutionState& state, Asyn
     // Resume the suspended evaluation of genContext using completion as the result of the operation that suspended it. Let result be the completion record returned by the resumed computation.
     bool isAbruptReturn = next.m_operationType == AsyncGeneratorObject::AsyncGeneratorEnqueueType::Return;
     bool isAbruptThrow = next.m_operationType == AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw;
-    ExecutionPauser::start(state, &generator->m_executionPauser, generator, next.m_value, isAbruptReturn, isAbruptThrow, ExecutionPauser::StartFrom::AsyncGenerator);
+    ExecutionPauser::start(state, generator->executionPauser(), generator, next.m_value, isAbruptReturn, isAbruptThrow, ExecutionPauser::StartFrom::AsyncGenerator);
     // Assert: result is never an abrupt completion.
     // Assert: When we return here, genContext has already been removed from the execution context stack and callerContext is the currently running execution context.
     // Return undefined.

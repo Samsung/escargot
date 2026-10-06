@@ -30,6 +30,8 @@ class Script;
 class ModuleNamespaceObject : public DerivedObject {
 public:
     ModuleNamespaceObject(ExecutionState& state, Script* script);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     virtual bool isModuleNamespaceObject() const override
     {
@@ -121,8 +123,8 @@ public:
 
 private:
     bool m_isInitialized;
-    Script* m_script;
-    AtomicStringVector m_exports;
+    CompressibleHeapPointer<Script> m_script;
+    CompressibleHeapVectorOwner<AtomicStringVector, AtomicString> m_exports;
 };
 } // namespace Escargot
 

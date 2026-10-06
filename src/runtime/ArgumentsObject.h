@@ -64,10 +64,13 @@ public:
         return m_sourceFunctionObject;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
-    FunctionEnvironmentRecord* m_targetRecord;
-    ScriptFunctionObject* m_sourceFunctionObject;
-    TightVectorWithNoSize<std::pair<EncodedValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, AtomicString>>> m_parameterMap;
+    CompressibleHeapPointer<FunctionEnvironmentRecord> m_targetRecord;
+    CompressibleHeapPointer<ScriptFunctionObject> m_sourceFunctionObject;
+    CompressibleHeapTightVectorWithNoSize<std::pair<EncodedValue, AtomicString>, GCUtil::gc_malloc_allocator<std::pair<EncodedValue, AtomicString>>> m_parameterMap;
 
     struct ModifiedArguments : public gc {
         StorePositiveNumberAsOddNumber m_argc;
@@ -81,23 +84,34 @@ private:
             memset(m_modified, 0, s * sizeof(bool));
         }
     };
+    using ModifiedArgumentsPointer = CompressibleHeapPointer<ModifiedArguments>;
+    // An odd payload holds argc; an even payload holds the pointer.
+    // Odd counts are not compressed pointer candidates.
     union {
-        size_t m_argc;
-        ModifiedArguments* m_modifiedArguments;
+        ModifiedArgumentsPointer::StorageType m_argc;
+        ModifiedArgumentsPointer m_modifiedArguments;
     };
+
+    ModifiedArgumentsPointer::StorageType argumentStorage() const
+    {
+        ModifiedArgumentsPointer::StorageType storage;
+        memcpy(&storage, &m_argc, sizeof(storage));
+        return storage;
+    }
 
     size_t argc()
     {
-        if ((m_argc & 1) == 0) {
+        auto storage = argumentStorage();
+        if ((storage & 1) == 0) {
             return m_modifiedArguments->m_argc;
         }
-        return m_argc >> 1;
+        return storage >> 1;
     }
 
-    ModifiedArguments* modifiedArguments()
+    Optional<ModifiedArguments*> modifiedArguments()
     {
-        if ((m_argc & 1) == 0) {
-            return m_modifiedArguments;
+        if ((argumentStorage() & 1) == 0) {
+            return m_modifiedArguments.get();
         }
         return nullptr;
     }

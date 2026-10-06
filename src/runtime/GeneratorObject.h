@@ -62,7 +62,11 @@ public:
 
     ExecutionPauser* executionPauser()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_executionPauser.value();
+#else
         return &m_executionPauser;
+#endif
     }
 
     static GeneratorObject* generatorValidate(ExecutionState& state, const Value& generator);
@@ -70,6 +74,7 @@ public:
     static Value generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type);
 
 private:
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
@@ -89,9 +94,14 @@ private:
         GC_set_bit(desc, GC_WORD_OFFSET(GeneratorObject, m_executionPauser.m_savedStackTrace));
 #endif /* ESCARGOT_DEBUGGER */
     }
+#endif
 
     GeneratorState m_generatorState;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<ExecutionPauser> m_executionPauser;
+#else
     ExecutionPauser m_executionPauser;
+#endif
 };
 } // namespace Escargot
 

@@ -27,6 +27,7 @@
 #include "TemporalInstantObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -38,8 +39,20 @@ static void temporalZonedDateTimeClear(void* obj, void* cd)
 
 void* TemporalZonedDateTimeObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::TemporalZonedDateTimeObject))) {
+        GC_word bitmap[(sizeof(TemporalZonedDateTimeObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(TemporalZonedDateTimeObject, m_epochNanoseconds) / 4);
+        GC_set_bit(bitmap, offsetof(TemporalZonedDateTimeObject, m_plainDateTime) / 4);
+        GC_set_bit(bitmap, offsetof(TemporalZonedDateTimeObject, m_timeZone) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::TemporalZonedDateTimeObject, size, bitmap, sizeof(TemporalZonedDateTimeObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::TemporalZonedDateTimeObject, size, temporalZonedDateTimeClear);
+#else
     constexpr static GC_finalizer_closure data = { temporalZonedDateTimeClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void TemporalZonedDateTimeObject::clearNativeResources()
@@ -86,7 +99,7 @@ static bool timeZoneEquals(const TemporalZonedDateTimeObject::ComputedTimeZone& 
 
 void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone timeZone)
 {
-    m_timeZone = timeZone;
+    storedTimeZone() = timeZone;
     Int128 timezoneAppliedEpochNanoseconds = *m_epochNanoseconds + timeZone.offset();
 
     if (!ISO8601::isValidEpochNanoseconds(*m_epochNanoseconds)) {
@@ -99,7 +112,7 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime(*m_epochNanoseconds).floorEpochMilliseconds(), &status);
     CHECK_ICU()
 
-    auto tz = m_timeZone.timeZoneName()->toUTF16StringData();
+    auto tz = storedTimeZone().timeZoneName()->toUTF16StringData();
     ucal_setTimeZone(m_icuCalendar, tz.data(), tz.length(), &status);
     CHECK_ICU()
 
@@ -131,7 +144,11 @@ TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, 
     : DerivedObject(state, proto)
     , m_epochNanoseconds(new(PointerFreeGC) Int128(epochNanoseconds))
     , m_plainDateTime(new(PointerFreeGC) ISO8601::PlainDateTime({}, {}))
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_timeZone(new(GC) ComputedTimeZone())
+#else
     , m_timeZone()
+#endif
     , m_calendarID(calendar)
     , m_icuCalendar(nullptr)
 {
@@ -154,7 +171,11 @@ TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, 
     : DerivedObject(state, proto)
     , m_epochNanoseconds(new(PointerFreeGC) Int128(epochNanoseconds))
     , m_plainDateTime(new(PointerFreeGC) ISO8601::PlainDateTime({}, {}))
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_timeZone(new(GC) ComputedTimeZone())
+#else
     , m_timeZone()
+#endif
     , m_calendarID(calendar)
     , m_icuCalendar(nullptr)
 {
@@ -198,23 +219,23 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
     auto precision = Temporal::toSecondsStringPrecisionRecord(state, toDateTimeUnit(smallestUnit), digits);
 
     // Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
-    auto isoDateTime = Temporal::getISODateTimeFor(state, TimeZone(m_timeZone), epochNanoseconds());
+    auto isoDateTime = Temporal::getISODateTimeFor(state, TimeZone(storedTimeZone()), epochNanoseconds());
     auto result = Temporal::roundISODateTime(state, isoDateTime, precision.increment, precision.unit, roundingMode);
     // Rounding can land in a gap. Resolve the rounded wall time back through
     // the zone so the string describes the actual compatible instant rather
     // than a nonexistent local time with the pre-transition offset.
-    auto originalOffset = Temporal::getOffsetNanosecondsFor(state, TimeZone(m_timeZone), epochNanoseconds());
+    auto originalOffset = Temporal::getOffsetNanosecondsFor(state, TimeZone(storedTimeZone()), epochNanoseconds());
     auto roundedEpochNanoseconds = Temporal::interpretISODateTimeOffset(state, result.plainDate(), result.plainTime(), TemporalOffsetBehaviour::Option,
-                                                                        originalOffset, TimeZone(m_timeZone), false, TemporalDisambiguationOption::Compatible,
+                                                                        originalOffset, TimeZone(storedTimeZone()), false, TemporalDisambiguationOption::Compatible,
                                                                         TemporalOffsetOption::Prefer, TemporalMatchBehaviour::MatchExactly);
-    result = Temporal::getISODateTimeFor(state, TimeZone(m_timeZone), roundedEpochNanoseconds);
+    result = Temporal::getISODateTimeFor(state, TimeZone(storedTimeZone()), roundedEpochNanoseconds);
     StringBuilder sb;
     sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, TemporalShowCalendarNameOption::Never));
     sb.appendChar('T');
     sb.appendString(TemporalPlainTimeObject::temporalTimeToString(result.plainTime(), precision.precision));
 
     if (showOffset != TemporalShowOffsetOption::Never) {
-        auto offsetNanoseconds = TemporalDurationObject::roundTimeDurationToIncrement(state, Temporal::getOffsetNanosecondsFor(state, TimeZone(m_timeZone), roundedEpochNanoseconds), ISO8601::ExactTime::nsPerMinute, ISO8601::RoundingMode::HalfExpand);
+        auto offsetNanoseconds = TemporalDurationObject::roundTimeDurationToIncrement(state, Temporal::getOffsetNanosecondsFor(state, TimeZone(storedTimeZone()), roundedEpochNanoseconds), ISO8601::ExactTime::nsPerMinute, ISO8601::RoundingMode::HalfExpand);
         auto offsetMinutes = int(offsetNanoseconds / ISO8601::ExactTime::nsPerMinute);
         Temporal::formatOffsetTimeZoneIdentifier(state, offsetMinutes, sb);
     }
@@ -226,7 +247,7 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
         if (showTimeZone == TemporalShowTimeZoneNameOption::Critical) {
             sb.appendChar('!');
         }
-        sb.appendString(m_timeZone.timeZoneName());
+        sb.appendString(storedTimeZone().timeZoneName());
         sb.appendChar(']');
     }
 

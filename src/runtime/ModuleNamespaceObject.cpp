@@ -23,8 +23,25 @@
 #include "runtime/VMInstance.h"
 #include "runtime/Context.h"
 #include "parser/Script.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* ModuleNamespaceObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ModuleNamespaceObject))) {
+        GC_word bitmap[(sizeof(ModuleNamespaceObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ModuleNamespaceObject, m_script) / 4);
+        GC_set_bit(bitmap, offsetof(ModuleNamespaceObject, m_exports) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ModuleNamespaceObject, size, bitmap, sizeof(ModuleNamespaceObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ModuleNamespaceObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, Script* script)
     : DerivedObject(state)

@@ -76,8 +76,8 @@ private:
 };
 
 struct ExecutionStateRareData : public gc {
-    InterpretedCodeBlock* m_codeBlock; // for local eval code
-    ExecutionPauser* m_pauseSource;
+    Optional<InterpretedCodeBlock*> m_codeBlock; // for local eval code
+    Optional<ExecutionPauser*> m_pauseSource;
     // Scope states share this holder. Their parent chain keeps its owning
     // execution state alive, including while a pauser retains that chain.
     ControlFlowRecordStack m_ownedControlFlowRecordStack;
@@ -242,7 +242,7 @@ public:
         return hasRareData() ? rareData()->m_pauseSource : nullptr;
     }
 
-    void setPauseSource(ExecutionPauser* pauseSource)
+    void setPauseSource(Optional<ExecutionPauser*> pauseSource)
     {
         rareData()->m_pauseSource = pauseSource;
     }

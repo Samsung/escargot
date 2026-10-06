@@ -819,7 +819,7 @@ public:
     // Non-virtual access to the indexed binding storage of FunctionEnvironmentRecordOnHeap.
     static constexpr size_t indexedHeapStorageOffset()
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         // Keep the binding count in the allocation, rather than consulting
         // the function object from a GC mark procedure. Unreachable records
         // can still be scanned after their function has been reclaimed.
@@ -835,7 +835,7 @@ public:
         return reinterpret_cast<EncodedValueVectorElement*>(reinterpret_cast<uintptr_t>(this) + indexedHeapStorageOffset());
     }
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     size_t indexedHeapStorageCount() const
     {
         return *reinterpret_cast<const uint32_t*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord));
@@ -1137,7 +1137,7 @@ private:
     explicit FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function, size_t heapStorageCount)
         : FunctionEnvironmentRecord(function)
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(this) + sizeof(FunctionEnvironmentRecord)) = static_cast<uint32_t>(heapStorageCount);
 #endif
     }

@@ -934,6 +934,15 @@ ObjectStructureFindResult ObjectStructureWithTransitionWithMap::findProperty(con
 
 void* ObjectStructureWithMap::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureWithMap))) {
+        GC_word bitmap[(sizeof(ObjectStructureWithMap) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithMap, m_properties) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithMap, m_propertyNameMap) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureWithMap, size, bitmap, sizeof(ObjectStructureWithMap) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureWithMap, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -944,6 +953,7 @@ void* ObjectStructureWithMap::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 
@@ -1077,7 +1087,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
     if (!m_isReferencedByInlineCache) {
         newProperties->resizeWithUninitializedValues(ps - 1);
         m_properties = nullptr;
-        auto oldMap = m_propertyNameMap;
+        Optional<PropertyNameMapWithCache*> oldMap = m_propertyNameMap;
         m_propertyNameMap = nullptr;
         if (oldMap) {
             delete oldMap.value();
@@ -1093,7 +1103,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     ObjectStructureItemVector* newProperties = m_properties.value();
-    auto newPropertyNameMap = m_propertyNameMap;
+    Optional<PropertyNameMapWithCache*> newPropertyNameMap = m_propertyNameMap;
 
     if (m_isReferencedByInlineCache) {
         newProperties = new ObjectStructureItemVector(*m_properties.value());
@@ -1421,6 +1431,22 @@ ObjectStructureWithIndexProperties::ObjectStructureWithIndexProperties(ObjectStr
 
 void* ObjectStructureWithIndexProperties::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static_assert(sizeof(CompressibleHeapPointer<ObjectStructureItemVector>) == 4, "pointer slot width");
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureWithIndexProperties))) {
+        GC_word bitmap[(sizeof(ObjectStructureWithIndexProperties) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+#define SET_COMPRESSED_FIELD(field) GC_set_bit(bitmap, offsetof(ObjectStructureWithIndexProperties, field) / 4)
+        SET_COMPRESSED_FIELD(m_namedProperties);
+        SET_COMPRESSED_FIELD(m_symbolProperties);
+        SET_COMPRESSED_FIELD(m_indexProperties);
+        SET_COMPRESSED_FIELD(m_indexDescriptors);
+        SET_COMPRESSED_FIELD(m_namedPropertyMap);
+        SET_COMPRESSED_FIELD(m_indexPropertyMap);
+#undef SET_COMPRESSED_FIELD
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureWithIndexProperties, size, bitmap, sizeof(ObjectStructureWithIndexProperties) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureWithIndexProperties, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -1435,6 +1461,7 @@ void* ObjectStructureWithIndexProperties::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ObjectStructureFindResult ObjectStructureWithIndexProperties::findProperty(const ObjectStructurePropertyName& name)

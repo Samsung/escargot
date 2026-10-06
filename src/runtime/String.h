@@ -283,7 +283,11 @@ class String : public PointerValue {
 protected:
     String()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_bufferData.typeTag = POINTER_VALUE_STRING_TAG_IN_DATA;
+#else
         m_typeTag = POINTER_VALUE_STRING_TAG_IN_DATA;
+#endif
     }
 
     struct StringBufferData {
@@ -295,17 +299,27 @@ protected:
         {
         }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        uint32_t typeTag;
+#endif
+
         union {
             struct {
                 bool has8BitContent : 1;
                 bool hasSpecialImpl : 1;
-#if defined(ESCARGOT_32)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+                uint32_t length : 30;
+#elif defined(ESCARGOT_32)
                 size_t length : 30;
 #else
                 size_t length : 62;
 #endif
             };
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            uint32_t valueShouldBeOddForFewTypes;
+#else
             size_t valueShouldBeOddForFewTypes;
+#endif
         };
 
         static constexpr size_t bufferPointerAsArraySize = sizeof(size_t);
@@ -318,7 +332,11 @@ protected:
             char16_t bufferPointerAs16BitArray[bufferPointerAsArraySize / 2];
         };
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<uint32_t>::max() >> 2), "");
+#else
         COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
+#endif
 
         operator StringBufferAccessData() const
         {
@@ -487,12 +505,31 @@ public:
 
     bool isAtomicStringSource() const
     {
-        return (m_typeTag > POINTER_VALUE_STRING_TAG_IN_DATA);
+        return getTypeTag() > POINTER_VALUE_STRING_TAG_IN_DATA;
     }
 
     ALWAYS_INLINE String* canonicalAtomicString() const
     {
-        return (String*)(m_typeTag & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        uintptr_t upper = reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX);
+        if (const_cast<String*>(this)->isStringView()) {
+            upper = m_bufferData.hasSpecialImpl
+                ? reinterpret_cast<uintptr_t>(m_bufferData.bufferAsString) & ~uintptr_t(UINT32_MAX)
+                : ThreadLocal::cageBase();
+        }
+        return reinterpret_cast<String*>(upper | (m_bufferData.typeTag & ~POINTER_VALUE_STRING_TAG_IN_DATA));
+#else
+        return reinterpret_cast<String*>(m_typeTag & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+#endif
+    }
+
+    void setAtomicStringSource(String* source)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_bufferData.typeTag = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) | POINTER_VALUE_STRING_TAG_IN_DATA;
+#else
+        m_typeTag = reinterpret_cast<size_t>(source) | POINTER_VALUE_STRING_TAG_IN_DATA;
+#endif
     }
 
     bool equals(const String* src) const;
@@ -665,7 +702,9 @@ public:
     String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth, Optional<ExecutionState*> state = NullOption);
 
 private:
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     size_t m_typeTag;
+#endif
 
 protected:
     StringBufferData m_bufferData;
@@ -706,7 +745,11 @@ protected:
     }
 };
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+COMPILE_ASSERT(sizeof(String) == 24, "String should contain a 4-byte tag and length plus a native buffer pointer");
+#else
 COMPILE_ASSERT(sizeof(String) >= sizeof(PointerValue) + sizeof(size_t), "String must contain the type-tag word read by PointerValue::getTypeTag()");
+#endif
 
 #if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(OS_WINDOWS)
 COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 4, "");

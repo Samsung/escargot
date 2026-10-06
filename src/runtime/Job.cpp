@@ -127,7 +127,7 @@ SandBox::SandBoxResult CleanupSomeJob::run()
 {
     ASSERT(m_object->m_cleanupCallback);
 
-    auto oldCallback = m_object->m_cleanupCallback;
+    Object* oldCallback = m_object->m_cleanupCallback;
     if (m_callback.hasValue()) {
         m_object->m_cleanupCallback = m_callback.value();
     }

@@ -19,10 +19,26 @@
 
 #include "Escargot.h"
 #include "NativeFunctionObject.h"
+#include "heap/Heap.h"
 
 #include "FunctionObjectInlines.h"
 
 namespace Escargot {
+
+void* NativeFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ASSERT(size == sizeof(NativeFunctionObject));
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::NativeFunctionObject))) {
+        GC_word bitmap[(sizeof(NativeFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::NativeFunctionObject, size, bitmap, sizeof(NativeFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::NativeFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info)
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))

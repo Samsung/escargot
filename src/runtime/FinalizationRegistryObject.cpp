@@ -68,6 +68,17 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
 
 void* FinalizationRegistryObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::FinalizationRegistryObject))) {
+        GC_word bitmap[(sizeof(FinalizationRegistryObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(FinalizationRegistryObject, m_cleanupCallback) / 4);
+        GC_set_bit(bitmap, offsetof(FinalizationRegistryObject, m_realm) / 4);
+        GC_set_bit(bitmap, offsetof(FinalizationRegistryObject, m_cells) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::FinalizationRegistryObject, size, bitmap, sizeof(FinalizationRegistryObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::FinalizationRegistryObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -80,6 +91,7 @@ void* FinalizationRegistryObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 void FinalizationRegistryObject::setCell(PointerValue* weakRefTarget, const Value& heldValue, Optional<PointerValue*> unregisterToken)
@@ -194,7 +206,7 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
 
     ASSERT(!!item->source->m_cleanupCallback);
     bool wasCallbackDeleted = false;
-    auto callback = item->source->m_cleanupCallback;
+    Object* callback = item->source->m_cleanupCallback;
     if (callback->isScriptFunctionObject()) {
         auto cb = callback->asScriptFunctionObject()->interpretedCodeBlock();
         if (cb->byteCodeBlock() && cb->byteCodeBlock()->m_code.data() == nullptr) {

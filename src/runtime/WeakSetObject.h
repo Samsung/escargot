@@ -61,7 +61,7 @@ public:
 
     const WeakSetObjectData& storage()
     {
-        return m_storage;
+        return m_storage.vector();
     }
 
 private:
@@ -71,8 +71,8 @@ private:
     void addToHashIndex(size_t storageIndex);
     void buildOrRebuildHashIndex();
 
-    WeakSetObjectData m_storage;
-    Optional<KeyedCollectionHashIndex*> m_hashIndex;
+    CompressibleHeapVectorOwner<WeakSetObjectData, WeakSetObjectDataItem*> m_storage;
+    CompressibleHeapPointer<KeyedCollectionHashIndex> m_hashIndex;
 };
 } // namespace Escargot
 #endif

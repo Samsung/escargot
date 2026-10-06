@@ -69,6 +69,8 @@ DisposableResourceRecord::Record createDisposableResource(ExecutionState& state,
 
 class DisposableStackObject : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     explicit DisposableStackObject(ExecutionState& state, Object* proto)
         : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , m_isDisposed(false)
@@ -94,11 +96,13 @@ public:
 
 protected:
     bool m_isDisposed; // [[DisposableState]]
-    DisposableResourceRecord* m_record;
+    CompressibleHeapPointer<DisposableResourceRecord> m_record;
 };
 
 class AsyncDisposableStackObject : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     explicit AsyncDisposableStackObject(ExecutionState& state, Object* proto)
         : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , m_isDisposed(false)
@@ -124,7 +128,7 @@ public:
 
 protected:
     bool m_isDisposed; // [[AsyncDisposableState]]
-    DisposableResourceRecord* m_record;
+    CompressibleHeapPointer<DisposableResourceRecord> m_record;
 };
 
 } // namespace Escargot

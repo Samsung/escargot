@@ -21,6 +21,7 @@
 
 #include "Escargot.h"
 #include "wasm.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayObject.h"
@@ -51,6 +52,14 @@ ExportedFunctionObject::ExportedFunctionObject(ExecutionState& state, NativeFunc
 
 void* ExportedFunctionObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ExportedFunctionObject))) {
+        GC_word bitmap[(sizeof(ExportedFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        FunctionObject::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::ExportedFunctionObject, size, bitmap, sizeof(ExportedFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ExportedFunctionObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -60,6 +69,7 @@ void* ExportedFunctionObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

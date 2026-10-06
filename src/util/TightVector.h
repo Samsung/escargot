@@ -20,6 +20,8 @@
 #ifndef __EscargotTightVector__
 #define __EscargotTightVector__
 
+#include "runtime/CompressibleHeapPointer.h"
+
 namespace Escargot {
 
 template <typename T, typename Allocator, typename SizeType = size_t>
@@ -613,9 +615,169 @@ public:
         }
     }
 
+    T* takeBuffer()
+    {
+        T* buffer = m_buffer;
+        m_buffer = nullptr;
+        return buffer;
+    }
+
 protected:
     T* m_buffer;
 };
+
+// Heap-member vectors share their operations in both pointer modes. Compressed
+// buffers use the member's address to restore the cage's upper address bits.
+template <typename T, typename Allocator>
+class CompressibleHeapTightVector {
+public:
+    CompressibleHeapTightVector()
+        : m_buffer(nullptr)
+        , m_size(0)
+    {
+    }
+
+    CompressibleHeapTightVector(const CompressibleHeapTightVector&) = delete;
+    CompressibleHeapTightVector& operator=(const CompressibleHeapTightVector&) = delete;
+
+    ~CompressibleHeapTightVector()
+    {
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer.raw(), m_size);
+        }
+    }
+
+    T* data() { return m_buffer.raw(); }
+    const T* data() const { return m_buffer.raw(); }
+    size_t size() const { return m_size; }
+    T& operator[](size_t index) { return m_buffer.value()[index]; }
+    const T& operator[](size_t index) const { return m_buffer.value()[index]; }
+    T* begin() { return m_buffer.raw(); }
+    T* end() { return m_size ? m_buffer.value() + m_size : m_buffer.raw(); }
+    const T* begin() const { return m_buffer.raw(); }
+    const T* end() const { return m_size ? m_buffer.value() + m_size : m_buffer.raw(); }
+
+    void pushBack(const T& value)
+    {
+        ASSERT(m_size < std::numeric_limits<typename CompressibleHeapPointer<T>::StorageType>::max());
+        T* buffer = m_buffer
+            ? static_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer.raw(), (m_size + 1) * sizeof(T)))
+            : Allocator().allocate(m_size + 1);
+        ASSERT(buffer);
+        m_buffer = buffer;
+        m_buffer.value()[m_size++] = value;
+    }
+
+private:
+    CompressibleHeapPointer<T> m_buffer;
+    typename CompressibleHeapPointer<T>::StorageType m_size;
+};
+
+template <typename T, typename Allocator>
+class CompressibleHeapTightVectorWithNoSize {
+public:
+    CompressibleHeapTightVectorWithNoSize()
+        : m_buffer(nullptr)
+    {
+    }
+
+    CompressibleHeapTightVectorWithNoSize(const CompressibleHeapTightVectorWithNoSize&) = delete;
+    CompressibleHeapTightVectorWithNoSize& operator=(const CompressibleHeapTightVectorWithNoSize&) = delete;
+
+    ~CompressibleHeapTightVectorWithNoSize()
+    {
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer.raw());
+        }
+    }
+
+    T& operator[](size_t index) { return m_buffer.value()[index]; }
+    const T& operator[](size_t index) const { return m_buffer.value()[index]; }
+
+    void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
+    {
+        T* newBuffer = newSize ? Allocator().allocate(newSize) : nullptr;
+        if (newBuffer && m_buffer) {
+            VectorCopier<T>::copy(newBuffer, m_buffer.raw(), std::min(oldSize, newSize));
+        }
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer.raw(), oldSize);
+        }
+        m_buffer = newBuffer;
+    }
+
+private:
+    CompressibleHeapPointer<T> m_buffer;
+};
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(CompressibleHeapTightVectorWithNoSize<void*, GCUtil::gc_malloc_allocator<void*>>) == 4,
+              "compressed no-size vector must be four bytes");
+#endif
+
+// Native builds embed the Vector; compressed builds store a four-byte
+// reference to a separate Vector with its existing native GC descriptor.
+// Both expose the same operations without branching at each use site.
+template <typename VectorType, typename ItemType>
+class CompressibleHeapVectorOwner {
+public:
+    CompressibleHeapVectorOwner()
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        : m_vector(new VectorType())
+#endif
+    {
+    }
+
+    CompressibleHeapVectorOwner(const CompressibleHeapVectorOwner&) = delete;
+    CompressibleHeapVectorOwner& operator=(const CompressibleHeapVectorOwner&) = delete;
+
+    CompressibleHeapVectorOwner& operator=(VectorType&& vector)
+    {
+        this->vector() = std::move(vector);
+        return *this;
+    }
+
+    VectorType& vector()
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return *m_vector.value();
+#else
+        return m_vector;
+#endif
+    }
+    const VectorType& vector() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return *m_vector.value();
+#else
+        return m_vector;
+#endif
+    }
+    size_t size() const { return vector().size(); }
+    ItemType& operator[](size_t index) { return vector()[index]; }
+    const ItemType& operator[](size_t index) const { return vector()[index]; }
+    ItemType* begin() const { return vector().begin(); }
+    ItemType* end() const { return vector().end(); }
+    void pushBack(const ItemType& item) { vector().pushBack(item); }
+    void push_back(const ItemType& item) { vector().push_back(item); }
+    void clear() { vector().clear(); }
+    void resize(size_t size) { vector().resize(size); }
+    void resizeFitWithUninitializedValues(size_t size) { vector().resizeFitWithUninitializedValues(size); }
+    void erase(size_t index) { vector().erase(index); }
+
+private:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<VectorType> m_vector;
+#else
+    VectorType m_vector;
+#endif
+};
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(CompressibleHeapVectorOwner<Vector<void*, GCUtil::gc_malloc_allocator<void*>>, void*>) == 4,
+              "compressed vector owner must be four bytes");
+static_assert(sizeof(CompressibleHeapTightVector<void*, GCUtil::gc_malloc_allocator<void*>>) == 8,
+              "compressed heap vector should be eight bytes");
+#endif
 } // namespace Escargot
 
 #endif

@@ -22,6 +22,7 @@
 
 #include "runtime/Context.h"
 #include "runtime/BackingStore.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -146,7 +147,7 @@ protected:
     // 3. Return false.
 
     bool m_isResizable;
-    Optional<BackingStore*> m_backingStore;
+    CompressibleHeapPointer<BackingStore> m_backingStore;
 };
 
 class ArrayBufferView : public DerivedObject {
@@ -232,6 +233,16 @@ public:
 
     void* operator new(size_t size)
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT(size == sizeof(ArrayBufferView));
+        if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ArrayBufferView))) {
+            GC_word bitmap[(sizeof(ArrayBufferView) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+            fillCompressedGCDescriptor(bitmap);
+            GC_set_bit(bitmap, offsetof(ArrayBufferView, m_buffer) / 4);
+            Heap::initializeCompressedType(Heap::CompressedType::ArrayBufferView, size, bitmap, sizeof(ArrayBufferView) / 4);
+        }
+        return Heap::mallocCompressed(Heap::CompressedType::ArrayBufferView, size);
+#else
         static MAY_THREAD_LOCAL bool typeInited = false;
         static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
@@ -242,6 +253,7 @@ public:
             typeInited = true;
         }
         return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
     }
     void* operator new[](size_t size) = delete;
 
@@ -288,7 +300,8 @@ private:
         self->updateBufferCallback(newAddress);
     }
 
-    ArrayBuffer* m_buffer;
+    CompressibleHeapPointer<ArrayBuffer> m_buffer;
+
     uint8_t* m_cachedRawBufferAddress;
     size_t m_byteLength;
     size_t m_byteOffset;

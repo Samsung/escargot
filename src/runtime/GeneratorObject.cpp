@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "GeneratorObject.h"
+#include "heap/Heap.h"
 #include "interpreter/ByteCodeInterpreter.h"
 #include "Context.h"
 #include "Environment.h"
@@ -30,12 +31,25 @@ namespace Escargot {
 GeneratorObject::GeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
     : DerivedObject(state, proto)
     , m_generatorState(GeneratorState::SuspendedStart)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_executionPauser(new ExecutionPauser(state, this, executionState, registerFile, blk))
+#else
     , m_executionPauser(state, this, executionState, registerFile, blk)
+#endif
 {
 }
 
 void* GeneratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::GeneratorObject))) {
+        GC_word bitmap[(sizeof(GeneratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(GeneratorObject, m_executionPauser) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::GeneratorObject, size, bitmap, sizeof(GeneratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::GeneratorObject, size);
+#else
     ASSERT(size == sizeof(GeneratorObject));
 
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -47,6 +61,7 @@ void* GeneratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-generatorvalidate

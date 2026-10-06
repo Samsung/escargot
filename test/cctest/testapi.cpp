@@ -3490,7 +3490,7 @@ static void packedRegisterRootFinalizer(void*, void*)
 __attribute__((noinline)) static uint64_t makePackedRegisterRoot()
 {
     void* object = GC_MALLOC(64);
-    GC_register_finalizer_no_order(object, packedRegisterRootFinalizer, nullptr, nullptr, nullptr);
+    GC_REGISTER_FINALIZER_NO_ORDER(object, packedRegisterRootFinalizer, nullptr, nullptr, nullptr);
     const uintptr_t base = GC_get_cage_base();
     EXPECT_EQ(base & 0xffffffffULL, 0u);
     EXPECT_GE(uintptr_t(object), base);

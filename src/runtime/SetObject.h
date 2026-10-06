@@ -59,7 +59,7 @@ public:
 
     const SetObjectData& storage()
     {
-        return m_storage;
+        return m_storage.vector();
     }
 
     // bulk-copies the live (non-tombstone) elements of `src` into a fresh
@@ -74,8 +74,8 @@ private:
     void addToHashIndex(size_t storageIndex, size_t hash = 0);
     void buildOrRebuildHashIndex();
 
-    SetObjectData m_storage;
-    Optional<KeyedCollectionHashIndex*> m_hashIndex;
+    CompressibleHeapVectorOwner<SetObjectData, EncodedValue> m_storage;
+    CompressibleHeapPointer<KeyedCollectionHashIndex> m_hashIndex;
 };
 
 class SetIteratorObject : public IteratorObject {
@@ -99,7 +99,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    SetObject* m_set;
+    CompressibleHeapPointer<SetObject> m_set;
+
     size_t m_iteratorIndex;
     Type m_type;
 };

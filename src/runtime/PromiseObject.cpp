@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "PromiseObject.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/JobQueue.h"
@@ -48,6 +49,14 @@ PromiseObject::PromiseObject(ExecutionState& state, Object* proto)
 
 void* PromiseObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::PromiseObject))) {
+        GC_word bitmap[(sizeof(PromiseObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::PromiseObject, size, bitmap, sizeof(PromiseObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::PromiseObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -57,6 +66,7 @@ void* PromiseObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionState& state)
@@ -140,7 +150,7 @@ void PromiseObject::fulfill(ExecutionState& state, Value value)
 {
     m_state = PromiseState::FulFilled;
     m_promiseResult = value;
-    triggerPromiseReactions(state, m_fulfillReactions);
+    triggerPromiseReactions(state, m_fulfillReactions.vector());
 
     m_fulfillReactions.clear();
     m_rejectReactions.clear();
@@ -152,7 +162,7 @@ void PromiseObject::reject(ExecutionState& state, Value reason)
     m_state = PromiseState::Rejected;
     m_promiseResult = reason;
     if (LIKELY(hasRejectHandlers())) {
-        triggerPromiseReactions(state, m_rejectReactions);
+        triggerPromiseReactions(state, m_rejectReactions.vector());
     } else if (state.context()->vmInstance()->isPromiseRejectCallbackRegistered()) {
         state.context()->vmInstance()->triggerPromiseRejectCallback(state, this, reason, VMInstance::PromiseRejectEvent::PromiseRejectWithNoHandler);
     }

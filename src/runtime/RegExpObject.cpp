@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "ThreadLocal.h"
 #include "RegExpObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 #include "VMInstance.h"
 #include "ArrayObject.h"
@@ -31,6 +32,26 @@
 #include "YarrSyntaxChecker.h"
 
 namespace Escargot {
+
+void* RegExpObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::RegExpObject))) {
+        GC_word bitmap[(sizeof(RegExpObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_source) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_optionString) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_toStringCache) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_compiledData) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_lastIndex) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpObject, m_lastExecutedString) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::RegExpObject, size, bitmap, sizeof(RegExpObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::RegExpObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 RegExpObject::RegExpObject(ExecutionState& state, String* source, String* option)
     : RegExpObject(state, state.context()->globalObject()->regexpPrototype(), source, option)
@@ -57,16 +78,20 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source,
 
 RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex)
     : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
-    , m_source(NULL)
-    , m_optionString(NULL)
+    , m_source(nullptr)
+    , m_optionString(nullptr)
     , m_toStringCache(nullptr)
     , m_legacyFeaturesEnabled(true)
     , m_hasNonWritableLastIndexRegExpObject(false)
     , m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype(false)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_compiledData(new RegExpCompiledData())
+#else
     , m_yarrPattern(NULL)
     , m_bytecodePattern(NULL)
+#endif
     , m_lastIndex(Value(0))
-    , m_lastExecutedString(NULL)
+    , m_lastExecutedString(nullptr)
 {
     setOptionValueForGC(None);
     initRegExpObject(state, hasLastIndex);
@@ -177,8 +202,8 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     }
 
     setLastIndex(state, Value(0));
-    m_yarrPattern = entry.m_yarrPattern;
-    m_bytecodePattern = entry.m_bytecodePattern;
+    yarrPatternSlot() = entry.m_yarrPattern;
+    bytecodePatternSlot() = entry.m_bytecodePattern;
 }
 
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
@@ -282,8 +307,8 @@ void RegExpObject::setOption(const Option& option)
     Option currentOption = this->option();
     if (((currentOption & Option::MultiLine) != (option & Option::MultiLine))
         || ((currentOption & Option::IgnoreCase) != (option & Option::IgnoreCase))) {
-        ASSERT(!m_yarrPattern);
-        m_bytecodePattern = NULL;
+        ASSERT(!yarrPatternSlot());
+        bytecodePatternSlot() = NULL;
     }
     setOptionValueForGC(option);
 }
@@ -360,30 +385,30 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
     m_lastExecutedString = str;
 
-    if (!m_bytecodePattern) {
+    if (!bytecodePatternSlot()) {
         RegExpCacheEntry& entry = state.context()->regexpCache()->getCacheEntryAndCompileIfNeeded(state, m_source, option());
         if (entry.m_yarrError) {
             matchResult.m_subPatternNum = 0;
             return false;
         }
-        m_yarrPattern = entry.m_yarrPattern;
+        yarrPatternSlot() = entry.m_yarrPattern;
 
         if (entry.m_bytecodePattern) {
-            m_bytecodePattern = entry.m_bytecodePattern;
+            bytecodePatternSlot() = entry.m_bytecodePattern;
         } else {
             WTF::BumpPointerAllocator* bumpAlloc = ThreadLocal::bumpPointerAllocator();
             JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
-            std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc, errorCode);
+            std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*yarrPatternSlot(), bumpAlloc, errorCode);
             if (errorCode != JSC::Yarr::ErrorCode::NoError) {
                 return false;
             }
-            m_bytecodePattern = ownedBytecode.release();
-            entry.m_bytecodePattern = m_bytecodePattern;
+            bytecodePatternSlot() = ownedBytecode.release();
+            entry.m_bytecodePattern = bytecodePatternSlot();
         }
     }
 
-    ASSERT(!!m_bytecodePattern);
-    unsigned subPatternNum = m_bytecodePattern->m_body->m_numSubpatterns;
+    ASSERT(!!bytecodePatternSlot());
+    unsigned subPatternNum = bytecodePatternSlot()->m_body->m_numSubpatterns;
     matchResult.m_subPatternNum = (int)subPatternNum;
     size_t length = str->length();
     size_t start = startIndex;
@@ -391,7 +416,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isGlobal = option() & RegExpObject::Option::Global;
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
-    unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), m_bytecodePattern->m_offsetsSize);
+    unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), bytecodePatternSlot()->m_offsetsSize);
     unsigned* outputBuf = ALLOCA_ATOMIC(sizeof(unsigned) * outputBufLength, unsigned int);
     outputBuf[1] = start;
     // keep the buffer of `str` alive(it may be a CompressibleString or a
@@ -404,9 +429,9 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             break;
         }
         if (LIKELY(strAccessData.has8BitContent))
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const LChar*)strAccessData.bufferAs8Bit, length, start, outputBuf);
+            result = JSC::Yarr::interpret(bytecodePatternSlot(), (const LChar*)strAccessData.bufferAs8Bit, length, start, outputBuf);
         else
-            result = JSC::Yarr::interpret(m_bytecodePattern, (const UChar*)strAccessData.bufferAs16Bit, length, start, outputBuf);
+            result = JSC::Yarr::interpret(bytecodePatternSlot(), (const UChar*)strAccessData.bufferAs16Bit, length, start, outputBuf);
 
         if (result != JSC::Yarr::offsetNoMatch) {
             gotResult = true;
@@ -563,13 +588,13 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             }
         }
 
-        if (m_yarrPattern->m_namedGroupToParenIndices.empty()) {
+        if (yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
             indices->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
         } else {
             Object* groups = new Object(state, Object::PrototypeIsNull);
-            for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
-                auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndices.find(*it);
-                if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndices.end()) {
+            for (auto it = yarrPatternSlot()->m_captureGroupNames.begin(); it != yarrPatternSlot()->m_captureGroupNames.end(); ++it) {
+                auto foundMapElement = yarrPatternSlot()->m_namedGroupToParenIndices.find(*it);
+                if (foundMapElement != yarrPatternSlot()->m_namedGroupToParenIndices.end()) {
                     Value value;
                     for (size_t i = 0; i < foundMapElement->second.size(); i++) {
                         Value indexValue = indices->getOwnProperty(state,
@@ -587,13 +612,13 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
     }
 
-    if (m_yarrPattern->m_namedGroupToParenIndices.empty()) {
+    if (yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
         arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
     } else {
         Object* groups = new Object(state, Object::PrototypeIsNull);
-        for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
-            auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndices.find(*it);
-            if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndices.end()) {
+        for (auto it = yarrPatternSlot()->m_captureGroupNames.begin(); it != yarrPatternSlot()->m_captureGroupNames.end(); ++it) {
+            auto foundMapElement = yarrPatternSlot()->m_namedGroupToParenIndices.find(*it);
+            if (foundMapElement != yarrPatternSlot()->m_namedGroupToParenIndices.end()) {
                 Value value;
                 for (size_t i = 0; i < foundMapElement->second.size(); i++) {
                     Value indexValue;
@@ -871,6 +896,16 @@ RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, bo
 
 void* RegExpStringIteratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::RegExpStringIteratorObject))) {
+        GC_word bitmap[(sizeof(RegExpStringIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(RegExpStringIteratorObject, m_regexp) / 4);
+        GC_set_bit(bitmap, offsetof(RegExpStringIteratorObject, m_string) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::RegExpStringIteratorObject, size, bitmap, sizeof(RegExpStringIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::RegExpStringIteratorObject, size);
+#else
     ASSERT(size == sizeof(RegExpStringIteratorObject));
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
@@ -881,6 +916,7 @@ void* RegExpStringIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 } // namespace Escargot

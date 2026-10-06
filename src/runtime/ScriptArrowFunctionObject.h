@@ -41,6 +41,9 @@ public:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     bool isConstructor() const override
     {
         return false;
@@ -52,7 +55,7 @@ public:
     }
 
 private:
-    EncodedValue m_thisValue;
+    HeapEncodedValue m_thisValue;
 };
 } // namespace Escargot
 

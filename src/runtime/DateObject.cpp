@@ -72,6 +72,7 @@
 
 #include "Escargot.h"
 #include "DateObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 #include "runtime/VMInstance.h"
 #if defined(OS_BAREMETAL)
@@ -166,6 +167,14 @@ static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 static constexpr char invalidDate[] = "Invalid Date";
 static const int monthNumberHelper[] = { 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 };
+
+DateObject::DateObject(StackAllocatedTag)
+    : DerivedObject()
+    , m_primitiveValue(TIME64NAN)
+    , m_cachedLocal()
+    , m_isCacheDirty(false)
+{
+}
 
 DateObject::DateObject(ExecutionState& state)
     : DateObject(state, state.context()->globalObject()->datePrototype())
@@ -1662,6 +1671,14 @@ TemporalInstantObject* DateObject::toTemporalInstant(ExecutionState& state)
 
 void* DateObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::DateObject))) {
+        GC_word bitmap[(sizeof(DateObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::DateObject, size, bitmap, sizeof(DateObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::DateObject, size);
+#else
     ASSERT(size == sizeof(DateObject));
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
@@ -1672,6 +1689,7 @@ void* DateObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 

@@ -45,11 +45,27 @@
 
 #include "Escargot.h"
 #include "TemporalPlainTimeObject.h"
+#include "heap/Heap.h"
 #include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 
 namespace Escargot {
+
+void* TemporalPlainTimeObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::TemporalPlainTimeObject))) {
+        GC_word bitmap[(sizeof(TemporalPlainTimeObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(TemporalPlainTimeObject, m_plainTime) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::TemporalPlainTimeObject, size, bitmap, sizeof(TemporalPlainTimeObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::TemporalPlainTimeObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainTime plainTime)
     : DerivedObject(state, proto)

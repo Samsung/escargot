@@ -27,6 +27,7 @@
 #include "runtime/VMInstance.h"
 #include "Intl.h"
 #include "IntlRelativeTimeFormat.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
 
@@ -40,8 +41,22 @@ static void intlRelativeTimeFormatClear(void* obj, void* cd)
 
 void* IntlRelativeTimeFormatObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlRelativeTimeFormatObject))) {
+        GC_word bitmap[(sizeof(IntlRelativeTimeFormatObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlRelativeTimeFormatObject, m_locale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlRelativeTimeFormatObject, m_dataLocale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlRelativeTimeFormatObject, m_numberingSystem) / 4);
+        GC_set_bit(bitmap, offsetof(IntlRelativeTimeFormatObject, m_style) / 4);
+        GC_set_bit(bitmap, offsetof(IntlRelativeTimeFormatObject, m_numeric) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlRelativeTimeFormatObject, size, bitmap, sizeof(IntlRelativeTimeFormatObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlRelativeTimeFormatObject, size, intlRelativeTimeFormatClear);
+#else
     constexpr static GC_finalizer_closure data = { intlRelativeTimeFormatClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void IntlRelativeTimeFormatObject::clearNativeResources()

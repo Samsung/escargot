@@ -25,6 +25,7 @@
 #include "runtime/VMInstance.h"
 #include "Intl.h"
 #include "IntlPluralRules.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_INTL_PLURALRULES)
 
@@ -32,6 +33,24 @@ namespace Escargot {
 
 void* IntlPluralRulesObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlPluralRulesObject))) {
+        GC_word bitmap[(sizeof(IntlPluralRulesObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_locale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_type) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_notation) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_compactDisplay) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_minimumFractionDigits) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_maximumFractionDigits) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_minimumSignificantDigits) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_maximumSignificantDigits) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_roundingMode) / 4);
+        GC_set_bit(bitmap, offsetof(IntlPluralRulesObject, m_trailingZeroDisplay) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlPluralRulesObject, size, bitmap, sizeof(IntlPluralRulesObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IntlPluralRulesObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -47,6 +66,7 @@ void* IntlPluralRulesObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* proto, Value locales, Value options)
@@ -56,8 +76,8 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     , m_notation(nullptr)
     , m_compactDisplay(nullptr)
     , m_minimumIntegerDigits(0)
-    , m_minimumFractionDigits(0)
-    , m_maximumFractionDigits(0)
+    , m_minimumFractionDigits(Value(0))
+    , m_maximumFractionDigits(Value(0))
     , m_icuPluralRules(nullptr)
     , m_icuNumberFormat(nullptr)
 {

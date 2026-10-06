@@ -106,7 +106,7 @@ public:
     }
 
 protected:
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     // Keep full pointers in stack locals until values reach compressed heap slots.
     using BasePropertyValue = Value;
 #else

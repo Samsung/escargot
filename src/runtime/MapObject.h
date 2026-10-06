@@ -62,7 +62,7 @@ public:
 
     const MapObjectData& storage()
     {
-        return m_storage;
+        return m_storage.vector();
     }
 
 private:
@@ -72,8 +72,8 @@ private:
     void addToHashIndex(size_t storageIndex, size_t hash = 0);
     void buildOrRebuildHashIndex();
 
-    MapObjectData m_storage;
-    Optional<KeyedCollectionHashIndex*> m_hashIndex;
+    CompressibleHeapVectorOwner<MapObjectData, std::pair<EncodedValue, EncodedValue>> m_storage;
+    CompressibleHeapPointer<KeyedCollectionHashIndex> m_hashIndex;
 };
 
 class MapIteratorObject : public IteratorObject {
@@ -97,7 +97,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    MapObject* m_map;
+    CompressibleHeapPointer<MapObject> m_map;
+
     size_t m_iteratorIndex;
     Type m_type;
 };

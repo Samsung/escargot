@@ -21,6 +21,7 @@
 #define __EscargotIteratorObject__
 
 #include "runtime/Object.h"
+#include "runtime/CompressibleHeapPointer.h"
 
 namespace Escargot {
 
@@ -36,13 +37,13 @@ class IteratorRecord : public PointerValue {
 public:
     // do not read this directly, it is empty while the record iterates an array
     // directly; go through iterator() so the iterator object gets materialized
-    Optional<Object*> m_iteratorSlot;
-    EncodedValue m_nextMethod;
+    CompressibleHeapPointer<Object> m_iteratorSlot;
+    HeapEncodedValue m_nextMethod;
     // set when this record iterates a pristine fast-mode array without an
     // iterator object. the builtin ArrayIterator would do exactly what
     // advanceDirectArray does, so it is only allocated if something actually
     // asks for the iterator object
-    Optional<ArrayObject*> m_directArray;
+    CompressibleHeapPointer<ArrayObject> m_directArray;
     uint32_t m_directArrayIndex{ 0 };
     bool m_done;
     // true when the record steps without running the generic protocol: either
@@ -77,6 +78,10 @@ public:
     {
     }
 
+    void* operator new(size_t size);
+    void* operator new(size_t, void* ptr) { return ptr; }
+    void* operator new[](size_t) = delete;
+
     bool isDirectArrayIteration() const
     {
         return m_directArray.hasValue();
@@ -89,6 +94,11 @@ public:
     // hands this record back to the pool. only call where the record is
     // provably dead: it is reused as-is by the next create
     void recycle(ExecutionState& state);
+
+    Value nextMethod() const
+    {
+        return m_nextMethod;
+    }
 
     Object* iterator(ExecutionState& state);
     std::pair<Value, bool> advanceDirectArray(ExecutionState& state);
@@ -249,7 +259,9 @@ public:
         return m_isRunning;
     }
 
-    TightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>>& underlyingIterators()
+    using UnderlyingIterators = CompressibleHeapTightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>>;
+
+    UnderlyingIterators& underlyingIterators()
     {
         return m_underlyingIterators;
     }
@@ -260,12 +272,14 @@ private:
     bool m_isRunning;
 
     IteratorHelperObjectCallback m_callback;
-    TightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>> m_underlyingIterators;
-    void* m_data;
+    UnderlyingIterators m_underlyingIterators;
+    CompressibleHeapPointer<void> m_data;
 };
 
 class WrapForValidIteratorObject : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     explicit WrapForValidIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* iterated)
         : DerivedObject(state, proto)
         , m_iterated(iterated)
@@ -283,7 +297,7 @@ public:
     }
 
 private:
-    IteratorRecord* m_iterated;
+    CompressibleHeapPointer<IteratorRecord> m_iterated;
 };
 
 } // namespace Escargot

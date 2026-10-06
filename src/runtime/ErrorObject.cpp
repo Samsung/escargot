@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ErrorObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 #include "SandBox.h"
 #include "NativeFunctionObject.h"
@@ -27,6 +28,21 @@
 #endif
 
 namespace Escargot {
+
+void* ErrorObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ErrorObject))) {
+        GC_word bitmap[(sizeof(ErrorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ErrorObject, m_stackTraceData) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ErrorObject, size, bitmap, sizeof(ErrorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ErrorObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorCode code, String* errorMessage, bool fillStackInfo)
 {

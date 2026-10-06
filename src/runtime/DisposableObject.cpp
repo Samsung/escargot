@@ -25,8 +25,39 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ExecutionPauser.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* DisposableStackObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::DisposableStackObject))) {
+        GC_word bitmap[(sizeof(DisposableStackObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(DisposableStackObject, m_record) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::DisposableStackObject, size, bitmap, sizeof(DisposableStackObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::DisposableStackObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
+void* AsyncDisposableStackObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::AsyncDisposableStackObject))) {
+        GC_word bitmap[(sizeof(AsyncDisposableStackObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(AsyncDisposableStackObject, m_record) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::AsyncDisposableStackObject, size, bitmap, sizeof(AsyncDisposableStackObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::AsyncDisposableStackObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 static constexpr const char* alreadyDisposedErrorMessage = "DisposableStack is already disposed";
 static constexpr const char* alreadyAsyncDisposedErrorMessage = "AsyncDisposableStack is already disposed";
@@ -278,8 +309,9 @@ DisposableStackObject* DisposableStackObject::move(ExecutionState& state)
     // Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
     // Set disposableStack.[[DisposableState]] to disposed.
     DisposableStackObject* newDisposableStack = new DisposableStackObject(state, state.context()->globalObject()->disposableStackPrototype());
-    auto s = newDisposableStack->m_record;
-    newDisposableStack->m_record = m_record;
+    DisposableResourceRecord* s = newDisposableStack->m_record;
+    DisposableResourceRecord* record = m_record;
+    newDisposableStack->m_record = record;
     m_record = s;
     m_isDisposed = true;
     // Return newDisposableStack.
@@ -533,8 +565,9 @@ AsyncDisposableStackObject* AsyncDisposableStackObject::move(ExecutionState& sta
     // Set asyncDisposableStack.[[DisposeCapability]] to NewDisposeCapability().
     // Set asyncDisposableStack.[[AsyncDisposableState]] to disposed.
     // Return newAsyncDisposableStack.
-    auto s = newAsyncDisposableStack->m_record;
-    newAsyncDisposableStack->m_record = m_record;
+    DisposableResourceRecord* s = newAsyncDisposableStack->m_record;
+    DisposableResourceRecord* record = m_record;
+    newAsyncDisposableStack->m_record = record;
     m_record = s;
     m_isDisposed = true;
     return newAsyncDisposableStack;

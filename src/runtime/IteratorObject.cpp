@@ -29,8 +29,40 @@
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/ArrayBuffer.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* WrapForValidIteratorObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WrapForValidIteratorObject))) {
+        GC_word bitmap[(sizeof(WrapForValidIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WrapForValidIteratorObject, m_iterated) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WrapForValidIteratorObject, size, bitmap, sizeof(WrapForValidIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WrapForValidIteratorObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
+void* IteratorRecord::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IteratorRecord))) {
+        GC_word bitmap[(sizeof(IteratorRecord) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(IteratorRecord, m_iteratorSlot) / 4);
+        GC_set_bit(bitmap, offsetof(IteratorRecord, m_nextMethod) / 4);
+        GC_set_bit(bitmap, offsetof(IteratorRecord, m_directArray) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IteratorRecord, size, bitmap, sizeof(IteratorRecord) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IteratorRecord, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 IteratorObject::IteratorObject(ExecutionState& state)
     : IteratorObject(state, state.context()->globalObject()->objectPrototype())
@@ -192,7 +224,7 @@ void IteratorObject::tryMarkFastBuiltinIterator(ExecutionState& state, IteratorR
     if (!record->m_iteratorSlot.value()->isIteratorObject()) {
         return;
     }
-    Value nextMethod = record->m_nextMethod;
+    Value nextMethod = record->nextMethod();
     if (!nextMethod.isObject()) {
         return;
     }
@@ -297,7 +329,7 @@ Object* IteratorObject::iteratorNext(ExecutionState& state, IteratorRecord* iter
 
     IteratorRecord* record = iteratorRecord;
     Value result;
-    Value nextMethod = record->m_nextMethod;
+    Value nextMethod = record->nextMethod();
     Value iterator = record->iterator(state);
     if (value.isEmpty()) {
         result = Object::call(state, nextMethod, iterator, 0, nullptr);
@@ -688,6 +720,16 @@ IteratorHelperObject::IteratorHelperObject(ExecutionState& state, IteratorHelper
 
 void* IteratorHelperObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IteratorHelperObject))) {
+        GC_word bitmap[(sizeof(IteratorHelperObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IteratorHelperObject, m_underlyingIterators) / 4);
+        GC_set_bit(bitmap, offsetof(IteratorHelperObject, m_data) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IteratorHelperObject, size, bitmap, sizeof(IteratorHelperObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IteratorHelperObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -699,6 +741,7 @@ void* IteratorHelperObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 std::pair<Value, bool> IteratorHelperObject::advance(ExecutionState& state)

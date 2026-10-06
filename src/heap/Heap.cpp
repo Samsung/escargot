@@ -23,6 +23,7 @@
 #include "LeakChecker.h"
 #include "runtime/Value.h"
 #include <gc/gc_tiny_fl.h>
+#include "runtime/Object.h"
 #if defined(OS_BAREMETAL)
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
@@ -30,8 +31,49 @@
 
 namespace Escargot {
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+MAY_THREAD_LOCAL Optional<const GC_compressed_bitmap_descr*> Heap::s_compressedDescriptors[static_cast<size_t>(Heap::CompressedType::Count)];
+
+void Heap::initializeCompressedType(CompressedType type, size_t size,
+                                    const GC_word* bitmap, size_t slots)
+{
+    auto& descriptor = s_compressedDescriptors[static_cast<size_t>(type)];
+    if (!descriptor) {
+        size_t headerSlots = 0;
+#if defined(GC_DEBUG)
+        const size_t headerSize = GC_get_debug_header_size();
+        headerSlots = headerSize / 4;
+        std::vector<GC_word> debugBitmap((slots + headerSlots + GC_WORDSZ - 1) / GC_WORDSZ, 0);
+        for (size_t slot = 0; slot < slots; ++slot) {
+            if (GC_get_bit(bitmap, slot)) {
+                GC_set_bit(debugBitmap.data(), slot + headerSlots);
+            }
+        }
+        bitmap = debugBitmap.data();
+        size += headerSize;
+        slots += headerSlots;
+#endif
+        // The enum's prefix contains structures, Symbol and IteratorRecord;
+        // all types starting at Object inherit its tagged property buffer.
+        if (type >= CompressedType::Object) {
+            descriptor = GC_make_compressed_bitmap_descriptor_with_tag(size, bitmap, slots,
+                                                                       Object::compressedValuesGCSlot() + headerSlots, 1, false);
+        } else {
+            descriptor = GC_make_compressed_bitmap_descriptor(size, bitmap, slots);
+        }
+        ASSERT(descriptor);
+    }
+}
+
+#endif
+
 void Heap::initialize()
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    for (auto& descriptor : s_compressedDescriptors) {
+        descriptor.reset();
+    }
+#endif
     COMPILE_ASSERT(GC_GRANULE_BYTES >= 8, "BDWGC allocations must be 8-byte aligned");
     COMPILE_ASSERT((GC_GRANULE_BYTES & PointerKindMask) == 0, "BDWGC granule must preserve pointer-kind bits");
     // disable data area searching in bdwgc
@@ -64,7 +106,8 @@ void Heap::initialize()
 #endif
 
     GC_set_oom_fn([](size_t sz) -> void* {
-        ESCARGOT_LOG_ERROR("Out of memory!");
+        ESCARGOT_LOG_ERROR("Out of memory allocating %zu bytes (GC heap: %zu bytes, free: %zu bytes, unmapped: %zu bytes).\n",
+                           sz, GC_get_heap_size(), GC_get_free_bytes(), GC_get_unmapped_bytes());
         abort();
         return nullptr;
     });

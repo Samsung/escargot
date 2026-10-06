@@ -46,10 +46,19 @@ struct RegexMatchResult {
     std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
 };
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+struct RegExpCompiledData : public gc {
+    JSC::Yarr::YarrPattern* m_yarrPattern{ nullptr };
+    JSC::Yarr::BytecodePattern* m_bytecodePattern{ nullptr };
+};
+#endif
+
 class RegExpObject : public DerivedObject {
     void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     enum Option : unsigned int {
         None = 0 << 0,
         HasIndices = 1 << 0,
@@ -164,12 +173,20 @@ public:
 
     JSC::Yarr::YarrPattern* yarrPatern()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_compiledData->m_yarrPattern;
+#else
         return m_yarrPattern;
+#endif
     }
 
     JSC::Yarr::BytecodePattern* bytecodePattern()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_compiledData->m_bytecodePattern;
+#else
         return m_bytecodePattern;
+#endif
     }
 
     Value lastIndex()
@@ -229,17 +246,41 @@ private:
 
     Option parseOption(ExecutionState& state, String* optionString);
 
-    String* m_source;
-    String* m_optionString;
-    Optional<String*> m_toStringCache;
+    JSC::Yarr::YarrPattern*& yarrPatternSlot()
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_compiledData->m_yarrPattern;
+#else
+        return m_yarrPattern;
+#endif
+    }
+
+    JSC::Yarr::BytecodePattern*& bytecodePatternSlot()
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_compiledData->m_bytecodePattern;
+#else
+        return m_bytecodePattern;
+#endif
+    }
+
+    CompressibleHeapPointer<String> m_source;
+    CompressibleHeapPointer<String> m_optionString;
+    CompressibleHeapPointer<String> m_toStringCache;
+
     Option m_option : 16;
     bool m_legacyFeaturesEnabled : 1;
     bool m_hasNonWritableLastIndexRegExpObject : 1;
     bool m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype : 1; // source, option, global, ignoreCase...
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<RegExpCompiledData> m_compiledData;
+#else
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
-    EncodedValue m_lastIndex;
-    const String* m_lastExecutedString;
+#endif
+    HeapEncodedValue m_lastIndex;
+
+    CompressibleHeapPointer<const String> m_lastExecutedString;
 };
 
 class RegExpStringIteratorObject : public IteratorObject {
@@ -265,8 +306,8 @@ private:
     bool m_isGlobal;
     bool m_isUnicode;
     bool m_isDone;
-    RegExpObject* m_regexp;
-    String* m_string;
+    CompressibleHeapPointer<RegExpObject> m_regexp;
+    CompressibleHeapPointer<String> m_string;
 };
 
 class RegExpPrototypeObject : public PrototypeObject {

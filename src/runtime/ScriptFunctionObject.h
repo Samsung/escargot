@@ -45,6 +45,9 @@ public:
 
     ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, bool isConstructor, bool isGenerator);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     virtual bool isScriptFunctionObject() const override
     {
         return true;
@@ -63,7 +66,7 @@ public:
     InterpretedCodeBlock* interpretedCodeBlock() const
     {
         ASSERT(m_codeBlock->isInterpretedCodeBlock());
-        return (InterpretedCodeBlock*)m_codeBlock;
+        return static_cast<InterpretedCodeBlock*>(m_codeBlock.valueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)));
     }
 
     ConstructorKind constructorKind()
@@ -88,6 +91,13 @@ public:
     }
 
 protected:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static inline void fillCompressedGCDescriptor(GC_word* desc)
+    {
+        FunctionObject::fillCompressedGCDescriptor(desc);
+        GC_set_bit(desc, offsetof(ScriptFunctionObject, m_outerEnvironment) / 4);
+    }
+#endif
     ScriptFunctionObject()
         : FunctionObject()
         , m_outerEnvironment(nullptr)
@@ -106,7 +116,7 @@ protected:
 
     LexicalEnvironment* outerEnvironment()
     {
-        return m_outerEnvironment;
+        return m_outerEnvironment.getWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)).unwrap();
     }
 
     void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Optional<Value*> stackStorage, bool isMapped);
@@ -119,7 +129,7 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(ScriptFunctionObject, m_outerEnvironment));
     }
 
-    LexicalEnvironment* m_outerEnvironment;
+    CompressibleHeapPointer<LexicalEnvironment> m_outerEnvironment;
 };
 } // namespace Escargot
 

@@ -19,10 +19,27 @@
 
 #include "Escargot.h"
 #include "ScriptAsyncGeneratorFunctionObject.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/FunctionObjectInlines.h"
 
 namespace Escargot {
+
+void* ScriptAsyncGeneratorFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptAsyncGeneratorFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptAsyncGeneratorFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        ScriptFunctionObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncGeneratorFunctionObject, m_thisValue) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncGeneratorFunctionObject, m_homeObject) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptAsyncGeneratorFunctionObject, size, bitmap, sizeof(ScriptAsyncGeneratorFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptAsyncGeneratorFunctionObject, size);
+#else
+    return ScriptFunctionObject::operator new(size);
+#endif
+}
 
 Object* ScriptAsyncGeneratorFunctionObject::createFunctionPrototypeObject(ExecutionState& state)
 {

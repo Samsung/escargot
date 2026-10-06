@@ -27,6 +27,8 @@ namespace Escargot {
 
 class GlobalObjectProxyObject : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     GlobalObjectProxyObject(ExecutionState& state, GlobalObject* target, GlobalObjectProxyObjectRef::SecurityCheckCallback securityCheckCallback)
         : DerivedObject(state, Object::PrototypeIsNull)
         , m_target(target)
@@ -93,16 +95,18 @@ public:
     }
 
 protected:
-    GlobalObject* m_target;
+    CompressibleHeapPointer<GlobalObject> m_target;
+
     // I use public type directly for performance
     GlobalObjectProxyObjectRef::SecurityCheckCallback m_securityCheckCallback;
 
     void checkSecurity(ExecutionState& state, GlobalObjectProxyObjectRef::AccessOperationType type, Optional<AtomicString> nonIndexedStringPropertyNameIfExists)
     {
+        GlobalObject* target = m_target;
         if (nonIndexedStringPropertyNameIfExists) {
-            m_securityCheckCallback((ExecutionStateRef*)&state, (GlobalObjectProxyObjectRef*)this, (GlobalObjectRef*)m_target, type, OptionalRef<AtomicStringRef>(reinterpret_cast<AtomicStringRef*>(nonIndexedStringPropertyNameIfExists.value().string())));
+            m_securityCheckCallback((ExecutionStateRef*)&state, (GlobalObjectProxyObjectRef*)this, (GlobalObjectRef*)target, type, OptionalRef<AtomicStringRef>(reinterpret_cast<AtomicStringRef*>(nonIndexedStringPropertyNameIfExists.value().string())));
         } else {
-            m_securityCheckCallback((ExecutionStateRef*)&state, (GlobalObjectProxyObjectRef*)this, (GlobalObjectRef*)m_target, type, OptionalRef<AtomicStringRef>());
+            m_securityCheckCallback((ExecutionStateRef*)&state, (GlobalObjectProxyObjectRef*)this, (GlobalObjectRef*)target, type, OptionalRef<AtomicStringRef>());
         }
     }
 };

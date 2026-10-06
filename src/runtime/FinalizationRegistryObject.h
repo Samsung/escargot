@@ -73,9 +73,9 @@ private:
 
     void tryToShrinkCells();
 
-    Object* m_cleanupCallback;
-    Context* m_realm;
-    FinalizationRegistryObjectCells m_cells;
+    CompressibleHeapPointer<Object> m_cleanupCallback;
+    CompressibleHeapPointer<Context> m_realm;
+    CompressibleHeapVectorOwner<FinalizationRegistryObjectCells, FinalizationRegistryObjectItem*> m_cells;
     size_t m_deletedCellCount;
 };
 } // namespace Escargot

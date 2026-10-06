@@ -200,8 +200,11 @@ public:
         m_stackTraceData = d;
     }
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
-    Optional<StackTraceData*> m_stackTraceData;
+    CompressibleHeapPointer<StackTraceData> m_stackTraceData;
 };
 
 class ReferenceErrorObject : public ErrorObject {

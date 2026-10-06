@@ -155,7 +155,8 @@ public:
     static int compare(ExecutionState& state, Value one, Value two);
 
 private:
-    ISO8601::PlainDateTime* m_plainDateTime;
+    CompressibleHeapPointer<ISO8601::PlainDateTime> m_plainDateTime;
+
     Calendar m_calendarID;
     UCalendar* m_icuCalendar;
 };

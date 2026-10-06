@@ -19,10 +19,26 @@
 
 #include "Escargot.h"
 #include "ScriptArrowFunctionObject.h"
+#include "heap/Heap.h"
 
 #include "FunctionObjectInlines.h"
 
 namespace Escargot {
+
+void* ScriptArrowFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptArrowFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptArrowFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        ScriptFunctionObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptArrowFunctionObject, m_thisValue) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptArrowFunctionObject, size, bitmap, sizeof(ScriptArrowFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptArrowFunctionObject, size);
+#else
+    return ScriptFunctionObject::operator new(size);
+#endif
+}
 
 class ScriptArrowFunctionObjectThisValueBinder {
 public:

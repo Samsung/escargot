@@ -21,6 +21,7 @@
 #define __EscargotSymbol__
 
 #include "runtime/PointerValue.h"
+#include "runtime/CompressibleHeapPointer.h"
 #include "util/Vector.h"
 #include "util/TightVector.h"
 
@@ -61,6 +62,10 @@ public:
         return m_finalizerData.value();
     }
 
+    void* operator new(size_t size);
+    void* operator new(size_t, void* ptr) { return ptr; }
+    void* operator new[](size_t) = delete;
+
     String* symbolDescriptiveString() const;
 
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
@@ -74,8 +79,8 @@ private:
     void tryToShrinkFinalizers();
 
     size_t m_typeTag;
-    Optional<String*> m_description; // nullptr of desc represents `undefined`
-    Optional<SymbolFinalizerData*> m_finalizerData; // handle finalizer data of Symbol
+    CompressibleHeapPointer<String> m_description; // nullptr of desc represents `undefined`
+    CompressibleHeapPointer<SymbolFinalizerData> m_finalizerData; // handle finalizer data of Symbol
 };
 COMPILE_ASSERT(sizeof(Symbol) >= sizeof(PointerValue) + sizeof(size_t), "Symbol must contain the type-tag word read by PointerValue::getTypeTag()");
 } // namespace Escargot
