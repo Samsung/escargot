@@ -302,6 +302,8 @@ jobs:
     needs: [build-macOS, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout release notes
+      uses: actions/checkout@v5
     - name: Download build artifacts
       uses: actions/download-artifact@v6
       with:
@@ -311,5 +313,7 @@ jobs:
     - name: Upload to release
       uses: softprops/action-gh-release@v2
       with:
+        body_path: docs/releases/${{ github.ref_name }}.txt
+        draft: false
         files: |
           artifacts/escargot-*
