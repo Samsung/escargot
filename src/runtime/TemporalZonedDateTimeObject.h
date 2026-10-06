@@ -114,7 +114,7 @@ public:
 
     ComputedTimeZone timeZone() const
     {
-        return m_timeZone;
+        return storedTimeZone();
     }
 
     Value era(ExecutionState& state)
@@ -228,9 +228,20 @@ public:
 
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
-    Int128* m_epochNanoseconds;
-    ISO8601::PlainDateTime* m_plainDateTime; // stores timezone + calendar applied value
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ComputedTimeZone& storedTimeZone() { return *m_timeZone; }
+    const ComputedTimeZone& storedTimeZone() const { return *m_timeZone; }
+#else
+    ComputedTimeZone& storedTimeZone() { return m_timeZone; }
+    const ComputedTimeZone& storedTimeZone() const { return m_timeZone; }
+#endif
+    CompressibleHeapPointer<Int128> m_epochNanoseconds;
+    CompressibleHeapPointer<ISO8601::PlainDateTime> m_plainDateTime;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<ComputedTimeZone> m_timeZone;
+#else
     ComputedTimeZone m_timeZone;
+#endif
     Calendar m_calendarID;
     UCalendar* m_icuCalendar;
 };

@@ -72,11 +72,11 @@ public:
     }
 
 protected:
-    String* m_style;
-    String* m_type;
-    String* m_fallback;
-    String* m_locale;
-    String* m_languageDisplay;
+    CompressibleHeapPointer<String> m_style;
+    CompressibleHeapPointer<String> m_type;
+    CompressibleHeapPointer<String> m_fallback;
+    CompressibleHeapPointer<String> m_locale;
+    CompressibleHeapPointer<String> m_languageDisplay;
 
     ULocaleDisplayNames* m_icuLocaleDisplayNames;
 };

@@ -28,6 +28,7 @@
 #include "runtime/IteratorObject.h"
 #include "Intl.h"
 #include "IntlListFormat.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_INTL_LISTFORMAT)
 
@@ -41,8 +42,20 @@ static void intlListFormatClear(void* obj, void* cd)
 
 void* IntlListFormatObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlListFormatObject))) {
+        GC_word bitmap[(sizeof(IntlListFormatObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlListFormatObject, m_locale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlListFormatObject, m_type) / 4);
+        GC_set_bit(bitmap, offsetof(IntlListFormatObject, m_style) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlListFormatObject, size, bitmap, sizeof(IntlListFormatObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlListFormatObject, size, intlListFormatClear);
+#else
     constexpr static GC_finalizer_closure data = { intlListFormatClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void IntlListFormatObject::clearNativeResources()

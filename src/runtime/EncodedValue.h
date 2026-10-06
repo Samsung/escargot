@@ -172,7 +172,7 @@ typedef SmiTagging<kApiAlignSize> PlatformSmiTagging;
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 #define HAS_SMI_TAG(value) \
     ((static_cast<intptr_t>((long int)value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
 #else
@@ -500,7 +500,7 @@ private:
     EncodedValueData m_data;
 };
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 class EncodedSmallValue {
     static ALWAYS_INLINE uintptr_t cageBase()
     {
@@ -679,6 +679,33 @@ public:
         return *this;
     }
 
+    // For an inline member of a heap object, derive the cage from that
+    // member's address instead of loading the thread-local cage base.
+    ALWAYS_INLINE void assignWithBase(const Value& from, uintptr_t base)
+    {
+        if (LIKELY(!from.isNumber())) {
+            setPayloadWithBase(from.rawPayload(), base);
+            return;
+        }
+
+        int32_t i32;
+        if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
+            setPayloadWithBase(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32), base);
+            return;
+        }
+
+        Value mutableFrom(from);
+        if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
+            mutableFrom = Value(i32);
+        }
+        const uintptr_t offset = static_cast<uint32_t>(m_data.payload);
+        if (offset > ValueLast && pointerKind(offset) == NumberPointerKind) {
+            reinterpret_cast<NumberInEncodedValue*>(untagPointer(base + offset))->setValue(mutableFrom);
+            return;
+        }
+        setPayloadWithBase(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)), base);
+    }
+
 private:
     // Same contract as EncodedValue::storeNonNumber(): a compressed slot holds
     // pointers, immediates and Empty as their raw bit pattern, so one test
@@ -694,8 +721,12 @@ private:
 
     ALWAYS_INLINE void setPayload(intptr_t v)
     {
+        setPayloadWithBase(v, cageBase());
+    }
+
+    ALWAYS_INLINE void setPayloadWithBase(intptr_t v, uintptr_t base)
+    {
         if (!HAS_SMI_TAG(v) && static_cast<uintptr_t>(v) > ValueLast) {
-            const uintptr_t base = cageBase();
             const uintptr_t offset = static_cast<uintptr_t>(v) - base;
             // An address below the cage wraps and fails this same range check.
             RELEASE_ASSERT(offset <= std::numeric_limits<uint32_t>::max());
@@ -715,9 +746,53 @@ private:
 
     EncodedSmallValueData m_data;
 };
+
+class HeapEncodedValue : public EncodedSmallValue {
+public:
+    HeapEncodedValue() = default;
+    bool isUndefined() const
+    {
+        return toValueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)).isUndefined();
+    }
+    HeapEncodedValue(const Value& value)
+    {
+        assignWithBase(value, reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX));
+    }
+    HeapEncodedValue(const EncodedValue& value)
+    {
+        assignWithBase(value.toValue(), reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX));
+    }
+
+    ALWAYS_INLINE operator EncodedValue() const
+    {
+        return EncodedValue(toValueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)));
+    }
+
+    ALWAYS_INLINE const HeapEncodedValue& operator=(const Value& value)
+    {
+        assignWithBase(value, reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX));
+        return *this;
+    }
+
+    ALWAYS_INLINE const HeapEncodedValue& operator=(const EncodedValue& value)
+    {
+        assignWithBase(value.toValue(), reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX));
+        return *this;
+    }
+
+    ALWAYS_INLINE operator Value() const
+    {
+        return toValueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX));
+    }
+};
+static_assert(sizeof(HeapEncodedValue) == 4, "heap encoded value must be four bytes");
+using HeapValue = HeapEncodedValue;
+#else
+using HeapEncodedValue = EncodedValue;
+using HeapValue = Value;
 #endif
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 using ObjectPropertyValue = EncodedSmallValue;
 typedef ObjectPropertyValue EncodedValueVectorElement;
 typedef Vector<EncodedValueVectorElement, CustomAllocator<EncodedValueVectorElement>> EncodedValueVector;
@@ -738,7 +813,7 @@ template <>
 struct is_fundamental<Escargot::EncodedValue> : public true_type {
 };
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 template <>
 struct is_fundamental<Escargot::EncodedSmallValue> : public true_type {
 };

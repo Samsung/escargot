@@ -86,6 +86,16 @@ void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
 
 void* WeakMapObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WeakMapObject))) {
+        GC_word bitmap[(sizeof(WeakMapObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WeakMapObject, m_storage) / 4);
+        GC_set_bit(bitmap, offsetof(WeakMapObject, m_hashIndex) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WeakMapObject, size, bitmap, sizeof(WeakMapObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WeakMapObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -97,6 +107,7 @@ void* WeakMapObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 bool WeakMapObject::deleteOperation(ExecutionState& state, PointerValue* key)

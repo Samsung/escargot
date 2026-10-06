@@ -67,7 +67,11 @@ public:
 
     ExecutionPauser* executionPauser()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_executionPauser.value();
+#else
         return &m_executionPauser;
+#endif
     }
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorenqueue
@@ -80,6 +84,7 @@ public:
     static Value asyncGeneratorReject(ExecutionState& state, AsyncGeneratorObject* generator, Value exception);
 
 private:
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
@@ -100,6 +105,7 @@ private:
 #endif /* ESCARGOT_DEBUGGER */
         GC_set_bit(desc, GC_WORD_OFFSET(AsyncGeneratorObject, m_asyncGeneratorQueue));
     }
+#endif
 
     friend Value asyncGeneratorEnqueue(ExecutionState& state, const Value& generator, AsyncGeneratorObject::AsyncGeneratorEnqueueType type, const Value& value);
     friend Value asyncGeneratorResumeNext(ExecutionState& state, AsyncGeneratorObject* generator);
@@ -109,7 +115,11 @@ private:
     friend Value asyncGeneratorResumeNextReturnProcessorRejectedFunction(ExecutionState& state, ExtendedNativeFunctionObject* F, const Value& reason);
 
     AsyncGeneratorState m_asyncGeneratorState;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<ExecutionPauser> m_executionPauser;
+#else
     ExecutionPauser m_executionPauser;
+#endif
 
     struct AsyncGeneratorQueueData {
         PromiseReaction::Capability m_capability; // [[Capability]]
@@ -126,7 +136,8 @@ private:
         }
     };
     // [[AsyncGeneratorQueue]]
-    Vector<AsyncGeneratorQueueData, GCUtil::gc_malloc_allocator<AsyncGeneratorQueueData>> m_asyncGeneratorQueue;
+    using AsyncGeneratorQueue = Vector<AsyncGeneratorQueueData, GCUtil::gc_malloc_allocator<AsyncGeneratorQueueData>>;
+    CompressibleHeapVectorOwner<AsyncGeneratorQueue, AsyncGeneratorQueueData> m_asyncGeneratorQueue;
 };
 } // namespace Escargot
 

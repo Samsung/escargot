@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "runtime/MapObject.h"
+#include "heap/Heap.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/Context.h"
 #include "runtime/KeyedCollectionHashIndex.h"
@@ -37,6 +38,16 @@ MapObject::MapObject(ExecutionState& state, Object* proto)
 
 void* MapObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::MapObject))) {
+        GC_word bitmap[(sizeof(MapObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(MapObject, m_storage) / 4);
+        GC_set_bit(bitmap, offsetof(MapObject, m_hashIndex) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::MapObject, size, bitmap, sizeof(MapObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::MapObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -48,6 +59,7 @@ void* MapObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 void MapObject::clear(ExecutionState& state)
@@ -301,6 +313,15 @@ MapIteratorObject::MapIteratorObject(ExecutionState& state, MapObject* map, Type
 
 void* MapIteratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::MapIteratorObject))) {
+        GC_word bitmap[(sizeof(MapIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(MapIteratorObject, m_map) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::MapIteratorObject, size, bitmap, sizeof(MapIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::MapIteratorObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -311,6 +332,7 @@ void* MapIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 std::pair<Value, bool> MapIteratorObject::advance(ExecutionState& state)

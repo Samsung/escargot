@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ScriptFunctionObject.h"
+#include "heap/Heap.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/GeneratorObject.h"
 #include "runtime/Context.h"
@@ -37,6 +38,21 @@
 #include "FunctionObjectInlines.h"
 
 namespace Escargot {
+
+void* ScriptFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ASSERT(size == sizeof(ScriptFunctionObject));
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptFunctionObject, size, bitmap, sizeof(ScriptFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnv,

@@ -25,6 +25,7 @@
 #include "runtime/ExecutionState.h"
 #include "runtime/ObjectStructurePropertyName.h"
 #include "runtime/ObjectStructurePropertyDescriptor.h"
+#include "runtime/CompressibleHeapPointer.h"
 
 namespace Escargot {
 
@@ -748,8 +749,8 @@ public:
     }
 
 private:
-    Optional<ObjectStructureItemVector*> m_properties;
-    Optional<PropertyNameMapWithCache*> m_propertyNameMap;
+    CompressibleHeapPointer<ObjectStructureItemVector> m_properties;
+    CompressibleHeapPointer<PropertyNameMapWithCache> m_propertyNameMap;
 };
 
 // Property metadata is partitioned into string, symbol, and canonical
@@ -935,6 +936,52 @@ private:
         static ObjectStructureItemVector empty;
         return &empty;
     }
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // Null in the heap slot denotes the existing static empty vector.
+    // The static address is reconstructed only when C++ reads the field.
+    class PropertyVectorPointer {
+    public:
+        PropertyVectorPointer(ObjectStructureItemVector* pointer = nullptr) { set(pointer); }
+        PropertyVectorPointer(Optional<ObjectStructureItemVector*> pointer) { set(pointer); }
+        PropertyVectorPointer(const PropertyVectorPointer&) = delete;
+        PropertyVectorPointer& operator=(const PropertyVectorPointer&) = delete;
+
+        void set(Optional<ObjectStructureItemVector*> pointer)
+        {
+            if (!pointer || pointer.value() == emptyProperties()) {
+                m_pointer.set(nullptr);
+            } else {
+                m_pointer.set(pointer);
+            }
+        }
+
+        PropertyVectorPointer& operator=(ObjectStructureItemVector* pointer)
+        {
+            set(pointer);
+            return *this;
+        }
+
+        PropertyVectorPointer& operator=(Optional<ObjectStructureItemVector*> pointer)
+        {
+            set(pointer);
+            return *this;
+        }
+
+        ObjectStructureItemVector* value() const
+        {
+            return m_pointer ? m_pointer.value() : emptyProperties();
+        }
+
+        ObjectStructureItemVector* operator->() const { return value(); }
+        operator Optional<ObjectStructureItemVector*>() const { return value(); }
+
+    private:
+        CompressibleHeapPointer<ObjectStructureItemVector> m_pointer;
+    };
+    static_assert(sizeof(PropertyVectorPointer) == 4, "empty-aware pointer slot must be four bytes");
+#else
+    using PropertyVectorPointer = Optional<ObjectStructureItemVector*>;
+#endif
 
     static ObjectStructureItemVector* copyProperties(ObjectStructureItemVector* properties)
     {
@@ -960,17 +1007,17 @@ private:
     void sortIndexProperties();
     void finishConstruction();
 
-    Optional<ObjectStructureItemVector*> m_namedProperties;
-    Optional<ObjectStructureItemVector*> m_symbolProperties;
+    PropertyVectorPointer m_namedProperties;
+    PropertyVectorPointer m_symbolProperties;
     // One- and two-key numeric structures keep their sorted keys in the
     // structure itself. The external atomic vector starts at the third key.
     InlineIndexProperties m_inlineIndexProperties;
-    Optional<ObjectStructureIndexPropertyVector*> m_indexProperties;
+    CompressibleHeapPointer<ObjectStructureIndexPropertyVector> m_indexProperties;
     // An absent vector means every numeric property has the common plain-data W/E/C
     // descriptor. Materialize the parallel vector only for an exception.
-    Optional<ObjectStructureIndexDescriptorVector*> m_indexDescriptors;
-    Optional<PropertyNameMapWithCache*> m_namedPropertyMap;
-    Optional<IndexPropertyMapWithCache*> m_indexPropertyMap;
+    CompressibleHeapPointer<ObjectStructureIndexDescriptorVector> m_indexDescriptors;
+    CompressibleHeapPointer<PropertyNameMapWithCache> m_namedPropertyMap;
+    CompressibleHeapPointer<IndexPropertyMapWithCache> m_indexPropertyMap;
 };
 } // namespace Escargot
 

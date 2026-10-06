@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "BooleanObject.h"
 #include "Context.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -33,5 +34,17 @@ BooleanObject::BooleanObject(ExecutionState& state, Object* proto, bool value)
     , m_primitiveValue(value)
 {
 }
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void* BooleanObject::operator new(size_t size)
+{
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::BooleanObject))) {
+        GC_word bitmap[(sizeof(BooleanObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::BooleanObject, size, bitmap, sizeof(BooleanObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::BooleanObject, size);
+}
+#endif
 
 } // namespace Escargot

@@ -61,9 +61,13 @@ public:
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
-    EncodedValue m_thisValue;
-    Object* m_homeObject;
+    HeapEncodedValue m_thisValue;
+
+    CompressibleHeapPointer<Object> m_homeObject;
 };
 } // namespace Escargot
 

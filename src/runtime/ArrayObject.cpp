@@ -23,15 +23,18 @@
 #include "ErrorObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
 ObjectPropertyValue ArrayObject::DummyArrayElement;
+#endif
 
 ArrayObject::ArrayObject(ExecutionState& state, ForSpreadArray)
     : DerivedObject(state, state.context()->globalObject()->arrayPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_fastModeData()
 #else
     , m_fastModeData(nullptr)
@@ -50,7 +53,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
 ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_fastModeData()
 #else
     , m_fastModeData(nullptr)
@@ -61,8 +64,8 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     // no object in the heap is dirty at all
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
                  && Object::prototypeChainMayHaveIndexedProperty(proto))) {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        m_fastModeData.reset(&ArrayObject::DummyArrayElement);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_fastModeData.setNonFastMode();
 #else
         m_fastModeData = &ArrayObject::DummyArrayElement;
 #endif
@@ -81,8 +84,8 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& s
         if (UNLIKELY(!isFastModeArray())) {
             // m_fastModeData has the initial value `DummyArrayElement`
             // this could trigger an error while destructing of m_fastModeData when an exception thrown right after here
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-            m_fastModeData.reset();
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            m_fastModeData.setFastMode();
 #else
             m_fastModeData = nullptr;
 #endif
@@ -446,9 +449,10 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     // convert to non-fast mode first because it could affect Object::defineOwnProperty
     // hold a temporal array until the end of non-fast mode conversion
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> tempFastModeData(std::move(m_fastModeData));
-    m_fastModeData.reset(&ArrayObject::DummyArrayElement);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ObjectPropertyValueVector tempFastModeData;
+    tempFastModeData.reset(m_fastModeData.takeBuffer());
+    m_fastModeData.setNonFastMode();
 #else
     ObjectPropertyValue* tempFastModeData = m_fastModeData;
     m_fastModeData = &ArrayObject::DummyArrayElement;
@@ -462,7 +466,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     }
 
     // deallocate fast mode data
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     tempFastModeData.resizeWithUninitializedValues(length, 0);
 #else
     GC_FREE(tempFastModeData);
@@ -561,8 +565,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
             m_arrayLength = newLength;
             if (useFitStorage || oldLength == 0 || newLength <= ESCARGOT_ARRAY_FASTMODE_EXACT_ALLOC_MAX_LENGTH) {
                 bool hasRD = hasRareData();
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-                m_fastModeData.resizeWithUninitializedValues(oldLength, newLength);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+                m_fastModeData.resizeWithRealloc(newLength);
 
                 if (oldLength < newLength) {
                     memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
@@ -604,7 +608,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                 // typical std::vector push_back.
                 bool isAppendGrowth = (newLength == oldLength + 1);
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
                 auto rd = ensureRareData();
                 if (newLength > oldCapacity) {
                     size_t newCapacity;
@@ -615,7 +619,7 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                         ComputeReservedCapacityFunctionWithPercent<130> f;
                         newCapacity = f(newLength);
                     }
-                    m_fastModeData.resizeWithUninitializedValues(oldLength, newCapacity);
+                    m_fastModeData.resizeWithRealloc(newCapacity);
 
 
                     if (oldLength < newLength) {
@@ -821,6 +825,15 @@ ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type 
 
 void* ArrayIteratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ArrayIteratorObject))) {
+        GC_word bitmap[(sizeof(ArrayIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ArrayIteratorObject, m_array) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ArrayIteratorObject, size, bitmap, sizeof(ArrayIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ArrayIteratorObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -831,6 +844,7 @@ void* ArrayIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
@@ -920,7 +934,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
 
 const ObjectPropertyValue* ArrayObject::storage() const
 {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     return m_fastModeData.data();
 #else
     return m_fastModeData;

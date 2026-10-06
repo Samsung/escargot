@@ -33,6 +33,8 @@ class Script;
 class ShadowRealmObject : public DerivedObject {
 public:
     explicit ShadowRealmObject(ExecutionState& state, Object* proto, Context* realmContext, Script* referrer);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     Context* realmContext()
     {
@@ -52,8 +54,8 @@ public:
     Value importValue(ExecutionState& state, String* specifierString, String* exportNameString, Context* callerRealm);
 
 private:
-    Context* m_realmContext;
-    Script* m_referrer;
+    CompressibleHeapPointer<Context> m_realmContext;
+    CompressibleHeapPointer<Script> m_referrer;
 };
 
 #endif // defined(ENABLE_SHADOWREALM)

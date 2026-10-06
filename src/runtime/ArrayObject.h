@@ -51,7 +51,9 @@ class ArrayObject : public DerivedObject {
     friend int getValidValueInArrayObject(void* ptr, GC_mark_pair* arr);
 
     // dummy element to represent non-fast mode array
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     static ObjectPropertyValue DummyArrayElement;
+#endif
 
     enum ForSpreadArray { __ForSpreadArray__ };
 
@@ -116,8 +118,8 @@ public:
 
     ALWAYS_INLINE bool isFastModeArray() const
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return !m_fastModeData.isNonFastMode();
 #else
         return (m_fastModeData != &ArrayObject::DummyArrayElement);
 #endif
@@ -143,7 +145,7 @@ public:
     ALWAYS_INLINE Value getFastModeValue(size_t idx) const
     {
         ASSERT(isFastModeArray());
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         return m_fastModeData.data()[idx];
 #else
         return m_fastModeData[idx];
@@ -153,7 +155,7 @@ public:
     ALWAYS_INLINE void setFastModeValue(size_t idx, const Value& v)
     {
         ASSERT(isFastModeArray());
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         m_fastModeData.data()[idx] = v;
 #else
         m_fastModeData[idx] = v;
@@ -163,7 +165,7 @@ public:
     ALWAYS_INLINE ObjectPropertyValue* fastModeDataRaw()
     {
         ASSERT(isFastModeArray());
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         return m_fastModeData.data();
 #else
         return m_fastModeData;
@@ -184,7 +186,7 @@ protected:
     ArrayObject()
         : DerivedObject()
         , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         , m_fastModeData()
 #else
         , m_fastModeData(nullptr)
@@ -223,12 +225,16 @@ private:
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
     uint32_t m_arrayLength;
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> m_fastModeData;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressedObjectPropertyValueVector m_fastModeData;
 #else
     ObjectPropertyValue* m_fastModeData;
 #endif
 };
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(ArrayObject) == 32, "array mode must fit in the compressed buffer slot");
+#endif
 
 class ArrayPrototypeObject : public ArrayObject {
     friend class Global;
@@ -271,7 +277,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Object* m_array;
+    CompressibleHeapPointer<Object> m_array;
+
     size_t m_iteratorNextIndex;
     Type m_type;
 };

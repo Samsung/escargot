@@ -53,6 +53,11 @@ public:
 
 class DateObject : public DerivedObject {
 public:
+    // Date()/parse()/UTC() use only the time value and cache. This constructor
+    // leaves Object's heap references empty so the temporary can live on the
+    // stack even in compressed builds. Do not expose it as a JavaScript object.
+    enum StackAllocatedTag { StackAllocated };
+    explicit DateObject(StackAllocatedTag);
     explicit DateObject(ExecutionState& state);
     explicit DateObject(ExecutionState& state, Object* proto);
 

@@ -171,7 +171,8 @@ protected:
     };
     ISO8601::Duration differenceTemporalPlainDate(ExecutionState& state, DifferenceTemporalPlainDate operation, Value other, Value options);
 
-    ISO8601::PlainDate* m_plainDate;
+    CompressibleHeapPointer<ISO8601::PlainDate> m_plainDate;
+
     Calendar m_calendarID;
     UCalendar* m_icuCalendar;
 };

@@ -27,6 +27,12 @@
 
 namespace Escargot {
 
+template <typename T, bool supportsTag>
+inline CompressibleHeapPointer<T, supportsTag>::operator Value() const
+{
+    return Value(raw());
+}
+
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
 // The result is unspecified if x is infinite or NaN, or if the rounded
@@ -914,13 +920,15 @@ inline Value::Value(unsigned long long i)
 
 inline bool Value::isUInt32() const
 {
-    // The int32 tag and the sign bit of the payload live in one word, so the
-    // array-index fast paths (toIndex32/tryToUseAsIndex*) pay a single
-    // mask-and-compare instead of a tag test plus a sign test.
 #ifdef ESCARGOT_32
     return (static_cast<uint64_t>(u.asInt64) & UInt32ValueBitsMask) == UInt32ValueBits;
 #else
-    return (static_cast<uint64_t>(u.asInt64) & (static_cast<uint64_t>(TagTypeNumber) | 0x80000000ull)) == static_cast<uint64_t>(TagTypeNumber);
+    // Int32 constructors clear bits 32..47. Shifting a canonical payload
+    // tests the tag and sign together on every 64-bit platform.
+    const bool result = (static_cast<uint64_t>(u.asInt64) >> 31)
+        == (static_cast<uint64_t>(TagTypeNumber) >> 31);
+    ASSERT(result == ((static_cast<uint64_t>(u.asInt64) & (static_cast<uint64_t>(TagTypeNumber) | 0x80000000ull)) == static_cast<uint64_t>(TagTypeNumber)));
+    return result;
 #endif
 }
 

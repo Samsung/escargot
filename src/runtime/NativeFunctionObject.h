@@ -47,10 +47,13 @@ public:
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     NativeCodeBlock* nativeCodeBlock() const
     {
         ASSERT(m_codeBlock->isNativeCodeBlock());
-        return (NativeCodeBlock*)m_codeBlock;
+        return static_cast<NativeCodeBlock*>(m_codeBlock.valueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)));
     }
 
 protected:

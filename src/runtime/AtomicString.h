@@ -135,27 +135,27 @@ private:
 
 COMPILE_ASSERT(sizeof(AtomicString) == sizeof(size_t), "");
 
-// AtomicStringMap owns the canonical strings. Compact slots in identifier
+// AtomicStringMap owns the canonical strings. Compressed slots in identifier
 // arrays can therefore be allocated atomically without tracing their offsets.
-class CompactAtomicString {
+class CompressibleAtomicString {
 public:
-    CompactAtomicString()
-        : CompactAtomicString(AtomicString())
+    CompressibleAtomicString()
+        : CompressibleAtomicString(AtomicString())
     {
     }
 
-    CompactAtomicString(AtomicString string)
+    CompressibleAtomicString(AtomicString string)
     {
         *this = string;
     }
 
-    CompactAtomicString& operator=(AtomicString string)
+    CompressibleAtomicString& operator=(AtomicString string)
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         const uintptr_t address = reinterpret_cast<uintptr_t>(string.string());
-        const uintptr_t offset = address - ThreadLocal::cageBase();
-        RELEASE_ASSERT(offset <= UINT32_MAX);
-        m_string = static_cast<uint32_t>(offset);
+        ASSERT(address - ThreadLocal::cageBase() <= UINT32_MAX);
+        // The cage base is 4 GiB aligned, so the low bits are the offset.
+        m_string = static_cast<uint32_t>(address);
 #else
         m_string = string.string();
 #endif
@@ -164,7 +164,7 @@ public:
 
     String* string() const
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         return reinterpret_cast<String*>(ThreadLocal::cageBase() + m_string);
 #else
         return m_string;
@@ -176,9 +176,9 @@ public:
         return AtomicString::fromPayload(string());
     }
 
-    friend bool operator==(CompactAtomicString left, AtomicString right)
+    friend bool operator==(CompressibleAtomicString left, AtomicString right)
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         // The cage base is 4 GiB aligned, so the low bits are the offset.
         return left.m_string == static_cast<uint32_t>(reinterpret_cast<uintptr_t>(right.string()));
 #else
@@ -187,15 +187,15 @@ public:
     }
 
 private:
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     uint32_t m_string;
 #else
     String* m_string;
 #endif
 };
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-COMPILE_ASSERT(sizeof(CompactAtomicString) == sizeof(uint32_t), "");
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+COMPILE_ASSERT(sizeof(CompressibleAtomicString) == sizeof(uint32_t), "");
 #endif
 
 inline bool operator==(const AtomicString& a, const AtomicString& b)

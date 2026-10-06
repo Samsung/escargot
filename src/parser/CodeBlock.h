@@ -177,9 +177,9 @@ private:
 };
 
 struct InterpretedCodeBlockRareData : public gc {
-    FunctionContextVarMap* m_identifierInfoMap;
+    Optional<FunctionContextVarMap*> m_identifierInfoMap;
     TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
-    AtomicStringTightVector* m_classPrivateNames;
+    Optional<AtomicStringTightVector*> m_classPrivateNames;
 #ifdef ESCARGOT_DEBUGGER
     size_t m_debuggerLineStart;
 #endif /* ESCARGOT_DEBUGGER */
@@ -193,7 +193,7 @@ struct InterpretedCodeBlockRareData : public gc {
     {
     }
 
-    InterpretedCodeBlockRareData(FunctionContextVarMap* map, AtomicStringTightVector* classPrivateNames)
+    InterpretedCodeBlockRareData(Optional<FunctionContextVarMap*> map, Optional<AtomicStringTightVector*> classPrivateNames)
         : m_identifierInfoMap(map)
         , m_classPrivateNames(classPrivateNames)
 #ifdef ESCARGOT_DEBUGGER
@@ -282,7 +282,7 @@ public:
         bool m_isMutable : 1;
         bool m_isUsing : 1;
         CompactIdentifierIndex m_indexForIndexedStorage;
-        CompactAtomicString m_name;
+        CompressibleAtomicString m_name;
     };
 
     typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
@@ -442,10 +442,10 @@ public:
         bool m_isExplicitlyDeclaredOrParameterName : 1;
         bool m_isVarDeclaration : 1;
         CompactIdentifierIndex m_indexForIndexedStorage;
-        CompactAtomicString m_name;
+        CompressibleAtomicString m_name;
     };
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     COMPILE_ASSERT(sizeof(BlockIdentifierInfo) == 12, "");
     COMPILE_ASSERT(sizeof(IdentifierInfo) == 12, "");
 #endif

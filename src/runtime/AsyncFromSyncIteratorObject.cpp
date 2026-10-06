@@ -22,8 +22,24 @@
 
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* AsyncFromSyncIteratorObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::AsyncFromSyncIteratorObject))) {
+        GC_word bitmap[(sizeof(AsyncFromSyncIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(AsyncFromSyncIteratorObject, m_syncIteratorRecord) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::AsyncFromSyncIteratorObject, size, bitmap, sizeof(AsyncFromSyncIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::AsyncFromSyncIteratorObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 AsyncFromSyncIteratorObject::AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord)
     : DerivedObject(state, proto)

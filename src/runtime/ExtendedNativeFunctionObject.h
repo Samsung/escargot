@@ -21,6 +21,7 @@
 #define __EscargotExtendedNativeFunctionObject__
 
 #include "NativeFunctionObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -106,6 +107,9 @@ public:
 #ifndef NDEBUG
         , m_slotCount(slotNumber)
 #endif
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_values(allocateSlots(slotNumber))
+#endif
     {
     }
 
@@ -113,6 +117,9 @@ public:
         : ExtendedNativeFunctionObject(state, info, flag)
 #ifndef NDEBUG
         , m_slotCount(slotNumber)
+#endif
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_values(allocateSlots(slotNumber))
 #endif
     {
     }
@@ -123,13 +130,36 @@ public:
 #ifndef NDEBUG
         , m_slotCount(slotNumber)
 #endif
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_values(allocateSlots(slotNumber))
+#endif
     {
     }
+
+    void* operator new(size_t size)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ExtendedNativeFunctionObject))) {
+            GC_word bitmap[(sizeof(ExtendedNativeFunctionObjectImpl) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+            FunctionObject::fillCompressedGCDescriptor(bitmap);
+            GC_set_bit(bitmap, offsetof(ExtendedNativeFunctionObjectImpl, m_values) / 4);
+            Heap::initializeCompressedType(Heap::CompressedType::ExtendedNativeFunctionObject, size, bitmap, sizeof(ExtendedNativeFunctionObjectImpl) / 4);
+        }
+        return Heap::mallocCompressed(Heap::CompressedType::ExtendedNativeFunctionObject, size);
+#else
+        return GC_MALLOC(size);
+#endif
+    }
+    void* operator new[](size_t size) = delete;
 
 protected:
     virtual InternalSlotData* internalSlots() override
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_values.raw();
+#else
         return m_values;
+#endif
     }
 
 #ifndef NDEBUG
@@ -140,7 +170,23 @@ protected:
 
     size_t m_slotCount;
 #endif
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static Optional<InternalSlotData*> allocateSlots(size_t count)
+    {
+        if (count == 0) {
+            return nullptr;
+        }
+        InternalSlotData* slots = static_cast<InternalSlotData*>(GC_MALLOC(sizeof(InternalSlotData) * count));
+        ASSERT(slots);
+        for (size_t i = 0; i < count; ++i) {
+            new (&slots[i]) InternalSlotData();
+        }
+        return slots;
+    }
+    CompressibleHeapPointer<InternalSlotData> m_values;
+#else
     InternalSlotData m_values[slotNumber];
+#endif
 };
 } // namespace Escargot
 

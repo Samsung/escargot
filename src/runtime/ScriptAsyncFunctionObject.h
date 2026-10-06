@@ -61,9 +61,13 @@ public:
     // http://www.ecma-international.org/ecma-262/10.0/#await
     static PromiseObject* awaitOperationBeforePause(ExecutionState& state, ExecutionPauser* pauser, const Value& awaitValue, Object* source);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
 private:
-    EncodedValue m_thisValue;
-    Object* m_homeObject;
+    HeapEncodedValue m_thisValue;
+
+    CompressibleHeapPointer<Object> m_homeObject;
 };
 } // namespace Escargot
 

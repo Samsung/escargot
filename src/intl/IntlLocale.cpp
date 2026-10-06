@@ -51,9 +51,25 @@
 #include "runtime/ArrayObject.h"
 #include "Intl.h"
 #include "IntlLocale.h"
+#include "heap/Heap.h"
 #include "IntlDateTimeFormat.h"
 
 namespace Escargot {
+
+void* IntlLocaleObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlLocaleObject))) {
+        GC_word bitmap[(sizeof(IntlLocaleObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlLocaleObject, m_localeID) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlLocaleObject, size, bitmap, sizeof(IntlLocaleObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IntlLocaleObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 class LocaleIDBuilder {
 public:

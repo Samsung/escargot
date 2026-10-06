@@ -26,11 +26,14 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
 class ScriptAsyncFromSyncIteratorHelperFunctionObject : public NativeFunctionObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     ScriptAsyncFromSyncIteratorHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, bool done)
         : NativeFunctionObject(state, info)
         , m_done(done)
@@ -40,16 +43,51 @@ public:
     bool m_done;
 };
 
+void* ScriptAsyncFromSyncIteratorHelperFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptAsyncFromSyncIteratorHelperFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptAsyncFromSyncIteratorHelperFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptAsyncFromSyncIteratorHelperFunctionObject, size, bitmap, sizeof(ScriptAsyncFromSyncIteratorHelperFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptAsyncFromSyncIteratorHelperFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
 class ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject : public NativeFunctionObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject(ExecutionState& state, NativeFunctionInfo info, IteratorRecord* record)
         : NativeFunctionObject(state, info)
         , m_syncIteratorRecord(record)
     {
     }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<IteratorRecord> m_syncIteratorRecord;
+#else
     IteratorRecord* m_syncIteratorRecord;
+#endif
 };
+
+void* ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject, m_syncIteratorRecord) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject, size, bitmap, sizeof(ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptAsyncFromSyncIteratorCloseOnRejectFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-async-from-sync-iterator-value-unwrap-functions

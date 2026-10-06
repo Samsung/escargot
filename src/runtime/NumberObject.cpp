@@ -22,6 +22,7 @@
 
 #include "Escargot.h"
 #include "NumberObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 
 namespace Escargot {
@@ -39,6 +40,14 @@ NumberObject::NumberObject(ExecutionState& state, Object* proto, double value)
 
 void* NumberObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::NumberObject))) {
+        GC_word bitmap[(sizeof(NumberObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::NumberObject, size, bitmap, sizeof(NumberObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::NumberObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -48,6 +57,7 @@ void* NumberObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////

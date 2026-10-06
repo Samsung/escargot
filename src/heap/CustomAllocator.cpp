@@ -214,7 +214,7 @@ GC_ms_entry* markSetObjectInlineCacheDataVector(GC_word* addr,
     return mark_stack_ptr;
 }
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 static GC_ms_entry* markEncodedSmallValueRange(const char* start, const char* end,
                                                GC_ms_entry* mark_stack_ptr,
                                                GC_ms_entry* mark_stack_limit)
@@ -447,7 +447,7 @@ void initializeCustomAllocators()
     GC_register_disclaim_proc(s_gcKinds[HeapObjectKind::SharedBackingStoreKind], SharedBackingStore::clearSharedBackingStore, 0);
 #endif
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                          GC_MAKE_PROC(GC_new_proc(markEncodedSmallValueVector), 0),
                                                                          FALSE,
@@ -503,6 +503,18 @@ void initializeCustomAllocators()
                                                                                   FALSE,
                                                                                   TRUE);
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        const size_t headerSlots = headerWords * sizeof(GC_word) / 4;
+        GC_word objBitmap[(sizeof(ArrayObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ + 1] = { 0 };
+        GC_set_bit(objBitmap, headerSlots + offsetof(ArrayObject, m_structure) / 4);
+        GC_set_bit(objBitmap, headerSlots + offsetof(ArrayObject, m_prototype) / 4);
+        GC_set_bit(objBitmap, headerSlots + offsetof(ArrayObject, m_values) / 4);
+        GC_set_bit(objBitmap, headerSlots + offsetof(ArrayObject, m_fastModeData) / 4);
+        auto descr = GC_make_compressed_bitmap_descriptor_with_tag(sizeof(ArrayObject) + headerSlots * 4,
+                                                                   objBitmap, sizeof(ArrayObject) / 4 + headerSlots, headerSlots + offsetof(ArrayObject, m_values) / 4, 1, true);
+        ASSERT(descr);
+        s_gcKinds[HeapObjectKind::ArrayObjectKind] = GC_compressed_bitmap_descriptor_kind(descr);
+#else
         // add + 1 for headerwords w/debug mode
         GC_word objBitmap[GC_BITMAP_SIZE(ArrayObject) + 1] = { 0 };
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(ArrayObject, m_structure));
@@ -514,6 +526,7 @@ void initializeCustomAllocators()
                                                                             descr,
                                                                             FALSE,
                                                                             TRUE);
+#endif
     }
 }
 
@@ -584,7 +597,7 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
 }
 #endif
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void* allocateFunctionEnvironmentRecord(size_t size)
 {
     return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind]);

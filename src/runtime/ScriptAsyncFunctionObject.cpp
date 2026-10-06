@@ -19,11 +19,28 @@
 
 #include "Escargot.h"
 #include "ScriptAsyncFunctionObject.h"
+#include "heap/Heap.h"
 #include "runtime/Context.h"
 #include "runtime/FunctionObjectInlines.h"
 #include "runtime/PromiseObject.h"
 
 namespace Escargot {
+
+void* ScriptAsyncFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptAsyncFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptAsyncFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        ScriptFunctionObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncFunctionObject, m_thisValue) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncFunctionObject, m_homeObject) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptAsyncFunctionObject, size, bitmap, sizeof(ScriptAsyncFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptAsyncFunctionObject, size);
+#else
+    return ScriptFunctionObject::operator new(size);
+#endif
+}
 
 ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue, Object* homeObject)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, false)
@@ -86,6 +103,8 @@ Value ScriptAsyncFunctionObject::construct(ExecutionState& state, const size_t a
 
 class ScriptAsyncFunctionHelperFunctionObject : public NativeFunctionObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     ScriptAsyncFunctionHelperFunctionObject(ExecutionState& state, NativeFunctionInfo info, ExecutionPauser* executionPauser, Object* source)
         : NativeFunctionObject(state, info)
         , m_executionPauser(executionPauser)
@@ -93,9 +112,30 @@ public:
     {
     }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<ExecutionPauser> m_executionPauser;
+    CompressibleHeapPointer<Object> m_source;
+#else
     ExecutionPauser* m_executionPauser;
     Object* m_source;
+#endif
 };
+
+void* ScriptAsyncFunctionHelperFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ScriptAsyncFunctionHelperFunctionObject))) {
+        GC_word bitmap[(sizeof(ScriptAsyncFunctionHelperFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncFunctionHelperFunctionObject, m_executionPauser) / 4);
+        GC_set_bit(bitmap, offsetof(ScriptAsyncFunctionHelperFunctionObject, m_source) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ScriptAsyncFunctionHelperFunctionObject, size, bitmap, sizeof(ScriptAsyncFunctionHelperFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ScriptAsyncFunctionHelperFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 // http://www.ecma-international.org/ecma-262/10.0/#await-fulfilled
 static void awaitFulfilledFunctions(ExecutionState& state, ScriptAsyncFunctionHelperFunctionObject* F, const Value& value)

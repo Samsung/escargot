@@ -94,7 +94,7 @@ public:
 
 private:
     wasm_instance_t* m_instance;
-    Object* m_exports;
+    CompressibleHeapPointer<Object> m_exports;
 };
 
 class WASMMemoryObject : public DerivedObject {
@@ -123,7 +123,7 @@ public:
 
 private:
     wasm_memory_t* m_memory;
-    ArrayBuffer* m_buffer;
+    CompressibleHeapPointer<ArrayBuffer> m_buffer;
 };
 
 class WASMTableObject : public DerivedObject {

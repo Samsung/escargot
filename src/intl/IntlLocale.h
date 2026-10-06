@@ -30,6 +30,8 @@ class IntlLocaleObject : public DerivedObject {
 public:
     IntlLocaleObject(ExecutionState& state, String* tag, Object* options);
     IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Object* options);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     String* locale() const;
     String* language() const;
@@ -59,7 +61,7 @@ public:
     Value timeZones(ExecutionState& state);
 
 protected:
-    String* m_localeID;
+    CompressibleHeapPointer<String> m_localeID;
 };
 
 } // namespace Escargot

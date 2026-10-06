@@ -82,9 +82,8 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-
 private:
-    String* m_primitiveValue;
+    CompressibleHeapPointer<String> m_primitiveValue;
 };
 
 class StringIteratorObject : public IteratorObject {
@@ -102,7 +101,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    String* m_string;
+    CompressibleHeapPointer<String> m_string;
+
     size_t m_iteratorNextIndex;
 };
 } // namespace Escargot

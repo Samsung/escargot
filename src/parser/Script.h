@@ -151,9 +151,9 @@ public:
             }
             void* operator new(size_t size);
             void* operator new[](size_t size) = delete;
-            Script* m_referrer;
-            Script* m_loadedScript;
-            EncodedValue m_value;
+            CompressibleHeapPointer<Script> m_referrer;
+            CompressibleHeapPointer<Script> m_loadedScript;
+            HeapEncodedValue m_value;
         };
 
         ModuleData()

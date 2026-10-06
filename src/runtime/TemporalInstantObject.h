@@ -31,6 +31,9 @@ class TemporalInstantObject : public DerivedObject {
 public:
     TemporalInstantObject(ExecutionState& state, Object* proto, Int128 nanoseconds);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     virtual bool isTemporalInstantObject() const override
     {
         return true;
@@ -69,7 +72,7 @@ public:
     static Int128 addInstant(ExecutionState& state, Int128 epochNanoseconds, Int128 timeDuration);
 
 private:
-    Int128* m_nanoseconds; // [[EpochNanoseconds]]
+    CompressibleHeapPointer<Int128> m_nanoseconds;
 };
 
 } // namespace Escargot

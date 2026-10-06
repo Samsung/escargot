@@ -32,6 +32,8 @@ class IteratorRecord;
 class AsyncFromSyncIteratorObject : public DerivedObject {
 public:
     AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-createasyncfromsynciterator
     static IteratorRecord* createAsyncFromSyncIterator(ExecutionState& state, IteratorRecord* syncIteratorRecord)
@@ -63,7 +65,7 @@ private:
     }
 
     // [[SyncIteratorRecord]]
-    IteratorRecord* m_syncIteratorRecord;
+    CompressibleHeapPointer<IteratorRecord> m_syncIteratorRecord;
 };
 } // namespace Escargot
 

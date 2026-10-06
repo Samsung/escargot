@@ -22,9 +22,27 @@
 #include "runtime/Context.h"
 #include "runtime/FunctionObject.h"
 #include "BoundFunctionObject.h"
+#include "heap/Heap.h"
 #include "EncodedValue.h"
 
 namespace Escargot {
+
+void* BoundFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::BoundFunctionObject))) {
+        GC_word bitmap[(sizeof(BoundFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(BoundFunctionObject, m_boundTargetFunction) / 4);
+        GC_set_bit(bitmap, offsetof(BoundFunctionObject, m_boundThis) / 4);
+        GC_set_bit(bitmap, offsetof(BoundFunctionObject, m_boundArguments) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::BoundFunctionObject, size, bitmap, sizeof(BoundFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::BoundFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
     : DerivedObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
@@ -84,7 +102,8 @@ Value BoundFunctionObject::construct(ExecutionState& state, const size_t calledA
 
     // If SameValue(F, newTarget) is true, let newTarget be target.
     if (this == newTarget) {
-        newTarget = Value(m_boundTargetFunction).asObject();
+        Object* target = m_boundTargetFunction;
+        newTarget = Value(target).asObject();
     }
 
     // Return Construct(target, args, newTarget).

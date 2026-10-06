@@ -28,6 +28,7 @@
 #include "runtime/SandBox.h"
 #include "api/EscargotPublic.h"
 #include "api/internal/ValueAdapter.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -74,6 +75,8 @@ private:
 
 class ObjectWithPropertyHandler : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     ObjectWithPropertyHandler(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto, ObjectTemplatePropertyHandlerData* namedData, ObjectTemplatePropertyHandlerData* indexedData)
         : DerivedObject(structure, std::move(values), proto)
         , m_namedPropertyHandler(namedData)
@@ -89,7 +92,7 @@ public:
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_getter) {
             auto ret = propertyHandler->m_getter(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data,
                                                  toRef(P.toPlainValue()));
@@ -110,7 +113,7 @@ public:
 
     virtual Value getOwnPropertyDescriptor(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_descriptor) {
             auto ret = propertyHandler->m_descriptor(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data,
                                                      toRef(P.toPlainValue()));
@@ -124,7 +127,7 @@ public:
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler) {
             if (propertyHandler->m_definer) {
                 auto ret = propertyHandler->m_definer(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data, toRef(P.toPlainValue()), ObjectPropertyDescriptorRef((void*)&desc));
@@ -144,7 +147,7 @@ public:
 
     virtual bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_query) {
             auto attr = propertyHandler->m_query(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data,
                                                  toRef(P.toPlainValue()));
@@ -156,7 +159,7 @@ public:
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler) {
             if (propertyHandler->m_query) {
                 auto attr = propertyHandler->m_query(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data,
@@ -192,7 +195,7 @@ public:
 
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_deleter) {
             auto ret = propertyHandler->m_deleter(toRef(&state), toRef(this), toRef(this), propertyHandler->m_data,
                                                   toRef(P.toPlainValue()));
@@ -246,7 +249,7 @@ public:
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_getter) {
             auto ret = propertyHandler->m_getter(toRef(&state), toRef(this), toRef(receiver), propertyHandler->m_data,
                                                  toRef(P.toPlainValue()));
@@ -267,7 +270,7 @@ public:
 
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override
     {
-        ObjectTemplatePropertyHandlerData* propertyHandler = P.isIndexString() ? m_indexedPropertyHandler : m_namedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* propertyHandler = propertyHandlerFor(P);
         if (propertyHandler && propertyHandler->m_setter) {
             auto ret = propertyHandler->m_setter(toRef(&state), toRef(this), toRef(receiver), propertyHandler->m_data, toRef(P.toPlainValue()), toRef(v));
             if (ret.hasValue()) {
@@ -289,9 +292,37 @@ public:
     }
 
 private:
+    ObjectTemplatePropertyHandlerData* propertyHandlerFor(const ObjectPropertyName& name) const
+    {
+        ObjectTemplatePropertyHandlerData* indexed = m_indexedPropertyHandler;
+        ObjectTemplatePropertyHandlerData* named = m_namedPropertyHandler;
+        return name.isIndexString() ? indexed : named;
+    }
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<ObjectTemplatePropertyHandlerData> m_namedPropertyHandler;
+    CompressibleHeapPointer<ObjectTemplatePropertyHandlerData> m_indexedPropertyHandler;
+#else
     ObjectTemplatePropertyHandlerData* m_namedPropertyHandler;
     ObjectTemplatePropertyHandlerData* m_indexedPropertyHandler;
+#endif
 };
+
+void* ObjectWithPropertyHandler::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectWithPropertyHandler))) {
+        GC_word bitmap[(sizeof(ObjectWithPropertyHandler) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ObjectWithPropertyHandler, m_namedPropertyHandler) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectWithPropertyHandler, m_indexedPropertyHandler) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectWithPropertyHandler, size, bitmap, sizeof(ObjectWithPropertyHandler) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectWithPropertyHandler, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 void* ObjectTemplate::operator new(size_t size)
 {

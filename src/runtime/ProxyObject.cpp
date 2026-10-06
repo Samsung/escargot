@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ProxyObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/Context.h"
@@ -37,6 +38,16 @@ ProxyObject::ProxyObject(ExecutionState& state)
 
 void* ProxyObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ProxyObject))) {
+        GC_word bitmap[(sizeof(ProxyObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ProxyObject, m_target) / 4);
+        GC_set_bit(bitmap, offsetof(ProxyObject, m_handler) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ProxyObject, size, bitmap, sizeof(ProxyObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ProxyObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -48,6 +59,7 @@ void* ProxyObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 Context* ProxyObject::getFunctionRealm(ExecutionState& state)

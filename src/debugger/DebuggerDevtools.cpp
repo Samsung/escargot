@@ -506,11 +506,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
 
-            auto* entries = new (GC) Object(*state);
+            auto* entries = new Object(*state);
             uint32_t idx = 0;
             for (const auto& entry_pair : mapObj->storage()) {
                 if (!entry_pair.first.isEmpty()) {
-                    auto* entryObj = new (GC) Object(*state);
+                    auto* entryObj = new Object(*state);
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().key), ObjectPropertyDescriptor(entry_pair.first.toValue<false>()));
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_pair.second.toValue<false>()));
 
@@ -526,11 +526,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->storage().size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
 
-            auto* entries = new (GC) Object(*state);
+            auto* entries = new Object(*state);
             uint32_t idx = 0;
             for (const auto& entry_pair : mapObj->storage()) {
                 if (entry_pair->key.hasValue()) {
-                    auto* entryObj = new (GC) Object(*state);
+                    auto* entryObj = new Object(*state);
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().key), ObjectPropertyDescriptor(entry_pair->key.value()));
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_pair->data.toValue<false>()));
 
@@ -546,10 +546,10 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
 
-            auto* entries = new (GC) Object(*state);
+            auto* entries = new Object(*state);
             uint32_t idx = 0;
             for (const auto& entry_item : setObj->storage()) {
-                auto* entryObj = new (GC) Object(*state);
+                auto* entryObj = new Object(*state);
                 entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_item.toValue<false>()));
 
                 entries->defineOwnProperty(*state, ObjectPropertyName(*state, idx), ObjectPropertyDescriptor(Value(entryObj)));
@@ -563,11 +563,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->storage().size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
 
-            auto* entries = new (GC) Object(*state);
+            auto* entries = new Object(*state);
             uint32_t idx = 0;
             for (const auto& entry_item : setObj->storage()) {
                 if (entry_item->key.hasValue()) {
-                    auto* entryObj = new (GC) Object(*state);
+                    auto* entryObj = new Object(*state);
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_item->key.value()));
 
                     entries->defineOwnProperty(*state, ObjectPropertyName(*state, idx), ObjectPropertyDescriptor(Value(entryObj)));

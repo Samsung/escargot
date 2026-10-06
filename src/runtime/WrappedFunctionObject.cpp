@@ -23,10 +23,27 @@
 #include "runtime/FunctionObject.h"
 #include "runtime/ShadowRealmObject.h"
 #include "WrappedFunctionObject.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
 #if defined(ENABLE_SHADOWREALM)
+
+void* WrappedFunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WrappedFunctionObject))) {
+        GC_word bitmap[(sizeof(WrappedFunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(WrappedFunctionObject, m_wrappedTargetFunction) / 4);
+        GC_set_bit(bitmap, offsetof(WrappedFunctionObject, m_realm) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::WrappedFunctionObject, size, bitmap, sizeof(WrappedFunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WrappedFunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 WrappedFunctionObject::WrappedFunctionObject(ExecutionState& state, Object* wrappedTargetFunction, Context* realm, const Value& length, const Value& name)
     : DerivedObject(state, realm->globalObject()->functionPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)

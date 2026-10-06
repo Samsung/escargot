@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "StringObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 
 namespace Escargot {
@@ -38,6 +39,15 @@ StringObject::StringObject(ExecutionState& state, Object* proto, String* value)
 
 void* StringObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::StringObject))) {
+        GC_word bitmap[(sizeof(StringObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(StringObject, m_primitiveValue) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::StringObject, size, bitmap, sizeof(StringObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::StringObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -48,6 +58,7 @@ void* StringObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
@@ -159,6 +170,15 @@ StringIteratorObject::StringIteratorObject(ExecutionState& state, String* s)
 
 void* StringIteratorObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::StringIteratorObject))) {
+        GC_word bitmap[(sizeof(StringIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(StringIteratorObject, m_string) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::StringIteratorObject, size, bitmap, sizeof(StringIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::StringIteratorObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -169,6 +189,7 @@ void* StringIteratorObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 std::pair<Value, bool> StringIteratorObject::advance(ExecutionState& state)

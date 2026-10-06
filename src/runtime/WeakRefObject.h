@@ -56,7 +56,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    Optional<PointerValue*> m_target;
+    CompressibleHeapPointer<PointerValue> m_target;
 };
 } // namespace Escargot
 

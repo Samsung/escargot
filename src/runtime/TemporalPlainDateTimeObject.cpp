@@ -50,6 +50,7 @@
 #include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
 
@@ -61,8 +62,18 @@ static void temporalPlainDateTimeClear(void* obj, void* cd)
 
 void* TemporalPlainDateTimeObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::TemporalPlainDateTimeObject))) {
+        GC_word bitmap[(sizeof(TemporalPlainDateTimeObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(TemporalPlainDateTimeObject, m_plainDateTime) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::TemporalPlainDateTimeObject, size, bitmap, sizeof(TemporalPlainDateTimeObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::TemporalPlainDateTimeObject, size, temporalPlainDateTimeClear);
+#else
     constexpr static GC_finalizer_closure data = { temporalPlainDateTimeClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void TemporalPlainDateTimeObject::clearNativeResources()

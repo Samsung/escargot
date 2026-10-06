@@ -52,6 +52,7 @@
 #include "runtime/BigInt.h"
 #include "Intl.h"
 #include "IntlDurationFormat.h"
+#include "heap/Heap.h"
 #include "IntlNumberFormat.h"
 
 #if defined(ENABLE_TEMPORAL)
@@ -71,8 +72,45 @@ static void intlDurationFormatClear(void* obj, void* cd)
 
 void* IntlDurationFormatObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlDurationFormatObject))) {
+        GC_word bitmap[(sizeof(IntlDurationFormatObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+#define MARK_INTL_DURATION_FIELD(field) GC_set_bit(bitmap, offsetof(IntlDurationFormatObject, field) / 4)
+        MARK_INTL_DURATION_FIELD(m_locale);
+        MARK_INTL_DURATION_FIELD(m_dataLocale);
+        MARK_INTL_DURATION_FIELD(m_dataLocaleWithExtensions);
+        MARK_INTL_DURATION_FIELD(m_numberingSystem);
+        MARK_INTL_DURATION_FIELD(m_style);
+        MARK_INTL_DURATION_FIELD(m_yearsStyle);
+        MARK_INTL_DURATION_FIELD(m_yearsDisplay);
+        MARK_INTL_DURATION_FIELD(m_monthsStyle);
+        MARK_INTL_DURATION_FIELD(m_monthsDisplay);
+        MARK_INTL_DURATION_FIELD(m_weeksStyle);
+        MARK_INTL_DURATION_FIELD(m_weeksDisplay);
+        MARK_INTL_DURATION_FIELD(m_daysStyle);
+        MARK_INTL_DURATION_FIELD(m_daysDisplay);
+        MARK_INTL_DURATION_FIELD(m_hoursStyle);
+        MARK_INTL_DURATION_FIELD(m_hoursDisplay);
+        MARK_INTL_DURATION_FIELD(m_minutesStyle);
+        MARK_INTL_DURATION_FIELD(m_minutesDisplay);
+        MARK_INTL_DURATION_FIELD(m_secondsStyle);
+        MARK_INTL_DURATION_FIELD(m_secondsDisplay);
+        MARK_INTL_DURATION_FIELD(m_millisecondsStyle);
+        MARK_INTL_DURATION_FIELD(m_millisecondsDisplay);
+        MARK_INTL_DURATION_FIELD(m_microsecondsStyle);
+        MARK_INTL_DURATION_FIELD(m_microsecondsDisplay);
+        MARK_INTL_DURATION_FIELD(m_nanosecondsStyle);
+        MARK_INTL_DURATION_FIELD(m_nanosecondsDisplay);
+        MARK_INTL_DURATION_FIELD(m_fractionalDigits);
+#undef MARK_INTL_DURATION_FIELD
+        Heap::initializeCompressedType(Heap::CompressedType::IntlDurationFormatObject, size, bitmap, sizeof(IntlDurationFormatObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlDurationFormatObject, size, intlDurationFormatClear);
+#else
     constexpr static GC_finalizer_closure data = { intlDurationFormatClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void IntlDurationFormatObject::clearNativeResources()
@@ -355,8 +393,11 @@ std::pair<String*, String*> IntlDurationFormatObject::data(size_t index)
 {
     switch (index) {
 #define DEFINE_GETTER(name, Name, names, Names, index, category) \
-    case index:                                                  \
-        return std::make_pair(m_##names##Style, m_##names##Display);
+    case index: {                                                \
+        String* style = m_##names##Style;                        \
+        String* display = m_##names##Display;                    \
+        return std::make_pair(style, display);                   \
+    }
         PLAIN_DATETIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
     default:

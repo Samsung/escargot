@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "FunctionObject.h"
+#include "heap/Heap.h"
 #include "runtime/VMInstance.h"
 #include "runtime/Context.h"
 #include "runtime/ReloadableString.h"
@@ -30,6 +31,21 @@
 #include "runtime/EnvironmentRecord.h"
 
 namespace Escargot {
+
+void* FunctionObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    ASSERT(size == sizeof(FunctionObject));
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::FunctionObject))) {
+        GC_word bitmap[(sizeof(FunctionObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::FunctionObject, size, bitmap, sizeof(FunctionObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::FunctionObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator)
 {

@@ -127,7 +127,7 @@ void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool 
         }
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->setAtomicStringSource(m_string);
     } else {
         m_string = iter.operator*();
     }
@@ -180,7 +180,7 @@ void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)
         Latin1String* newStr = new Latin1String(src, len);
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->setAtomicStringSource(m_string);
     } else {
         m_string = iter.operator*();
     }
@@ -250,7 +250,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
         }
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->setAtomicStringSource(m_string);
     } else {
         m_string = iter.operator*();
     }
@@ -260,6 +260,9 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
 {
     size_t v = sv.getTypeTag();
     if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        v |= reinterpret_cast<uintptr_t>(sv.underlyingString()) & ~uintptr_t(UINT32_MAX);
+#endif
         m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
         return;
     }
@@ -277,10 +280,10 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
         ec->insert(newString);
         ASSERT(ec->find(newString) != ec->end());
         m_string = newString;
-        const_cast<StringView&>(sv).m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        const_cast<StringView&>(sv).setAtomicStringSource(m_string);
     } else {
         m_string = iter.operator*();
-        const_cast<StringView&>(sv).m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        const_cast<StringView&>(sv).setAtomicStringSource(m_string);
     }
 }
 
@@ -309,7 +312,7 @@ void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
     ASSERT(ec->find(name) == ec->end());
     ec->insert(name);
     m_string = name;
-    name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+    name->setAtomicStringSource(m_string);
 }
 
 void AtomicString::init(AtomicStringMap* ec, String* name)
@@ -335,10 +338,10 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
-        name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->setAtomicStringSource(m_string);
     } else {
         m_string = iter.operator*();
-        name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->setAtomicStringSource(m_string);
     }
 }
 

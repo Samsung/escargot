@@ -478,24 +478,24 @@ public:
     // we get isInWithOperation as parameter because this affects bytecode
     Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation, bool isInParameterScope = false);
 
-    void* operator new(size_t size)
-    {
-        return GC_MALLOC(size);
-    }
+    void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    Context* m_context;
+    CompressibleHeapPointer<Context> m_context;
+
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    Symbol* m_intlLegacyConstructedSymbol;
-    Optional<IntlDateTimeFormatObject*> m_defaultDateTimeFormat[3];
+    CompressibleHeapPointer<Symbol> m_intlLegacyConstructedSymbol;
+    CompressibleHeapPointer<IntlDateTimeFormatObject> m_defaultDateTimeFormat[3];
+
 #endif
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
-    Optional<Object*> m_defaultNumberFormat;
+    CompressibleHeapPointer<Object> m_defaultNumberFormat;
+
 #endif
 
 #define DECLARE_BUILTIN_MEMBER_VALUE(builtin, TYPE, objName) \
-    TYPE* m_##builtin;
+    CompressibleHeapPointer<TYPE> m_##builtin;
 
     GLOBALOBJECT_BUILTIN_ALL_LIST(DECLARE_BUILTIN_MEMBER_VALUE)
 #undef DECLARE_BUILTIN_MEMBER_VALUE
@@ -508,7 +508,7 @@ private:
 #undef DECLARE_BUILTIN_MEMBER_FUNC
 
     template <TypedArrayType type, int elementSize>
-    FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
+    FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, CompressibleHeapPointer<Object>* proto, FunctionObject* typedArrayFunction);
 };
 } // namespace Escargot
 

@@ -118,18 +118,20 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    String* m_locale;
-    String* m_type;
-    String* m_notation;
-    String* m_compactDisplay;
+    CompressibleHeapPointer<String> m_locale;
+    CompressibleHeapPointer<String> m_type;
+    CompressibleHeapPointer<String> m_notation;
+    CompressibleHeapPointer<String> m_compactDisplay;
     double m_minimumIntegerDigits;
     double m_roundingIncrement;
-    Value m_minimumFractionDigits; // double or undefined
-    Value m_maximumFractionDigits; // double or undefined
-    Value m_minimumSignificantDigits; // double or undefined
-    Value m_maximumSignificantDigits; // double or undefined
-    String* m_roundingMode;
-    String* m_trailingZeroDisplay;
+    HeapValue m_minimumFractionDigits; // double or undefined
+    HeapValue m_maximumFractionDigits; // double or undefined
+    HeapValue m_minimumSignificantDigits; // double or undefined
+    HeapValue m_maximumSignificantDigits; // double or undefined
+
+    CompressibleHeapPointer<String> m_roundingMode;
+    CompressibleHeapPointer<String> m_trailingZeroDisplay;
+
     Intl::RoundingType m_roundingType;
     Intl::RoundingPriority m_computedRoundingPriority;
 

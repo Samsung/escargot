@@ -35,6 +35,9 @@ public:
 
     TemporalDurationObject(ExecutionState& state, const ISO8601::Duration& duration);
 
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
     // https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationfrominternal
     static ISO8601::Duration temporalDurationFromInternal(ExecutionState& state, ISO8601::InternalDuration internalDuration, ISO8601::DateTimeUnit largestUnit);
 

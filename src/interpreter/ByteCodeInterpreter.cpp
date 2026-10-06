@@ -125,15 +125,72 @@ private:
 
 static ALWAYS_INLINE uintptr_t interpreterCageBase()
 {
-    uintptr_t base;
 #if defined(CPU_X86_64)
-    asm("mov %%r15, %0" : "=r"(base));
+    register uintptr_t base asm("r15");
 #elif defined(CPU_ARM64)
-    asm("mov %0, x27" : "=r"(base));
+    register uintptr_t base asm("x27");
 #endif
+    // Bind the operand to the reserved register so address calculations can
+    // use it directly. Keep the read after CageBaseRegisterScope sets it.
+    asm volatile("" : "=r"(base));
     return base;
 }
 #endif
+
+template <typename Values>
+static ALWAYS_INLINE auto interpreterPropertySlot(Values& values, size_t index) -> decltype(values[index])
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return values.atWithBase(index, interpreterCageBase());
+#else
+    return values[index];
+#endif
+}
+
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+static ALWAYS_INLINE ObjectPropertyValue* interpreterArrayData(uint32_t offset)
+{
+    // Fast Array buffers have no tag bit. Offset one is their non-fast
+    // sentinel; the caller also excludes empty buffers via the length check.
+    ASSERT(offset > 1 && !(offset & 1));
+    return reinterpret_cast<ObjectPropertyValue*>(interpreterCageBase() + offset);
+}
+#endif
+
+static ALWAYS_INLINE void interpreterStore(ObjectPropertyValue& slot, const Value& value)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    if (LIKELY(value.isInt32())) {
+        // Rebuild the known Int32 so the generic encoder's number/tag tests
+        // fold away. Large Int32 values still use its boxed-number fallback.
+        slot.assignWithBase(Value(value.asInt32()), interpreterCageBase());
+    } else {
+        slot.assignWithBase(value, interpreterCageBase());
+    }
+#else
+    slot = value;
+#endif
+}
+
+// IC chains are constructed using Object's ordinary internal prototype,
+// after excluding objects with custom prototype behavior.
+static ALWAYS_INLINE Optional<Object*> interpreterOrdinaryPrototype(ExecutionState& state, Object* object)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return object->rawInternalPrototypeObjectWithBase(interpreterCageBase());
+#else
+    return object->Object::getPrototypeObject(state);
+#endif
+}
+
+static ALWAYS_INLINE Optional<Object*> interpreterPrototype(ExecutionState& state, Object* object)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return object->getPrototypeObjectWithBase(state, interpreterCageBase());
+#else
+    return object->getPrototypeObject(state);
+#endif
+}
 
 template <const bool shouldTreatEmptyAsUndefined = false, const bool checkEmpty = true>
 static ALWAYS_INLINE Value interpreterValue(const ObjectPropertyValue& encoded)
@@ -424,6 +481,23 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
     CageBaseRegisterScope cageBaseRegisterScope;
 #endif
+    // Inline-cache structures belong to the same cage as the receiver.
+    // Compare their offsets without reconstructing a full pointer.
+    auto interpreterStructureKey = [](const Object* object) {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+        ASSERT(object->m_structure);
+        return object->m_structure.compressedPayload();
+#else
+        return object->structure();
+#endif
+    };
+    auto cachedStructureKey = [](const ObjectStructure* structure) {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+        return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(structure));
+#else
+        return structure;
+#endif
+    };
     state->m_programCounter = &programCounter;
 #ifdef ESCARGOT_DEBUGGER
     try {
@@ -498,7 +572,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             bool isCacheWork = false;
 
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && interpreterStructureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
                     registerFile[code->m_registerIndex] = interpreterValue(*((ObjectPropertyValue*)slot->m_cachedAddress));
@@ -531,10 +605,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             bool isCacheWork = false;
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && globalObject->structure() == slot->m_cachedStructure)) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && interpreterStructureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
-                    *((ObjectPropertyValue*)slot->m_cachedAddress) = registerFile[code->m_registerIndex];
+                    interpreterStore(*((ObjectPropertyValue*)slot->m_cachedAddress), registerFile[code->m_registerIndex]);
                     isCacheWork = true;
                 } else if (slot->m_cachedStructure == nullptr) {
                     isCacheWork = true;
@@ -779,8 +853,19 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 if (LIKELY(obj->hasArrayObjectTag() && property.isUInt32())) {
                     auto arr = obj->asArrayObject();
                     uint32_t idx = property.asUInt32();
-                    if (LIKELY(arr->isFastModeArray() && idx < arr->arrayLength(*state))) {
-                        registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(arr->m_fastModeData[idx]);
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+                    const uint32_t dataOffset = arr->m_fastModeData.compressedPayload();
+                    const bool isFastMode = dataOffset != 1;
+#else
+                        const bool isFastMode = arr->isFastModeArray();
+#endif
+                    if (LIKELY(isFastMode && idx < arr->arrayLength(*state))) {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+                        const auto& slot = interpreterArrayData(dataOffset)[idx];
+#else
+                            const auto& slot = arr->m_fastModeData[idx];
+#endif
+                        registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(slot);
                         ADD_PROGRAM_COUNTER(GetObject);
                         NEXT_INSTRUCTION();
                     }
@@ -808,8 +893,19 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 if (LIKELY(obj->hasArrayObjectTag() && property.isUInt32())) {
                     auto arr = obj->asArrayObject();
                     uint32_t idx = property.asUInt32();
-                    if (LIKELY(arr->isFastModeArray() && idx < arr->arrayLength(*state))) {
-                        arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+                    const uint32_t dataOffset = arr->m_fastModeData.compressedPayload();
+                    const bool isFastMode = dataOffset != 1;
+#else
+                        const bool isFastMode = arr->isFastModeArray();
+#endif
+                    if (LIKELY(isFastMode && idx < arr->arrayLength(*state))) {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+                        auto& slot = interpreterArrayData(dataOffset)[idx];
+#else
+                            auto& slot = arr->m_fastModeData[idx];
+#endif
+                        interpreterStore(slot, registerFile[code->m_loadRegisterIndex]);
                         ADD_PROGRAM_COUNTER(SetObjectOperation);
                         NEXT_INSTRUCTION();
                     }
@@ -838,7 +934,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         }                                                                              \
     }                                                                                  \
     GetObjectInlineCacheSimpleCaseData* const inlineCache = code->m_simpleInlineCache; \
-    ObjectStructure* const objStructure = obj->structure();
+    const auto objStructure = interpreterStructureKey(obj);
 
 /* One probe against a compile-time-constant slot index. On a hit the value is stored and the
    interpreter moves on; a miss jumps to the label at the end of this expansion, so the probes
@@ -854,21 +950,21 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
    Both the own-property and the prototype hit converge on a single store/dispatch tail via
    `holder`, instead of emitting that tail (and its dispatch site) twice per probe. */
-#define GET_OBJECT_SIMPLE_IC_PROBE_SLOT(IDX)                                                                                            \
-    if (LIKELY(inlineCache->m_cachedStructures[IDX] == objStructure)) {                                                                 \
-        ObjectStructure* protoStructure = inlineCache->m_cachedProtoStructures[IDX];                                                    \
-        Object* holder = obj;                                                                                                           \
-        if (UNLIKELY(protoStructure != nullptr)) {                                                                                      \
-            Object* protoObj = obj->getPrototypeObject(*state);                                                                         \
-            if (UNLIKELY(!protoObj || protoObj->structure() != protoStructure)) {                                                       \
-                goto SimpleInlineCacheProbeMiss##IDX;                                                                                   \
-            }                                                                                                                           \
-            holder = protoObj;                                                                                                          \
-        }                                                                                                                               \
-        registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(holder->m_values[inlineCache->m_cachedIndexes[IDX]]); \
-        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);                                                                                  \
-        NEXT_INSTRUCTION();                                                                                                             \
-    }                                                                                                                                   \
+#define GET_OBJECT_SIMPLE_IC_PROBE_SLOT(IDX)                                                                                                                     \
+    if (LIKELY(cachedStructureKey(inlineCache->m_cachedStructures[IDX]) == objStructure)) {                                                                      \
+        ObjectStructure* protoStructure = inlineCache->m_cachedProtoStructures[IDX];                                                                             \
+        Object* holder = obj;                                                                                                                                    \
+        if (UNLIKELY(protoStructure != nullptr)) {                                                                                                               \
+            Optional<Object*> protoObj = interpreterPrototype(*state, obj);                                                                                      \
+            if (UNLIKELY(!protoObj || interpreterStructureKey(protoObj.value()) != cachedStructureKey(protoStructure))) {                                        \
+                goto SimpleInlineCacheProbeMiss##IDX;                                                                                                            \
+            }                                                                                                                                                    \
+            holder = protoObj.value();                                                                                                                           \
+        }                                                                                                                                                        \
+        registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(holder->m_values, inlineCache->m_cachedIndexes[IDX])); \
+        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);                                                                                                           \
+        NEXT_INSTRUCTION();                                                                                                                                      \
+    }                                                                                                                                                            \
     SimpleInlineCacheProbeMiss##IDX:
 
         DEFINE_OPCODE(GetObjectPreComputedCaseSimpleInlineCache2)
@@ -899,7 +995,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             auto cacheData = code->m_simpleInlineCache->m_cachedStructures;
             auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
-            ObjectStructure* const objStructure = obj->structure();
+            const auto objStructure = interpreterStructureKey(obj);
             for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
                 // LIKELY: a structure compare is a pointer equality, which GCC statically
                 // predicts false, so without the hint this hit body -- index load, value load,
@@ -908,16 +1004,16 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 // iteration's hit inline and moves the loop back edge out instead, which is the
                 // right priority: slot 0 holds either the structure that made the callsite hot
                 // or, once the buffer has wrapped, the most recently cached one.
-                if (LIKELY(cacheData[currentCacheIndex] == objStructure)) {
+                if (LIKELY(cachedStructureKey(cacheData[currentCacheIndex]) == objStructure)) {
                     ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
                     if (LIKELY(protoStructure == nullptr)) {
-                        registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(obj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]]);
+                        registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(obj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
                         ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                         NEXT_INSTRUCTION();
                     } else {
-                        Object* protoObj = obj->getPrototypeObject(*state);
-                        if (LIKELY(protoObj && protoObj->structure() == protoStructure)) {
-                            registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(protoObj->m_values[code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]]);
+                        Optional<Object*> protoObj = interpreterPrototype(*state, obj);
+                        if (LIKELY(protoObj && interpreterStructureKey(protoObj.value()) == cachedStructureKey(protoStructure))) {
+                            registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(protoObj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
                             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                             NEXT_INSTRUCTION();
                         }
@@ -1003,19 +1099,19 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 Object* cur = obj;
                 bool ok = true;
                 for (size_t i = 0; i < cSiz; i++) {
-                    if (UNLIKELY(!cur || cur->structure() != entry.m_cachedhiddenClassChain[i])) {
+                    if (UNLIKELY(!cur || interpreterStructureKey(cur) != cachedStructureKey(entry.m_cachedhiddenClassChain[i]))) {
                         ok = false;
                         break;
                     }
                     if (i + 1 < cSiz) {
-                        cur = cur->Object::getPrototypeObject(*state);
+                        cur = interpreterOrdinaryPrototype(*state, cur).unwrap();
                     }
                 }
                 if (LIKELY(ok)) {
                     const auto& cachedIndex = entry.m_cachedIndex;
                     if (LIKELY(cachedIndex != GetObjectInlineCacheData::CachedIndexMax)) {
                         if (LIKELY(entry.m_isPlainDataProperty)) {
-                            registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(cur->m_values[cachedIndex]);
+                            registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(cur->m_values, cachedIndex));
                         } else {
                             registerFile[code->m_storeRegisterIndex] = cur->getOwnNonPlainDataPropertyUtilForObject(*state, cachedIndex, receiver);
                         }
@@ -1042,7 +1138,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache && code->m_inlineCacheProtoTraverseMaxIndex == 0);
 
-                ObjectStructure* testItem = obj->structure();
+                const auto testItem = interpreterStructureKey(obj);
                 const size_t cacheFillCount = inlineCache->m_cache.size();
                 // Squeezing optimization for register-starved architectures (like ARM32).
                 // Unrolling the cache loop to explicit static checks for indices 0 and 1
@@ -1053,10 +1149,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     // LIKELY for the same reason as the Get-IC probes: an unhinted pointer
                     // equality is predicted false, which exiles the whole store body from
                     // interpret()'s entry trace and makes a monomorphic store hit jump away.
-                    if (LIKELY(item0.m_cachedHiddenClass == testItem)) {
+                    if (LIKELY(cachedStructureKey(item0.m_cachedHiddenClass) == testItem)) {
                         if (LIKELY(item0.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
                             if (LIKELY(item0.m_isPlainDataProperty)) {
-                                obj->m_values[item0.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                interpreterStore(interpreterPropertySlot(obj->m_values, item0.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                             } else {
                                 // accessor / native getter-setter / non-writable own property --
                                 // dispatches correctly by kind, no findProperty() needed since
@@ -1076,10 +1172,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     }
                     if (UNLIKELY(cacheFillCount > 1)) {
                         const auto& item1 = inlineCache->m_cache[1];
-                        if (item1.m_cachedHiddenClass == testItem) {
+                        if (cachedStructureKey(item1.m_cachedHiddenClass) == testItem) {
                             if (LIKELY(item1.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
                                 if (LIKELY(item1.m_isPlainDataProperty)) {
-                                    obj->m_values[item1.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                    interpreterStore(interpreterPropertySlot(obj->m_values, item1.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                                 } else {
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
@@ -1123,18 +1219,18 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     Object* cur0 = obj;
                     bool ok0 = true;
                     for (size_t i = 0; i < cSiz0; i++) {
-                        if (UNLIKELY(!cur0 || cur0->structure() != entry0.m_cachedHiddenClassChainData[i])) {
+                        if (UNLIKELY(!cur0 || interpreterStructureKey(cur0) != cachedStructureKey(entry0.m_cachedHiddenClassChainData[i]))) {
                             ok0 = false;
                             break;
                         }
                         if (i + 1 < cSiz0) {
-                            cur0 = cur0->Object::getPrototypeObject(*state);
+                            cur0 = interpreterOrdinaryPrototype(*state, cur0).unwrap();
                         }
                     }
                     if (LIKELY(ok0)) {
                         if (LIKELY(entry0.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
                             if (LIKELY(entry0.m_isPlainDataProperty)) {
-                                obj->m_values[entry0.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                interpreterStore(interpreterPropertySlot(obj->m_values, entry0.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                             } else {
                                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry0.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                             }
@@ -1157,18 +1253,18 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         Object* cur1 = obj;
                         bool ok1 = true;
                         for (size_t i = 0; i < cSiz1; i++) {
-                            if (UNLIKELY(!cur1 || cur1->structure() != entry1.m_cachedHiddenClassChainData[i])) {
+                            if (UNLIKELY(!cur1 || interpreterStructureKey(cur1) != cachedStructureKey(entry1.m_cachedHiddenClassChainData[i]))) {
                                 ok1 = false;
                                 break;
                             }
                             if (i + 1 < cSiz1) {
-                                cur1 = cur1->Object::getPrototypeObject(*state);
+                                cur1 = interpreterOrdinaryPrototype(*state, cur1).unwrap();
                             }
                         }
                         if (LIKELY(ok1)) {
                             if (LIKELY(entry1.m_cachedIndex != SetObjectInlineCacheData::CachedIndexMax)) {
                                 if (LIKELY(entry1.m_isPlainDataProperty)) {
-                                    obj->m_values[entry1.m_cachedIndex] = registerFile[code->m_loadRegisterIndex];
+                                    interpreterStore(interpreterPropertySlot(obj->m_values, entry1.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                                 } else {
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
@@ -4138,7 +4234,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
                                                            ObjectStructureItemTightVector(data->m_properties.data(), data->m_properties.data() + propertyCount),
                                                            data->m_allPrecomputed);
                 if (data->m_canStoreStructureOnCode) {
-                    auto structure = obj->m_structure;
+                    ObjectStructure* structure = obj->m_structure;
                     data->m_initCode->m_cachedObjectStructure = structure;
                     state.context()->vmInstance()->addObjectStructureToRootSet(structure);
                 }
@@ -4811,7 +4907,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
         auto classConstructor = registerFile[code->m_classConstructorRegisterIndex].asFunctionObject()->asScriptClassConstructorFunctionObject();
         if (code->m_stage == InitializeClass::SetFieldSize) {
             classConstructor->m_instanceFieldInitData.resize(code->m_fieldSize);
-            classConstructor->m_staticFieldInitData.resize(0, code->m_staticFieldSize);
+            classConstructor->m_staticFieldInitData.vector().resize(0, code->m_staticFieldSize);
         } else if (code->m_stage == InitializeClass::InitField) {
             registerFile[code->m_propertyInitRegisterIndex] = registerFile[code->m_propertyInitRegisterIndex].toPropertyKey(state);
             std::get<0>(classConstructor->m_instanceFieldInitData[code->m_initFieldIndex]) = registerFile[code->m_propertyInitRegisterIndex];
@@ -5220,7 +5316,7 @@ static Value callDynamicImportResolved(ExecutionState& state, Value thisValue, s
         }
         return Value(s->getModuleNamespace(state));
     },
-                         outerPromise->m_loadedScript);
+                         outerPromise->m_loadedScript.value());
 
     if (result.error.isEmpty()) {
         if (outerPromise->m_loadedScript->moduleData()->m_asyncEvaluating) {
@@ -6482,10 +6578,10 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
                 auto res = record->fastAdvance(state);
                 registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = IteratorObject::createIterResultObject(state, res.first, res.second);
             } else {
-                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->iterator(state), 0, nullptr);
+                registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->nextMethod(), record->iterator(state), 0, nullptr);
             }
         } else {
-            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->m_nextMethod, record->iterator(state), 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
+            registerFile[code->m_iteratorNextData.m_returnRegisterIndex] = Object::call(state, record->nextMethod(), record->iterator(state), 1, &registerFile[code->m_iteratorNextData.m_valueRegisterIndex]);
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {

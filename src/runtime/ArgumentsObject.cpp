@@ -19,12 +19,31 @@
 
 #include "Escargot.h"
 #include "ArgumentsObject.h"
+#include "heap/Heap.h"
 #include "Context.h"
 #include "EnvironmentRecord.h"
 #include "Environment.h"
 #include "ScriptFunctionObject.h"
 
 namespace Escargot {
+
+void* ArgumentsObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ArgumentsObject))) {
+        GC_word bitmap[(sizeof(ArgumentsObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ArgumentsObject, m_targetRecord) / 4);
+        GC_set_bit(bitmap, offsetof(ArgumentsObject, m_sourceFunctionObject) / 4);
+        GC_set_bit(bitmap, offsetof(ArgumentsObject, m_parameterMap) / 4);
+        GC_set_bit(bitmap, offsetof(ArgumentsObject, m_modifiedArguments) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ArgumentsObject, size, bitmap, sizeof(ArgumentsObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ArgumentsObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 static Value ArgumentsObjectNativeGetter(ExecutionState& state, Object* self, FunctionEnvironmentRecord* targetRecord, InterpretedCodeBlock* codeBlock, AtomicString name)
 {
@@ -51,8 +70,9 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
     : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
     , m_sourceFunctionObject(sourceFunctionObject)
-    , m_argc((argc << 1) | 1)
+    , m_argc((static_cast<ModifiedArgumentsPointer::StorageType>(argc) << 1) | 1)
 {
+    ASSERT(argc <= (std::numeric_limits<ModifiedArgumentsPointer::StorageType>::max() >> 1));
     // Let len be the number of elements in argumentsList.
     int len = argc;
     m_parameterMap.resizeWithUninitializedValues(0, len);
@@ -353,9 +373,10 @@ bool ArgumentsObject::isModifiedArgument(size_t index)
 void ArgumentsObject::setModifiedArgument(size_t index)
 {
     if (LIKELY(index != Value::InvalidIndexPropertyValue)) {
-        if (modifiedArguments() == nullptr) {
+        if (!modifiedArguments()) {
             size_t c = argc();
-            m_modifiedArguments = new ModifiedArguments(c);
+            ModifiedArguments* modified = new ModifiedArguments(c);
+            new (&m_modifiedArguments) ModifiedArgumentsPointer(modified);
         }
         if (index < argc()) {
             m_modifiedArguments->m_modified[index] = true;

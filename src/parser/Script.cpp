@@ -655,6 +655,17 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
 void* Script::ModuleData::ModulePromiseObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ModulePromiseObject))) {
+        GC_word bitmap[(sizeof(ModulePromiseObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        PromiseObject::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(ModulePromiseObject, m_referrer) / 4);
+        GC_set_bit(bitmap, offsetof(ModulePromiseObject, m_loadedScript) / 4);
+        GC_set_bit(bitmap, offsetof(ModulePromiseObject, m_value) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ModulePromiseObject, size, bitmap, sizeof(ModulePromiseObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ModulePromiseObject, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -667,6 +678,7 @@ void* Script::ModuleData::ModulePromiseObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 Script::ModuleExecutionResult Script::moduleLinking(ExecutionState& state)

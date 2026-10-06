@@ -2342,13 +2342,15 @@ static Value builtinUint8ArrayToBase64(ExecutionState& state, Value thisValue, s
 }
 
 template <TypedArrayType type, int elementSize>
-FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
+FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, CompressibleHeapPointer<Object>* proto, FunctionObject* typedArrayFunction)
+
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     NativeFunctionObject* taConstructor = new NativeFunctionObject(state, NativeFunctionInfo(taName, builtinTypedArrayConstructor<type>, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     taConstructor->setGlobalIntrinsicObject(state);
 
-    *proto = m_objectPrototype;
+    Object* basePrototype = m_objectPrototype;
+    *proto = basePrototype;
     Object* taPrototype = new TypedArrayPrototypeObject(state);
     taPrototype->setGlobalIntrinsicObject(state, true);
     taPrototype->setPrototype(state, typedArrayFunction->getFunctionPrototype(state));

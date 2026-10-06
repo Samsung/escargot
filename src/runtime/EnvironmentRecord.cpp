@@ -288,7 +288,7 @@ FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>* FunctionEnviron
     const size_t heapStorageCount = function->interpretedCodeBlock()->identifierOnHeapCount();
     // the piece needs no explicit construction because GC_MALLOC clears the memory and
     // that is exactly its initial state(empty this value, null new.target)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     auto self = new (allocateFunctionEnvironmentRecord(allocationSize(heapStorageCount))) FunctionEnvironmentRecordOnHeap(function, heapStorageCount);
 #else
     auto self = new (GC_MALLOC(allocationSize(heapStorageCount))) FunctionEnvironmentRecordOnHeap(function, heapStorageCount);
@@ -303,7 +303,7 @@ FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>* FunctionEnviron
 template <bool canBindThisValue, bool hasNewTarget>
 FunctionEnvironmentRecordPiece<canBindThisValue, hasNewTarget>* FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::piece()
 {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     return reinterpret_cast<Piece*>(reinterpret_cast<uintptr_t>(this) + pieceOffset(indexedHeapStorageCount()));
 #else
     return reinterpret_cast<Piece*>(reinterpret_cast<uintptr_t>(this) + pieceOffset(functionObject()->interpretedCodeBlock()->identifierOnHeapCount()));

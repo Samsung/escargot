@@ -38,6 +38,8 @@ class WrappedFunctionObject : public DerivedObject {
 
 public:
     WrappedFunctionObject(ExecutionState& state, Object* wrappedTargetFunction, Context* realm, const Value& length, const Value& name);
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
 
     virtual bool isWrappedFunctionObject() const override
     {
@@ -51,7 +53,8 @@ public:
 
     virtual bool isConstructor() const override
     {
-        return Value(m_wrappedTargetFunction).isConstructor();
+        Object* target = m_wrappedTargetFunction;
+        return Value(target).isConstructor();
     }
 
     virtual Context* getFunctionRealm(ExecutionState& state) override
@@ -64,8 +67,8 @@ private:
 
     Value ordinaryWrappedFunctionCall(ExecutionState& state, const Value& thisValue, const size_t calledArgc, Value* calledArgv);
 
-    Object* m_wrappedTargetFunction;
-    Context* m_realm;
+    CompressibleHeapPointer<Object> m_wrappedTargetFunction;
+    CompressibleHeapPointer<Context> m_realm;
 };
 
 #endif

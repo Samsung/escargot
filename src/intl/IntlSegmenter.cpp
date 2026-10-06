@@ -24,6 +24,7 @@
 #include "runtime/VMInstance.h"
 #include "Intl.h"
 #include "IntlSegmenter.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_INTL_SEGMENTER)
 
@@ -37,8 +38,51 @@ static void intlSegmenterClear(void* obj, void* cd)
 
 void* IntlSegmenterObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlSegmenterObject))) {
+        GC_word bitmap[(sizeof(IntlSegmenterObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlSegmenterObject, m_locale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlSegmenterObject, m_granularity) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlSegmenterObject, size, bitmap, sizeof(IntlSegmenterObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlSegmenterObject, size, intlSegmenterClear);
+#else
     constexpr static GC_finalizer_closure data = { intlSegmenterClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
+}
+
+void* IntlSegmentsObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlSegmentsObject))) {
+        GC_word bitmap[(sizeof(IntlSegmentsObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlSegmentsObject, m_string) / 4);
+        GC_set_bit(bitmap, offsetof(IntlSegmentsObject, m_u16String) / 4);
+        GC_set_bit(bitmap, offsetof(IntlSegmentsObject, m_granularity) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlSegmentsObject, size, bitmap, sizeof(IntlSegmentsObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IntlSegmentsObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
+void* IntlSegmentsIteratorObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlSegmentsIteratorObject))) {
+        GC_word bitmap[(sizeof(IntlSegmentsIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlSegmentsIteratorObject, m_segments) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlSegmentsIteratorObject, size, bitmap, sizeof(IntlSegmentsIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::IntlSegmentsIteratorObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
 }
 
 void IntlSegmenterObject::clearNativeResources()

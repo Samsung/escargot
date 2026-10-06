@@ -25,6 +25,7 @@
 #include "runtime/VMInstance.h"
 #include "Intl.h"
 #include "IntlDisplayNames.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_INTL_DISPLAYNAMES)
 
@@ -38,8 +39,22 @@ static void intlDisplayNamesClear(void* obj, void* cd)
 
 void* IntlDisplayNamesObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlDisplayNamesObject))) {
+        GC_word bitmap[(sizeof(IntlDisplayNamesObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(IntlDisplayNamesObject, m_style) / 4);
+        GC_set_bit(bitmap, offsetof(IntlDisplayNamesObject, m_type) / 4);
+        GC_set_bit(bitmap, offsetof(IntlDisplayNamesObject, m_fallback) / 4);
+        GC_set_bit(bitmap, offsetof(IntlDisplayNamesObject, m_locale) / 4);
+        GC_set_bit(bitmap, offsetof(IntlDisplayNamesObject, m_languageDisplay) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::IntlDisplayNamesObject, size, bitmap, sizeof(IntlDisplayNamesObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlDisplayNamesObject, size, intlDisplayNamesClear);
+#else
     constexpr static GC_finalizer_closure data = { intlDisplayNamesClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void IntlDisplayNamesObject::clearNativeResources()

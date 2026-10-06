@@ -20,12 +20,28 @@
 
 #include "Escargot.h"
 #include "TemporalInstantObject.h"
+#include "heap/Heap.h"
 #include "TemporalDurationObject.h"
 #include "TemporalZonedDateTimeObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 
 namespace Escargot {
+
+void* TemporalInstantObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::TemporalInstantObject))) {
+        GC_word bitmap[(sizeof(TemporalInstantObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(TemporalInstantObject, m_nanoseconds) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::TemporalInstantObject, size, bitmap, sizeof(TemporalInstantObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::TemporalInstantObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 TemporalInstantObject::TemporalInstantObject(ExecutionState& state, Object* proto, Int128 n)
     : DerivedObject(state, proto)

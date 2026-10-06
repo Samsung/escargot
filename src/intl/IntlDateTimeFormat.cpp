@@ -53,6 +53,7 @@
 #include "runtime/ArrayObject.h"
 #include "Intl.h"
 #include "IntlDateTimeFormat.h"
+#include "heap/Heap.h"
 
 #if defined(ENABLE_TEMPORAL)
 #include "runtime/TemporalObject.h"
@@ -515,8 +516,42 @@ void intlDateTimeFormatClear(void* obj, void* cd)
 
 void* IntlDateTimeFormatObject::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::IntlDateTimeFormatObject))) {
+        GC_word bitmap[(sizeof(IntlDateTimeFormatObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+#define MARK_INTL_DATE_TIME_FIELD(field) GC_set_bit(bitmap, offsetof(IntlDateTimeFormatObject, field) / 4)
+        MARK_INTL_DATE_TIME_FIELD(m_locale);
+        MARK_INTL_DATE_TIME_FIELD(m_dataLocale);
+        MARK_INTL_DATE_TIME_FIELD(m_calendar);
+        MARK_INTL_DATE_TIME_FIELD(m_numberingSystem);
+        MARK_INTL_DATE_TIME_FIELD(m_timeZone);
+        MARK_INTL_DATE_TIME_FIELD(m_timeZoneICU);
+        MARK_INTL_DATE_TIME_FIELD(m_hour12);
+        MARK_INTL_DATE_TIME_FIELD(m_era);
+        MARK_INTL_DATE_TIME_FIELD(m_year);
+        MARK_INTL_DATE_TIME_FIELD(m_month);
+        MARK_INTL_DATE_TIME_FIELD(m_weekday);
+        MARK_INTL_DATE_TIME_FIELD(m_day);
+        MARK_INTL_DATE_TIME_FIELD(m_dayPeriod);
+        MARK_INTL_DATE_TIME_FIELD(m_dayPeriodInput);
+        MARK_INTL_DATE_TIME_FIELD(m_hour);
+        MARK_INTL_DATE_TIME_FIELD(m_hourCycle);
+        MARK_INTL_DATE_TIME_FIELD(m_temporalHourCycle);
+        MARK_INTL_DATE_TIME_FIELD(m_minute);
+        MARK_INTL_DATE_TIME_FIELD(m_second);
+        MARK_INTL_DATE_TIME_FIELD(m_timeZoneName);
+        MARK_INTL_DATE_TIME_FIELD(m_fractionalSecondDigits);
+        MARK_INTL_DATE_TIME_FIELD(m_dateStyle);
+        MARK_INTL_DATE_TIME_FIELD(m_timeStyle);
+#undef MARK_INTL_DATE_TIME_FIELD
+        Heap::initializeCompressedType(Heap::CompressedType::IntlDateTimeFormatObject, size, bitmap, sizeof(IntlDateTimeFormatObject) / 4);
+    }
+    return Heap::mallocCompressedFinalized(Heap::CompressedType::IntlDateTimeFormatObject, size, intlDateTimeFormatClear);
+#else
     constexpr static GC_finalizer_closure data = { intlDateTimeFormatClear, nullptr };
     return GC_finalized_malloc(size, &data);
+#endif
 }
 
 void IntlDateTimeFormatObject::clearNativeResources()

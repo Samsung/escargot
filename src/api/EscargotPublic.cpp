@@ -28,6 +28,7 @@
 #include "runtime/Context.h"
 #include "runtime/Platform.h"
 #include "runtime/FunctionObject.h"
+#include "heap/Heap.h"
 #include "runtime/Value.h"
 #include "runtime/VMInstance.h"
 #include "runtime/SandBox.h"
@@ -260,7 +261,7 @@ void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedCon
         mp->m_loadedScript = toImpl(loadModuleResult.script.value());
         if (!mp->m_loadedScript->moduleData()->m_didCallLoadedCallback) {
             Context* ctx = toImpl(relatedContext);
-            Global::platform()->didLoadModule(ctx, toImpl(referrer), mp->m_loadedScript);
+            Global::platform()->didLoadModule(ctx, toImpl(referrer), mp->m_loadedScript.value());
             mp->m_loadedScript->moduleData()->m_didCallLoadedCallback = true;
         }
     }
@@ -2509,6 +2510,8 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state, ObjectRef* proto)
 // can not redefine or delete virtual property
 class ExposableObject : public DerivedObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     ExposableObject(ExecutionState& state, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback, ExposableObjectDeleteOwnPropertyCallback deleteOwnPropertyCallback)
         : DerivedObject(state)
         , m_getOwnPropetyCallback(getOwnPropetyCallback)
@@ -2593,6 +2596,20 @@ private:
     ExposableObjectEnumerationCallback m_enumerationCallback;
     ExposableObjectDeleteOwnPropertyCallback m_deleteOwnPropertyCallback;
 };
+
+void* ExposableObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ExposableObject))) {
+        GC_word bitmap[(sizeof(ExposableObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::ExposableObject, size, bitmap, sizeof(ExposableObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ExposableObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 ObjectRef* ObjectRef::createExposableObject(ExecutionStateRef* state,
                                             ExposableObjectGetOwnPropertyCallback getOwnPropertyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback,
@@ -4177,12 +4194,31 @@ ValueRef* IteratorObjectRef::next(ExecutionStateRef* state)
     return toRef(toImpl(this)->next(*toImpl(state)));
 }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+struct GenericIteratorCallbackData : public gc {
+    GenericIteratorCallbackData(GenericIteratorObjectRef::GenericIteratorObjectRefCallback callback, Optional<void*> data)
+        : m_callback(callback)
+        , m_data(data)
+    {
+    }
+
+    GenericIteratorObjectRef::GenericIteratorObjectRefCallback m_callback;
+    Optional<void*> m_data;
+};
+#endif
+
 class GenericIteratorObject : public IteratorObject {
 public:
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
     GenericIteratorObject(ExecutionState& state, GenericIteratorObjectRef::GenericIteratorObjectRefCallback callback, void* callbackData)
         : IteratorObject(state, state.context()->globalObject()->genericIteratorPrototype())
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_callbackData(new GenericIteratorCallbackData(callback, callbackData))
+#else
         , m_callback(callback)
         , m_callbackData(callbackData)
+#endif
     {
     }
 
@@ -4193,14 +4229,37 @@ public:
 
     virtual std::pair<Value, bool> advance(ExecutionState& state) override
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        auto ret = m_callbackData->m_callback(toRef(&state), m_callbackData->m_data ? m_callbackData->m_data.value() : nullptr);
+#else
         auto ret = m_callback(toRef(&state), m_callbackData);
+#endif
         return std::make_pair(toImpl(ret.first), ret.second);
     }
 
 private:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<GenericIteratorCallbackData> m_callbackData;
+#else
     GenericIteratorObjectRef::GenericIteratorObjectRefCallback m_callback;
     void* m_callbackData;
+#endif
 };
+
+void* GenericIteratorObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::GenericIteratorObject))) {
+        GC_word bitmap[(sizeof(GenericIteratorObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        fillCompressedGCDescriptor(bitmap);
+        GC_set_bit(bitmap, offsetof(GenericIteratorObject, m_callbackData) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::GenericIteratorObject, size, bitmap, sizeof(GenericIteratorObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::GenericIteratorObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 GenericIteratorObjectRef* GenericIteratorObjectRef::create(ExecutionStateRef* state, GenericIteratorObjectRefCallback callback, void* callbackData)
 {

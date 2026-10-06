@@ -45,6 +45,7 @@
 
 #include "Escargot.h"
 #include "TemporalDurationObject.h"
+#include "heap/Heap.h"
 #include "TemporalZonedDateTimeObject.h"
 #include "TemporalPlainDateObject.h"
 #include "TemporalPlainDateTimeObject.h"
@@ -52,6 +53,20 @@
 #include "runtime/GlobalObject.h"
 
 namespace Escargot {
+
+void* TemporalDurationObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::TemporalDurationObject))) {
+        GC_word bitmap[(sizeof(TemporalDurationObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::TemporalDurationObject, size, bitmap, sizeof(TemporalDurationObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::TemporalDurationObject, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 #define CHECK_ICU()                                                                                           \
     if (U_FAILURE(status)) {                                                                                  \

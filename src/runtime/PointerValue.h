@@ -1202,8 +1202,11 @@ public:
 
     inline size_t getTypeTag() const
     {
-        // return m_typeTag
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return *(reinterpret_cast<const uint32_t*>(this) + 2);
+#else
         return *((size_t*)(this) + 1);
+#endif
     }
 
 protected:

@@ -54,7 +54,7 @@ enum HeapObjectKind : unsigned {
 #if defined(ENABLE_THREADING)
     SharedBackingStoreKind,
 #endif
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     EncodedSmallValueVectorKind,
     FunctionEnvironmentRecordKind,
 #endif
@@ -68,7 +68,7 @@ void initializeCustomAllocators();
 void setInterpretedCodeBlockDescriptorToProc();
 void setInterpretedCodeBlockDescriptorToTyped();
 
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void* allocateFunctionEnvironmentRecord(size_t size);
 #endif
 

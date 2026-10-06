@@ -153,7 +153,7 @@ inline bool operator!=(const T& a, const Optional<T>& b)
 template <typename T>
 class Optional<T*> {
 public:
-    Optional()
+    constexpr Optional()
         : m_value(nullptr)
     {
     }

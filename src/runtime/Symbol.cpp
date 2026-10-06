@@ -21,8 +21,24 @@
 #include "Symbol.h"
 #include "Value.h"
 #include "VMInstance.h"
+#include "heap/Heap.h"
 
 namespace Escargot {
+
+void* Symbol::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::Symbol))) {
+        GC_word bitmap[(sizeof(Symbol) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(Symbol, m_description) / 4);
+        GC_set_bit(bitmap, offsetof(Symbol, m_finalizerData) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::Symbol, size, bitmap, sizeof(Symbol) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::Symbol, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
 
 String* Symbol::descriptionString() const
 {
@@ -90,7 +106,7 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
         // register finalizers
 #define FINALIZER_CALLBACK()                                         \
     Symbol* self = (Symbol*)sym;                                     \
-    auto d = self->finalizerData();                                  \
+    auto d = (SymbolFinalizerData*)data;                             \
     for (size_t i = 0; i < d->m_finalizer.size(); i++) {             \
         if (LIKELY(!!d->m_finalizer[i].first)) {                     \
             d->m_finalizer[i].first(self, d->m_finalizer[i].second); \
@@ -102,18 +118,18 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
         GC_finalization_proc of = nullptr;
         void* od = nullptr;
         GC_REGISTER_FINALIZER_NO_ORDER(
-            this, [](void* sym, void*) {
+            this, [](void* sym, void* data) {
                 FINALIZER_CALLBACK()
             },
-            nullptr, &of, &od);
+            m_finalizerData.value(), &of, &od);
         ASSERT(!of);
         ASSERT(!od);
 #else
         GC_REGISTER_FINALIZER_NO_ORDER(
-            this, [](void* sym, void*) {
+            this, [](void* sym, void* data) {
                 FINALIZER_CALLBACK()
             },
-            nullptr, nullptr, nullptr);
+            m_finalizerData.value(), nullptr, nullptr);
 #endif
     }
 
