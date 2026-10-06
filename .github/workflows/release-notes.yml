@@ -1,0 +1,35 @@
+name: Release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to update
+        required: true
+        type: string
+
+jobs:
+  update-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v5
+    - name: Update release notes
+      uses: actions/github-script@v8
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+      with:
+        script: |
+          const tag = process.env.RELEASE_TAG;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+            throw new Error('Expected a release tag such as v5.0.3');
+          }
+          const body = require('fs').readFileSync(`docs/releases/${tag}.txt`, 'utf8');
+          const { data: release } = await github.rest.repos.getReleaseByTag({
+            ...context.repo, tag
+          });
+          await github.rest.repos.updateRelease({
+            ...context.repo, release_id: release.id, body
+          });
+          core.info(`Updated release notes for ${tag}`);
