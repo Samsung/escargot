@@ -78,6 +78,10 @@ void Heap::initialize()
     COMPILE_ASSERT((GC_GRANULE_BYTES & PointerKindMask) == 0, "BDWGC granule must preserve pointer-kind bits");
     // disable data area searching in bdwgc
     GC_set_no_dls(1);
+#if !defined(OS_BAREMETAL)
+    // Set the default before GC_init so GC_FREE_SPACE_DIVISOR can override it.
+    GC_set_free_space_divisor(12);
+#endif
 #if defined(OS_BAREMETAL)
     // Bare-metal/RTOS builds: tell BDWGC where the current task's stack
     // starts (cold/high end) *before* GC_init() runs, using the

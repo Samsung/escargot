@@ -219,49 +219,21 @@ static GC_ms_entry* markEncodedSmallValueRange(const char* start, const char* en
                                                GC_ms_entry* mark_stack_ptr,
                                                GC_ms_entry* mark_stack_limit)
 {
-    constexpr size_t batchSize = 32;
-    GC_mark_pair_32bit buffer[batchSize];
-    int count = 0;
-
-    char* ptr = (char*)start;
-    char* limit = (char*)end;
-
-    for (; ptr < limit; ptr += 4) {
-        EncodedSmallValue* current = (EncodedSmallValue*)ptr;
-        const uint32_t offset = current->compressedPayload();
-        if (offset > ValueLast && ((offset & 1) == 0)) {
-            buffer[count].from = reinterpret_cast<const unsigned int*>(ptr);
-            buffer[count].offset = offset;
-            count++;
-            if (count == batchSize) {
-                mark_stack_ptr = GC_mark_and_push_32bit(mark_stack_ptr, mark_stack_limit,
-                                                        buffer, batchSize);
-                count = 0;
-            }
-        }
-    }
-
-    if (count > 0) {
-        mark_stack_ptr = GC_mark_and_push_32bit(mark_stack_ptr, mark_stack_limit,
-                                                buffer, count);
-    }
-
-    return mark_stack_ptr;
+    return GC_push_32bit_range(start, static_cast<size_t>(end - start),
+                               mark_stack_ptr, mark_stack_limit);
 }
 
+#if defined(GC_DEBUG)
 GC_ms_entry* markEncodedSmallValueVector(GC_word* addr,
                                          GC_ms_entry* mark_stack_ptr,
                                          GC_ms_entry* mark_stack_limit,
                                          GC_word env)
 {
-#if defined(GC_DEBUG)
     const char* start = (const char*)GC_USR_PTR_FROM_BASE(addr);
-#else
-    const char* start = (const char*)addr;
-#endif
     return markEncodedSmallValueRange(start, (const char*)addr + GC_size(addr),
                                       mark_stack_ptr, mark_stack_limit);
 }
+#endif
 
 GC_ms_entry* markFunctionEnvironmentRecord(GC_word* addr,
                                            GC_ms_entry* mark_stack_ptr,
@@ -448,10 +420,14 @@ void initializeCustomAllocators()
 #endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(GC_DEBUG)
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                          GC_MAKE_PROC(GC_new_proc(markEncodedSmallValueVector), 0),
                                                                          FALSE,
                                                                          TRUE);
+#else
+    s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind_32bit();
+#endif
     s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind] = GC_new_kind(GC_new_free_list(),
                                                                            GC_MAKE_PROC(GC_new_proc(markFunctionEnvironmentRecord), 0),
                                                                            FALSE,

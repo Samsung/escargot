@@ -1291,8 +1291,6 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
         abort();
     }
 
-    Memory::setGCFrequency(12);
-
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
     instance->registerPromiseRejectCallback([](ExecutionStateRef* state, PromiseObjectRef* promise, ValueRef* value, VMInstanceRef::PromiseRejectEvent event) {
         if (event == VMInstanceRef::PromiseRejectWithNoHandler) {
@@ -1480,6 +1478,10 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
 
 int main(int argc, char* argv[])
 {
+    // Optionally narrow the scanned stack to the shell's own frames. On Linux,
+    // the startup stack contains AT_RANDOM bytes that can rarely resemble heap
+    // pointers and keep otherwise unreachable objects alive. This boundary
+    // avoids scanning that startup data; GC's automatic boundary is also valid.
     // A parameter's address can lie below other locals in the same frame.
     // Keep all shell roots in a callee frame below this GC stack boundary.
     void* targetStackBottom = &argc;
