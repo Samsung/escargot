@@ -1,0 +1,38 @@
+Escargot v5.0.3
+
+Changes since v5.0.2
+
+Memory and garbage collection
+- Reduce temporary object, argument-list, array, captured-binding, and
+  control-flow allocations.
+- Stream UTF-8 script sources through bounded parser windows and prevent
+  string literals from retaining entire source files.
+- Flatten StringView chains, release cold compressible string pages, and
+  prevent use-after-free of reloadable and compressible string buffers.
+- Update GCutil to reduce leaks and avoid scanning explicitly freed objects.
+- Fix incremental GC rescanning and clear vacated Vector slots before scans.
+
+Runtime performance
+- Optimize object property storage, transition sharing, inline caches, and
+  lexical scope storage.
+- Specialize TypedArray indexed access and improve Map and Set size tracking.
+- Optimize switch compilation, value tagging, equality checks, and numeric
+  boxing, including Math results.
+
+Correctness and portability
+- Fix IteratorClose when an iterator's return method is null.
+- Preserve assignment targets after rejected awaits and handle arguments
+  bindings without indexed storage.
+- Preserve ExposableObject property enumeration and correct Object
+  constructor property-name checks.
+- Reject BigInt values that are too large to materialize.
+- Fix compiler and linker issues involving Clang, MSVC, GCC, PIC, and LTO.
+- Fix a Test262 agent startup race and improve CI failure diagnostics.
+
+Embedding and tooling
+- Add Memory::setStackBottom and use it in the shell to establish GC roots.
+- Enable compressed pointers by default on supported 64-bit hosts.
+- Extend DevTools debugger previews to collections and additional objects.
+- Add incremental GC release checks and improve memory profiling support.
+- Publish Android Maven artifacts through the Android release workflow.
+- Expand scheduled engine comparisons, including native ARM and Hermes.
