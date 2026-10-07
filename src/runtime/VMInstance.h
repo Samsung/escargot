@@ -41,6 +41,7 @@ class CompressibleString;
 #endif
 #if defined(ENABLE_RELOADABLE_STRING)
 class ReloadableString;
+class ReloadableSourceString;
 #endif
 #if defined(ENABLE_CODE_CACHE)
 class CodeCache;
@@ -339,6 +340,10 @@ public:
     {
         return m_reloadableStrings;
     }
+    std::vector<ReloadableSourceString*>& reloadableSourceStrings()
+    {
+        return m_reloadableSourceStrings;
+    }
 #endif
 
     SandBox* currentSandBox()
@@ -565,6 +570,7 @@ private:
 #endif
 #if defined(ENABLE_RELOADABLE_STRING)
     std::vector<ReloadableString*> m_reloadableStrings;
+    std::vector<ReloadableSourceString*> m_reloadableSourceStrings;
 #endif
 
     static void gcEventCallback(GC_EventType t, void* data);

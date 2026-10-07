@@ -586,6 +586,107 @@ TEST(EvalScript, ScriptSourceUTF8)
     EXPECT_EQ(execution.result->asString()->toStdUTF8String(), "function inner(a) { return a + marker.length; }");
 }
 
+TEST(EvalScript, ScriptSourceOwnedUTF8Buffer)
+{
+    for (size_t length : { size_t(0), size_t(1), size_t(65535), size_t(65536), size_t(8 * 1024 * 1024 - 1), size_t(8 * 1024 * 1024) }) {
+        void* buffer = ScriptSourceRef::allocateUTF8Buffer(length);
+        memset(buffer, ' ', length);
+        ScriptSourceRef* source = ScriptSourceRef::createFromAlreadyAllocatedUTF8Buffer(g_context->vmInstance(), buffer, length);
+        EXPECT_EQ(source->length(), length);
+        EXPECT_EQ(source->storageLength(), length);
+        EXPECT_EQ(source->encoding(), ScriptSourceRef::Encoding::UTF8);
+        EXPECT_EQ(source->string()->isCompressibleString(), length >= 8 * 1024 * 1024 && StringRef::isCompressibleStringEnabled());
+        if (length >= 8 * 1024 * 1024 && StringRef::isCompressibleStringEnabled()) {
+            auto access = source->string()->stringBufferAccessData();
+            EXPECT_EQ(access.buffer, buffer);
+        }
+        auto parsed = g_context->scriptParser()->initializeScript(source, StringRef::createFromASCII("owned-ascii.js"));
+        ASSERT_TRUE(parsed.isSuccessful());
+    }
+    void* unused = ScriptSourceRef::allocateUTF8Buffer(65536);
+    ScriptSourceRef::deallocateUTF8Buffer(unused, 65536);
+}
+
+TEST(EvalScript, ScriptSourceOwnedInvalidUTF8)
+{
+    const char text[] = { '\'', static_cast<char>(0xff), '\'', ';' };
+    void* buffer = ScriptSourceRef::allocateUTF8Buffer(sizeof(text));
+    memcpy(buffer, text, sizeof(text));
+    ScriptSourceRef* source = ScriptSourceRef::createFromAlreadyAllocatedUTF8Buffer(g_context->vmInstance(), buffer, sizeof(text));
+    auto parsed = g_context->scriptParser()->initializeScript(source, StringRef::createFromASCII("owned-invalid-utf8.js"));
+    ASSERT_TRUE(parsed.isSuccessful());
+    auto executed = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parsed.script.get());
+    ASSERT_TRUE(executed.isSuccessful());
+    EXPECT_EQ(executed.result->asString()->toStdUTF8String(), "\xEF\xBF\xBD");
+}
+
+TEST(EvalScript, ScriptSourceOwnedUTF8CompressionAndLazyFunction)
+{
+    std::string text = "/*" + std::string(8 * 1024 * 1024, ' ') + "*/ (function ownedUTF8() { return '\xF0\x9F\x98\x80'; });";
+    void* buffer = ScriptSourceRef::allocateUTF8Buffer(text.size());
+    memcpy(buffer, text.data(), text.size());
+    ScriptSourceRef* source = ScriptSourceRef::createFromAlreadyAllocatedUTF8Buffer(g_context->vmInstance(), buffer, text.size());
+    auto parsed = g_context->scriptParser()->initializeScript(source, StringRef::createFromASCII("owned-utf8.js"));
+    ASSERT_TRUE(parsed.isSuccessful());
+    auto executed = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parsed.script.get());
+    ASSERT_TRUE(executed.isSuccessful());
+    PersistentRefHolder<FunctionObjectRef> function(executed.result->asFunctionObject());
+    g_context->vmInstance()->enterIdleMode();
+    GC_gcollect();
+    auto called = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* function) -> ValueRef* {
+        EXPECT_EQ(function->toString(state)->toStdUTF8String(), "function ownedUTF8() { return '\xF0\x9F\x98\x80'; }");
+        return function->call(state, ValueRef::createUndefined(), 0, nullptr); }, function.get());
+    ASSERT_TRUE(called.isSuccessful());
+    EXPECT_EQ(called.result->asString()->toStdUTF8String(), "\xF0\x9F\x98\x80");
+}
+
+TEST(EvalScript, ScriptSourceReloadableUTF8)
+{
+    if (!StringRef::isReloadableStringEnabled()) {
+        GTEST_SKIP();
+    }
+    struct Data {
+        const char* bytes;
+        size_t length;
+        size_t loads;
+        size_t unloads;
+    };
+    std::string text = "/*" + std::string(509, ' ') + "\xF0\x9F\x98\x80*/ (function reloadableUTF8() { return '\xF0\x9F\x98\x80'; });";
+    Data* data = static_cast<Data*>(GC_MALLOC(sizeof(Data)));
+    char* bytes = static_cast<char*>(GC_MALLOC_ATOMIC(text.size()));
+    memcpy(bytes, text.data(), text.size());
+    *data = { bytes, text.size(), 0, 0 };
+    ScriptSourceRef* source = ScriptSourceRef::createReloadableUTF8(g_context->vmInstance(), data->length, data, [](void* opaque) -> void* {
+            Data* data = static_cast<Data*>(opaque);
+            void* buffer = ScriptSourceRef::allocateUTF8Buffer(data->length);
+            memcpy(buffer, data->bytes, data->length);
+            data->loads++;
+            return buffer; }, [](void* buffer, void* opaque) {
+            Data* data = static_cast<Data*>(opaque);
+            data->unloads++;
+            ScriptSourceRef::deallocateUTF8Buffer(buffer, data->length); });
+    EXPECT_EQ(source->length(), text.size() - 4);
+    EXPECT_EQ(source->storageLength(), text.size());
+    EXPECT_EQ(source->encoding(), ScriptSourceRef::Encoding::UTF8);
+    auto parsed = g_context->scriptParser()->initializeScript(source, StringRef::createFromASCII("reloadable-utf8.js"));
+    ASSERT_TRUE(parsed.isSuccessful());
+    EXPECT_GE(data->unloads, 1u);
+    auto executed = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parsed.script.get());
+    ASSERT_TRUE(executed.isSuccessful());
+    PersistentRefHolder<FunctionObjectRef> function(executed.result->asFunctionObject());
+    g_context->vmInstance()->enterIdleMode();
+    size_t loads = data->loads;
+    auto called = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* function) -> ValueRef* {
+        EXPECT_EQ(function->toString(state)->toStdUTF8String(), "function reloadableUTF8() { return '\xF0\x9F\x98\x80'; }");
+        return function->call(state, ValueRef::createUndefined(), 0, nullptr); }, function.get());
+    ASSERT_TRUE(called.isSuccessful());
+    EXPECT_EQ(called.result->asString()->toStdUTF8String(), "\xF0\x9F\x98\x80");
+    EXPECT_GT(data->loads, loads);
+    g_context->vmInstance()->enterIdleMode();
+    EXPECT_EQ(data->loads, data->unloads);
+    EXPECT_EQ(source->string()->toStdUTF8String(), text);
+}
+
 TEST(EvalScript, ScriptSourceUTF8ClassToString)
 {
     const char source[] = "/* \xF0\x9F\x98\x80 */ class RawUTF8ClassForToString { value() { return 1; } } RawUTF8ClassForToString;";

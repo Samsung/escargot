@@ -27,8 +27,33 @@ namespace Escargot {
 
 class ScriptSource;
 class VMInstance;
+class ReloadableSourceString;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
+#endif
+
+#if defined(ENABLE_RELOADABLE_STRING)
+// Raw UTF-8 source bytes. This storage is never exposed as a JavaScript String.
+class ReloadableSourceString : public gc {
+    friend class VMInstance;
+
+public:
+    ReloadableSourceString(VMInstance* instance, size_t byteLength, Optional<void*> callbackData,
+                           void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*));
+    void* operator new(size_t size);
+    StringBufferAccessData bufferAccessData() const;
+    bool unload();
+
+private:
+    VMInstance* m_vmInstance;
+    Optional<void*> m_callbackData;
+    mutable Optional<void*> m_buffer;
+    size_t m_byteLength;
+    mutable size_t m_refCount;
+    bool m_isOwnerMayFreed;
+    void* (*m_loadCallback)(void*);
+    void (*m_unloadCallback)(void*, void*);
+};
 #endif
 
 // Encoding of the input a ScriptSource was created from.
@@ -85,6 +110,11 @@ public:
     static ScriptSource* createFromASCII(const char* data, size_t length);
     // invalid UTF-8 sequences are replaced by U+FFFD, like String::fromUTF8 does
     static ScriptSource* createFromUTF8(const char* data, size_t length);
+    static void* allocateUTF8Buffer(size_t byteLength);
+    static void deallocateUTF8Buffer(void* buffer, size_t byteLength);
+    static ScriptSource* createFromAlreadyAllocatedUTF8Buffer(VMInstance* instance, void* buffer, size_t byteLength);
+    static ScriptSource* createReloadableUTF8(VMInstance* instance, size_t byteLength, Optional<void*> callbackData,
+                                              void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*));
     static ScriptSource* createFromUTF16(const char16_t* data, size_t length);
     // keeps `string` as is, without copying it
     static ScriptSource* createFromString(String* string);
@@ -226,6 +256,7 @@ private:
 
     // one entry of m_utf8Index per this many UTF-16 code units
     static const size_t utf8IndexGranularity = 512;
+    static const size_t minimumCompressibleUTF8Length = 8 * 1024 * 1024;
     // the byte offset an entry holds is packed with the flag below, which caps the
     // size of a raw UTF-8 storage. a bigger source falls back to flat storage
     static const size_t maxUTF8StorageLength = 0x7fffffff;
@@ -234,6 +265,8 @@ private:
     ScriptSource(SourceEncoding encoding, String* string, size_t storageLength)
         : m_encoding(encoding)
         , m_hasHashValue(false)
+        , m_isReloadableUTF8(false)
+        , m_utf8BufferIsOSAllocated(false)
         , m_storageLength(storageLength)
         , m_length(string->length())
         , m_hashValue(0)
@@ -241,9 +274,7 @@ private:
         , m_decodedString(nullptr)
         , m_utf8Data(nullptr)
         , m_utf8Index(nullptr)
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-        , m_compressedUTF8(nullptr)
-#endif
+        , m_utf8Storage(nullptr)
     {
         ASSERT(!!string);
     }
@@ -251,6 +282,8 @@ private:
     ScriptSource(const char* utf8Data, size_t byteLength, size_t utf16Length, uint32_t* utf8Index)
         : m_encoding(SourceEncoding::UTF8)
         , m_hasHashValue(false)
+        , m_isReloadableUTF8(false)
+        , m_utf8BufferIsOSAllocated(false)
         , m_storageLength(byteLength)
         , m_length(utf16Length)
         , m_hashValue(0)
@@ -258,17 +291,21 @@ private:
         , m_decodedString(nullptr)
         , m_utf8Data(utf8Data)
         , m_utf8Index(utf8Index)
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-        , m_compressedUTF8(nullptr)
-#endif
+        , m_utf8Storage(nullptr)
     {
     }
 
     UTF8Cursor cursorAt(size_t utf16Offset) const;
     String* decodeRange(size_t start, size_t end) const;
+    static ScriptSource* createFromUTF8Buffer(char* bytes, size_t byteLength, Optional<String*> byteStorage,
+                                              Optional<ReloadableSourceString*> reloadableStorage = nullptr);
+    bool hasUTF8Storage() const;
+    StringBufferAccessData utf8BufferAccessData(size_t start, size_t count) const;
 
     SourceEncoding m_encoding;
     bool m_hasHashValue;
+    bool m_isReloadableUTF8;
+    bool m_utf8BufferIsOSAllocated;
     size_t m_storageLength;
     size_t m_length;
     size_t m_hashValue;
@@ -281,9 +318,9 @@ private:
     Optional<const char*> m_utf8Data;
     // byte offset of every utf8IndexGranularity-th UTF-16 code unit of m_utf8Data
     Optional<uint32_t*> m_utf8Index;
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-    Optional<CompressibleString*> m_compressedUTF8;
-#endif
+    // A String of raw UTF-8 bytes or, when m_isReloadableUTF8 is set, a
+    // ReloadableSourceString. Neither represents decoded JavaScript text.
+    Optional<void*> m_utf8Storage;
 };
 
 inline char16_t SourceRange::charAt(size_t offsetInRange) const

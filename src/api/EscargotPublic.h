@@ -2318,6 +2318,17 @@ public:
     static ScriptSourceRef* createFromASCII(const char* data, size_t length);
     // invalid UTF-8 sequences are replaced by U+FFFD
     static ScriptSourceRef* createFromUTF8(const char* data, size_t length);
+    // Fill exactly byteLength bytes, then transfer ownership to the source.
+    // Release an unused buffer with deallocateUTF8Buffer using its original size.
+    // Large buffers use OS memory rather than the libc malloc arena.
+    static void* allocateUTF8Buffer(size_t byteLength);
+    static void deallocateUTF8Buffer(void* buffer, size_t byteLength);
+    static ScriptSourceRef* createFromAlreadyAllocatedUTF8Buffer(VMInstanceRef* instance, void* buffer, size_t byteLength);
+    // Callbacks supply raw UTF-8 bytes. Every reload must return identical
+    // content of byteLength bytes; the source retains the callback data.
+    // Requires reloadable string support. No full UTF-16 source copy is kept.
+    static ScriptSourceRef* createReloadableUTF8(VMInstanceRef* instance, size_t byteLength, void* callbackData,
+                                                 void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*));
     static ScriptSourceRef* createFromUTF16(const char16_t* data, size_t length);
     // keeps `string` as is, without copying it
     static ScriptSourceRef* createFromString(StringRef* string);
