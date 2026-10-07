@@ -31,6 +31,7 @@ class VMInstance;
 class CompressibleString : public String {
     friend class VMInstance;
     friend class String;
+    friend class ScriptSource;
 
 public:
     // 8bit string constructor

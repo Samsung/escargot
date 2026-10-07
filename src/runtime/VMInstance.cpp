@@ -29,6 +29,7 @@
 #include "runtime/JobQueue.h"
 #include "runtime/CompressibleString.h"
 #include "runtime/ReloadableString.h"
+#include "parser/ScriptSource.h"
 #include "intl/Intl.h"
 #include "interpreter/ByteCode.h"
 #include "heap/CustomAllocator.h"
@@ -327,6 +328,9 @@ VMInstance::~VMInstance()
         auto& v = reloadableStrings();
         for (size_t i = 0; i < v.size(); i++) {
             v[i]->m_isOwnerMayFreed = true;
+        }
+        for (ReloadableSourceString* source : reloadableSourceStrings()) {
+            source->m_isOwnerMayFreed = true;
         }
     }
 #endif
@@ -865,6 +869,9 @@ void VMInstance::enterIdleMode()
     if (m_config & (size_t)VMInstance::ConfigFlag::UnloadReloadableStringsEnterIdle) {
         auto& currentAllocatedReloadableStrings = reloadableStrings();
         const size_t& currentAllocatedReloadableStringsCount = currentAllocatedReloadableStrings.size();
+        for (ReloadableSourceString* source : reloadableSourceStrings()) {
+            source->unload();
+        }
 
         for (size_t i = 0; i < currentAllocatedReloadableStringsCount; i++) {
             if (!currentAllocatedReloadableStrings[i]->isUnloaded()) {

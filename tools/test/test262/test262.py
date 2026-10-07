@@ -526,9 +526,11 @@ class TestCase(object):
     return TestResult(code, out, err, self)
 
   def Run(self, command_template):
-    driver_tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True,
+    # Preserve the source's exact line terminators. Windows text descriptors
+    # translate LF to CRLF, including LF that is already preceded by CR.
+    driver_tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"),
                           directory=self.suite.tmpdir)
-    tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True,
+    tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"),
                    directory=self.suite.tmpdir)
     try:
       result = self.RunTestIn(command_template, driver_tmp, tmp)

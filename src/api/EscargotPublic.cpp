@@ -5184,6 +5184,27 @@ ScriptSourceRef* ScriptSourceRef::createFromUTF8(const char* data, size_t length
     return toRef(ScriptSource::createFromUTF8(data, length));
 }
 
+void* ScriptSourceRef::allocateUTF8Buffer(size_t byteLength)
+{
+    return ScriptSource::allocateUTF8Buffer(byteLength);
+}
+
+void ScriptSourceRef::deallocateUTF8Buffer(void* buffer, size_t byteLength)
+{
+    ScriptSource::deallocateUTF8Buffer(buffer, byteLength);
+}
+
+ScriptSourceRef* ScriptSourceRef::createFromAlreadyAllocatedUTF8Buffer(VMInstanceRef* instance, void* buffer, size_t byteLength)
+{
+    return toRef(ScriptSource::createFromAlreadyAllocatedUTF8Buffer(toImpl(instance), buffer, byteLength));
+}
+
+ScriptSourceRef* ScriptSourceRef::createReloadableUTF8(VMInstanceRef* instance, size_t byteLength, void* callbackData,
+                                                       void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*))
+{
+    return toRef(ScriptSource::createReloadableUTF8(toImpl(instance), byteLength, callbackData, loadCallback, unloadCallback));
+}
+
 ScriptSourceRef* ScriptSourceRef::createFromUTF16(const char16_t* data, size_t length)
 {
     return toRef(ScriptSource::createFromUTF16(data, length));

@@ -331,13 +331,33 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
     }
 }
 
-static OptionalRef<ScriptSourceRef> builtinHelperFileReadSource(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
+static OptionalRef<ScriptSourceRef> builtinHelperFileReadSource(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName, VMInstanceRef* instance)
 {
-    FILE* fp = fopen(fileName, "r");
-    if (!fp) {
+    OptionalRef<FILE> file = fopen(fileName, "rb");
+    if (!file) {
         // Keep the shell's existing error message and exception behavior.
         builtinHelperFileRead(state, fileName, builtinName);
         return nullptr;
+    }
+
+    FILE* fp = file.value();
+    // Read seekable files directly into their final engine-owned byte storage.
+    // Streams and files that change while reading retain the growing fallback.
+    if (fseek(fp, 0, SEEK_END) == 0) {
+        long fileSize = ftell(fp);
+        if (fileSize >= 0 && fseek(fp, 0, SEEK_SET) == 0) {
+            size_t byteLength = static_cast<size_t>(fileSize);
+            void* buffer = ScriptSourceRef::allocateUTF8Buffer(byteLength);
+            size_t readLength = fread(buffer, 1, byteLength, fp);
+            if (readLength == byteLength && fgetc(fp) == EOF && !ferror(fp)) {
+                fclose(fp);
+                return ScriptSourceRef::createFromAlreadyAllocatedUTF8Buffer(instance, buffer, byteLength);
+            }
+            ScriptSourceRef::deallocateUTF8Buffer(buffer, byteLength);
+        }
+        rewind(fp);
+    } else {
+        clearerr(fp);
     }
 
     std::string bytes;
@@ -355,7 +375,7 @@ static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size
     if (argc >= 1) {
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "load").value();
+        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "load", state->context()->vmInstance()).value();
         bool isModule = stringEndsWith(f, "mjs");
 
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
@@ -384,7 +404,7 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
 
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
-        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "run").value();
+        ScriptSourceRef* src = builtinHelperFileReadSource(state, fileName, "run", state->context()->vmInstance()).value();
         bool isModule = stringEndsWith(f, "mjs");
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
         script->execute(state);
@@ -932,7 +952,7 @@ static bool evalScript(ContextRef* context, ScriptSourceRef* source, StringRef* 
     bool shouldRestart = false;
     do {
         if (shouldRestart) {
-            auto reloaded = builtinHelperFileReadSource(nullptr, srcName->toStdUTF8String().c_str(), "read");
+            auto reloaded = builtinHelperFileReadSource(nullptr, srcName->toStdUTF8String().c_str(), "read", context->vmInstance());
             if (!reloaded) {
                 return false;
             }
@@ -1400,7 +1420,7 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
             fclose(fp);
             runShell = false;
 
-            ScriptSourceRef* src = builtinHelperFileReadSource(nullptr, argv[i], "read").value();
+            ScriptSourceRef* src = builtinHelperFileReadSource(nullptr, argv[i], "read", context->vmInstance()).value();
 
             if (fileName.length() == 0) {
                 fileName = argv[i];

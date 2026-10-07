@@ -22,6 +22,8 @@
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 #include "runtime/CompressibleString.h"
 #endif
+#include "runtime/VMInstance.h"
+#include "util/OSMemory.h"
 
 namespace Escargot {
 
@@ -43,6 +45,81 @@ static inline bool isAllASCIIBytes(const char* bytes, size_t length)
     return true;
 }
 
+#if defined(ENABLE_RELOADABLE_STRING)
+void* ReloadableSourceString::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL GC_descr descr = 0;
+    if (!descr) {
+        GC_word bitmap[GC_BITMAP_SIZE(ReloadableSourceString)] = { 0 };
+        GC_set_bit(bitmap, GC_WORD_OFFSET(ReloadableSourceString, m_vmInstance));
+        GC_set_bit(bitmap, GC_WORD_OFFSET(ReloadableSourceString, m_callbackData));
+        GC_set_bit(bitmap, GC_WORD_OFFSET(ReloadableSourceString, m_buffer));
+        descr = GC_make_descriptor(bitmap, GC_WORD_LEN(ReloadableSourceString));
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+ReloadableSourceString::ReloadableSourceString(VMInstance* instance, size_t byteLength, Optional<void*> callbackData,
+                                               void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*))
+    : m_vmInstance(instance)
+    , m_callbackData(callbackData)
+    , m_buffer(nullptr)
+    , m_byteLength(byteLength)
+    , m_refCount(0)
+    , m_isOwnerMayFreed(false)
+    , m_loadCallback(loadCallback)
+    , m_unloadCallback(unloadCallback)
+{
+    instance->reloadableSourceStrings().push_back(this);
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* object, void*) {
+        ReloadableSourceString* storage = static_cast<ReloadableSourceString*>(object);
+        ASSERT(!storage->m_refCount);
+        storage->unload();
+        if (!storage->m_isOwnerMayFreed) {
+            auto& list = storage->m_vmInstance->reloadableSourceStrings();
+            auto it = std::find(list.begin(), list.end(), storage);
+            if (it != list.end()) {
+                list.erase(it);
+            }
+        } }, nullptr, nullptr, nullptr);
+}
+
+StringBufferAccessData ReloadableSourceString::bufferAccessData() const
+{
+    if (!m_buffer) {
+        m_buffer = m_loadCallback(m_callbackData.unwrap());
+        RELEASE_ASSERT(m_buffer);
+    }
+    return StringBufferAccessData(true, m_byteLength, m_buffer.value(), &m_refCount);
+}
+
+bool ReloadableSourceString::unload()
+{
+    if (!m_buffer || m_refCount) {
+        return false;
+    }
+    m_unloadCallback(m_buffer.value(), m_callbackData.unwrap());
+    m_buffer = nullptr;
+    return true;
+}
+#endif
+
+bool ScriptSource::hasUTF8Storage() const
+{
+    return m_utf8Data || m_utf8Storage;
+}
+
+StringBufferAccessData ScriptSource::utf8BufferAccessData(size_t start, size_t count) const
+{
+    ASSERT(m_utf8Storage);
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (m_isReloadableUTF8) {
+        return static_cast<const ReloadableSourceString*>(m_utf8Storage.value())->bufferAccessData();
+    }
+#endif
+    return static_cast<const String*>(m_utf8Storage.value())->bufferAccessDataForRange(start, count);
+}
+
 void* ScriptSource::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -52,9 +129,7 @@ void* ScriptSource::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ScriptSource, m_string));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ScriptSource, m_utf8Data));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ScriptSource, m_utf8Index));
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ScriptSource, m_compressedUTF8));
-#endif
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ScriptSource, m_utf8Storage));
         // m_decodedString is a weak cache and is left out on purpose
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ScriptSource));
         typeInited = true;
@@ -72,20 +147,16 @@ void ScriptSource::UTF8Cursor::ensureBytes(size_t count)
         m_spanEnd = m_bufferLength;
         return;
     }
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-    ASSERT(!!m_source->m_compressedUTF8);
+    ASSERT(m_source->hasUTF8Storage());
     size_t needed = std::min(count, m_bufferLength - m_bytePosition);
     if (m_buffer && m_bytePosition + needed <= m_spanEnd) {
         return;
     }
     size_t accessLength = std::min<size_t>(4096, m_bufferLength - m_bytePosition);
     accessLength = std::max(accessLength, needed);
-    m_accessData = m_source->m_compressedUTF8.value()->bufferAccessDataForRange(m_bytePosition, accessLength);
+    m_accessData = m_source->utf8BufferAccessData(m_bytePosition, accessLength);
     m_buffer = m_accessData.bufferAs8Bit;
     m_spanEnd = m_bytePosition + accessLength;
-#else
-    ASSERT_NOT_REACHED();
-#endif
 }
 
 char16_t ScriptSource::UTF8Cursor::next()
@@ -134,11 +205,7 @@ char16_t ScriptSource::UTF8Cursor::next()
 
 ScriptSource::UTF8Cursor ScriptSource::cursorAt(size_t utf16Offset) const
 {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-    ASSERT(!!m_utf8Data || !!m_compressedUTF8);
-#else
-    ASSERT(!!m_utf8Data);
-#endif
+    ASSERT(hasUTF8Storage());
     ASSERT(utf16Offset <= m_length);
 
     size_t entry = utf16Offset / utf8IndexGranularity;
@@ -155,11 +222,19 @@ ScriptSource::UTF8Cursor ScriptSource::cursorAt(size_t utf16Offset) const
     }
 
     size_t remaining = utf16Offset - entry * utf8IndexGranularity;
-    if (remaining && !cursor.pendingTrail() && m_utf8Data
-        && remaining <= m_storageLength - cursor.bytePosition()
-        && isAllASCIIBytes(m_utf8Data.value() + cursor.bytePosition(), remaining)) {
-        cursor.skipASCII(remaining);
-        return cursor;
+    if (remaining && !cursor.pendingTrail() && remaining <= m_storageLength - cursor.bytePosition()) {
+        if (m_utf8Data) {
+            if (isAllASCIIBytes(m_utf8Data.value() + cursor.bytePosition(), remaining)) {
+                cursor.skipASCII(remaining);
+                return cursor;
+            }
+        } else {
+            auto access = utf8BufferAccessData(cursor.bytePosition(), remaining);
+            if (isAllASCIIBytes(access.bufferAs8Bit + cursor.bytePosition(), remaining)) {
+                cursor.skipASCII(remaining);
+                return cursor;
+            }
+        }
     }
     for (size_t i = 0; i < remaining; i++) {
         cursor.next();
@@ -246,15 +321,11 @@ Optional<const char*> ScriptSource::asciiBytes(size_t start, size_t count) const
 {
     ASSERT(start <= m_length && count <= m_length - start);
     if (!m_utf8Data) {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
         // A parser keeps collection disabled while a window points into the
         // decompressed buffer. Reuse that buffer for ASCII windows as well.
-        if (!m_compressedUTF8 || !GC_is_disabled()) {
+        if (!hasUTF8Storage() || !GC_is_disabled()) {
             return nullptr;
         }
-#else
-        return nullptr;
-#endif
     }
     UTF8Cursor cursor = cursorAt(start);
     size_t byteStart = cursor.bytePosition();
@@ -271,31 +342,41 @@ const char* ScriptSource::rawUTF8Data(size_t byteStart, size_t count) const
     if (LIKELY(!!m_utf8Data)) {
         return m_utf8Data.value() + byteStart;
     }
-#if defined(ENABLE_COMPRESSIBLE_STRING)
     // The scanner calls this only while collection is disabled. A returned
     // pointer remains valid for its token's lifetime even after this access
     // descriptor releases the compressor's reference count.
     ASSERT(GC_is_disabled());
-    auto access = m_compressedUTF8.value()->bufferAccessDataForRange(byteStart, count);
+    auto access = utf8BufferAccessData(byteStart, count);
     return access.bufferAs8Bit + byteStart;
-#else
-    ASSERT_NOT_REACHED();
-    return nullptr;
-#endif
 }
 
 void ScriptSource::compactUTF8(VMInstance* instance)
 {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-    if (!m_utf8Data || m_storageLength < 8 * 1024 * 1024) {
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (m_isReloadableUTF8 && m_utf8Storage) {
+        static_cast<ReloadableSourceString*>(m_utf8Storage.value())->unload();
         return;
     }
-    // Transfer the existing byte buffer without making another full-size
-    // copy. CompressibleString owns and frees it from this point onward.
-    CompressibleString* compressed = new CompressibleString(instance, const_cast<char*>(m_utf8Data.value()), m_storageLength, true);
-    m_compressedUTF8 = compressed;
-    m_utf8Data = nullptr;
-    compressed->compress(16);
+#endif
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    if (m_storageLength < minimumCompressibleUTF8Length) {
+        return;
+    }
+    if (m_utf8Data) {
+        // Transfer ownership without copying the source bytes.
+        m_utf8Storage = new CompressibleString(instance, const_cast<char*>(m_utf8Data.value()), m_storageLength, true, m_utf8BufferIsOSAllocated);
+        m_utf8Data = nullptr;
+    }
+    Optional<String*> storage = m_string;
+    if (m_utf8Storage) {
+        storage = static_cast<String*>(m_utf8Storage.value());
+    }
+    if (storage && storage.value()->isCompressibleString()) {
+        CompressibleString* compressed = static_cast<CompressibleString*>(storage.value());
+        if (!compressed->isCompressed()) {
+            compressed->compress(16);
+        }
+    }
 #else
     UNUSED_PARAMETER(instance);
 #endif
@@ -342,23 +423,95 @@ ScriptSource* ScriptSource::createFromASCII(const char* data, size_t length)
     return new ScriptSource(SourceEncoding::ASCII, String::fromASCII(data, length), length);
 }
 
+static bool useOSForUTF8Buffer(size_t length)
+{
+#if defined(OS_POSIX) || defined(OS_WINDOWS)
+    return length >= 65536;
+#else
+    return false;
+#endif
+}
+
+void* ScriptSource::allocateUTF8Buffer(size_t byteLength)
+{
+    if (useOSForUTF8Buffer(byteLength)) {
+        return OSMemory::reserve(byteLength);
+    }
+    void* buffer = malloc(std::max<size_t>(byteLength, 1));
+    RELEASE_ASSERT(buffer);
+    return buffer;
+}
+
+void ScriptSource::deallocateUTF8Buffer(void* buffer, size_t byteLength)
+{
+    if (useOSForUTF8Buffer(byteLength)) {
+        OSMemory::release(buffer, byteLength);
+    } else {
+        free(buffer);
+    }
+}
+
 ScriptSource* ScriptSource::createFromUTF8(const char* data, size_t length)
 {
     if (isAllASCIIBytes(data, length)) {
-        // the bytes are the text, flat storage of it is as small as the input and
-        // keeps the random access the lexer wants
         return new ScriptSource(SourceEncoding::UTF8, String::fromASCII(data, length), length);
     }
-
-    // The packed byte index cannot address sources above this limit.
     if (length > maxUTF8StorageLength) {
         auto decoded = utf8StringToUTF16String(data, length);
         return new ScriptSource(SourceEncoding::UTF8, new UTF16String(std::move(decoded)), length);
     }
-
-    char* bytes = static_cast<char*>(malloc(length));
-    RELEASE_ASSERT(!!bytes);
+    char* bytes = static_cast<char*>(allocateUTF8Buffer(length));
     memcpy(bytes, data, length);
+    return createFromUTF8Buffer(bytes, length, nullptr);
+}
+
+ScriptSource* ScriptSource::createFromAlreadyAllocatedUTF8Buffer(VMInstance* instance, void* buffer, size_t byteLength)
+{
+    RELEASE_ASSERT(buffer);
+    if (!byteLength) {
+        deallocateUTF8Buffer(buffer, byteLength);
+        return new ScriptSource(SourceEncoding::UTF8, String::emptyString(), 0);
+    }
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    if (byteLength >= minimumCompressibleUTF8Length) {
+        String* storage = new CompressibleString(instance, buffer, byteLength, true, useOSForUTF8Buffer(byteLength));
+        auto access = storage->bufferAccessData();
+        return createFromUTF8Buffer(const_cast<char*>(access.bufferAs8Bit), byteLength, storage);
+    }
+#else
+    UNUSED_PARAMETER(instance);
+#endif
+    return createFromUTF8Buffer(static_cast<char*>(buffer), byteLength, nullptr);
+}
+
+ScriptSource* ScriptSource::createReloadableUTF8(VMInstance* instance, size_t byteLength, Optional<void*> callbackData,
+                                                 void* (*loadCallback)(void*), void (*unloadCallback)(void*, void*))
+{
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (!byteLength) {
+        return new ScriptSource(SourceEncoding::UTF8, String::emptyString(), 0);
+    }
+    RELEASE_ASSERT(loadCallback && unloadCallback);
+    ReloadableSourceString* storage = new ReloadableSourceString(instance, byteLength, callbackData, loadCallback, unloadCallback);
+    auto access = storage->bufferAccessData();
+    return createFromUTF8Buffer(const_cast<char*>(access.bufferAs8Bit), byteLength, nullptr, storage);
+#else
+    RELEASE_ASSERT_NOT_REACHED();
+#endif
+}
+
+ScriptSource* ScriptSource::createFromUTF8Buffer(char* bytes, size_t length, Optional<String*> byteStorage,
+                                                 Optional<ReloadableSourceString*> reloadableStorage)
+{
+    if ((byteStorage && isAllASCIIBytes(bytes, length)) || length > maxUTF8StorageLength) {
+        String* string = length <= maxUTF8StorageLength && byteStorage
+            ? byteStorage.value()
+            : String::fromUTF8(bytes, length);
+        if (!byteStorage && !reloadableStorage) {
+            deallocateUTF8Buffer(bytes, length);
+        }
+        return new ScriptSource(SourceEncoding::UTF8, string, length);
+    }
 
     // A UTF-8 byte sequence produces at most one UTF-16 unit per byte. Reserve
     // that upper bound so length and sparse offsets can be found in one pass.
@@ -384,11 +537,24 @@ ScriptSource* ScriptSource::createFromUTF8(const char* data, size_t length)
     }
 
     ScriptSource* source = new ScriptSource(bytes, length, utf16Length, index);
-    GC_REGISTER_FINALIZER_NO_ORDER(source, [](void* object, void*) {
-        ScriptSource* source = static_cast<ScriptSource*>(object);
-        if (source->m_utf8Data) {
-            free(const_cast<char*>(source->m_utf8Data.value()));
-        } }, nullptr, nullptr, nullptr);
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (reloadableStorage) {
+        source->m_utf8Storage = reloadableStorage.value();
+        source->m_isReloadableUTF8 = true;
+        source->m_utf8Data = nullptr;
+    } else
+#endif
+        if (byteStorage) {
+        source->m_utf8Storage = byteStorage.value();
+        source->m_utf8Data = nullptr;
+    } else {
+        source->m_utf8BufferIsOSAllocated = useOSForUTF8Buffer(length);
+        GC_REGISTER_FINALIZER_NO_ORDER(source, [](void* object, void*) {
+            ScriptSource* source = static_cast<ScriptSource*>(object);
+            if (source->m_utf8Data) {
+                deallocateUTF8Buffer(const_cast<char*>(source->m_utf8Data.value()), source->m_storageLength);
+            } }, nullptr, nullptr, nullptr);
+    }
     return source;
 }
 
