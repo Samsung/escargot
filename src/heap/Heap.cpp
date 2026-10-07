@@ -29,7 +29,47 @@
 #include "runtime/Platform.h"
 #endif
 
+#if defined(__tizen__) || defined(__TIZEN__) || defined(ESCARGOT_TIZEN) || defined(ESCARGOT_TIZEN_MAJOR_VERSION)
+#include <cstdio>
+#include <cstring>
+#include <sys/prctl.h>
+#endif
+
 namespace Escargot {
+
+#if defined(__tizen__) || defined(__TIZEN__) || defined(ESCARGOT_TIZEN) || defined(ESCARGOT_TIZEN_MAJOR_VERSION)
+static bool isTizenTV()
+{
+    FILE* info = fopen("/etc/info.ini", "r");
+    if (!info) {
+        return false;
+    }
+
+    char line[256];
+    bool versionSection = false;
+    bool tv = false;
+    while (fgets(line, sizeof(line), info)) {
+        char section[32];
+        if (sscanf(line, " [%31[^]]", section) == 1) {
+            versionSection = strcmp(section, "Version") == 0;
+            continue;
+        }
+        char model[256];
+        if (versionSection && sscanf(line, " Model = %255[^;#\r\n]", model) == 1) {
+            // Model identifies the platform, e.g. "Tizen10/TV;".
+            char* profile = strchr(model, '/');
+            if (profile) {
+                profile += 1 + strspn(profile + 1, " \t");
+                tv = strncmp(profile, "TV", 2) == 0
+                    && strspn(profile + 2, " \t") == strlen(profile + 2);
+            }
+            break;
+        }
+    }
+    fclose(info);
+    return tv;
+}
+#endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 MAY_THREAD_LOCAL Optional<const GC_compressed_bitmap_descr*> Heap::s_compressedDescriptors[static_cast<size_t>(Heap::CompressedType::Count)];
@@ -94,7 +134,22 @@ void Heap::initialize()
     sb.mem_base = Global::platform()->stackTop();
     GC_set_stackbottom(nullptr, &sb);
 #endif
+#if defined(__tizen__) || defined(__TIZEN__) || defined(ESCARGOT_TIZEN) || defined(ESCARGOT_TIZEN_MAJOR_VERSION)
+    // Use a compatible thread name during Tizen TV GC initialization.
+    // Restore the application thread name as soon as initialization completes.
+    char originalThreadName[16];
+    const bool restoreThreadName = !GC_is_init_called() && isTizenTV();
+    if (restoreThreadName) {
+        RELEASE_ASSERT(prctl(PR_GET_NAME, originalThreadName, 0UL, 0UL, 0UL) == 0);
+        RELEASE_ASSERT(prctl(PR_SET_NAME, "valgrind", 0UL, 0UL, 0UL) == 0);
+    }
+#endif
     GC_init();
+#if defined(__tizen__) || defined(__TIZEN__) || defined(ESCARGOT_TIZEN) || defined(ESCARGOT_TIZEN_MAJOR_VERSION)
+    if (restoreThreadName) {
+        RELEASE_ASSERT(prctl(PR_SET_NAME, originalThreadName, 0UL, 0UL, 0UL) == 0);
+    }
+#endif
     GC_init_finalized_malloc();
 
     RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
