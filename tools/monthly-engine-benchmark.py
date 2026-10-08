@@ -127,15 +127,59 @@ def install_glibc():
     return loader, library_dir, {"version": version, "sha256": digest, "source": bottle["url"]}
 
 
+def v8_archive_pages(prefix, delimiter=None):
+    parameters = {"prefix": prefix, "fields": "items(name,generation,md5Hash),prefixes,nextPageToken"}
+    if delimiter:
+        parameters["delimiter"] = delimiter
+    while True:
+        url = "https://storage.googleapis.com/storage/v1/b/chromium-v8/o?" + urllib.parse.urlencode(parameters)
+        listing = json.loads(read_url(url))
+        yield listing
+        if not listing.get("nextPageToken"):
+            break
+        parameters["pageToken"] = listing["nextPageToken"]
+
+
+def find_arm32_v8(version):
+    # Homebrew and the official ARM32 archives do not publish every patch or
+    # milestone in lockstep. Choose the latest published Release up to V8's
+    # Homebrew stable version, including an older milestone if necessary.
+    requested = tuple(map(int, version.split(".")))
+    requested += (0,) * (4 - len(requested))
+    milestones = {requested[:2]}
+    for listing in v8_archive_pages("official/", delimiter="/"):
+        for prefix in listing.get("prefixes", []):
+            match = re.fullmatch(r"official/(\d+)\.(\d+)/", prefix)
+            if match:
+                milestone = tuple(map(int, match.groups()))
+                if milestone <= requested[:2]:
+                    milestones.add(milestone)
+    for milestone in sorted(milestones, reverse=True):
+        prefix = f"official/{milestone[0]}.{milestone[1]}/v8-linux-arm32-rel-"
+        candidates = []
+        for listing in v8_archive_pages(prefix):
+            for item in listing.get("items", []):
+                match = re.fullmatch(re.escape(prefix) + r"(\d+\.\d+\.\d+(?:\.\d+)?)\.zip", item["name"])
+                if match:
+                    available = tuple(map(int, match.group(1).split(".")))
+                    available += (0,) * (4 - len(available))
+                    if available[:2] == milestone and available <= requested:
+                        candidates.append((available, match.group(1), item))
+        if candidates:
+            _, selected, metadata = max(candidates, key=lambda candidate: candidate[0])
+            if selected != version:
+                print(f"ARM32 V8 {version} is unavailable; using official Release {selected}", flush=True)
+            return selected, metadata
+    raise RuntimeError(f"No official ARM32 V8 Release archive at or below {version}")
+
+
 def install_d8(loader, runtime_dir):
     formula = json.loads(read_url("https://formulae.brew.sh/api/formula/v8.json"))
     version = formula["versions"]["stable"]
     if ARCHITECTURE == "arm32":
-        milestone = ".".join(version.split(".")[:2])
-        name = f"official/{milestone}/v8-linux-arm32-rel-{version}.zip"
-        metadata_url = "https://storage.googleapis.com/storage/v1/b/chromium-v8/o/" + urllib.parse.quote(name, safe="")
-        metadata = json.loads(read_url(metadata_url))
-        url = "https://storage.googleapis.com/chromium-v8/" + name + "?generation=" + metadata["generation"]
+        homebrew_version = version
+        version, metadata = find_arm32_v8(version)
+        url = "https://storage.googleapis.com/chromium-v8/" + metadata["name"] + "?generation=" + metadata["generation"]
         archive = CACHE / "downloads" / f"v8-arm32-{version}.zip"
         fetch(url, archive)
         digest = sha256(archive)
@@ -155,7 +199,8 @@ def install_d8(loader, runtime_dir):
         command = [loader, "--library-path", f"{runtime_dir}:{SYSTEM_LIBRARY_PATH}", executable]
         run(*command, "--version")
         return command, {"version": version, "sha256": digest, "source": url,
-                         "build_config": config, "binary_sha256": sha256(executable)}
+                         "build_config": config, "binary_sha256": sha256(executable),
+                         "homebrew_version": homebrew_version}
     bottle = formula["bottle"]["stable"]["files"]["arm64_linux"]
     digest = bottle["sha256"]
     archive = CACHE / "downloads" / f"v8-{version}-{digest}.tar.gz"
