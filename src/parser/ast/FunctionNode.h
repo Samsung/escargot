@@ -49,7 +49,7 @@ public:
 
         // init stack-allocated vars
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            auto varInfo = codeBlock->m_codeBlock->identifierInfos();
+            const auto& varInfo = codeBlock->m_codeBlock->identifierInfos();
             auto fnName = codeBlock->m_codeBlock->functionName();
             for (size_t i = 0; i < varInfo.size(); i++) {
                 const auto& var = varInfo[i];

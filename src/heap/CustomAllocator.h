@@ -70,6 +70,7 @@ void setInterpretedCodeBlockDescriptorToTyped();
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void* allocateFunctionEnvironmentRecord(size_t size);
+void* allocateCompressedPointerBuffer(size_t size);
 #endif
 
 // Tests whether `ptr` is a heap object that survived the most recent collection.
@@ -177,6 +178,31 @@ inline bool operator!=(const CustomAllocator<GC_T1>&, const CustomAllocator<GC_T
 {
     return false;
 }
+
+// Scan each four-byte cage offset, including offsets inside rebound buckets.
+// Odd scalar payloads avoid conservatively retaining unrelated objects.
+template <class T>
+class CompressedPointerAllocator : public GCUtil::gc_malloc_allocator<T> {
+public:
+    template <class U>
+    struct rebind {
+        typedef CompressedPointerAllocator<U> other;
+    };
+
+    CompressedPointerAllocator() = default;
+    template <class U>
+    CompressedPointerAllocator(const CompressedPointerAllocator<U>&) {}
+
+    T* allocate(size_t count, const void* = nullptr)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        static_assert(sizeof(T) % sizeof(uint32_t) == 0, "Compressed pointer buffers must contain complete four-byte slots");
+        return static_cast<T*>(allocateCompressedPointerBuffer(sizeof(T) * count));
+#else
+        return GCUtil::gc_malloc_allocator<T>::allocate(count);
+#endif
+    }
+};
 } // namespace Escargot
 
 #endif

@@ -145,7 +145,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     }
 
     // InterpretedCodeBlock::m_parameterNames
-    const AtomicStringTightVector& atomicStringVector = codeBlock->m_parameterNames;
+    const auto& atomicStringVector = codeBlock->m_parameterNames;
     size = atomicStringVector.size();
     m_buffer.ensureSize((size + 1) * sizeof(size_t));
     m_buffer.put(size);
@@ -171,7 +171,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     }
 
     // InterpretedCodeBlock::m_blockInfos
-    InterpretedCodeBlock::BlockInfo** blockInfoVector = codeBlock->m_blockInfos;
+    InterpretedCodeBlock::BlockInfo** blockInfoVector = codeBlock->blockInfos();
     size = codeBlock->m_blockInfosLength;
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
@@ -205,7 +205,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
 
     // InterpretedCodeBlock::m_functionStart
     m_buffer.ensureSize(sizeof(ExtendedNodeLOC));
-    m_buffer.put(codeBlock->m_functionStart);
+    m_buffer.put(codeBlock->functionStart());
 
 #ifndef NDEBUG
     // InterpretedCodeBlock::m_bodyEndLOC
@@ -603,7 +603,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block, ByteCodeStringLi
             case BlockOperationOpcode: {
                 BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
-                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->m_blockInfos, block->codeBlock()->m_blockInfosLength, info);
+                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->blockInfos(), block->codeBlock()->m_blockInfosLength, info);
                 ASSERT(infoIndex != ArrayUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
                 break;
@@ -611,7 +611,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block, ByteCodeStringLi
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
                 ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
-                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->m_blockInfos, block->codeBlock()->m_blockInfosLength, info);
+                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->blockInfos(), block->codeBlock()->m_blockInfosLength, info);
                 ASSERT(infoIndex != ArrayUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
                 break;
@@ -764,7 +764,7 @@ bool CodeCacheReader::loadData(FILE* file, size_t size)
     return true;
 }
 
-InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context, Script* script)
+InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context, Script* script, size_t& parentIndex)
 {
     ASSERT(!!context);
     ASSERT(GC_is_disabled());
@@ -778,12 +778,12 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         // InterpretedCodeBlock::m_src
         size_t start = m_buffer.get<size_t>();
         size_t end = m_buffer.get<size_t>();
-        codeBlock->m_src = script->source()->range(start, end);
+        codeBlock->m_sourceStart = start;
+        codeBlock->m_sourceEnd = end;
     }
 
     // InterpretedCodeBlock::m_parent
-    size = m_buffer.get<size_t>();
-    codeBlock->m_parent = reinterpret_cast<InterpretedCodeBlock*>(size);
+    parentIndex = m_buffer.get<size_t>();
 
     // InterpretedCodeBlock::m_children
     ASSERT(!codeBlock->hasChildren());
@@ -800,7 +800,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     }
 
     // InterpretedCodeBlock::m_parameterNames
-    AtomicStringTightVector& atomicStringVector = codeBlock->m_parameterNames;
+    auto& atomicStringVector = codeBlock->m_parameterNames;
     size = m_buffer.get<size_t>();
     atomicStringVector.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
@@ -829,7 +829,8 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     }
 
     size = m_buffer.get<size_t>();
-    InterpretedCodeBlock::BlockInfo** blockInfoVector = codeBlock->m_blockInfos = (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * size);
+    Optional<InterpretedCodeBlock::BlockInfo**> blockInfoVector = size ? (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * size) : nullptr;
+    codeBlock->m_blockInfos = blockInfoVector;
     codeBlock->m_blockInfosLength = size;
     for (size_t i = 0; i < size; i++) {
         bool canAllocateEnvironmentOnStack = m_buffer.get<bool>();
@@ -864,14 +865,19 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
             }
         }
 
-        blockInfoVector[i] = info;
+        blockInfoVector.value()[i] = info;
     }
 
     // InterpretedCodeBlock::m_functionName
     codeBlock->m_functionName = m_stringTable->get(m_buffer.get<size_t>());
 
     // InterpretedCodeBlock::m_functionStart
-    codeBlock->m_functionStart = m_buffer.get<ExtendedNodeLOC>();
+    ExtendedNodeLOC functionStart = m_buffer.get<ExtendedNodeLOC>();
+    if (functionStart.index != codeBlock->m_sourceStart) {
+        throw CodeCacheReader::Error("inconsistent function source position");
+    }
+    codeBlock->m_functionStartLine = functionStart.line;
+    codeBlock->m_functionStartColumn = functionStart.column;
 
 #ifndef NDEBUG
     // InterpretedCodeBlock::m_bodyEndLOC
@@ -1277,14 +1283,14 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
                 ASSERT(blockIndex < codeBlock->m_blockInfosLength);
-                bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
+                bc->m_blockInfo = codeBlock->blockInfos()[blockIndex];
                 break;
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
                 ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
                 ASSERT(blockIndex < codeBlock->m_blockInfosLength);
-                bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
+                bc->m_blockInfo = codeBlock->blockInfos()[blockIndex];
                 break;
             }
             case ResolveNameAddressOpcode: {

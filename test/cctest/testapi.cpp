@@ -568,6 +568,129 @@ TEST(EvalScript, Run)
     EXPECT_EQ(s, "2");
 }
 
+TEST(AtomicString, InternTableRehashKeepsCanonicalStrings)
+{
+    constexpr size_t count = 2048;
+    // Keep only tagged addresses in native storage; the intern table must own
+    // the strings even after the allocation callback's stack has gone away.
+    std::vector<uintptr_t> identities(count * 2);
+    auto inserted = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, std::vector<uintptr_t>* identities) -> ValueRef* {
+        for (size_t i = 0; i < count; ++i) {
+            std::string name = "compact-intern-collection-ascii-" + std::to_string(i);
+            identities->at(i * 2) = reinterpret_cast<uintptr_t>(AtomicStringRef::create(state->context(), name.data(), name.size())) | 1;
+            std::u16string wide(name.begin(), name.end());
+            wide.push_back(u'\u03a9');
+            identities->at(i * 2 + 1) = reinterpret_cast<uintptr_t>(AtomicStringRef::create(state->context(), StringRef::createFromUTF16(wide.data(), wide.size()))) | 1;
+        }
+        return ValueRef::createUndefined(); }, &identities);
+    ASSERT_TRUE(inserted.isSuccessful());
+
+    Memory::gc();
+    Memory::gc();
+
+    auto checked = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, std::vector<uintptr_t>* identities) -> ValueRef* {
+        for (size_t i = 0; i < count; ++i) {
+            std::string name = "compact-intern-collection-ascii-" + std::to_string(i);
+            AtomicStringRef* ascii = AtomicStringRef::create(state->context(), name.data(), name.size());
+            EXPECT_EQ(reinterpret_cast<uintptr_t>(ascii) | 1, identities->at(i * 2));
+            EXPECT_EQ(ascii->string()->toStdUTF8String(), name);
+            std::u16string wide(name.begin(), name.end());
+            wide.push_back(u'\u03a9');
+            AtomicStringRef* unicode = AtomicStringRef::create(state->context(), StringRef::createFromUTF16(wide.data(), wide.size()));
+            EXPECT_EQ(reinterpret_cast<uintptr_t>(unicode) | 1, identities->at(i * 2 + 1));
+            EXPECT_TRUE(unicode->string()->equals(StringRef::createFromUTF16(wide.data(), wide.size())));
+        }
+        return ValueRef::createUndefined(); }, &identities);
+    EXPECT_TRUE(checked.isSuccessful());
+}
+
+TEST(EvalScript, VariableMapSurvivesLazyCompilationAndCollection)
+{
+    std::string source = "function compactVarMapOuter(seed) {";
+    for (size_t i = 0; i < 96; ++i) {
+        source += "var local" + std::to_string(i) + "=" + std::to_string(i) + ";";
+    }
+    source += "return function() { return eval('local0 + local35 + local36 + local95 + seed'); }; } 'ready';";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source.data(), source.size()),
+                         StringRef::createFromASCII("compact-var-map.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("globalThis.compactVarMapClosure = compactVarMapOuter(7); 'ready';"),
+                         StringRef::createFromASCII("compact-var-map-call.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("compactVarMapClosure();"),
+                         StringRef::createFromASCII("compact-var-map-read.js"), false),
+              "173");
+    evalScript(g_context.get(), StringRef::createFromASCII("delete globalThis.compactVarMapClosure; delete globalThis.compactVarMapOuter;"),
+               StringRef::createFromASCII("compact-var-map-cleanup.js"), false);
+}
+
+TEST(EvalScript, CompressibleStructureAndReadCacheSurviveCollection)
+{
+    const char setup[] = R"JS(
+        globalThis.compactCacheObjects = [];
+        globalThis.compactCacheRead = function(o) { return o.compactValue; };
+        globalThis.compactCacheSymbol = Symbol('compact-structure-key');
+        for (let i = 0; i < 4; ++i) {
+            let o = {};
+            o['compact-branch-' + i] = i;
+            o[compactCacheSymbol] = i + 100;
+            o.compactValue = i + 1;
+            compactCacheObjects.push(o);
+        }
+        for (let i = 0; i < 80; ++i) {
+            compactCacheRead(compactCacheObjects[i % 4]);
+        }
+        'ready';
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(setup),
+                         StringRef::createFromASCII("compact-cache-own.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("compactCacheObjects.reduce((s, o) => s + compactCacheRead(o) + o[compactCacheSymbol], 0);"),
+                         StringRef::createFromASCII("compact-cache-own-read.js"), false),
+              "416");
+
+    const char extend[] = R"JS(
+        for (let i = 0; i < 4; ++i) {
+            let base = {};
+            Object.defineProperty(base, 'compactValue', {get() { return this.offset + 10; }});
+            let middle = Object.create(base);
+            middle['compact-middle-' + i] = i;
+            let o = Object.create(middle);
+            o.offset = i;
+            o['compact-leaf-' + i] = i;
+            compactCacheObjects.push(o);
+        }
+        for (let i = 0; i < 120; ++i) {
+            compactCacheRead(compactCacheObjects[i % 8]);
+        }
+        globalThis.compactCacheBranches = [];
+        for (let i = 0; i < 72; ++i) {
+            let o = {sharedPrefix: 1};
+            o['compact-transition-branch-' + i] = i;
+            for (let j = 0; j < 24; ++j) o['compact-property-' + j] = j;
+            o[compactCacheSymbol] = i;
+            compactCacheBranches.push(o);
+        }
+        'ready';
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(extend),
+                         StringRef::createFromASCII("compact-cache-prototype.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("compactCacheObjects.reduce((s, o) => s + compactCacheRead(o), 0) + compactCacheBranches.reduce((s, o) => s + o['compact-property-23'] + o[compactCacheSymbol], 0);"),
+                         StringRef::createFromASCII("compact-cache-prototype-read.js"), false),
+              "4268");
+    evalScript(g_context.get(), StringRef::createFromASCII("delete globalThis.compactCacheObjects; delete globalThis.compactCacheRead; delete globalThis.compactCacheSymbol; delete globalThis.compactCacheBranches;"),
+               StringRef::createFromASCII("compact-cache-cleanup.js"), false);
+}
+
 TEST(EvalScript, ScriptSourceUTF8)
 {
     const char source[] = "let marker = \"\xF0\x9F\x98\x80\"; function outer() { return function inner(a) { return a + marker.length; }; } const f = outer(); f.toString();";
@@ -766,6 +889,36 @@ TEST(EvalScript, ScriptSourceUTF8BoundaryAndLazyFunction)
     auto execution = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, parseResult.script.get());
     ASSERT_TRUE(execution.isSuccessful());
     EXPECT_EQ(execution.result->asNumber(), 42);
+}
+
+TEST(EvalScript, CodeBlockMetadataSurvivesLazyCompilationAndCollection)
+{
+    const std::string nestedSource = "function nested({x}, ...rest) { return captured + x + rest.length; }";
+    std::string source;
+    for (size_t i = 0; i < 160; ++i) {
+        source += "// \xF0\x9F\x98\x80\n";
+    }
+    source += "function compactCodeBlockOuter(a, b) { arguments[0] = a + 1; let captured = a + b; "
+              "class Box { #value = captured; read() { return this.#value; } } ";
+    source += nestedSource + " return {nested, Box}; } 'ready';";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromUTF8(source.data(), source.size()),
+                         StringRef::createFromASCII("compact-code-block.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("globalThis.compactCodeBlockKeep = compactCodeBlockOuter(10, 20); 'ready';"),
+                         StringRef::createFromASCII("compact-code-block-call.js"), false),
+              "ready");
+    Memory::gc();
+    Memory::gc();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("compactCodeBlockKeep.nested({x: 7}, 8, 9) + '|' + new compactCodeBlockKeep.Box().read();"),
+                         StringRef::createFromASCII("compact-code-block-read.js"), false),
+              "40|31");
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("compactCodeBlockKeep.nested.toString();"),
+                         StringRef::createFromASCII("compact-code-block-source.js"), false),
+              nestedSource);
+    evalScript(g_context.get(), StringRef::createFromASCII("delete globalThis.compactCodeBlockKeep; delete globalThis.compactCodeBlockOuter;"),
+               StringRef::createFromASCII("compact-code-block-cleanup.js"), false);
 }
 
 TEST(EvalScript, ScriptSourceUTF8KeywordAcrossWindow)

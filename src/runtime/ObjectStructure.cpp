@@ -310,6 +310,37 @@ ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(siz
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
+void* ObjectStructureTransitionPropertyVector::Storage::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureTransitionStorage))) {
+        GC_word bitmap[(sizeof(Storage) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(Storage, m_buffer) / 4);
+        GC_set_bit(bitmap, offsetof(Storage, m_retiredBuffers) / 4);
+        GC_set_bit(bitmap, offsetof(Storage, m_map) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureTransitionStorage, size, bitmap, sizeof(Storage) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureTransitionStorage, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
+void* ObjectStructureTransitionPropertyVector::RetiredBuffer::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureRetiredBuffer))) {
+        GC_word bitmap[(sizeof(RetiredBuffer) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(RetiredBuffer, m_buffer) / 4);
+        GC_set_bit(bitmap, offsetof(RetiredBuffer, m_previous) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureRetiredBuffer, size, bitmap, sizeof(RetiredBuffer) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureRetiredBuffer, size);
+#else
+    return GC_MALLOC(size);
+#endif
+}
+
 ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector(ObjectStructureItemTightVector&& properties)
     : m_size(properties.size())
 {
@@ -333,7 +364,7 @@ ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector
     }
     auto* storage = m_storage.value();
     if (m_size > storage->m_capacity) {
-        size_t capacity = std::max(m_size, std::max(storage->m_capacity * 2, static_cast<size_t>(2)));
+        size_t capacity = std::max(size(), std::max(static_cast<size_t>(storage->m_capacity) * 2, static_cast<size_t>(2)));
         auto* buffer = GCUtil::gc_malloc_allocator<ObjectStructureItem>().allocate(capacity);
         if (properties.m_size) {
             memcpy(buffer, properties.data().value(), properties.m_size * sizeof(ObjectStructureItem));
@@ -353,49 +384,71 @@ ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector
 
 size_t ObjectStructureTransitionPropertyVector::find(const ObjectStructurePropertyName& name) const
 {
-    ASSERT(m_storage);
-    auto* storage = m_storage.unwrap();
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return findWithBase(name, ThreadLocal::cageBase());
+#else
+    return findWithBase(name, 0);
+#endif
+}
+
+size_t ObjectStructureTransitionPropertyVector::findWithBase(const ObjectStructurePropertyName& name, uintptr_t base) const
+{
+    auto storage = m_storage.getWithBase(base);
+    ASSERT(storage);
     auto fullProperties = *this;
     fullProperties.m_size = storage->m_size;
     if (!storage->m_map) {
-        storage->m_map = new PropertyNameMapWithCache(fullProperties);
+        storage->m_map = new PropertyNameMapWithCache(fullProperties, base);
     }
-    size_t index = storage->m_map->find(name, fullProperties);
+    size_t index = storage->m_map.valueWithBase(base)->find(name, fullProperties, base);
     return index < m_size ? index : SIZE_MAX;
 }
 
 void* ObjectStructureWithTransition::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureWithTransition))) {
+        GC_word bitmap[(sizeof(ObjectStructureWithTransition) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransition, m_properties) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransition, m_transitionTableStorage) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureWithTransition, size, bitmap, sizeof(ObjectStructureWithTransition) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureWithTransition, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithTransition)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_properties));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_transitionTableVectorBuffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_transitionTableStorage));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ObjectStructureWithTransition));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ObjectStructureWithTransition* ObjectStructureWithTransition::create(ObjectStructureItemTightVector&& strings, ObjectStructureItemTightVector&& symbols,
                                                                      bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
 {
-    return create(ObjectStructureTransitionPropertyVector(std::move(strings)), ObjectStructureTransitionPropertyVector(std::move(symbols)),
-                  hasNonAtomicPropertyName, hasEnumerableProperty);
+    ObjectStructureTransitionPropertyVector stringProperties(std::move(strings));
+    ObjectStructureTransitionPropertyVector symbolProperties(std::move(symbols));
+    return create(std::move(stringProperties), std::move(symbolProperties), hasNonAtomicPropertyName, hasEnumerableProperty);
 }
 
 ObjectStructureWithTransition* ObjectStructureWithTransition::create(ObjectStructureTransitionPropertyVector&& strings, ObjectStructureTransitionPropertyVector&& symbols,
                                                                      bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
 {
+    ObjectStructureWithTransition* result;
     if (strings.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE
         || symbols.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE) {
-        return new ObjectStructureWithTransitionWithMap(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+        result = new ObjectStructureWithTransitionWithMap(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+    } else if (!symbols.empty()) {
+        result = new ObjectStructureWithTransitionAndSymbols(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
+    } else {
+        result = new ObjectStructureWithTransition(std::move(strings), false, false, hasNonAtomicPropertyName, hasEnumerableProperty);
     }
-    if (!symbols.empty()) {
-        return new ObjectStructureWithTransitionAndSymbols(std::move(strings), std::move(symbols), hasNonAtomicPropertyName, hasEnumerableProperty);
-    }
-    return new ObjectStructureWithTransition(std::move(strings), false, false, hasNonAtomicPropertyName, hasEnumerableProperty);
+    return result;
 }
 
 namespace {
@@ -423,19 +476,24 @@ private:
 ObjectStructureFindResult ObjectStructureWithTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     size_t size = m_properties.size();
+    auto properties = m_properties.dataWithBase(propertyStorageBase());
+    if (!size) {
+        return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
+    }
+    ASSERT(properties);
 
     if (LIKELY(s.hasAtomicString())) {
         if (LIKELY(!m_hasNonAtomicPropertyName)) {
             for (size_t i = 0; i < size; i++) {
-                if (m_properties[i].m_propertyName.rawValue() == s.rawValue()) {
-                    return std::make_pair(i, &m_properties[i].m_descriptor);
+                if (properties.value()[i].m_propertyName.rawValue() == s.rawValue()) {
+                    return std::make_pair(i, &properties.value()[i].m_descriptor);
                 }
             }
         } else {
             AtomicString as = s.asAtomicString();
             for (size_t i = 0; i < size; i++) {
-                if (m_properties[i].m_propertyName == as) {
-                    return std::make_pair(i, &m_properties[i].m_descriptor);
+                if (properties.value()[i].m_propertyName == as) {
+                    return std::make_pair(i, &properties.value()[i].m_descriptor);
                 }
             }
         }
@@ -443,8 +501,8 @@ ObjectStructureFindResult ObjectStructureWithTransition::findProperty(const Obje
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     } else {
         for (size_t i = 0; i < size; i++) {
-            if (m_properties[i].m_propertyName == s) {
-                return std::make_pair(i, &m_properties[i].m_descriptor);
+            if (properties.value()[i].m_propertyName == s) {
+                return std::make_pair(i, &properties.value()[i].m_descriptor);
             }
         }
     }
@@ -459,7 +517,7 @@ ObjectStructureFindResult ObjectStructureWithTransition::findIndexProperty(uint3
 
 const ObjectStructurePropertyDescriptor& ObjectStructureWithTransition::propertyDescriptor(size_t valueIndex) const
 {
-    return m_properties[valueIndex].m_descriptor;
+    return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_descriptor;
 }
 
 bool ObjectStructureWithTransition::isIndexProperty(size_t) const
@@ -475,12 +533,12 @@ uint32_t ObjectStructureWithTransition::indexPropertyName(size_t) const
 
 const ObjectStructurePropertyName& ObjectStructureWithTransition::nonIndexPropertyName(size_t valueIndex) const
 {
-    return m_properties[valueIndex].m_propertyName;
+    return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_propertyName;
 }
 
 Optional<const ObjectStructureItem*> ObjectStructureWithTransition::stringPropertiesData() const
 {
-    return m_properties.data();
+    return m_properties.dataWithBase(propertyStorageBase());
 }
 
 size_t ObjectStructureWithTransition::propertyCount() const
@@ -496,14 +554,14 @@ size_t ObjectStructureWithTransition::namedPropertyCount() const
 ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc)
 {
     if (m_doesTransitionTableUseMap) {
-        auto iter = m_transitionTableMap->find(ObjectStructureTransitionMapItem(name, desc));
-        if (iter != m_transitionTableMap->end()) {
+        auto iter = transitionTableMap()->find(ObjectStructureTransitionMapItem(name, desc));
+        if (iter != transitionTableMap()->end()) {
             return iter->second;
         }
     } else {
         size_t len = m_transitionTableVectorBufferSize;
         for (size_t i = 0; i < len; i++) {
-            const auto& item = m_transitionTableVectorBuffer.value()[i];
+            const auto& item = transitionTableVectorBuffer().value()[i];
             if (item.m_descriptor == desc && item.m_propertyName == name) {
                 return item.m_structure;
             }
@@ -548,29 +606,32 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
         ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
 
         if (m_doesTransitionTableUseMap) {
-            m_transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
+            transitionTableMap()->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
                                                         newTransitionItem.m_structure));
         } else {
             if (m_transitionTableVectorBufferSize + 1 > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE) {
                 ObjectStructureTransitionTableMap* transitionTableMap = new (GC) ObjectStructureTransitionTableMap();
                 for (size_t i = 0; i < m_transitionTableVectorBufferSize; i++) {
-                    transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(m_transitionTableVectorBuffer.value()[i].m_propertyName, m_transitionTableVectorBuffer.value()[i].m_descriptor),
-                                                              m_transitionTableVectorBuffer.value()[i].m_structure));
+                    transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(transitionTableVectorBuffer().value()[i].m_propertyName, transitionTableVectorBuffer().value()[i].m_descriptor),
+                                                              transitionTableVectorBuffer().value()[i].m_structure));
                 }
                 transitionTableMap->insert(std::make_pair(ObjectStructureTransitionMapItem(newTransitionItem.m_propertyName, newTransitionItem.m_descriptor),
                                                           newTransitionItem.m_structure));
 
-                GC_FREE(m_transitionTableVectorBuffer.value());
+                GC_FREE(transitionTableVectorBuffer().value());
                 m_doesTransitionTableUseMap = true;
-                m_transitionTableMap = transitionTableMap;
+                m_transitionTableStorage = transitionTableMap;
                 m_transitionTableVectorBufferCapacity = 0;
                 m_transitionTableVectorBufferSize = 0;
             } else {
                 if (m_transitionTableVectorBufferCapacity <= (size_t)(m_transitionTableVectorBufferSize + 1)) {
                     m_transitionTableVectorBufferCapacity = std::min(computeVectorAllocateSize(m_transitionTableVectorBufferSize + 1), (size_t)std::numeric_limits<uint8_t>::max());
-                    m_transitionTableVectorBuffer = (ObjectStructureTransitionVectorItem*)GC_REALLOC_NO_SHRINK(m_transitionTableVectorBuffer.unwrap(), sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity);
+                    auto buffer = transitionTableVectorBuffer();
+                    m_transitionTableStorage = buffer
+                        ? (ObjectStructureTransitionVectorItem*)GC_REALLOC_NO_SHRINK(buffer.value(), sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity)
+                        : CompressedPointerAllocator<ObjectStructureTransitionVectorItem>().allocate(m_transitionTableVectorBufferCapacity);
                 }
-                m_transitionTableVectorBuffer.value()[m_transitionTableVectorBufferSize] = newTransitionItem;
+                transitionTableVectorBuffer().value()[m_transitionTableVectorBufferSize] = newTransitionItem;
                 m_transitionTableVectorBufferSize++;
             }
         }
@@ -644,17 +705,28 @@ ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure(
 
 void* ObjectStructureWithTransitionAndSymbols::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureWithTransitionAndSymbols))) {
+        GC_word bitmap[(sizeof(ObjectStructureWithTransitionAndSymbols) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionAndSymbols, m_properties) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionAndSymbols, m_transitionTableStorage) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionAndSymbols, m_symbolProperties) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureWithTransitionAndSymbols, size, bitmap, sizeof(ObjectStructureWithTransitionAndSymbols) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureWithTransitionAndSymbols, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word objBitmap[GC_BITMAP_SIZE(ObjectStructureWithTransitionAndSymbols)] = { 0 };
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_properties));
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_symbolProperties));
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_transitionTableVectorBuffer));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionAndSymbols, m_transitionTableStorage));
         descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectStructureWithTransitionAndSymbols));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ObjectStructureFindResult ObjectStructureWithTransitionAndSymbols::findProperty(const ObjectStructurePropertyName& s)
@@ -662,9 +734,11 @@ ObjectStructureFindResult ObjectStructureWithTransitionAndSymbols::findProperty(
     if (!s.isSymbol()) {
         return ObjectStructureWithTransition::findProperty(s);
     }
+    auto properties = m_symbolProperties.dataWithBase(propertyStorageBase());
+    ASSERT(m_symbolProperties.empty() || properties);
     for (size_t i = 0; i < m_symbolProperties.size(); i++) {
-        if (m_symbolProperties[i].m_propertyName.rawValue() == s.rawValue()) {
-            return std::make_pair(m_properties.size() + i, &m_symbolProperties[i].m_descriptor);
+        if (properties.value()[i].m_propertyName.rawValue() == s.rawValue()) {
+            return std::make_pair(m_properties.size() + i, &properties.value()[i].m_descriptor);
         }
     }
     return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
@@ -673,18 +747,40 @@ ObjectStructureFindResult ObjectStructureWithTransitionAndSymbols::findProperty(
 const ObjectStructurePropertyDescriptor& ObjectStructureWithTransitionAndSymbols::propertyDescriptor(size_t valueIndex) const
 {
     if (valueIndex < m_properties.size()) {
-        return m_properties[valueIndex].m_descriptor;
+        return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_descriptor;
     }
-    return m_symbolProperties[valueIndex - m_properties.size()].m_descriptor;
+    return m_symbolProperties.atWithBase(valueIndex - m_properties.size(), propertyStorageBase()).m_descriptor;
 }
 
 const ObjectStructurePropertyName& ObjectStructureWithTransitionAndSymbols::nonIndexPropertyName(size_t valueIndex) const
 {
     if (valueIndex < m_properties.size()) {
-        return m_properties[valueIndex].m_propertyName;
+        return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_propertyName;
     }
-    return m_symbolProperties[valueIndex - m_properties.size()].m_propertyName;
+    return m_symbolProperties.atWithBase(valueIndex - m_properties.size(), propertyStorageBase()).m_propertyName;
 }
+
+namespace {
+class PropertyBufferView {
+public:
+    PropertyBufferView(Optional<const ObjectStructureItem*> data, size_t size)
+        : m_data(data)
+        , m_size(size)
+    {
+        ASSERT(!size || data);
+    }
+    size_t size() const { return m_size; }
+    const ObjectStructureItem& operator[](size_t index) const
+    {
+        ASSERT(index < m_size && m_data);
+        return m_data.value()[index];
+    }
+
+private:
+    Optional<const ObjectStructureItem*> m_data;
+    size_t m_size;
+};
+} // namespace
 
 uint8_t PropertyNameMapWithCache::entryWidth(size_t count)
 {
@@ -711,7 +807,12 @@ PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureItemTigh
 
 PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties)
 {
-    rebuild(properties);
+    rebuild(PropertyBufferView(properties.data(), properties.size()));
+}
+
+PropertyNameMapWithCache::PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties, uintptr_t base)
+{
+    rebuild(PropertyBufferView(properties.dataWithBase(base), properties.size()));
 }
 
 size_t PropertyNameMapWithCache::hash(const ObjectStructurePropertyName& name) const
@@ -836,7 +937,7 @@ void PropertyNameMapWithCache::insert(const ObjectStructureItemVector& propertie
 
 void PropertyNameMapWithCache::insert(const ObjectStructureTransitionPropertyVector& properties)
 {
-    insertInProperties(properties);
+    insertInProperties(PropertyBufferView(properties.data(), properties.size()));
 }
 
 template <typename Properties>
@@ -874,7 +975,12 @@ size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, c
 
 size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties)
 {
-    return findInProperties(name, properties);
+    return findInProperties(name, PropertyBufferView(properties.data(), properties.size()));
+}
+
+size_t PropertyNameMapWithCache::find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties, uintptr_t base)
+{
+    return findInProperties(name, PropertyBufferView(properties.dataWithBase(base), properties.size()));
 }
 
 template <typename Properties>
@@ -902,17 +1008,28 @@ size_t PropertyNameMapWithCache::findInProperties(const ObjectStructurePropertyN
 
 void* ObjectStructureWithTransitionWithMap::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::ObjectStructureWithTransitionWithMap))) {
+        GC_word bitmap[(sizeof(ObjectStructureWithTransitionWithMap) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionWithMap, m_properties) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionWithMap, m_transitionTableStorage) / 4);
+        GC_set_bit(bitmap, offsetof(ObjectStructureWithTransitionWithMap, m_symbolProperties) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::ObjectStructureWithTransitionWithMap, size, bitmap, sizeof(ObjectStructureWithTransitionWithMap) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::ObjectStructureWithTransitionWithMap, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word objBitmap[GC_BITMAP_SIZE(ObjectStructureWithTransitionWithMap)] = { 0 };
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_properties));
         GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_symbolProperties));
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_transitionTableVectorBuffer));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectStructureWithTransitionWithMap, m_transitionTableStorage));
         descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectStructureWithTransitionWithMap));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 ObjectStructureFindResult ObjectStructureWithTransitionWithMap::findProperty(const ObjectStructurePropertyName& name)
@@ -925,11 +1042,11 @@ ObjectStructureFindResult ObjectStructureWithTransitionWithMap::findProperty(con
     if (properties.size() < ESCARGOT_OBJECT_STRUCTURE_TRANSITION_ACCESS_CACHE_MIN_SIZE) {
         return ObjectStructureWithTransitionAndSymbols::findProperty(name);
     }
-    size_t index = properties.find(name);
+    size_t index = properties.findWithBase(name, propertyStorageBase());
     if (index == SIZE_MAX) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructurePropertyDescriptor*>());
     }
-    return std::make_pair(index + (isSymbol ? m_properties.size() : 0), &properties[index].m_descriptor);
+    return std::make_pair(index + (isSymbol ? m_properties.size() : 0), &properties.atWithBase(index, propertyStorageBase()).m_descriptor);
 }
 
 void* ObjectStructureWithMap::operator new(size_t size)

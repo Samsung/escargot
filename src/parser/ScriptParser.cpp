@@ -365,9 +365,9 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
         || cb->totalStackAllocatedVariableSize() > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIStringFromExternalMemory("variable limit exceeded"));
         err->errorCode = ErrorCode::SyntaxError;
-        err->lineNumber = cb->m_functionStart.line;
-        err->column = cb->m_functionStart.column;
-        err->index = cb->m_functionStart.index;
+        err->lineNumber = cb->functionStart().line;
+        err->column = cb->functionStart().column;
+        err->index = cb->functionStart().index;
         throw err;
     }
 }
@@ -811,8 +811,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
                cb->m_isStrict ? "Strict " : "",
                cb->m_isGenerator ? "Generator " : "",
                cb->m_isAsync ? "Async" : "",
-               (int)cb->m_functionStart.line,
-               (int)cb->m_functionStart.column,
+               (int)cb->functionStart().line,
+               (int)cb->functionStart().column,
                (int)cb->m_bodyEndLOC.line,
                (int)cb->m_bodyEndLOC.column,
                (int)cb->lexicalBlockIndexFunctionLocatedIn(),
@@ -837,22 +837,22 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         for (size_t i = 0; i < cb->m_blockInfosLength; i++) {
             puts("");
             PRINT_TAB_BLOCK()
-            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->blockIndex(), (int)cb->m_blockInfos[i]->parentBlockIndex(), cb->m_blockInfos[i]->canAllocateEnvironmentOnStack() ? "Stack" : "Heap", cb->m_blockInfos[i]->shouldAllocateEnvironment() ? "Allocated" : "Skipped");
+            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->blockInfos()[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->blockInfos()[i]->blockIndex(), (int)cb->blockInfos()[i]->parentBlockIndex(), cb->blockInfos()[i]->canAllocateEnvironmentOnStack() ? "Stack" : "Heap", cb->blockInfos()[i]->shouldAllocateEnvironment() ? "Allocated" : "Skipped");
 
             puts("");
             PRINT_TAB_BLOCK()
             printf("Names : ");
 
-            for (size_t j = 0; j < cb->m_blockInfos[i]->identifiers().size(); j++) {
-                std::string kind = cb->m_blockInfos[i]->identifiers()[j].m_isMutable ? "Mutable" : "Inmmutable";
-                if (cb->m_blockInfos[i]->identifiers()[j].m_isUsing) {
+            for (size_t j = 0; j < cb->blockInfos()[i]->identifiers().size(); j++) {
+                std::string kind = cb->blockInfos()[i]->identifiers()[j].m_isMutable ? "Mutable" : "Inmmutable";
+                if (cb->blockInfos()[i]->identifiers()[j].m_isUsing) {
                     kind += "+Using";
                 }
 
-                printf("%s(%s, %s, %d), ", cb->m_blockInfos[i]->identifiers()[j].m_name.string()->toUTF8StringData().data(),
-                       cb->m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack ? "Stack" : "Heap",
+                printf("%s(%s, %s, %d), ", cb->blockInfos()[i]->identifiers()[j].m_name.string()->toUTF8StringData().data(),
+                       cb->blockInfos()[i]->identifiers()[j].m_needToAllocateOnStack ? "Stack" : "Heap",
                        kind.data(),
-                       (int)cb->m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage);
+                       (int)cb->blockInfos()[i]->identifiers()[j].m_indexForIndexedStorage);
             }
 
             puts("");

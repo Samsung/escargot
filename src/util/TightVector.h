@@ -659,13 +659,49 @@ public:
 
     void pushBack(const T& value)
     {
-        ASSERT(m_size < std::numeric_limits<typename CompressibleHeapPointer<T>::StorageType>::max());
+        RELEASE_ASSERT(m_size < std::numeric_limits<typename CompressibleHeapPointer<T>::StorageType>::max());
         T* buffer = m_buffer
-            ? static_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer.raw(), (m_size + 1) * sizeof(T)))
-            : Allocator().allocate(m_size + 1);
+            ? static_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer.raw(), (size() + 1) * sizeof(T)))
+            : Allocator().allocate(size() + 1);
         ASSERT(buffer);
         m_buffer = buffer;
         m_buffer.value()[m_size++] = value;
+    }
+
+    void resizeWithUninitializedValues(size_t newSize)
+    {
+        RELEASE_ASSERT(newSize <= std::numeric_limits<typename CompressibleHeapPointer<T>::StorageType>::max());
+        Optional<T*> buffer = newSize ? Allocator().allocate(newSize) : nullptr;
+        if (buffer && m_buffer) {
+            VectorCopier<T>::copy(buffer.value(), m_buffer.value(), std::min(size(), newSize));
+        }
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer.value(), size());
+        }
+        m_buffer = buffer;
+        m_size = newSize;
+    }
+
+    void resize(size_t newSize, const T& value = T())
+    {
+        size_t oldSize = size();
+        resizeWithUninitializedValues(newSize);
+        for (size_t i = oldSize; i < newSize; i++) {
+            m_buffer.value()[i] = value;
+        }
+    }
+
+    void erase(size_t index)
+    {
+        ASSERT(index < size());
+        Optional<T*> buffer = m_size > 1 ? Allocator().allocate(m_size - 1) : nullptr;
+        if (buffer) {
+            VectorCopier<T>::copy(buffer.value(), m_buffer.value(), index);
+            VectorCopier<T>::copy(buffer.value() + index, m_buffer.value() + index + 1, m_size - index - 1);
+        }
+        Allocator().deallocate(m_buffer.value(), size());
+        m_buffer = buffer;
+        m_size--;
     }
 
 private:

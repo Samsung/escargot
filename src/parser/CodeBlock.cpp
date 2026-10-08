@@ -28,6 +28,11 @@
 
 namespace Escargot {
 
+SourceRange InterpretedCodeBlock::src() const
+{
+    return m_script->source()->range(m_sourceStart, m_sourceEnd);
+}
+
 void* NativeCodeBlock::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -147,7 +152,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
             }
         }
 
-        m_blockInfos[i] = info;
+        blockInfos()[i] = info;
     }
 }
 
@@ -182,8 +187,10 @@ InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
     : InterpretedCodeBlock(ctx, script)
 {
-    m_src = script->source()->range();
-    m_functionStart = ExtendedNodeLOC(1, 1, 0);
+    m_sourceStart = 0;
+    m_sourceEnd = script->source()->length();
+    m_functionStartLine = 1;
+    m_functionStartColumn = 1;
 #ifndef NDEBUG
     m_scopeContext = scopeCtx;
 #endif
@@ -193,10 +200,12 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScop
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
     : InterpretedCodeBlock(ctx, script)
 {
-    m_src = script->source()->range(scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index);
+    m_sourceStart = scopeCtx->m_functionStartLOC.index;
+    m_sourceEnd = scopeCtx->m_bodyEndLOC.index;
     m_parent = parentBlock;
     m_functionName = scopeCtx->m_functionName;
-    m_functionStart = scopeCtx->m_functionStartLOC;
+    m_functionStartLine = scopeCtx->m_functionStartLOC.line;
+    m_functionStartColumn = scopeCtx->m_functionStartLOC.column;
     m_functionLength = scopeCtx->m_functionLength;
     m_parameterCount = scopeCtx->m_parameterCount;
     m_lexicalBlockIndexFunctionLocatedIn = scopeCtx->m_lexicalBlockIndexFunctionLocatedIn;
@@ -209,15 +218,17 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, ASTScop
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     : CodeBlock(ctx)
     , m_script(script)
-    , m_src{ nullptr, 0, 0 }
     , m_byteCodeBlock(nullptr)
     , m_parent(nullptr)
     , m_children(nullptr)
+    , m_sourceStart(0)
+    , m_sourceEnd(0)
     , m_blockInfos(nullptr)
     , m_blockInfosLength(0)
     , m_constructedObjectPropertyCount(0)
     , m_functionName()
-    , m_functionStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+    , m_functionStartLine(SIZE_MAX)
+    , m_functionStartColumn(SIZE_MAX)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #endif
@@ -444,7 +455,7 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
     auto r = findNameWithinBlock(blockIndex, name);
 
     if (std::get<0>(r)) {
-        auto& id = m_blockInfos[std::get<1>(r)]->identifiers()[std::get<2>(r)];
+        auto& id = blockInfos()[std::get<1>(r)]->identifiers()[std::get<2>(r)];
         ASSERT(id.m_name == name);
         id.m_needToAllocateOnStack = false;
         return std::make_pair(true, std::get<1>(r));
@@ -475,8 +486,8 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
         size_t blockArrayIndex = SIZE_MAX;
         InterpretedCodeBlock::BlockInfo* bi = nullptr;
         for (size_t i = 0; i < c->m_blockInfosLength; i++) {
-            if (c->m_blockInfos[i]->blockIndex() == blockIndex) {
-                bi = c->m_blockInfos[i];
+            if (c->blockInfos()[i]->blockIndex() == blockIndex) {
+                bi = c->blockInfos()[i];
                 blockArrayIndex = i;
                 break;
             }
@@ -486,10 +497,10 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
             if (bi->isGenericBlockInfo()) {
                 if (c->m_blockInfosLength == 1) {
                     c->m_blockInfos = BlockInfo::genericBlockInfoArray(false, bi->shouldAllocateEnvironment());
-                    bi = c->m_blockInfos[0];
+                    bi = c->blockInfos()[0];
                 } else {
                     bi = BlockInfo::genericBlockInfo(false, bi->shouldAllocateEnvironment());
-                    c->m_blockInfos[blockArrayIndex] = bi;
+                    c->blockInfos()[blockArrayIndex] = bi;
                 }
             } else {
                 bi->setCanAllocateEnvironmentOnStack(false);
@@ -500,8 +511,8 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
             }
 
             for (size_t i = 0; i < c->m_blockInfosLength; i++) {
-                if (c->m_blockInfos[i]->blockIndex() == bi->parentBlockIndex()) {
-                    bi = c->m_blockInfos[i];
+                if (c->blockInfos()[i]->blockIndex() == bi->parentBlockIndex()) {
+                    bi = c->blockInfos()[i];
                     blockArrayIndex = i;
                     break;
                 }
@@ -524,8 +535,8 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
     InterpretedCodeBlock::BlockInfo* bi = nullptr;
     size_t arrayIndex = SIZE_MAX;
     for (size_t i = 0; i < m_blockInfosLength; i++) {
-        if (m_blockInfos[i]->blockIndex() == currentBlockIndex) {
-            bi = m_blockInfos[i];
+        if (blockInfos()[i]->blockIndex() == currentBlockIndex) {
+            bi = blockInfos()[i];
             arrayIndex = i;
             break;
         }
@@ -565,15 +576,15 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
             m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
         } else {
             bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
-            m_blockInfos[arrayIndex] = bi;
+            blockInfos()[arrayIndex] = bi;
         }
     } else {
         bi->setShouldAllocateEnvironment(isThereHeapVariable);
     }
 
     for (size_t i = 0; i < m_blockInfosLength; i++) {
-        if (m_blockInfos[i]->parentBlockIndex() == currentBlockIndex) {
-            computeBlockVariables(m_blockInfos[i]->blockIndex(), currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
+        if (blockInfos()[i]->parentBlockIndex() == currentBlockIndex) {
+            computeBlockVariables(blockInfos()[i]->blockIndex(), currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
         }
     }
 }
@@ -664,19 +675,19 @@ void InterpretedCodeBlock::computeVariables()
 
         if (!canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < m_blockInfosLength; i++) {
-                if (m_blockInfos[i]->isGenericBlockInfo()) {
+                if (blockInfos()[i]->isGenericBlockInfo()) {
                     if (m_blockInfosLength == 1) {
-                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
+                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, blockInfos()[i]->identifiers().size());
                     } else {
-                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
+                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
                     }
-                    ASSERT(!m_blockInfos[i]->identifiers().size());
+                    ASSERT(!blockInfos()[i]->identifiers().size());
                 } else {
-                    m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
-                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
-                    for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
-                        m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
-                        m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    blockInfos()[i]->setCanAllocateEnvironmentOnStack(false);
+                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                    for (size_t j = 0; j < blockInfos()[i]->identifiers().size(); j++) {
+                        blockInfos()[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
+                        blockInfos()[i]->identifiers()[j].m_needToAllocateOnStack = false;
                     }
                 }
             }
@@ -692,8 +703,8 @@ void InterpretedCodeBlock::computeVariables()
         InterpretedCodeBlock::BlockInfo* bi = nullptr;
         size_t arrayIndex = SIZE_MAX;
         for (size_t i = 0; i < m_blockInfosLength; i++) {
-            if (m_blockInfos[i]->blockIndex() == 0) {
-                bi = m_blockInfos[i];
+            if (blockInfos()[i]->blockIndex() == 0) {
+                bi = blockInfos()[i];
                 arrayIndex = i;
                 break;
             }
@@ -710,7 +721,7 @@ void InterpretedCodeBlock::computeVariables()
             if (m_blockInfosLength == 1) {
                 m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), false);
             } else {
-                m_blockInfos[arrayIndex] = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
+                blockInfos()[arrayIndex] = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
             }
         } else {
             bi->setShouldAllocateEnvironment(false);
@@ -751,19 +762,19 @@ void InterpretedCodeBlock::computeVariables()
 
         if (!canUseIndexedVariableStorage()) {
             for (size_t i = 0; i < m_blockInfosLength; i++) {
-                if (m_blockInfos[i]->isGenericBlockInfo()) {
+                if (blockInfos()[i]->isGenericBlockInfo()) {
                     if (m_blockInfosLength == 1) {
-                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
+                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, blockInfos()[i]->identifiers().size());
                     } else {
-                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
+                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
                     }
-                    ASSERT(!m_blockInfos[i]->identifiers().size());
+                    ASSERT(!blockInfos()[i]->identifiers().size());
                 } else {
-                    m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
-                    m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && m_blockInfos[i]->blockIndex() == 0));
-                    for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
-                        m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
-                        m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    blockInfos()[i]->setCanAllocateEnvironmentOnStack(false);
+                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                    for (size_t j = 0; j < blockInfos()[i]->identifiers().size(); j++) {
+                        blockInfos()[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
+                        blockInfos()[i]->identifiers()[j].m_needToAllocateOnStack = false;
                     }
                 }
             }
@@ -780,8 +791,8 @@ void InterpretedCodeBlock::computeVariables()
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
             size_t arrayIndex = SIZE_MAX;
             for (size_t i = 0; i < m_blockInfosLength; i++) {
-                if (m_blockInfos[i]->blockIndex() == 0) {
-                    bi = m_blockInfos[i];
+                if (blockInfos()[i]->blockIndex() == 0) {
+                    bi = blockInfos()[i];
                     arrayIndex = i;
                     break;
                 }
@@ -797,10 +808,10 @@ void InterpretedCodeBlock::computeVariables()
             if (bi->isGenericBlockInfo()) {
                 if (m_blockInfosLength == 1) {
                     m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), false);
-                    bi = m_blockInfos[0];
+                    bi = blockInfos()[0];
                 } else {
                     bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
-                    m_blockInfos[arrayIndex] = bi;
+                    blockInfos()[arrayIndex] = bi;
                 }
             } else {
                 bi->setShouldAllocateEnvironment(false);
@@ -844,8 +855,8 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
         while (true) {
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
             for (size_t i = 0; i < blk->m_blockInfosLength; i++) {
-                if (blk->m_blockInfos[i]->blockIndex() == blockIndex) {
-                    bi = blk->m_blockInfos[i];
+                if (blk->blockInfos()[i]->blockIndex() == blockIndex) {
+                    bi = blk->blockInfos()[i];
                     break;
                 }
             }

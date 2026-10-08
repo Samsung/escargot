@@ -54,6 +54,7 @@ struct ObjectPropertyNativeGetterSetterData : public gc {
 
 class ObjectStructurePropertyDescriptor : public gc {
     MAKE_STACK_ALLOCATED();
+    friend class CompressibleObjectStructurePropertyDescriptor;
 
 public:
     enum PresentAttribute {
@@ -230,6 +231,12 @@ public:
     }
 
 private:
+    explicit ObjectStructurePropertyDescriptor(size_t rawValue)
+        : m_descriptorData(NotPresent, PlainDataMode)
+    {
+        m_descriptorData.m_data = rawValue;
+    }
+
     ObjectStructurePropertyDescriptor(PresentAttribute attribute, ObjectStructurePropertyDescriptorMode mode)
         : m_descriptorData(attribute, mode)
     {
