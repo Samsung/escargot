@@ -753,13 +753,17 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     ASSERT(GC_is_disabled());
     // temporal vector to keep the loaded InterpretedCodeBlock (GC is already disabled)
     std::vector<InterpretedCodeBlock*> tempCodeBlockVector;
+    std::vector<size_t> parentIndices;
 
     // CodeCacheMetaInfo::codeBlockCount has the value of nodeCount for CACHE_CODEBLOCK
     size_t nodeCount = metaInfo.codeBlockCount;
     tempCodeBlockVector.reserve(nodeCount);
+    parentIndices.reserve(nodeCount);
     for (size_t i = 0; i < nodeCount; i++) {
-        InterpretedCodeBlock* codeBlock = m_cacheReader->loadInterpretedCodeBlock(context, script);
+        size_t parentIndex;
+        InterpretedCodeBlock* codeBlock = m_cacheReader->loadInterpretedCodeBlock(context, script, parentIndex);
         tempCodeBlockVector.push_back(codeBlock);
+        parentIndices.push_back(parentIndex);
 
         if (i == 0) {
             // GlobalCodeBlock is firstly stored and loaded
@@ -771,7 +775,7 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     // link CodeBlock tree
     for (size_t i = 0; i < tempCodeBlockVector.size(); i++) {
         InterpretedCodeBlock* codeBlock = tempCodeBlockVector[i];
-        size_t parentIndex = (size_t)codeBlock->parent();
+        size_t parentIndex = parentIndices[i];
         if (parentIndex == SIZE_MAX) {
             codeBlock->setParent(nullptr);
         } else {

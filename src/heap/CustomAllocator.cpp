@@ -160,7 +160,7 @@ GC_ms_entry* markGetObjectInlineCacheDataVector(GC_word* addr,
     GetObjectInlineCacheData* limit = (GetObjectInlineCacheData*)end;
 
     for (; ptr < limit; ptr++) {
-        GC_word* to = (GC_word*)ptr->m_cachedhiddenClassChain;
+        GC_word* to = (GC_word*)ptr->m_cachedhiddenClassChain.get().unwrap();
         buffer[count].from = (GC_word*)&ptr->m_cachedhiddenClassChain;
         buffer[count].to = to;
         count++;
@@ -341,21 +341,19 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_pair* arr)
     arr[0].from = (GC_word*)&current->m_context;
     arr[0].to = (GC_word*)current->m_context;
     arr[1].from = (GC_word*)&current->m_script;
-    arr[1].to = (GC_word*)current->m_script;
+    arr[1].to = (GC_word*)current->m_script.get().unwrap();
     arr[2].from = (GC_word*)&current->m_byteCodeBlock;
     arr[2].to = (GC_word*)byteCodeBlockToTrace(current);
     arr[3].from = (GC_word*)&current->m_parent;
-    arr[3].to = (GC_word*)current->m_parent;
+    arr[3].to = (GC_word*)current->m_parent.get().unwrap();
     arr[4].from = (GC_word*)&current->m_children;
-    arr[4].to = (GC_word*)current->m_children;
+    arr[4].to = (GC_word*)current->m_children.get().unwrap();
     arr[5].from = (GC_word*)&current->m_parameterNames;
     arr[5].to = (GC_word*)current->m_parameterNames.data();
     arr[6].from = (GC_word*)&current->m_identifierInfos;
     arr[6].to = (GC_word*)current->m_identifierInfos.data();
     arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos;
-    arr[8].from = (GC_word*)&current->m_src;
-    arr[8].to = (GC_word*)current->m_src.source.unwrap();
+    arr[7].to = (GC_word*)current->m_blockInfos.unwrap();
     return 0;
 }
 
@@ -365,23 +363,21 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_pair* arr
     arr[0].from = (GC_word*)&current->m_context;
     arr[0].to = (GC_word*)current->m_context;
     arr[1].from = (GC_word*)&current->m_script;
-    arr[1].to = (GC_word*)current->m_script;
+    arr[1].to = (GC_word*)current->m_script.get().unwrap();
     arr[2].from = (GC_word*)&current->m_byteCodeBlock;
     arr[2].to = (GC_word*)byteCodeBlockToTrace(current);
     arr[3].from = (GC_word*)&current->m_parent;
-    arr[3].to = (GC_word*)current->m_parent;
+    arr[3].to = (GC_word*)current->m_parent.get().unwrap();
     arr[4].from = (GC_word*)&current->m_children;
-    arr[4].to = (GC_word*)current->m_children;
+    arr[4].to = (GC_word*)current->m_children.get().unwrap();
     arr[5].from = (GC_word*)&current->m_parameterNames;
     arr[5].to = (GC_word*)current->m_parameterNames.data();
     arr[6].from = (GC_word*)&current->m_identifierInfos;
     arr[6].to = (GC_word*)current->m_identifierInfos.data();
     arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos;
+    arr[7].to = (GC_word*)current->m_blockInfos.unwrap();
     arr[8].from = (GC_word*)&current->m_rareData;
-    arr[8].to = (GC_word*)current->m_rareData;
-    arr[9].from = (GC_word*)&current->m_src;
-    arr[9].to = (GC_word*)current->m_src.source.unwrap();
+    arr[8].to = (GC_word*)current->m_rareData.get().unwrap();
     return 0;
 }
 
@@ -434,17 +430,16 @@ void initializeCustomAllocators()
                                                                            TRUE);
 #endif
 
-    // m_src is marked through the single bit of its leading ScriptSource pointer
-    static_assert(offsetof(SourceRange, source) == 0, "");
-    static_assert(sizeof(Optional<ScriptSource*>) == sizeof(size_t), "");
-
-    s_interpreCodeBlockProcDescriptor[0] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 9>), 0);
+    s_interpreCodeBlockProcDescriptor[0] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0);
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        // Decode compressed slots alongside the native static block-array pointer.
+        s_interpreCodeBlockTypedDescriptor[0] = s_interpreCodeBlockProcDescriptor[0];
+#else
         // add + 1 for headerwords w/debug mode
         GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlock) + 1] = { 0 };
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_script));
-        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_src));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_byteCodeBlock));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
@@ -452,19 +447,23 @@ void initializeCustomAllocators()
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         s_interpreCodeBlockTypedDescriptor[0] = GC_make_descriptor(objBitmap, headerWords + GC_WORD_LEN(InterpretedCodeBlock));
+#endif
     }
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
                                                                       s_interpreCodeBlockTypedDescriptor[0],
                                                                       FALSE,
                                                                       TRUE);
 
-    s_interpreCodeBlockProcDescriptor[1] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 10>), 0);
+    s_interpreCodeBlockProcDescriptor[1] = GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0);
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        // Decode compressed slots alongside the native static block-array pointer.
+        s_interpreCodeBlockTypedDescriptor[1] = s_interpreCodeBlockProcDescriptor[1];
+#else
         // add + 1 for headerwords w/debug mode
         GC_word objBitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData) + 1] = { 0 };
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_script));
-        GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_src));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_byteCodeBlock));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
@@ -473,6 +472,7 @@ void initializeCustomAllocators()
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
         GC_set_bit(objBitmap, headerWords + GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
         s_interpreCodeBlockTypedDescriptor[1] = GC_make_descriptor(objBitmap, headerWords + GC_WORD_LEN(InterpretedCodeBlockWithRareData));
+#endif
     }
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind] = GC_new_kind(GC_new_free_list(),
                                                                                   s_interpreCodeBlockTypedDescriptor[1],
@@ -577,6 +577,11 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
 void* allocateFunctionEnvironmentRecord(size_t size)
 {
     return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind]);
+}
+
+void* allocateCompressedPointerBuffer(size_t size)
+{
+    return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind]);
 }
 
 template <>

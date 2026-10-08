@@ -129,7 +129,7 @@ void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool 
         m_string = newStr;
         newStr->setAtomicStringSource(m_string);
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
     }
 }
 
@@ -182,7 +182,7 @@ void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)
         m_string = newStr;
         newStr->setAtomicStringSource(m_string);
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
     }
 }
 
@@ -192,7 +192,7 @@ Optional<AtomicString> AtomicString::has(AtomicStringMap* map, const LChar* src,
 
     auto iter = map->find(&stringForSearch);
     if (map->end() != iter) {
-        return AtomicString(iter.operator*());
+        return AtomicString(iter->string());
     } else {
         return Optional<AtomicString>();
     }
@@ -252,7 +252,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
         m_string = newStr;
         newStr->setAtomicStringSource(m_string);
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
     }
 }
 
@@ -282,7 +282,7 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
         m_string = newString;
         const_cast<StringView&>(sv).setAtomicStringSource(m_string);
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
         const_cast<StringView&>(sv).setAtomicStringSource(m_string);
     }
 }
@@ -303,7 +303,7 @@ AtomicString::AtomicString(Context* c, const ParserStringView& sv)
         ASSERT(ec->find(newString) != ec->end());
         m_string = newString;
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
     }
 }
 
@@ -340,7 +340,7 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         m_string = name;
         name->setAtomicStringSource(m_string);
     } else {
-        m_string = iter.operator*();
+        m_string = iter->string();
         name->setAtomicStringSource(m_string);
     }
 }

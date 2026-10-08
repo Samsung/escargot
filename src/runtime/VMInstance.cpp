@@ -494,8 +494,22 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 
     m_defaultStructureForObject = new ObjectStructureWithTransition(ObjectStructureItemTightVector(), false, false, false, false);
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // Transition descriptors store cage offsets; static native accessor data
+    // must enter the cage too. The default shapes retain these four copies.
+    auto* functionPrototypeAccessor = new ObjectPropertyNativeGetterSetterData(functionPrototypeNativeGetterSetterData);
+    auto* builtinFunctionPrototypeAccessor = new ObjectPropertyNativeGetterSetterData(builtinFunctionPrototypeNativeGetterSetterData);
+    auto* stringLengthAccessor = new ObjectPropertyNativeGetterSetterData(stringLengthGetterSetterData);
+    auto* regexpLastIndexAccessor = new ObjectPropertyNativeGetterSetterData(regexpLastIndexGetterSetterData);
+#else
+    auto* functionPrototypeAccessor = &functionPrototypeNativeGetterSetterData;
+    auto* builtinFunctionPrototypeAccessor = &builtinFunctionPrototypeNativeGetterSetterData;
+    auto* stringLengthAccessor = &stringLengthGetterSetterData;
+    auto* regexpLastIndexAccessor = &regexpLastIndexGetterSetterData;
+#endif
+
     m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
-                                                                                   ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&functionPrototypeNativeGetterSetterData));
+                                                                                   ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(functionPrototypeAccessor));
 
     m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.length,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
@@ -504,7 +518,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
-                                                                                          ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
+                                                                                          ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(builtinFunctionPrototypeAccessor));
 
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.length,
                                                                                                          ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
@@ -533,7 +547,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
                                                                                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
     m_defaultStructureForClassConstructorFunctionObject = m_defaultStructureForClassConstructorFunctionObject->addProperty(m_staticStrings.prototype,
-                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
+                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(builtinFunctionPrototypeAccessor));
 
     m_defaultStructureForClassConstructorFunctionObjectWithName = m_defaultStructureForObject->addProperty(m_staticStrings.length,
                                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
@@ -542,17 +556,17 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
                                                                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
     m_defaultStructureForClassConstructorFunctionObjectWithName = m_defaultStructureForClassConstructorFunctionObjectWithName->addProperty(m_staticStrings.prototype,
-                                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&builtinFunctionPrototypeNativeGetterSetterData));
+                                                                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(builtinFunctionPrototypeAccessor));
 
     m_defaultStructureForWrappedFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
                                                                                           ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
     m_defaultStructureForWrappedFunctionObject = m_defaultStructureForWrappedFunctionObject->addProperty(m_staticStrings.name,
                                                                                                          ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
 
-    m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&stringLengthGetterSetterData));
+    m_defaultStructureForStringObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(stringLengthAccessor));
 
     m_defaultStructureForRegExpObject = m_defaultStructureForObject->addProperty(m_staticStrings.lastIndex,
-                                                                                 ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(&regexpLastIndexGetterSetterData));
+                                                                                 ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(regexpLastIndexAccessor));
 
     m_defaultStructureForMappedArgumentsObject = m_defaultStructureForObject->addProperty(m_staticStrings.length, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     m_defaultStructureForMappedArgumentsObject = m_defaultStructureForMappedArgumentsObject->addProperty(m_staticStrings.callee, ObjectStructurePropertyDescriptor::createDataDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)(ObjectStructurePropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));

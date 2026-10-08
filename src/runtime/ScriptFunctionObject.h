@@ -69,6 +69,13 @@ public:
         return static_cast<InterpretedCodeBlock*>(m_codeBlock.valueWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)));
     }
 
+    ALWAYS_INLINE InterpretedCodeBlock* interpretedCodeBlockWithBase(uintptr_t base) const
+    {
+        CodeBlock* block = m_codeBlock.valueWithBase(base);
+        ASSERT(block->isInterpretedCodeBlock());
+        return static_cast<InterpretedCodeBlock*>(block);
+    }
+
     ConstructorKind constructorKind()
     {
         ASSERT(isConstructor());
@@ -117,6 +124,11 @@ protected:
     LexicalEnvironment* outerEnvironment()
     {
         return m_outerEnvironment.getWithBase(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX)).unwrap();
+    }
+
+    ALWAYS_INLINE Optional<LexicalEnvironment*> outerEnvironmentWithBase(uintptr_t base) const
+    {
+        return m_outerEnvironment.getWithBase(base);
     }
 
     void generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Optional<Value*> stackStorage, bool isMapped);

@@ -33,6 +33,119 @@ class ObjectStructure;
 
 using ObjectStructureFindResult = std::pair<size_t, Optional<const ObjectStructurePropertyDescriptor*>>;
 
+class CompressibleObjectStructurePropertyName {
+public:
+    CompressibleObjectStructurePropertyName(const ObjectStructurePropertyName& name)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT(name.rawValue() - ThreadLocal::cageBase() <= UINT32_MAX);
+#endif
+        m_data = name.rawValue();
+    }
+    ObjectStructurePropertyName get() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return ObjectStructurePropertyName(ThreadLocal::cageBase() + m_data);
+#else
+        return ObjectStructurePropertyName(m_data);
+#endif
+    }
+    ALWAYS_INLINE ObjectStructurePropertyName getWithBase(uintptr_t base) const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT(!(base & UINT32_MAX));
+        return ObjectStructurePropertyName(base + m_data);
+#else
+        return ObjectStructurePropertyName(m_data);
+#endif
+    }
+    operator ObjectStructurePropertyName() const { return get(); }
+    size_t hashValue() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        if (LIKELY(m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)) {
+            return m_data - OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
+        }
+#endif
+        return get().hashValue();
+    }
+    bool operator==(const CompressibleObjectStructurePropertyName& other) const
+    {
+        if (m_data == other.m_data) {
+            return true;
+        }
+        if (LIKELY((m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS) && (other.m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS))) {
+            return false;
+        }
+        return get() == other.get();
+    }
+    bool operator==(const ObjectStructurePropertyName& other) const
+    {
+        if (LIKELY((m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS) && other.hasAtomicString())) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            // Canonical atomic strings share the cage, so their offsets identify them.
+            return m_data == static_cast<uint32_t>(other.rawValue());
+#else
+            return m_data == other.rawValue();
+#endif
+        }
+        if (UNLIKELY(other.isSymbol())) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            return m_data == static_cast<uint32_t>(other.rawValue());
+#else
+            return m_data == other.rawValue();
+#endif
+        }
+        return get() == other;
+    }
+
+private:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t m_data;
+#else
+    size_t m_data;
+#endif
+};
+
+class CompressibleObjectStructurePropertyDescriptor {
+public:
+    CompressibleObjectStructurePropertyDescriptor(const ObjectStructurePropertyDescriptor& descriptor)
+    {
+        size_t data = descriptor.rawValue();
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT((data & 1) || data - ThreadLocal::cageBase() <= UINT32_MAX);
+#endif
+        m_data = data;
+    }
+    ObjectStructurePropertyDescriptor get() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return ObjectStructurePropertyDescriptor((m_data & 1) ? m_data : ThreadLocal::cageBase() + m_data);
+#else
+        return ObjectStructurePropertyDescriptor(m_data);
+#endif
+    }
+    operator ObjectStructurePropertyDescriptor() const { return get(); }
+    size_t rawValue() const { return get().rawValue(); }
+    size_t hashValue() const { return m_data; }
+    bool operator==(const CompressibleObjectStructurePropertyDescriptor& other) const { return m_data == other.m_data; }
+    bool operator==(const ObjectStructurePropertyDescriptor& other) const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_data == static_cast<uint32_t>(other.rawValue());
+#else
+        return m_data == other.rawValue();
+#endif
+    }
+
+private:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t m_data;
+#else
+    size_t m_data;
+#endif
+};
+
 struct ObjectStructureItem : public gc {
     ObjectStructureItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
@@ -45,9 +158,9 @@ struct ObjectStructureItem : public gc {
 };
 
 struct ObjectStructureTransitionVectorItem : public gc {
-    ObjectStructurePropertyName m_propertyName;
-    ObjectStructurePropertyDescriptor m_descriptor;
-    ObjectStructure* m_structure;
+    CompressibleObjectStructurePropertyName m_propertyName;
+    CompressibleObjectStructurePropertyDescriptor m_descriptor;
+    CompressiblePointer<ObjectStructure> m_structure;
 
     ObjectStructureTransitionVectorItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc, ObjectStructure* structure)
         : m_propertyName(as)
@@ -58,19 +171,30 @@ struct ObjectStructureTransitionVectorItem : public gc {
 };
 
 struct ObjectStructureTransitionMapItem : public gc {
-    ObjectStructurePropertyName m_propertyName;
-    ObjectStructurePropertyDescriptor m_descriptor;
+    static constexpr bool should_never_store_hash = true;
+    CompressibleObjectStructurePropertyName m_propertyName;
+    CompressibleObjectStructurePropertyDescriptor m_descriptor;
 
     ObjectStructureTransitionMapItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
         , m_descriptor(desc)
     {
     }
+
+    ObjectStructureTransitionMapItem(const CompressibleObjectStructurePropertyName& as, const CompressibleObjectStructurePropertyDescriptor& desc)
+        : m_propertyName(as)
+        , m_descriptor(desc)
+    {
+    }
 };
 
-typedef HashMap<ObjectStructureTransitionMapItem, ObjectStructure*, std::hash<ObjectStructureTransitionMapItem>,
-                std::equal_to<ObjectStructureTransitionMapItem>, GCUtil::gc_malloc_allocator<std::pair<ObjectStructureTransitionMapItem const, ObjectStructure*>>>
+typedef HashMap<ObjectStructureTransitionMapItem, CompressiblePointer<ObjectStructure>, std::hash<ObjectStructureTransitionMapItem>,
+                std::equal_to<ObjectStructureTransitionMapItem>, CompressedPointerAllocator<std::pair<ObjectStructureTransitionMapItem const, CompressiblePointer<ObjectStructure>>>>
     ObjectStructureTransitionTableMap;
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(ObjectStructureTransitionVectorItem) == 12, "Transition entries must use four-byte slots");
+#endif
 
 typedef TightVector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemTightVector;
 
@@ -86,13 +210,26 @@ public:
 
     size_t size() const { return m_size; }
     bool empty() const { return !m_size; }
-    Optional<const ObjectStructureItem*> data() const { return m_storage ? m_storage->m_buffer.unwrap() : nullptr; }
+    Optional<const ObjectStructureItem*> data() const { return m_storage ? m_storage->m_buffer.get().unwrap() : nullptr; }
+    Optional<const ObjectStructureItem*> dataWithBase(uintptr_t base) const
+    {
+        auto storage = m_storage.getWithBase(base);
+        return storage ? storage->m_buffer.getWithBase(base).unwrap() : nullptr;
+    }
+    const ObjectStructureItem& atWithBase(size_t index, uintptr_t base) const
+    {
+        ASSERT(index < m_size);
+        auto buffer = dataWithBase(base);
+        ASSERT(buffer);
+        return buffer.value()[index];
+    }
     const ObjectStructureItem& operator[](size_t index) const
     {
         ASSERT(index < m_size);
         return data().value()[index];
     }
     size_t find(const ObjectStructurePropertyName& name) const;
+    size_t findWithBase(const ObjectStructurePropertyName& name, uintptr_t base) const;
 
 private:
     // Keep old allocations alive when a callback grows the shared storage
@@ -103,25 +240,40 @@ private:
             , m_previous(previous)
         {
         }
-        ObjectStructureItem* m_buffer;
-        Optional<RetiredBuffer*> m_previous;
+        void* operator new(size_t size);
+        CompressibleHeapPointer<ObjectStructureItem> m_buffer;
+        CompressibleHeapPointer<RetiredBuffer> m_previous;
     };
 
     struct Storage : public gc {
-        Optional<ObjectStructureItem*> m_buffer;
+        void* operator new(size_t size);
+        CompressibleHeapPointer<ObjectStructureItem> m_buffer;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        uint32_t m_size{ 0 };
+        uint32_t m_capacity{ 0 };
+#else
         size_t m_size{ 0 };
         size_t m_capacity{ 0 };
-        Optional<RetiredBuffer*> m_retiredBuffers;
-        Optional<PropertyNameMapWithCache*> m_map;
+#endif
+        CompressibleHeapPointer<RetiredBuffer> m_retiredBuffers;
+        CompressibleHeapPointer<PropertyNameMapWithCache> m_map;
     };
 
-    Optional<Storage*> m_storage;
+    CompressiblePointer<Storage> m_storage;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t m_size{ 0 };
+#else
     size_t m_size{ 0 };
+#endif
 };
 
-// Structure GC descriptors trace the first word, now the shared storage
+// Structure GC descriptors trace the first pointer slot, now the shared storage
 // pointer instead of the TightVector buffer pointer.
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(ObjectStructureTransitionPropertyVector) == 8, "Transition property views must use four-byte slots");
+#else
 COMPILE_ASSERT(sizeof(ObjectStructureTransitionPropertyVector) == sizeof(ObjectStructureItemTightVector), "");
+#endif
 
 class ObjectStructureItemVector : public Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> {
     typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemVectorType;
@@ -511,7 +663,7 @@ public:
         : ObjectStructure(hasIndexPropertyName,
                           hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_properties(std::move(properties))
-        , m_transitionTableVectorBuffer(nullptr)
+        , m_transitionTableStorage(nullptr)
     {
         ASSERT(!hasIndexPropertyName);
         assertPropertyDomain(m_properties, false);
@@ -551,16 +703,30 @@ private:
     }
 
 protected:
+    uintptr_t propertyStorageBase() const
+    {
+        return reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX);
+    }
+
     virtual Optional<const ObjectStructureTransitionPropertyVector*> symbolProperties() const
     {
         return nullptr;
     }
 
     ObjectStructureTransitionPropertyVector m_properties;
-    union {
-        Optional<ObjectStructureTransitionVectorItem*> m_transitionTableVectorBuffer;
-        ObjectStructureTransitionTableMap* m_transitionTableMap;
-    };
+    CompressibleHeapPointer<void> m_transitionTableStorage;
+
+    Optional<ObjectStructureTransitionVectorItem*> transitionTableVectorBuffer() const
+    {
+        ASSERT(!m_doesTransitionTableUseMap);
+        return static_cast<ObjectStructureTransitionVectorItem*>(m_transitionTableStorage.get().unwrap());
+    }
+
+    ObjectStructureTransitionTableMap* transitionTableMap() const
+    {
+        ASSERT(m_doesTransitionTableUseMap && m_transitionTableStorage);
+        return static_cast<ObjectStructureTransitionTableMap*>(m_transitionTableStorage.value());
+    }
 };
 
 // Keep symbol keys in their own buffer while sharing the transition machinery.
@@ -607,7 +773,11 @@ protected:
 };
 
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(ObjectStructureWithTransition) == 24, "Transition structures must keep compact views and pointers");
+#else
 COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
+#endif
 
 // An index into the insertion-ordered properties, not a second copy of the
 // keys. The bucket storage contains only integers and is not scanned by GC.
@@ -616,6 +786,7 @@ public:
     explicit PropertyNameMapWithCache(const ObjectStructureItemVector& properties);
     explicit PropertyNameMapWithCache(const ObjectStructureItemTightVector& properties);
     explicit PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties);
+    PropertyNameMapWithCache(const ObjectStructureTransitionPropertyVector& properties, uintptr_t base);
 
     ~PropertyNameMapWithCache()
     {
@@ -632,6 +803,7 @@ public:
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemVector& properties);
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureItemTightVector& properties);
     size_t find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties);
+    size_t find(const ObjectStructurePropertyName& name, const ObjectStructureTransitionPropertyVector& properties, uintptr_t base);
 
 private:
     static uint8_t entryWidth(size_t count);
@@ -1035,7 +1207,7 @@ template <>
 struct hash<Escargot::ObjectStructureTransitionMapItem> {
     size_t operator()(Escargot::ObjectStructureTransitionMapItem const& x) const
     {
-        return x.m_propertyName.hashValue() + x.m_descriptor.rawValue();
+        return x.m_propertyName.hashValue() + x.m_descriptor.hashValue();
     }
 };
 

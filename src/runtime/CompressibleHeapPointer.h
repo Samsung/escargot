@@ -16,6 +16,85 @@ namespace Escargot {
 
 class Value;
 
+// Copyable cage offsets for pointer slots that also travel through stack values
+// and temporary vectors. Unlike heap-field pointers, decoding uses the thread's
+// cage rather than the address of the slot.
+// Native stack scanning recognizes cage offsets in either half of a word.
+template <typename T>
+class CompressiblePointer {
+public:
+    CompressiblePointer(Optional<T*> pointer = nullptr) { set(pointer); }
+
+    void set(Optional<T*> pointer)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        uintptr_t address = reinterpret_cast<uintptr_t>(pointer.unwrap());
+        ASSERT(!pointer || (address - ThreadLocal::cageBase() <= UINT32_MAX && static_cast<uint32_t>(address)));
+        m_pointer = static_cast<uint32_t>(address);
+#else
+        m_pointer = pointer;
+#endif
+    }
+
+    Optional<T*> get() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_pointer ? reinterpret_cast<T*>(ThreadLocal::cageBase() + m_pointer) : nullptr;
+#else
+        return m_pointer;
+#endif
+    }
+
+    ALWAYS_INLINE Optional<T*> getWithBase(uintptr_t base) const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT(!(base & UINT32_MAX));
+        return m_pointer ? reinterpret_cast<T*>(base + m_pointer) : nullptr;
+#else
+        return m_pointer;
+#endif
+    }
+
+    CompressiblePointer& operator=(Optional<T*> pointer)
+    {
+        set(pointer);
+        return *this;
+    }
+    CompressiblePointer& operator=(T* pointer)
+    {
+        set(pointer);
+        return *this;
+    }
+    T* value() const
+    {
+        ASSERT(static_cast<bool>(*this));
+        return get().value();
+    }
+    T* operator->() const { return value(); }
+    template <typename Index>
+    T& operator[](Index index) const { return value()[index]; }
+    operator T*() const { return get().unwrap(); }
+    operator bool() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_pointer != 0;
+#else
+        return m_pointer.hasValue();
+#endif
+    }
+    operator Optional<T*>() const { return get(); }
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t compressedPayload() const { return m_pointer; }
+#endif
+
+private:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    uint32_t m_pointer;
+#else
+    Optional<T*> m_pointer;
+#endif
+};
+
 // Store a GC pointer as a native pointer or a four-byte cage offset, selected
 // at compile time. In compressed builds the field's address supplies the high
 // bits, so access needs no TLS load. Only use this as a field of a GC allocation.

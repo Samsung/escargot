@@ -353,7 +353,7 @@ public:
     void clearBuffer() { m_buffer.reset(); }
     bool loadData(FILE*, size_t);
 
-    InterpretedCodeBlock* loadInterpretedCodeBlock(Context* context, Script* script);
+    InterpretedCodeBlock* loadInterpretedCodeBlock(Context* context, Script* script, size_t& parentIndex);
     ByteCodeBlock* loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock);
     CacheStringTable* loadStringTable(Context* context);
 

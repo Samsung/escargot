@@ -452,7 +452,7 @@ std::string HeapSnapshot::takeHeapSnapshot(ExecutionState* state)
     uint64_t staticStrings = addNodeAndEdge(Node::hidden, Node::Edge::property, "Static Strings", id, context, sizeof(StaticStrings));
 
     for (auto& str : *state->context()->atomicStringMap()) {
-        addNodeAndEdge(Node::string, Node::Edge::property, str->toNonGCUTF8StringData(), id, staticStrings, sizeof(String));
+        addNodeAndEdge(Node::string, Node::Edge::property, str.string()->toNonGCUTF8StringData(), id, staticStrings, sizeof(String));
     }
 
     uint64_t userDefined = addNodeAndEdge(Node::synthetic, Node::Edge::property, "User Defined variables", id, root, 0);

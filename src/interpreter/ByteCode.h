@@ -23,6 +23,7 @@
 #include "interpreter/ByteCodeBlockData.h"
 #include "interpreter/ByteCodeGenerator.h"
 #include "runtime/ExecutionPauser.h"
+#include "runtime/ObjectStructure.h"
 #include "util/BloomFilter.h"
 
 #ifndef NDEBUG
@@ -1532,6 +1533,8 @@ public:
 #endif
 };
 
+using GetObjectInlineCacheStructure = CompressiblePointer<ObjectStructure>;
+
 struct GetObjectInlineCacheData {
     GetObjectInlineCacheData()
     {
@@ -1547,7 +1550,7 @@ struct GetObjectInlineCacheData {
     static constexpr size_t MinCacheFillCount = 2;
     static constexpr size_t MaxCacheCount = 24;
 
-    ObjectStructure** m_cachedhiddenClassChain;
+    CompressiblePointer<GetObjectInlineCacheStructure> m_cachedhiddenClassChain;
     uint32_t m_alwaysOne : 1;
     uint32_t m_isPlainDataProperty : 1;
     // 14bits of storage is enough (max value 16383)
@@ -1556,16 +1559,26 @@ struct GetObjectInlineCacheData {
     uint32_t m_cachedIndex : 16;
 };
 
-typedef Vector<GetObjectInlineCacheData, GCUtil::gc_malloc_allocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
+typedef Vector<GetObjectInlineCacheData, CompressedPointerAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCacheComplexCaseData {
     void clear()
     {
         for (auto& item : m_cache) {
-            GC_FREE(item.m_cachedhiddenClassChain);
+            GC_FREE(item.m_cachedhiddenClassChain.get().unwrap());
         }
         m_cache.clear();
     }
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    void clearWithBase(uintptr_t base)
+    {
+        for (auto& item : m_cache) {
+            GC_FREE(item.m_cachedhiddenClassChain.getWithBase(base).unwrap());
+        }
+        m_cache.clear();
+    }
+#endif
 
     GetObjectInlineCacheComplexCaseData(ObjectStructurePropertyName propertyName)
         : m_propertyName(propertyName)
@@ -1584,8 +1597,6 @@ struct GetObjectInlineCacheSimpleCaseData : public gc {
     GetObjectInlineCacheSimpleCaseData(ObjectStructurePropertyName propertyName)
         : m_propertyName(propertyName)
     {
-        memset(m_cachedStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
-        memset(m_cachedProtoStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
     }
 
     void* operator new(size_t size);
@@ -1593,12 +1604,16 @@ struct GetObjectInlineCacheSimpleCaseData : public gc {
 
     static constexpr size_t inlineBufferSize = 8;
 
-    ObjectStructure* m_cachedStructures[inlineBufferSize];
-    ObjectStructure* m_cachedProtoStructures[inlineBufferSize];
+    GetObjectInlineCacheStructure m_cachedStructures[inlineBufferSize];
+    GetObjectInlineCacheStructure m_cachedProtoStructures[inlineBufferSize];
     uint8_t m_cachedIndexes[inlineBufferSize];
-
-    ObjectStructurePropertyName m_propertyName;
+    CompressibleObjectStructurePropertyName m_propertyName;
 };
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(GetObjectInlineCacheData) == 8, "Complex get-cache entries must use four-byte slots");
+static_assert(sizeof(GetObjectInlineCacheSimpleCaseData) == 76, "Simple get caches must keep compact structure arrays");
+#endif
 
 class GetObjectPreComputedCase : public ByteCode {
 public:

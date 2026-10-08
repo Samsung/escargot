@@ -137,6 +137,69 @@ static ALWAYS_INLINE uintptr_t interpreterCageBase()
 }
 #endif
 
+// Inline-cache structures belong to the same cage as the receiver.
+// Compare their offsets without reconstructing a full pointer.
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+using InterpreterStructureKey = uint32_t;
+#else
+using InterpreterStructureKey = const ObjectStructure*;
+#endif
+
+static ALWAYS_INLINE InterpreterStructureKey cachedStructureKey(const ObjectStructure* structure)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(structure));
+#else
+    return structure;
+#endif
+}
+
+static ALWAYS_INLINE InterpreterStructureKey cachedCompactStructureKey(const GetObjectInlineCacheStructure& structure)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return structure.compressedPayload();
+#else
+    return structure.get().unwrap();
+#endif
+}
+
+template <typename T>
+static ALWAYS_INLINE Optional<T*> interpreterPointer(const CompressiblePointer<T>& pointer)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return pointer.getWithBase(interpreterCageBase());
+#else
+    return pointer.get();
+#endif
+}
+
+static ALWAYS_INLINE ObjectStructurePropertyName interpreterPropertyName(const CompressibleObjectStructurePropertyName& name)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return name.getWithBase(interpreterCageBase());
+#else
+    return name.get();
+#endif
+}
+
+static ALWAYS_INLINE InterpretedCodeBlock* interpreterCodeBlock(ScriptFunctionObject* function)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return function->interpretedCodeBlockWithBase(interpreterCageBase());
+#else
+    return function->interpretedCodeBlock();
+#endif
+}
+
+static ALWAYS_INLINE Optional<ByteCodeBlock*> interpreterByteCodeBlock(InterpretedCodeBlock* block)
+{
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+    return block->byteCodeBlockWithBase(interpreterCageBase());
+#else
+    return block->byteCodeBlock();
+#endif
+}
+
 template <typename Values>
 static ALWAYS_INLINE auto interpreterPropertySlot(Values& values, size_t index) -> decltype(values[index])
 {
@@ -260,6 +323,26 @@ OpcodeTable::OpcodeTable()
 
 class InterpreterSlowPath {
 public:
+    static ALWAYS_INLINE InterpreterStructureKey structureKey(const Object* object)
+    {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+        ASSERT(object->m_structure);
+        return object->m_structure.compressedPayload();
+#else
+        return object->structure();
+#endif
+    }
+
+    static ALWAYS_INLINE Optional<LexicalEnvironment*> outerEnvironment(ScriptFunctionObject* function)
+    {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+        return function->outerEnvironmentWithBase(interpreterCageBase());
+#else
+        return function->outerEnvironment();
+#endif
+    }
+
+
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
@@ -384,10 +467,10 @@ ALWAYS_INLINE bool InterpreterSlowPath::tryInstanceOfInlineCache(ExecutionState&
 {
     Object* cur = C;
     for (size_t i = 0; i < code->m_cachedHasInstanceChainLength; i++) {
-        if (UNLIKELY(!cur || cur->structure() != code->m_cachedHasInstanceChain[i])) {
+        if (UNLIKELY(!cur || structureKey(cur) != cachedStructureKey(code->m_cachedHasInstanceChain[i]))) {
             return false;
         }
-        cur = cur->Object::getPrototypeObject(state);
+        cur = interpreterOrdinaryPrototype(state, cur).unwrap();
     }
     if (UNLIKELY(cur != state.context()->globalObject()->functionPrototype())) {
         return false;
@@ -400,9 +483,9 @@ ALWAYS_INLINE bool InterpreterSlowPath::tryInstanceOfInlineCache(ExecutionState&
 
     Value prototype;
     if (LIKELY(code->m_canReadPrototypeDirectly)) {
-        prototype = Value(C->m_values[code->m_cachedPrototypeIndex]);
+        prototype = interpreterValue(interpreterPropertySlot(C->m_values, code->m_cachedPrototypeIndex));
         if (UNLIKELY(prototype.isEmpty())) {
-            prototype = VMInstance::functionPrototypeNativeGetter(state, C, Value(C), C->m_values[code->m_cachedPrototypeIndex]);
+            prototype = VMInstance::functionPrototypeNativeGetter(state, C, Value(C), interpreterPropertySlot(C->m_values, code->m_cachedPrototypeIndex));
         }
     } else {
         prototype = C->getOwnNonPlainDataPropertyUtilForObject(state, code->m_cachedPrototypeIndex, Value(C));
@@ -440,7 +523,7 @@ ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(Exec
     if (UNLIKELY(obj->structure()->findProperty(propertyName).first != SIZE_MAX)) {
         return false;
     }
-    Object* proto = obj->Object::getPrototypeObject(state);
+    Optional<Object*> proto = interpreterOrdinaryPrototype(state, obj);
     if (UNLIKELY(!proto || proto->structure()->findProperty(propertyName).first != SIZE_MAX)) {
         return false;
     }
@@ -481,23 +564,6 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
     CageBaseRegisterScope cageBaseRegisterScope;
 #endif
-    // Inline-cache structures belong to the same cage as the receiver.
-    // Compare their offsets without reconstructing a full pointer.
-    auto interpreterStructureKey = [](const Object* object) {
-#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
-        ASSERT(object->m_structure);
-        return object->m_structure.compressedPayload();
-#else
-        return object->structure();
-#endif
-    };
-    auto cachedStructureKey = [](const ObjectStructure* structure) {
-#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
-        return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(structure));
-#else
-        return structure;
-#endif
-    };
     state->m_programCounter = &programCounter;
 #ifdef ESCARGOT_DEBUGGER
     try {
@@ -572,7 +638,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             bool isCacheWork = false;
 
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && interpreterStructureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && InterpreterSlowPath::structureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
                     registerFile[code->m_registerIndex] = interpreterValue(*((ObjectPropertyValue*)slot->m_cachedAddress));
@@ -605,7 +671,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             bool isCacheWork = false;
             if (LIKELY(idx != std::numeric_limits<size_t>::max())) {
-                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && interpreterStructureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
+                if (LIKELY(ctx->globalDeclarativeStorage()->size() == slot->m_lexicalIndexCache && InterpreterSlowPath::structureKey(globalObject) == cachedStructureKey(slot->m_cachedStructure))) {
                     ASSERT(globalObject->m_values.data() <= slot->m_cachedAddress);
                     ASSERT(slot->m_cachedAddress < (globalObject->m_values.data() + globalObject->structure()->propertyCount()));
                     interpreterStore(*((ObjectPropertyValue*)slot->m_cachedAddress), registerFile[code->m_registerIndex]);
@@ -620,7 +686,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     if (UNLIKELY(!record.m_isMutable)) {
                         ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, record.m_name.string(), false, String::emptyString(), ErrorObject::Messages::AssignmentToConstantVariable);
                     }
-                    storage = registerFile[code->m_registerIndex];
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+                    interpreterStore(storage, registerFile[code->m_registerIndex]);
+#else
+                        storage = registerFile[code->m_registerIndex];
+#endif
                 }
             }
 
@@ -934,7 +1004,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         }                                                                              \
     }                                                                                  \
     GetObjectInlineCacheSimpleCaseData* const inlineCache = code->m_simpleInlineCache; \
-    const auto objStructure = interpreterStructureKey(obj);
+    const auto objStructure = InterpreterSlowPath::structureKey(obj);
 
 /* One probe against a compile-time-constant slot index. On a hit the value is stored and the
    interpreter moves on; a miss jumps to the label at the end of this expansion, so the probes
@@ -951,12 +1021,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
    Both the own-property and the prototype hit converge on a single store/dispatch tail via
    `holder`, instead of emitting that tail (and its dispatch site) twice per probe. */
 #define GET_OBJECT_SIMPLE_IC_PROBE_SLOT(IDX)                                                                                                                     \
-    if (LIKELY(cachedStructureKey(inlineCache->m_cachedStructures[IDX]) == objStructure)) {                                                                      \
-        ObjectStructure* protoStructure = inlineCache->m_cachedProtoStructures[IDX];                                                                             \
+    if (LIKELY(cachedCompactStructureKey(inlineCache->m_cachedStructures[IDX]) == objStructure)) {                                                               \
+        const auto protoStructure = cachedCompactStructureKey(inlineCache->m_cachedProtoStructures[IDX]);                                                        \
         Object* holder = obj;                                                                                                                                    \
-        if (UNLIKELY(protoStructure != nullptr)) {                                                                                                               \
+        if (UNLIKELY(!!protoStructure)) {                                                                                                                        \
             Optional<Object*> protoObj = interpreterPrototype(*state, obj);                                                                                      \
-            if (UNLIKELY(!protoObj || interpreterStructureKey(protoObj.value()) != cachedStructureKey(protoStructure))) {                                        \
+            if (UNLIKELY(!protoObj || InterpreterSlowPath::structureKey(protoObj.value()) != protoStructure)) {                                                  \
                 goto SimpleInlineCacheProbeMiss##IDX;                                                                                                            \
             }                                                                                                                                                    \
             holder = protoObj.value();                                                                                                                           \
@@ -995,7 +1065,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             auto cacheData = code->m_simpleInlineCache->m_cachedStructures;
             auto protoCacheData = code->m_simpleInlineCache->m_cachedProtoStructures;
-            const auto objStructure = interpreterStructureKey(obj);
+            const auto objStructure = InterpreterSlowPath::structureKey(obj);
             for (unsigned currentCacheIndex = 0; currentCacheIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; currentCacheIndex++) {
                 // LIKELY: a structure compare is a pointer equality, which GCC statically
                 // predicts false, so without the hint this hit body -- index load, value load,
@@ -1004,15 +1074,15 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 // iteration's hit inline and moves the loop back edge out instead, which is the
                 // right priority: slot 0 holds either the structure that made the callsite hot
                 // or, once the buffer has wrapped, the most recently cached one.
-                if (LIKELY(cachedStructureKey(cacheData[currentCacheIndex]) == objStructure)) {
-                    ObjectStructure* protoStructure = protoCacheData[currentCacheIndex];
-                    if (LIKELY(protoStructure == nullptr)) {
+                if (LIKELY(cachedCompactStructureKey(cacheData[currentCacheIndex]) == objStructure)) {
+                    const auto protoStructure = cachedCompactStructureKey(protoCacheData[currentCacheIndex]);
+                    if (LIKELY(!protoStructure)) {
                         registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(obj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
                         ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                         NEXT_INSTRUCTION();
                     } else {
                         Optional<Object*> protoObj = interpreterPrototype(*state, obj);
-                        if (LIKELY(protoObj && interpreterStructureKey(protoObj.value()) == cachedStructureKey(protoStructure))) {
+                        if (LIKELY(protoObj && InterpreterSlowPath::structureKey(protoObj.value()) == protoStructure)) {
                             registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(protoObj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
                             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                             NEXT_INSTRUCTION();
@@ -1096,10 +1166,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (LIKELY(inlineCache->m_cache.size() > 0)) {
                 GetObjectInlineCacheData& entry = inlineCache->m_cache[0];
                 const size_t cSiz = entry.m_cachedhiddenClassChainLength;
+                auto chain = interpreterPointer(entry.m_cachedhiddenClassChain);
+                ASSERT(cSiz > 0 && chain);
                 Object* cur = obj;
                 bool ok = true;
                 for (size_t i = 0; i < cSiz; i++) {
-                    if (UNLIKELY(!cur || interpreterStructureKey(cur) != cachedStructureKey(entry.m_cachedhiddenClassChain[i]))) {
+                    if (UNLIKELY(!cur || InterpreterSlowPath::structureKey(cur) != cachedCompactStructureKey(chain.value()[i]))) {
                         ok = false;
                         break;
                     }
@@ -1138,7 +1210,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 SetObjectInlineCache* const inlineCache = code->m_inlineCache;
                 ASSERT(!!inlineCache && code->m_inlineCacheProtoTraverseMaxIndex == 0);
 
-                const auto testItem = interpreterStructureKey(obj);
+                const auto testItem = InterpreterSlowPath::structureKey(obj);
                 const size_t cacheFillCount = inlineCache->m_cache.size();
                 // Squeezing optimization for register-starved architectures (like ARM32).
                 // Unrolling the cache loop to explicit static checks for indices 0 and 1
@@ -1219,7 +1291,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     Object* cur0 = obj;
                     bool ok0 = true;
                     for (size_t i = 0; i < cSiz0; i++) {
-                        if (UNLIKELY(!cur0 || interpreterStructureKey(cur0) != cachedStructureKey(entry0.m_cachedHiddenClassChainData[i]))) {
+                        if (UNLIKELY(!cur0 || InterpreterSlowPath::structureKey(cur0) != cachedStructureKey(entry0.m_cachedHiddenClassChainData[i]))) {
                             ok0 = false;
                             break;
                         }
@@ -1253,7 +1325,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         Object* cur1 = obj;
                         bool ok1 = true;
                         for (size_t i = 0; i < cSiz1; i++) {
-                            if (UNLIKELY(!cur1 || interpreterStructureKey(cur1) != cachedStructureKey(entry1.m_cachedHiddenClassChainData[i]))) {
+                            if (UNLIKELY(!cur1 || InterpreterSlowPath::structureKey(cur1) != cachedStructureKey(entry1.m_cachedHiddenClassChainData[i]))) {
                                 ok1 = false;
                                 break;
                             }
@@ -1465,7 +1537,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             }
             // the binding is known to live in the tail storage of a FunctionEnvironmentRecordOnHeap,
             // so it is read without the getHeapValueByIndex virtual call
-            registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->heapStorageData()[code->m_index];
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+            registerFile[code->m_registerIndex] = interpreterValue(upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->heapStorageData()[code->m_index]);
+#else
+                registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->heapStorageData()[code->m_index];
+#endif
             ADD_PROGRAM_COUNTER(LoadByHeapIndex);
             NEXT_INSTRUCTION();
         }
@@ -2044,7 +2120,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             GetEnumerateKey* code = (GetEnumerateKey*)programCounter;
             EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
-            registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_index++]);
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+            registerFile[code->m_registerIndex] = interpreterValue(data->m_keys[data->m_index++]);
+#else
+                registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_index++]);
+#endif
             ADD_PROGRAM_COUNTER(GetEnumerateKey);
             NEXT_INSTRUCTION();
         }
@@ -2615,7 +2695,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         // should allocate environment stuctures on the stack
                         ScriptFunctionObject* callee = calleeValue.asObject()->asScriptFunctionObject();
                         FunctionEnvironmentRecord* record = new (alloca(sizeof(FunctionEnvironmentRecordOnStack<false, false>))) FunctionEnvironmentRecordOnStack<false, false>(callee);
-                        LexicalEnvironment* lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, callee->outerEnvironment()
+                        LexicalEnvironment* lexEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(record, InterpreterSlowPath::outerEnvironment(callee).unwrap()
 #ifndef NDEBUG
                                                                                                                              ,
                                                                                                                  false
@@ -3135,7 +3215,7 @@ NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state
             break;
         }
         newChain.push_back(structure);
-        obj = obj->Object::getPrototypeObject(state);
+        obj = interpreterOrdinaryPrototype(state, obj).unwrap();
         if (!obj) {
             cacheable = false;
         }
@@ -3499,14 +3579,14 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         const size_t cacheFillCount = inlineCache->m_cache.size();
         GetObjectInlineCacheData* const cacheData = inlineCache->m_cache.data();
         Object* objChain[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
-        ObjectStructure* objStructures[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
+        decltype(InterpreterSlowPath::structureKey(orgObj)) objStructures[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
         const auto& maxIndex = code->m_inlineCacheProtoTraverseMaxIndex;
         ASSERT(maxIndex <= GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount);
         size_t fillCount;
         for (fillCount = 0; fillCount <= maxIndex && obj; fillCount++) {
             objChain[fillCount] = obj;
-            objStructures[fillCount] = obj->structure();
-            obj = obj->Object::getPrototypeObject(state);
+            objStructures[fillCount] = InterpreterSlowPath::structureKey(obj);
+            obj = interpreterOrdinaryPrototype(state, obj).unwrap();
         }
 
         for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
@@ -3514,9 +3594,11 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             const size_t& cSiz = data.m_cachedhiddenClassChainLength;
             ASSERT(cSiz > 0);
             if (LIKELY(cSiz <= fillCount)) {
+                auto chain = interpreterPointer(data.m_cachedhiddenClassChain);
+                ASSERT(chain);
                 bool ok = true;
                 for (size_t i = 0; i < cSiz; i++) {
-                    if (objStructures[i] != data.m_cachedhiddenClassChain[i]) {
+                    if (objStructures[i] != cachedCompactStructureKey(chain.value()[i])) {
                         ok = false;
                         break;
                     }
@@ -3526,7 +3608,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                     if (LIKELY(cachedIndex != GetObjectInlineCacheData::CachedIndexMax)) {
                         ASSERT(objChain[cSiz - 1]->structure()->findProperty(code->m_complexInlineCache->m_propertyName).first == cachedIndex);
                         if (LIKELY(data.m_isPlainDataProperty)) {
-                            registerFile[code->m_storeRegisterIndex] = interpreterValue(objChain[cSiz - 1]->m_values[cachedIndex]);
+                            registerFile[code->m_storeRegisterIndex] = interpreterValue(interpreterPropertySlot(objChain[cSiz - 1]->m_values, cachedIndex));
                         } else {
                             registerFile[code->m_storeRegisterIndex] = objChain[cSiz - 1]->getOwnNonPlainDataPropertyUtilForObject(state, cachedIndex, receiver);
                         }
@@ -3581,7 +3663,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
     if (code->m_inlineCacheMode == GetObjectPreComputedCase::None) {
         propertyName = code->m_propertyName;
     } else if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
-        propertyName = code->m_simpleInlineCache->m_propertyName;
+        propertyName = interpreterPropertyName(code->m_simpleInlineCache->m_propertyName);
     } else {
         propertyName = code->m_complexInlineCache->m_propertyName;
     }
@@ -3623,7 +3705,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             break;
         }
 
-        obj = obj->Object::getPrototypeObject(state);
+        obj = interpreterOrdinaryPrototype(state, obj).unwrap();
 
         if (!obj) {
             // property not exist
@@ -3660,7 +3742,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
 
         size_t targetIndex = 0;
         for (; targetIndex < GetObjectInlineCacheSimpleCaseData::inlineBufferSize; targetIndex++) {
-            if (inlineCache->m_cachedStructures[targetIndex] == nullptr) {
+            if (!inlineCache->m_cachedStructures[targetIndex]) {
                 break;
             }
         }
@@ -3685,7 +3767,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
                                ? Opcode::GetObjectPreComputedCaseSimpleInlineCache2Opcode
                                : Opcode::GetObjectPreComputedCaseSimpleInlineCacheOpcode);
 
-        registerFile[code->m_storeRegisterIndex] = interpreterValue(obj->m_values[cachedIndex]);
+        registerFile[code->m_storeRegisterIndex] = interpreterValue(interpreterPropertySlot(obj->m_values, cachedIndex));
     } else {
         if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
             code->changeOpcode(Opcode::GetObjectPreComputedCaseComplexInlineCacheOpcode);
@@ -3699,13 +3781,17 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
 
                 auto& item = inlineCache->m_cache.back();
                 if (old->m_cachedProtoStructures[i]) {
-                    item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * 2);
-                    item.m_cachedhiddenClassChain[0] = old->m_cachedStructures[i];
-                    item.m_cachedhiddenClassChain[1] = old->m_cachedProtoStructures[i];
+                    item.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(2);
+                    auto chain = interpreterPointer(item.m_cachedhiddenClassChain);
+                    ASSERT(chain);
+                    chain.value()[0] = old->m_cachedStructures[i];
+                    chain.value()[1] = old->m_cachedProtoStructures[i];
                     item.m_cachedhiddenClassChainLength = 2;
                 } else {
-                    item.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
-                    item.m_cachedhiddenClassChain[0] = old->m_cachedStructures[i];
+                    item.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(1);
+                    auto chain = interpreterPointer(item.m_cachedhiddenClassChain);
+                    ASSERT(chain);
+                    chain.value()[0] = old->m_cachedStructures[i];
                     item.m_cachedhiddenClassChainLength = 1;
                 }
                 item.m_cachedIndex = old->m_cachedIndexes[i];
@@ -3719,9 +3805,9 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         }
 
         auto inlineCache = code->m_complexInlineCache;
-        Optional<ObjectStructure**> evictedChain;
+        Optional<GetObjectInlineCacheStructure*> evictedChain;
         if (inlineCache->m_cache.size() > GetObjectInlineCacheData::MaxCacheCount) {
-            evictedChain = inlineCache->m_cache.back().m_cachedhiddenClassChain;
+            evictedChain = interpreterPointer(inlineCache->m_cache.back().m_cachedhiddenClassChain);
             for (size_t i = inlineCache->m_cache.size() - 1; i > 0; i--) {
                 inlineCache->m_cache[i] = inlineCache->m_cache[i - 1];
             }
@@ -3734,8 +3820,12 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         code->m_inlineCacheProtoTraverseMaxIndex = std::max(newProtoTraverseIndex, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
 
         newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
-        newItem.m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * cachedhiddenClassChain.size());
-        memcpy(newItem.m_cachedhiddenClassChain, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * cachedhiddenClassChain.size());
+        newItem.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(cachedhiddenClassChain.size());
+        auto chain = interpreterPointer(newItem.m_cachedhiddenClassChain);
+        ASSERT(chain);
+        for (size_t i = 0; i < cachedhiddenClassChain.size(); i++) {
+            chain.value()[i] = cachedhiddenClassChain[i];
+        }
         newItem.m_cachedIndex = cachedIndex;
         newItem.m_isPlainDataProperty = isPlainDataProperty;
         GC_FREE(evictedChain.unwrap());
@@ -3744,7 +3834,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             ASSERT(obj->structure() == cachedhiddenClassChain[cachedhiddenClassChain.size() - 1]);
             ASSERT(obj->structure()->findProperty(code->m_complexInlineCache->m_propertyName).first == cachedIndex);
             if (newItem.m_isPlainDataProperty) {
-                registerFile[code->m_storeRegisterIndex] = interpreterValue(obj->m_values[newItem.m_cachedIndex]);
+                registerFile[code->m_storeRegisterIndex] = interpreterValue(interpreterPropertySlot(obj->m_values, newItem.m_cachedIndex));
             } else {
                 registerFile[code->m_storeRegisterIndex] = obj->getOwnNonPlainDataPropertyUtilForObject(state, newItem.m_cachedIndex, receiver);
             }
@@ -3757,7 +3847,11 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
 
 GiveUp:
     if (code->m_inlineCacheMode == GetObjectPreComputedCase::Complex) {
+#if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
+        code->m_complexInlineCache->clearWithBase(interpreterCageBase());
+#else
         code->m_complexInlineCache->clear();
+#endif
     }
     code->changeOpcode(Opcode::GetObjectPreComputedCaseOpcode);
     code->m_inlineCacheMode = GetObjectPreComputedCase::None;
@@ -3799,13 +3893,13 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
     ASSERT(code->m_inlineCacheProtoTraverseMaxIndex < SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount);
     Object* obj = originalObject;
     Object* objChain[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
-    ObjectStructure* objStructures[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
+    InterpreterStructureKey objStructures[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
     const auto& maxIndex = code->m_inlineCacheProtoTraverseMaxIndex;
     size_t fillCount;
     for (fillCount = 0; fillCount <= maxIndex && obj; fillCount++) {
         objChain[fillCount] = obj;
-        objStructures[fillCount] = obj->structure();
-        obj = obj->Object::getPrototypeObject(state);
+        objStructures[fillCount] = structureKey(obj);
+        obj = interpreterOrdinaryPrototype(state, obj).unwrap();
     }
 
     SetObjectInlineCache* const inlineCache = code->m_inlineCache;
@@ -3818,7 +3912,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
 
         bool ok = true;
         for (size_t i = 0; i < cachedClassChainLength; i++) {
-            if (objStructures[i] != item.m_cachedHiddenClassChainData[i]) {
+            if (objStructures[i] != cachedStructureKey(item.m_cachedHiddenClassChainData[i])) {
                 ok = false;
                 break;
             }
@@ -3829,7 +3923,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
                 ASSERT(item.m_cachedIndex < originalObject->m_structure->propertyCount());
                 ASSERT(originalObject->structure()->findProperty(code->m_propertyName).first == item.m_cachedIndex);
                 if (LIKELY(item.m_isPlainDataProperty)) {
-                    originalObject->m_values[item.m_cachedIndex] = value;
+                    interpreterStore(interpreterPropertySlot(originalObject->m_values, item.m_cachedIndex), value);
                 } else {
                     originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, item.m_cachedIndex, value, originalObject);
                 }
@@ -6727,7 +6821,7 @@ NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionS
 
     ASSERT(!!funcRecord);
     ScriptFunctionObject* funcObject = funcRecord->functionObject()->asScriptFunctionObject();
-    bool isMapped = funcObject->interpretedCodeBlock()->shouldHaveMappedArguments();
+    bool isMapped = interpreterCodeBlock(funcObject)->shouldHaveMappedArguments();
     funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
@@ -6851,13 +6945,15 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
     ASSERT(ThreadLocal::tcoBuffer());
     ASSERT(code->m_argumentCount <= TCO_ARGUMENT_COUNT_LIMIT);
 
-    InterpretedCodeBlock* calleeBlock = callee->interpretedCodeBlock();
-    if (!calleeBlock->byteCodeBlock()) {
+    InterpretedCodeBlock* calleeBlock = interpreterCodeBlock(callee);
+    auto byteCode = interpreterByteCodeBlock(calleeBlock);
+    if (!byteCode) {
         // if callee doesn't have ByteCode yet, generate it
         callee->generateByteCodeBlock(*state);
+        byteCode = interpreterByteCodeBlock(calleeBlock);
     }
-
-    ByteCodeBlock* calleeByteBlock = calleeBlock->byteCodeBlock();
+    ASSERT(byteCode);
+    ByteCodeBlock* calleeByteBlock = byteCode.value();
     if (!calleeByteBlock->needsExtendedExecutionState() && (callerByteBlock->m_requiredTotalRegisterNumber >= calleeByteBlock->m_requiredTotalRegisterNumber)) {
         // Note) any element of registerFile should not be modified in this function
 
@@ -6893,12 +6989,12 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
                 // should create new environments
                 ASSERT(!callee->isScriptSimpleFunctionObject());
                 record = FunctionObjectProcessCallGenerator::createFunctionEnvironmentRecord<ScriptFunctionObject, false, false>(*state, callee, calleeBlock);
-                lexEnv = new LexicalEnvironment(record, callee->outerEnvironment());
+                lexEnv = new LexicalEnvironment(record, InterpreterSlowPath::outerEnvironment(callee).unwrap());
             } else if (callerByteBlock->codeBlock()->canAllocateEnvironmentOnStack()) {
                 // reuse caller's environment structures
                 ASSERT(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
                 record = new (state->lexicalEnvironment()->record()) FunctionEnvironmentRecordOnStack<false, false>(callee);
-                lexEnv = new (state->lexicalEnvironment()) LexicalEnvironment(record, callee->outerEnvironment()
+                lexEnv = new (state->lexicalEnvironment()) LexicalEnvironment(record, InterpreterSlowPath::outerEnvironment(callee).unwrap()
 #ifndef NDEBUG
                                                                                           ,
                                                                               false
@@ -6968,17 +7064,17 @@ ExecutionState* InterpreterSlowPath::createExecutionStateForTailCall(ExecutionSt
 {
     ASSERT(!callee->isScriptArrowFunctionObject());
 
-    InterpretedCodeBlock* calleeBlock = callee->interpretedCodeBlock();
+    InterpretedCodeBlock* calleeBlock = interpreterCodeBlock(callee);
     FunctionEnvironmentRecord* record = nullptr;
     LexicalEnvironment* lexEnv = nullptr;
     if (!calleeBlock->canAllocateEnvironmentOnStack()) {
         ASSERT(!callee->isScriptSimpleFunctionObject());
         record = FunctionObjectProcessCallGenerator::createFunctionEnvironmentRecord<ScriptFunctionObject, false, false>(*state, callee, calleeBlock);
-        lexEnv = new LexicalEnvironment(record, callee->outerEnvironment());
+        lexEnv = new LexicalEnvironment(record, InterpreterSlowPath::outerEnvironment(callee).unwrap());
     } else if (callerByteBlock->codeBlock()->canAllocateEnvironmentOnStack()) {
         ASSERT(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
         record = new FunctionEnvironmentRecordOnStack<false, false>(callee);
-        lexEnv = new LexicalEnvironment(record, callee->outerEnvironment(), false);
+        lexEnv = new LexicalEnvironment(record, InterpreterSlowPath::outerEnvironment(callee).unwrap(), false);
     }
 
     return new ExecutionState(calleeBlock->context(), state, lexEnv, 0, nullptr, calleeBlock->isStrict());

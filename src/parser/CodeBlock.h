@@ -35,9 +35,34 @@ class Object;
 struct ASTScopeContext;
 struct ByteCodeGenerateContext;
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+class CompressibleVariableMapIndex {
+public:
+    CompressibleVariableMapIndex(size_t index = 0)
+    {
+        // The cage cannot hold enough identifier records to exceed this bound.
+        RELEASE_ASSERT(index <= (UINT32_MAX >> 1));
+        m_index = (static_cast<uint32_t>(index) << 1) | 1;
+    }
+
+    operator size_t() const
+    {
+        return m_index >> 1;
+    }
+
+private:
+    uint32_t m_index;
+};
+
+typedef HashMap<CompressibleAtomicString, CompressibleVariableMapIndex, std::hash<CompressibleAtomicString>, std::equal_to<CompressibleAtomicString>,
+                CompressedPointerAllocator<std::pair<const CompressibleAtomicString, CompressibleVariableMapIndex>>>
+    FunctionContextVarMap;
+static_assert(sizeof(tsl::detail_robin_hash::bucket_entry<std::pair<CompressibleAtomicString, CompressibleVariableMapIndex>, false>) == 12, "Variable-map buckets must keep four-byte keys and indexes");
+#else
 typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
                 GCUtil::gc_malloc_atomic_allocator<std::pair<AtomicString const, size_t>>>
     FunctionContextVarMap;
+#endif
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 // only in construct call, newTarget have Object*
@@ -172,7 +197,7 @@ private:
     bool m_isNativeConstructor : 1;
     bool m_isStrict : 1;
     uint16_t m_functionLength;
-    AtomicString m_functionName;
+    CompressibleAtomicString m_functionName;
     NativeFunctionPointer m_nativeFunction;
 };
 
@@ -252,14 +277,14 @@ public:
     };
 
     // Keep the existing SIZE_MAX sentinel at call sites while storing four bytes.
-    class CompactIdentifierIndex {
+    class CompressibleIdentifierIndex {
     public:
-        CompactIdentifierIndex()
+        CompressibleIdentifierIndex()
             : m_index(UINT32_MAX)
         {
         }
 
-        CompactIdentifierIndex& operator=(size_t index)
+        CompressibleIdentifierIndex& operator=(size_t index)
         {
             RELEASE_ASSERT(index == SIZE_MAX || index < UINT32_MAX);
             m_index = index == SIZE_MAX ? UINT32_MAX : static_cast<uint32_t>(index);
@@ -275,13 +300,13 @@ public:
         uint32_t m_index;
     };
 
-    COMPILE_ASSERT(sizeof(CompactIdentifierIndex) == sizeof(uint32_t), "");
+    COMPILE_ASSERT(sizeof(CompressibleIdentifierIndex) == sizeof(uint32_t), "");
 
     struct BlockIdentifierInfo {
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
         bool m_isUsing : 1;
-        CompactIdentifierIndex m_indexForIndexedStorage;
+        CompressibleIdentifierIndex m_indexForIndexedStorage;
         CompressibleAtomicString m_name;
     };
 
@@ -441,7 +466,7 @@ public:
         bool m_isParameterName : 1;
         bool m_isExplicitlyDeclaredOrParameterName : 1;
         bool m_isVarDeclaration : 1;
-        CompactIdentifierIndex m_indexForIndexedStorage;
+        CompressibleIdentifierIndex m_indexForIndexedStorage;
         CompressibleAtomicString m_name;
     };
 
@@ -450,7 +475,8 @@ public:
     COMPILE_ASSERT(sizeof(IdentifierInfo) == 12, "");
 #endif
 
-    typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
+    typedef CompressibleHeapTightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
+    typedef CompressibleHeapTightVector<CompressibleAtomicString, GCUtil::gc_malloc_atomic_allocator<CompressibleAtomicString>> ParameterNameVector;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -516,14 +542,16 @@ public:
     }
 
     // function source including parameters
-    SourceRange src() const
-    {
-        return m_src;
-    }
+    SourceRange src() const;
 
     ByteCodeBlock* byteCodeBlock()
     {
-        return m_byteCodeBlock;
+        return m_byteCodeBlock.get().unwrap();
+    }
+
+    ALWAYS_INLINE Optional<ByteCodeBlock*> byteCodeBlockWithBase(uintptr_t base) const
+    {
+        return m_byteCodeBlock.getWithBase(base);
     }
 
     void setByteCodeBlock(ByteCodeBlock* block)
@@ -563,7 +591,7 @@ public:
 
     InterpretedCodeBlock* parent()
     {
-        return m_parent;
+        return m_parent.get().unwrap();
     }
 
     bool hasChildren() const
@@ -578,7 +606,7 @@ public:
     InterpretedCodeBlockVector& children() const
     {
         ASSERT(!!m_children);
-        return *m_children;
+        return *m_children.value();
     }
 
     void setParent(InterpretedCodeBlock* parentCodeBlock)
@@ -595,10 +623,10 @@ public:
     InterpretedCodeBlock* childBlockAt(size_t idx)
     {
         ASSERT(!!m_children && idx < m_children->size());
-        return (*m_children)[idx];
+        return (*m_children.value())[idx];
     }
 
-    const AtomicStringTightVector& parameterNames() const
+    const ParameterNameVector& parameterNames() const
     {
         // return all parameter names vector including targets of patterns and rest element
         return m_parameterNames;
@@ -618,7 +646,7 @@ public:
 
     BlockInfo** blockInfos() const
     {
-        return m_blockInfos;
+        return m_blockInfos.unwrap();
     }
 
     size_t blockInfosLength() const
@@ -626,9 +654,9 @@ public:
         return m_blockInfosLength;
     }
 
-    ExtendedNodeLOC functionStart()
+    ExtendedNodeLOC functionStart() const
     {
-        return m_functionStart;
+        return ExtendedNodeLOC(m_functionStartLine, m_functionStartColumn, m_sourceStart);
     }
 
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -948,8 +976,8 @@ public:
     BlockInfo* blockInfo(LexicalBlockIndex blockIndex)
     {
         for (size_t i = 0; i < m_blockInfosLength; i++) {
-            if (m_blockInfos[i]->blockIndex() == blockIndex) {
-                return m_blockInfos[i];
+            if (blockInfos()[i]->blockIndex() == blockIndex) {
+                return blockInfos()[i];
             }
         }
         ASSERT_NOT_REACHED();
@@ -978,7 +1006,7 @@ public:
 
     bool hasAncestorUsesNonIndexedVariableStorage()
     {
-        auto ptr = m_parent;
+        auto ptr = m_parent.get();
 
         while (ptr) {
             if (!ptr->canUseIndexedVariableStorage()) {
@@ -1051,24 +1079,28 @@ public:
 #endif
 
 protected:
-    Script* m_script;
-    SourceRange m_src;
-    ByteCodeBlock* m_byteCodeBlock;
+    CompressibleHeapPointer<Script> m_script;
+    CompressibleHeapPointer<ByteCodeBlock> m_byteCodeBlock;
+    CompressibleHeapPointer<InterpretedCodeBlock> m_parent;
+    CompressibleHeapPointer<InterpretedCodeBlockVector> m_children;
 
-    InterpretedCodeBlock* m_parent;
-    InterpretedCodeBlockVector* m_children;
+    // The Script owns the source; functionStart().index is this same offset.
+    size_t m_sourceStart;
+    size_t m_sourceEnd;
 
     // all parameter names including targets of patterns and rest element
-    AtomicStringTightVector m_parameterNames;
+    ParameterNameVector m_parameterNames;
     IdentifierInfoVector m_identifierInfos;
-    BlockInfo** m_blockInfos;
+    // Generic block arrays are static and cannot be stored as cage offsets.
+    Optional<BlockInfo**> m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
     uint32_t m_blockInfosLength : 24;
     uint16_t m_constructedObjectPropertyCount : 8;
 
-    AtomicString m_functionName;
+    CompressibleAtomicString m_functionName;
 
-    ExtendedNodeLOC m_functionStart; // point to the start position
+    size_t m_functionStartLine;
+    size_t m_functionStartColumn;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
     ExtendedNodeLOC m_bodyEndLOC;
 #endif
@@ -1167,8 +1199,8 @@ protected:
         size_t blockVectorIndex = SIZE_MAX;
         size_t blockInfoSize = m_blockInfosLength;
         for (size_t i = 0; i < blockInfoSize; i++) {
-            if (m_blockInfos[i]->blockIndex() == blockIndex) {
-                b = m_blockInfos[i];
+            if (blockInfos()[i]->blockIndex() == blockIndex) {
+                b = blockInfos()[i];
                 blockVectorIndex = i;
                 break;
             }
@@ -1192,8 +1224,8 @@ protected:
             bool finded = false;
 #endif
             for (size_t i = 0; i < blockInfoSize; i++) {
-                if (m_blockInfos[i]->blockIndex() == b->parentBlockIndex()) {
-                    b = m_blockInfos[i];
+                if (blockInfos()[i]->blockIndex() == b->parentBlockIndex()) {
+                    b = blockInfos()[i];
                     blockVectorIndex = i;
 #ifndef NDEBUG
                     finded = true;
@@ -1225,7 +1257,7 @@ public:
     virtual InterpretedCodeBlockRareData* rareData() const override
     {
         ASSERT(!!m_rareData);
-        return m_rareData;
+        return m_rareData.value();
     }
 
     virtual TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>>& taggedTemplateLiteralCache() override
@@ -1257,8 +1289,12 @@ private:
     {
     }
 
-    InterpretedCodeBlockRareData* m_rareData;
+    CompressibleHeapPointer<InterpretedCodeBlockRareData> m_rareData;
 };
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT) && defined(NDEBUG) && !defined(ESCARGOT_DEBUGGER)
+static_assert(sizeof(InterpretedCodeBlock) == 128, "Code-block metadata must retain its compact layout");
+#endif
 } // namespace Escargot
 
 #endif

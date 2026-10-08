@@ -28,7 +28,7 @@
 namespace Escargot {
 
 class ParserStringView;
-typedef HashSet<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> AtomicStringMap;
+class AtomicStringMap;
 
 class AtomicString : public gc {
     friend class StaticStrings;
@@ -139,6 +139,14 @@ COMPILE_ASSERT(sizeof(AtomicString) == sizeof(size_t), "");
 // arrays can therefore be allocated atomically without tracing their offsets.
 class CompressibleAtomicString {
 public:
+    // Pointer keys do not need cached hashes, which would enlarge buckets.
+    static constexpr bool should_never_store_hash = true;
+
+    CompressibleAtomicString(String* string)
+        : CompressibleAtomicString(AtomicString::fromPayload(string))
+    {
+    }
+
     CompressibleAtomicString()
         : CompressibleAtomicString(AtomicString())
     {
@@ -171,9 +179,23 @@ public:
 #endif
     }
 
+    size_t hashValue() const
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return m_string;
+#else
+        return std::hash<size_t*>{}(reinterpret_cast<size_t*>(m_string));
+#endif
+    }
+
     operator AtomicString() const
     {
         return AtomicString::fromPayload(string());
+    }
+
+    friend bool operator==(CompressibleAtomicString left, CompressibleAtomicString right)
+    {
+        return left.m_string == right.m_string;
     }
 
     friend bool operator==(CompressibleAtomicString left, AtomicString right)
@@ -197,6 +219,40 @@ private:
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 COMPILE_ASSERT(sizeof(CompressibleAtomicString) == sizeof(uint32_t), "");
 #endif
+
+// Probes may be stack String views outside the cage; only stored keys are compressed.
+struct AtomicStringMapHash {
+    size_t operator()(CompressibleAtomicString string) const
+    {
+        return string.string()->hashValue();
+    }
+    size_t operator()(String* string) const
+    {
+        return string->hashValue();
+    }
+};
+
+struct AtomicStringMapEqual {
+    using is_transparent = void;
+
+    bool operator()(CompressibleAtomicString left, CompressibleAtomicString right) const
+    {
+        return left.string()->equals(right.string());
+    }
+    bool operator()(CompressibleAtomicString left, String* right) const
+    {
+        return left.string()->equals(right);
+    }
+};
+
+using AtomicStringMapBase = HashSet<CompressibleAtomicString, AtomicStringMapHash, AtomicStringMapEqual, CompressedPointerAllocator<CompressibleAtomicString>>;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(tsl::detail_robin_hash::bucket_entry<CompressibleAtomicString, false>) == 8, "Intern buckets must keep four-byte keys");
+#endif
+class AtomicStringMap : public AtomicStringMapBase {
+public:
+    using AtomicStringMapBase::AtomicStringMapBase;
+};
 
 inline bool operator==(const AtomicString& a, const AtomicString& b)
 {
@@ -288,6 +344,22 @@ struct hash<Escargot::AtomicString> {
     size_t operator()(Escargot::AtomicString const& x) const
     {
         return std::hash<size_t*>{}((size_t*)x.string());
+    }
+};
+
+template <>
+struct hash<Escargot::CompressibleAtomicString> {
+    size_t operator()(Escargot::CompressibleAtomicString const& string) const
+    {
+        return string.hashValue();
+    }
+};
+
+template <>
+struct equal_to<Escargot::CompressibleAtomicString> {
+    bool operator()(Escargot::CompressibleAtomicString left, Escargot::CompressibleAtomicString right) const
+    {
+        return left == right;
     }
 };
 

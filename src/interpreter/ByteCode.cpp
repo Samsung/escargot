@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "ByteCode.h"
+#include "heap/Heap.h"
 #include "ByteCodeInterpreter.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
@@ -774,6 +775,18 @@ void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context
 
 void* GetObjectInlineCacheSimpleCaseData::operator new(size_t size)
 {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::GetObjectInlineCacheSimpleCaseData))) {
+        GC_word bitmap[(sizeof(GetObjectInlineCacheSimpleCaseData) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        for (size_t i = 0; i < inlineBufferSize; i++) {
+            GC_set_bit(bitmap, offsetof(GetObjectInlineCacheSimpleCaseData, m_cachedStructures) / 4 + i);
+            GC_set_bit(bitmap, offsetof(GetObjectInlineCacheSimpleCaseData, m_cachedProtoStructures) / 4 + i);
+        }
+        GC_set_bit(bitmap, offsetof(GetObjectInlineCacheSimpleCaseData, m_propertyName) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::GetObjectInlineCacheSimpleCaseData, size, bitmap, sizeof(GetObjectInlineCacheSimpleCaseData) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::GetObjectInlineCacheSimpleCaseData, size);
+#else
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -782,12 +795,12 @@ void* GetObjectInlineCacheSimpleCaseData::operator new(size_t size)
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_cachedStructures) + i);
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_cachedProtoStructures) + i);
         }
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_propertyName));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheSimpleCaseData));
         typeInited = true;
     }
 
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
 }
 
 void* GetObjectInlineCacheComplexCaseData::operator new(size_t size)

@@ -93,8 +93,8 @@ void Heap::initializeCompressedType(CompressedType type, size_t size,
         size += headerSize;
         slots += headerSlots;
 #endif
-        // The enum's prefix contains structures, Symbol and IteratorRecord;
-        // all types starting at Object inherit its tagged property buffer.
+        // Types before Object have their own layouts. Object and its subclasses
+        // inherit the tagged property buffer.
         if (type >= CompressedType::Object) {
             descriptor = GC_make_compressed_bitmap_descriptor_with_tag(size, bitmap, slots,
                                                                        Object::compressedValuesGCSlot() + headerSlots, 1, false);

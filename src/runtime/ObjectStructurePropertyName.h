@@ -31,6 +31,7 @@ class Template;
 
 class ObjectStructurePropertyName {
     friend Template;
+    friend class CompressibleObjectStructurePropertyName;
 
 public:
     ObjectStructurePropertyName(const AtomicString& atomicString)
@@ -183,6 +184,11 @@ public:
 
 private:
     size_t m_data;
+
+    explicit ObjectStructurePropertyName(size_t rawValue)
+        : m_data(rawValue)
+    {
+    }
 
     // used only for Template case
     ObjectStructurePropertyName(const Value& value);
