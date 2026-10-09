@@ -14,7 +14,7 @@ on:
         required: true
         default: 'master'
       benchmark_file:
-        description: 'Optional Python file in the source branch; blank runs WTB'
+        description: 'Optional Python file (source path or bench:path); blank runs WTB'
         type: string
         default: ''
       repetitions:

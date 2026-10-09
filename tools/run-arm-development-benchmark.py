@@ -110,10 +110,15 @@ def prepare_perf(report):
 
 
 def measure(engine, architecture, env, source, harness, work, report, cpu, repetitions, experiment, profile):
-    script = source / experiment if experiment else harness / 'tools/arm-benchmark-suites.py'
+    if experiment.startswith('bench:'):
+        root = harness
+        script = harness / experiment.removeprefix('bench:')
+    else:
+        root = source
+        script = source / experiment if experiment else harness / 'tools/arm-benchmark-suites.py'
     script = script.resolve()
-    if experiment and (not script.is_relative_to(source.resolve()) or not script.is_file()):
-        raise ValueError('Benchmark file must be an existing file inside the source checkout')
+    if experiment and (not script.is_relative_to(root.resolve()) or not script.is_file()):
+        raise ValueError('Benchmark file must be an existing file inside the selected checkout')
     env = dict(env, ESCARGOT_ENGINE=str(engine), BENCHMARK_ARCHITECTURE=architecture,
                BENCHMARK_CPU=str(cpu), BENCHMARK_REPETITIONS=str(repetitions),
                BENCHMARK_HARNESS=str(harness), BENCHMARK_OUTPUT_DIR=str(report),
@@ -202,7 +207,9 @@ exec setpriv --reuid="$BENCHMARK_UID" --regid="$BENCHMARK_GID" --clear-groups py
             launcher.chmod(0o755)
             if profile:
                 shutil.copy2(engine32, report / 'escargot-arm32')
-            measure(launcher, 'arm32', os.environ.copy(), source, harness, work, report, cpu, repetitions, experiment, profile)
+            env32 = dict(os.environ, BENCHMARK_RUNTIME_DIRECTORY=str(runtime),
+                         BENCHMARK_RUNTIME_LOADER=str(runtime / 'ld-linux-armhf.so.3'))
+            measure(launcher, 'arm32', env32, source, harness, work, report, cpu, repetitions, experiment, profile)
             engine64, env64 = build(source, work, 'arm64', report)
             if profile:
                 shutil.copy2(engine64, report / 'escargot-arm64')
