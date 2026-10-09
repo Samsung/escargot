@@ -284,7 +284,7 @@ static std::string extractLocaleName(std::string input)
 }
 
 
-std::string ICU::findSystemLocale()
+std::string ICU::findSystemLocale(bool allowICU)
 {
     char *c = getenv("LANG");
     if (c && strlen(c)) {
@@ -297,7 +297,7 @@ std::string ICU::findSystemLocale()
             return locale;
         }
     }
-    return ICU::instance().uloc_getDefault();
+    return allowICU ? ICU::instance().uloc_getDefault() : "";
 }
 
 std::string ICU::findSystemTimezoneName()

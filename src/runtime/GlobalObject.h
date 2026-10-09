@@ -413,6 +413,16 @@ public:
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
+#if defined(ENABLE_TEMPORAL) && defined(ENABLE_RUNTIME_ICU_BINDER)
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
+    virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+    virtual bool hasOwnEnumeration() const override
+    {
+        return m_temporalAvailability == TemporalAvailability::Pending;
+    }
+    virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;
+#endif
+
     // deliberately no hasIndexedPropertyOutsideStructure() override here: every
     // own property of the global object lives in its ObjectStructure. the one
     // other source it answers from is the embedder's virtual identifier
@@ -482,6 +492,13 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+#if defined(ENABLE_TEMPORAL) && defined(ENABLE_RUNTIME_ICU_BINDER)
+    enum class TemporalAvailability : uint8_t { Pending,
+                                                Supported,
+                                                Unsupported };
+    TemporalAvailability m_temporalAvailability{ TemporalAvailability::Supported };
+    bool ensureTemporalAvailability(ExecutionState& state);
+#endif
     CompressibleHeapPointer<Context> m_context;
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
