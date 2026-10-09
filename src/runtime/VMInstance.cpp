@@ -375,7 +375,9 @@ VMInstance::~VMInstance()
 
     clearCachesRelatedWithContext();
 #if defined(ENABLE_ICU)
-    ucal_close(m_calendar);
+    if (m_calendar) {
+        ucal_close(m_calendar.value());
+    }
 #endif
 
 #if defined(ENABLE_CODE_CACHE)
@@ -469,7 +471,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
         m_locale = getenv("LOCALE");
     } else {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
-        m_locale = RuntimeICUBinder::ICU::findSystemLocale();
+        m_locale = RuntimeICUBinder::ICU::findSystemLocale(false);
+        m_localeNeedsICU = m_locale.empty();
 #else
         m_locale = uloc_getDefault();
 #endif
@@ -592,6 +595,17 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 }
 
 #if defined(ENABLE_ICU)
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+void VMInstance::ensureLocale()
+{
+    m_locale = uloc_getDefault();
+    if (m_locale.length() >= 6 && m_locale.find("_POSIX") == m_locale.length() - 6) {
+        m_locale.resize(m_locale.length() - 6);
+    }
+    m_localeNeedsICU = false;
+}
+#endif
 
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
 static std::string findTimezone()

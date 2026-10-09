@@ -167,15 +167,20 @@ public:
 #if defined(ENABLE_ICU)
     const std::string& locale()
     {
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        if (UNLIKELY(m_localeNeedsICU)) {
+            ensureLocale();
+        }
+#endif
         return m_locale;
     }
 
     UCalendar* calendar()
     {
-        if (m_calendar == nullptr) {
+        if (!m_calendar) {
             ensureCalendar();
         }
-        return m_calendar;
+        return m_calendar.value();
     }
 
     const std::string& timezoneID()
@@ -602,7 +607,11 @@ private:
 // date object data
 #ifdef ENABLE_ICU
     std::string m_locale;
-    UCalendar* m_calendar;
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    bool m_localeNeedsICU{ false };
+    void ensureLocale();
+#endif
+    Optional<UCalendar*> m_calendar;
     std::string m_timezoneID;
     void ensureTimezoneID();
     void ensureCalendar();

@@ -331,6 +331,13 @@ ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const O
 
 ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
+#if defined(ENABLE_TEMPORAL) && defined(ENABLE_RUNTIME_ICU_BINDER)
+    if (UNLIKELY(m_temporalAvailability == TemporalAvailability::Pending)
+        && !P.isUIntType()
+        && P.objectStructurePropertyName() == state.context()->staticStrings().lazyCapitalTemporal()) {
+        ensureTemporalAvailability(state);
+    }
+#endif
     ObjectGetResult r = Object::getOwnProperty(state, P);
     if (!r.hasValue() && UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
         Object* target = getPrototypeObject(state);
@@ -347,6 +354,40 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
     }
     return r;
 }
+
+#if defined(ENABLE_TEMPORAL) && defined(ENABLE_RUNTIME_ICU_BINDER)
+bool GlobalObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    if (UNLIKELY(m_temporalAvailability == TemporalAvailability::Pending)
+        && !P.isUIntType()
+        && P.objectStructurePropertyName() == state.context()->staticStrings().lazyCapitalTemporal()) {
+        ensureTemporalAvailability(state);
+    }
+    return DerivedObject::defineOwnProperty(state, P, desc);
+}
+
+bool GlobalObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
+{
+    if (UNLIKELY(m_temporalAvailability == TemporalAvailability::Pending)
+        && !P.isUIntType()
+        && P.objectStructurePropertyName() == state.context()->staticStrings().lazyCapitalTemporal()) {
+        // Deleting the configurable placeholder needs no ICU version check.
+        m_temporalAvailability = TemporalAvailability::Unsupported;
+        if (!Object::deleteOwnProperty(state, P)) {
+            m_temporalAvailability = TemporalAvailability::Pending;
+            return false;
+        }
+        return true;
+    }
+    return Object::deleteOwnProperty(state, P);
+}
+
+void GlobalObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey)
+{
+    ensureTemporalAvailability(state);
+    Object::enumeration(state, callback, data, shouldSkipSymbolKey);
+}
+#endif
 
 Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 {

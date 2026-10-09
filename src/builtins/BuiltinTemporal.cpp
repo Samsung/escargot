@@ -1448,25 +1448,45 @@ static Value builtinTemporalZonedDateTimeStartOfDay(ExecutionState& state, Value
     return zonedDateTime->startOfDay(state);
 }
 
-void GlobalObject::initializeTemporal(ExecutionState& state)
-{
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
+bool GlobalObject::ensureTemporalAvailability(ExecutionState& state)
+{
+    if (m_temporalAvailability != TemporalAvailability::Pending) {
+        return m_temporalAvailability == TemporalAvailability::Supported;
+    }
+
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 74) {
+        m_temporalAvailability = TemporalAvailability::Unsupported;
+        Object::deleteOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyCapitalTemporal()));
         ESCARGOT_LOG_INFO("Temporal needs 74+ version of ICU");
-        return;
+        return false;
     }
+    m_temporalAvailability = TemporalAvailability::Supported;
+    return true;
+}
 #endif
+
+void GlobalObject::initializeTemporal(ExecutionState& state)
+{
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(
         true, false, true,
         [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
             ASSERT(self->isGlobalObject());
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+            if (!self->asGlobalObject()->ensureTemporalAvailability(state)) {
+                return Value();
+            }
+#endif
             return self->asGlobalObject()->temporal();
         },
         nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyCapitalTemporal()), nativeData, Value(Value::EmptyValue));
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    m_temporalAvailability = TemporalAvailability::Pending;
+#endif
 }
 
 void GlobalObject::installTemporal(ExecutionState& state)

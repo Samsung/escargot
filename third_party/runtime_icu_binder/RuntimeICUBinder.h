@@ -338,7 +338,7 @@ private:
 
 public:
     static ICU& instance();
-    static std::string findSystemLocale();
+    static std::string findSystemLocale(bool allowICU = true);
     static std::string findSystemTimezoneName();
 
     enum Soname {
@@ -381,7 +381,7 @@ public:
     template <typename... Args>                                                          \
     void name(Args... args)                                                              \
     {                                                                                    \
-        invokeICUWithoutReturn<Soname::i18n, fnType>(Function::function##name, args...); \
+        invokeICUWithoutReturn<Soname::uc, fnType>(Function::function##name, args...); \
     }
 
     FOR_EACH_UC_VOID_OP(DECLARE_UC_FN)
