@@ -48,7 +48,49 @@ def print_results(data):
           flush=True)
 
 
-def run_experiment(harness, report, data):
+def run_scores(monthly, engines, harness, wtb, report, data, repetitions):
+    suites = [('sunspider', harness, monthly.build_sunspider(), 'total_milliseconds'),
+              ('octane', harness / 'test/octane', 'run.js', 'score'),
+              ('web_tooling', wtb, 'dist/cli.js', 'score_runs_per_second')]
+    data['score_protocol'] = 'Monthly benchmark drivers in fresh, CPU-pinned processes'
+    failures = []
+    for repetition in range(repetitions):
+        ordered = engines if repetition % 2 == 0 else engines[::-1]
+        for name, command, _ in ordered:
+            scores = data['engines'][name].setdefault('scores', {})
+            for suite, directory, driver, metric in suites:
+                label = f'{name}-{suite}-{data["architecture"]}-score-{repetition + 1}'
+                print(f'::group::{label}', flush=True)
+                result = scores.setdefault(suite, {'metric': metric, 'samples': []})
+                try:
+                    if suite == 'sunspider':
+                        monthly.measure(label + '-warmup', command, directory, os.environ,
+                                        script=driver, kind=suite)
+                        timed = [monthly.measure(f'{label}-{index}', command, directory,
+                                                 os.environ, script=driver, kind=suite)
+                                 for index in range(1, 6)]
+                        sample = {metric: statistics.mean(item[metric] for item in timed),
+                                  'samples': timed}
+                    else:
+                        sample = monthly.measure(label, command, directory, os.environ,
+                                                 script=driver, kind=suite)
+                    result['samples'].append(sample)
+                    result['value'] = statistics.median(item[metric] for item in result['samples'])
+                    print(f'{label}: {metric} = {sample[metric]}', flush=True)
+                except Exception as error:
+                    result['error'] = str(error)
+                    failures.append(label)
+                    print(f'::error::{label}: {error}', flush=True)
+                finally:
+                    write_results(report, data)
+                    print('::endgroup::', flush=True)
+    data['scores_validated'] = not failures
+    data['failures'] = failures
+    if failures:
+        raise RuntimeError('Incomplete score experiment: ' + ', '.join(failures))
+
+
+def run_experiment(harness, report, data, mode):
     architecture = data['architecture']
     repetitions = int(os.environ.get('BENCHMARK_REPETITIONS', '1'))
     if repetitions < 1:
@@ -116,6 +158,9 @@ def run_experiment(harness, report, data):
     wtb = harness / 'test/web-tooling-benchmark'
     if not (wtb / 'dist/memory.js').is_file():
         wtb = monthly.build_wtb()
+    if mode == 'score':
+        run_scores(monthly, engines, harness, wtb, report, data, repetitions)
+        return
     drivers = monthly.build_memory_drivers(wtb)
     data['memory_driver_sha256'] = {suite: monthly.sha256(driver)
                                     for suite, (_, driver, _, _) in drivers.items()}
@@ -168,18 +213,21 @@ def run_experiment(harness, report, data):
         raise RuntimeError('Incomplete memory experiment: ' + ', '.join(failures))
 
 
-def main():
+def main(mode='memory'):
+    if mode not in ('memory', 'score'):
+        raise ValueError('Experiment mode must be memory or score')
     architecture = os.environ['BENCHMARK_ARCHITECTURE']
     if architecture not in ('arm32', 'arm64'):
         raise ValueError('BENCHMARK_ARCHITECTURE must be arm32 or arm64')
     harness = Path(os.environ['BENCHMARK_HARNESS']).resolve()
-    report = Path(os.environ['BENCHMARK_OUTPUT_DIR']).resolve() / f'v8-lite-{architecture}'
+    suffix = '-scores' if mode == 'score' else ''
+    report = Path(os.environ['BENCHMARK_OUTPUT_DIR']).resolve() / f'v8-lite-{architecture}{suffix}'
     report.mkdir(parents=True, exist_ok=True)
     data = {'architecture': architecture, 'host_architecture': platform.machine(),
             'measured_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'engines': {}, 'memory_validated': False}
+            'engines': {}, 'mode': mode, 'memory_validated': False}
     try:
-        run_experiment(harness, report, data)
+        run_experiment(harness, report, data, mode)
     except Exception as error:
         data['error'] = str(error)
         raise
