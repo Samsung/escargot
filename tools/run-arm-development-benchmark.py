@@ -49,13 +49,14 @@ def revision(path):
 def build(source, work, architecture, report):
     options = ['-DCMAKE_BUILD_TYPE=Release', '-DESCARGOT_DEPLOY=ON',
                '-DCMAKE_C_COMPILER=gcc', '-DCMAKE_CXX_COMPILER=g++',
-               '-DESCARGOT_THREADING=ON', '-DESCARGOT_TCO=ON', '-DESCARGOT_ENABLE_SHELL=ON']
+               '-DESCARGOT_THREADING=ON', '-DESCARGOT_TCO=ON',
+               '-DESCARGOT_TEMPORAL=ON', '-DESCARGOT_ENABLE_SHELL=ON']
     env = os.environ.copy()
     if architecture == 'arm32':
         import struct
         if struct.calcsize('P') != 4:
             raise RuntimeError('Expected ARM32 userland')
-        options += ['-DESCARGOT_ARCH=arm', '-DCMAKE_SYSTEM_PROCESSOR=arm', '-DESCARGOT_TEMPORAL=OFF']
+        options += ['-DESCARGOT_ARCH=arm', '-DCMAKE_SYSTEM_PROCESSOR=arm']
     elif Path('/usr/icu78-64').is_dir():
         env.update(LDFLAGS='-L/usr/icu78-64/lib -Wl,-rpath=/usr/icu78-64/lib',
                    PKG_CONFIG_PATH='/usr/icu78-64/lib/pkgconfig', LD_LIBRARY_PATH='/usr/icu78-64/lib')
@@ -110,6 +111,8 @@ def prepare_perf(report):
 
 
 def measure(engine, architecture, env, source, harness, work, report, cpu, repetitions, experiment, profile):
+    run([str(engine), '-e', "if (typeof Temporal !== 'object' || typeof Temporal.Instant !== 'function') throw new Error('Temporal is unavailable'); print('Temporal enabled');"],
+        env=env, log=report / f'temporal-{architecture}.log')
     if experiment.startswith('bench:'):
         root = harness
         script = harness / experiment.removeprefix('bench:')

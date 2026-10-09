@@ -263,11 +263,10 @@ def build_escargot():
     options = [
         "-DCMAKE_BUILD_TYPE=Release", "-DESCARGOT_DEPLOY=ON",
         "-DESCARGOT_THREADING=ON", "-DESCARGOT_TCO=ON",
-        "-DESCARGOT_ENABLE_SHELL=ON",
+        "-DESCARGOT_ENABLE_SHELL=ON", "-DESCARGOT_TEMPORAL=ON",
     ]
     if ARCHITECTURE == "arm32":
-        options += ["-DESCARGOT_ARCH=arm", "-DCMAKE_SYSTEM_PROCESSOR=arm",
-                    "-DESCARGOT_TEMPORAL=OFF"]
+        options += ["-DESCARGOT_ARCH=arm", "-DCMAKE_SYSTEM_PROCESSOR=arm"]
     env = os.environ.copy()
     icu = Path("/usr/icu78-64")
     if ARCHITECTURE == "arm64" and icu.is_dir():
