@@ -29,7 +29,7 @@ def write_results(report, data):
 
 
 def print_results(data):
-    print(f"\n{data['architecture']} fixed-work memory: Escargot vs V8 Lite", flush=True)
+    print(f"\n{data['architecture']} fixed-work memory measurements", flush=True)
     print('Engine       Suite          Average RSS  Peak RSS  Average PSS  Average USS  Active work',
           flush=True)
     for name, engine in data['engines'].items():
@@ -90,7 +90,7 @@ def run_scores(monthly, engines, harness, wtb, report, data, repetitions):
         raise RuntimeError('Incomplete score experiment: ' + ', '.join(failures))
 
 
-def run_experiment(harness, report, data, mode):
+def run_experiment(harness, report, data, mode, engine_names):
     architecture = data['architecture']
     repetitions = int(os.environ.get('BENCHMARK_REPETITIONS', '1'))
     if repetitions < 1:
@@ -133,8 +133,6 @@ def run_experiment(harness, report, data, mode):
     else:
         loader, runtime_dir, runtime = monthly.install_glibc()
     data['runtime'] = runtime
-    d8, metadata = monthly.install_d8(loader, runtime_dir)
-    d8 = list(map(str, d8))
     # The provided ARM32 launcher execs the native shell with its matching runtime.
     engine = Path(os.environ['ESCARGOT_ENGINE']).resolve()
     if architecture == 'arm32':
@@ -142,12 +140,15 @@ def run_experiment(harness, report, data, mode):
     else:
         libraries = f'{runtime_dir}:/usr/icu78-64/lib:{monthly.SYSTEM_LIBRARY_PATH}'
         escargot = [str(loader), '--library-path', libraries, str(engine)]
-    engines = [('escargot', escargot, 'escargot'),
-               ('d8_lite', [*d8, '--lite-mode', '--expose-gc'], 'd8_jitless')]
+    engines = [('escargot', escargot, 'escargot')]
     data['engines'] = {'escargot': {'command': escargot,
-                                  'launcher_sha256': monthly.sha256(engine), 'memory': {}},
-                       'd8_lite': {**metadata, 'command': engines[1][1],
-                                   'flags': ['--lite-mode', '--expose-gc'], 'memory': {}}}
+                                  'launcher_sha256': monthly.sha256(engine), 'memory': {}}}
+    if 'd8_lite' in engine_names:
+        d8, metadata = monthly.install_d8(loader, runtime_dir)
+        command = [*map(str, d8), '--lite-mode', '--expose-gc']
+        engines.append(('d8_lite', command, 'd8_jitless'))
+        data['engines']['d8_lite'] = {**metadata, 'command': command,
+                                     'flags': ['--lite-mode', '--expose-gc'], 'memory': {}}
     try:
         data['escargot_source_revision'] = subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'], text=True).strip()
@@ -158,9 +159,10 @@ def run_experiment(harness, report, data, mode):
     wtb = harness / 'test/web-tooling-benchmark'
     if not (wtb / 'dist/memory.js').is_file():
         wtb = monthly.build_wtb()
-    if mode == 'score':
+    if mode in ('score', 'both'):
         run_scores(monthly, engines, harness, wtb, report, data, repetitions)
-        return
+        if mode == 'score':
+            return
     drivers = monthly.build_memory_drivers(wtb)
     data['memory_driver_sha256'] = {suite: monthly.sha256(driver)
                                     for suite, (_, driver, _, _) in drivers.items()}
@@ -213,21 +215,23 @@ def run_experiment(harness, report, data, mode):
         raise RuntimeError('Incomplete memory experiment: ' + ', '.join(failures))
 
 
-def main(mode='memory'):
-    if mode not in ('memory', 'score'):
-        raise ValueError('Experiment mode must be memory or score')
+def main(mode='memory', engine_names=('escargot', 'd8_lite')):
+    if mode not in ('memory', 'score', 'both'):
+        raise ValueError('Experiment mode must be memory, score, or both')
+    if tuple(engine_names) not in (('escargot',), ('escargot', 'd8_lite')):
+        raise ValueError('Engine selection must be Escargot alone or Escargot and V8 Lite')
     architecture = os.environ['BENCHMARK_ARCHITECTURE']
     if architecture not in ('arm32', 'arm64'):
         raise ValueError('BENCHMARK_ARCHITECTURE must be arm32 or arm64')
     harness = Path(os.environ['BENCHMARK_HARNESS']).resolve()
-    suffix = '-scores' if mode == 'score' else ''
+    suffix = '-scores' if mode == 'score' else '-scores-memory' if mode == 'both' else ''
     report = Path(os.environ['BENCHMARK_OUTPUT_DIR']).resolve() / f'v8-lite-{architecture}{suffix}'
     report.mkdir(parents=True, exist_ok=True)
     data = {'architecture': architecture, 'host_architecture': platform.machine(),
             'measured_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'engines': {}, 'mode': mode, 'memory_validated': False}
     try:
-        run_experiment(harness, report, data, mode)
+        run_experiment(harness, report, data, mode, engine_names)
     except Exception as error:
         data['error'] = str(error)
         raise
