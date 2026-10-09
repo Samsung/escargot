@@ -1,27 +1,35 @@
 name: ARM Development Benchmark
-run-name: ARM benchmark ${{ inputs.fork_owner || github.actor }}/escargot @ ${{ inputs.branch }}
+run-name: ARM benchmark ${{ inputs.repository || github.actor }} @ ${{ inputs.branch }}
 
 on:
   workflow_dispatch:
     inputs:
-      fork_owner:
-        description: 'Fork owner (blank uses your GitHub login; Samsung uses the upstream repository)'
+      repository:
+        description: 'Source owner/repo (blank uses your GitHub login/escargot)'
         type: string
         default: ''
       branch:
-        description: 'Branch to build in the selected escargot repository'
+        description: 'Branch, tag or commit to measure'
         type: string
         required: true
-        default: 'perf-yarr-interpreter-fastpaths'
+        default: 'master'
       benchmark_file:
-        description: 'Optional shell script in the fork branch; blank uses tools/arm-benchmark-suites.sh from bench'
+        description: 'Optional Python file in the source branch; blank runs WTB'
         type: string
         default: ''
       repetitions:
         description: 'Scored runs of each suite, on both ARM64 and ARM32'
         type: choice
         options: ['1', '3', '5']
-        default: '3'
+        default: '1'
+      upload_artifact:
+        description: 'Upload measurement logs, metadata and experiment output'
+        type: boolean
+        default: true
+      profile:
+        description: 'Collect perf counters and samples for fixed-work WTB'
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -34,6 +42,8 @@ jobs:
       github.event.repository.fork == false
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       allowed: ${{ steps.permission.outputs.allowed }}
       repository: ${{ steps.permission.outputs.repository }}
@@ -43,7 +53,7 @@ jobs:
         id: permission
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          FORK_OWNER: ${{ inputs.fork_owner }}
+          INPUT_REPOSITORY: ${{ inputs.repository }}
           SOURCE_BRANCH: ${{ inputs.branch }}
         with:
           script: |
@@ -60,22 +70,23 @@ jobs:
                   && data.user?.permissions?.admin !== true)
                 throw new Error(`${username} needs maintain or admin permission`);
             }
-            const sourceOwner = process.env.FORK_OWNER.trim() || triggeringActor;
-            if (!/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i.test(sourceOwner))
-              throw new Error('Invalid fork owner');
-            const { data: source } = await github.rest.repos.get({ owner: sourceOwner, repo });
+            const repository = process.env.INPUT_REPOSITORY.trim() || `${triggeringActor}/${repo}`;
+            if (!/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?\/[a-z\d_.-]+$/i.test(repository))
+              throw new Error('Invalid source owner/repo');
+            const [sourceOwner, sourceRepo] = repository.split('/');
+            const { data: source } = await github.rest.repos.get({ owner: sourceOwner, repo: sourceRepo });
             if (source.private || (source.full_name !== `${owner}/${repo}`
                 && (!source.fork || source.source?.full_name !== `${owner}/${repo}`)))
               throw new Error('Source must be the public upstream repository or one of its forks');
-            const { data: branch } = await github.rest.repos.getBranch({
-              owner: sourceOwner, repo, branch: process.env.SOURCE_BRANCH
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: sourceOwner, repo: sourceRepo, ref: process.env.SOURCE_BRANCH
             });
-            if (!/^[a-f\d]{40}$/.test(branch.commit.sha))
+            if (!/^[a-f\d]{40}$/.test(commit.sha))
               throw new Error('Invalid source revision');
             core.setOutput('repository', source.full_name);
-            core.setOutput('revision', branch.commit.sha);
+            core.setOutput('revision', commit.sha);
             core.setOutput('allowed', 'true');
-            core.info(`Authorized ${triggeringActor}: ${source.full_name}@${branch.commit.sha}`);
+            core.info(`Authorized ${triggeringActor}: ${source.full_name}@${commit.sha}`);
 
   benchmark:
     needs: authorize
@@ -84,19 +95,26 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
-    concurrency:
-      group: performance-benchmark-master
-      cancel-in-progress: false
     steps:
       - name: Check out the upstream benchmark harness
         uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Build and measure ARM64 and ARM32 sequentially
+      - name: Build and measure ARM32 then ARM64
+        id: measure
         shell: bash
         env:
           SOURCE_REPOSITORY: ${{ needs.authorize.outputs.repository }}
           SOURCE_REVISION: ${{ needs.authorize.outputs.revision }}
           REPETITIONS: ${{ inputs.repetitions }}
           BENCHMARK_FILE: ${{ inputs.benchmark_file }}
-        run: bash tools/run-arm-development-benchmark.sh
+          BENCHMARK_PROFILE: ${{ inputs.profile }}
+        run: python3 -u tools/run-arm-development-benchmark.py
+      - name: Upload measurement data
+        if: always() && inputs.upload_artifact && steps.measure.outputs.report_directory != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: arm-benchmark-${{ needs.authorize.outputs.revision }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.measure.outputs.report_directory }}/
+          if-no-files-found: error
+          retention-days: 14
