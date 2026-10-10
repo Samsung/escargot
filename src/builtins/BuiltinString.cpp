@@ -540,16 +540,16 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
     // Bound metadata size, require twice its cost in avoided buffer bytes, and
     // avoid keeping a much larger input alive for a small result.
     constexpr size_t minimumResultLength = 1024;
-    // Keep the offset array small and avoid adding many GC-traced nodes.
-    constexpr size_t maximumSliceCount = 16;
     using Slice = ReplacementSlicesString::Slice;
+    const size_t metadataBudget = length / 2;
     size_t retainedSourceLength = input.length;
     if (string->hasSpecialImpl() && string->isStringView()) {
         retainedSourceLength = static_cast<StringView*>(string)->underlyingString()->length();
     }
     if (input.has8BitContent && length >= minimumResultLength && length >= retainedSourceLength - length
-        && input.length <= std::numeric_limits<uint32_t>::max() && sliceCount <= maximumSliceCount
-        && sizeof(ReplacementSlicesString) + sliceCount * sizeof(Slice) <= length / 2) {
+        && input.length <= std::numeric_limits<uint32_t>::max()
+        && sizeof(ReplacementSlicesString) <= metadataBudget
+        && sliceCount <= (metadataBudget - sizeof(ReplacementSlicesString)) / sizeof(Slice)) {
         if (sliceCount == 1) {
             size_t begin = 0;
             for (size_t i = 0; i < matchCount; ++i) {
