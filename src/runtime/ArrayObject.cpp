@@ -154,6 +154,20 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
     return spreadArray;
 }
 
+ArrayObject* ArrayObject::createRegExpResult(ExecutionState& state, uint64_t size, unsigned index, String* input, bool hasIndices)
+{
+    ArrayObject* result = new ArrayObject(state, size, false);
+    ObjectStructure* structure = state.context()->vmInstance()->regExpResultStructure(hasIndices);
+    result->m_values.resizeWithUninitializedValues(0, structure->propertyCount());
+    result->m_structure = structure;
+    result->m_values[0] = Value(index);
+    result->m_values[1] = Value(input);
+    for (size_t i = 2; i < structure->propertyCount(); ++i) {
+        result->m_values[i] = Value();
+    }
+    return result;
+}
+
 ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectGetResult v = getVirtualValue(state, P);

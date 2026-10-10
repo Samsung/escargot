@@ -368,6 +368,7 @@ public:
 
     unsigned* allocateRegExpMatchBuffer(size_t count);
     void releaseRegExpMatchBuffer(unsigned* buffer, size_t count);
+    ObjectStructure* regExpResultStructure(bool hasIndices);
 
     void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
     {
@@ -558,6 +559,8 @@ private:
     ObjectStructure* m_defaultStructureForWrappedFunctionObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
+    Optional<ObjectStructure*> m_regexpResultStructure;
+    Optional<ObjectStructure*> m_regexpResultWithIndicesStructure;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
