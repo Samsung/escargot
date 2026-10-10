@@ -151,19 +151,10 @@ static Value builtinRegExpExecImpl(ExecutionState& state, Value thisValue, Value
 
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
-        int e = result.matchAt(0, 0).m_end;
-        if (option & RegExpObject::Option::Unicode) {
-            char16_t utfRes = (static_cast<size_t>(e) == str->length()) ? 0 : str->charAt(e);
-            const char* buf = reinterpret_cast<const char*>(&utfRes);
-            size_t len = strnlen(buf, 2);
-            size_t eUTF = len == 0 ? str->length() : (str->find(buf, len, 0));
-            if ((int)eUTF > e || e == (int)str->length()) {
-                e = eUTF;
-            }
-        }
-
         if (option & (RegExpObject::Option::Sticky | RegExpObject::Option::Global)) {
-            regexp->setLastIndex(state, Value(e));
+            // Yarr already reports UTF-16 code-unit offsets, including in
+            // Unicode mode. They are also the units required by lastIndex.
+            regexp->setLastIndex(state, Value(result.matchAt(0, 0).m_end));
         }
 
         if (resultKind != RegExpExecResult::Array && state.context() == regexp->getFunctionRealm(state) && !regexp->legacyFeaturesEnabled()) {

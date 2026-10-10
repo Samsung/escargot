@@ -671,9 +671,17 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
 {
     uint64_t len = result.m_matchResults.size();
 
-    ArrayObject* arr = new ArrayObject(state, len);
-    arr->directDefineOwnProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.matchAt(0, 0).m_start)));
-    arr->directDefineOwnProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
+    // Like V8 AllocateRegExpResult, initialize a shared result layout and its
+    // own values directly instead of transitioning once per named property.
+    // https://github.com/v8/v8/blob/15.5.35.20/src/builtins/builtins-regexp-gen.cc
+    // Full-input captures already have the required immutable string value.
+    ArrayObject* arr = ArrayObject::createRegExpResult(state, len, result.matchAt(0, 0).m_start, input, option() & HasIndices);
+    auto captureString = [&](const RegexMatchResult::RegexMatchResultPiece& match) -> String* {
+        if (!match.m_start && match.m_end == input->length()) {
+            return input;
+        }
+        return input->substring(match.m_start, match.m_end, &state);
+    };
 
     size_t idx = 0;
     for (unsigned i = 0; i < result.matchCount(); i++) {
@@ -681,14 +689,14 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             if (result.matchAt(i, j).m_start == std::numeric_limits<unsigned>::max()) {
                 arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
             } else {
-                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(input->substring(result.matchAt(i, j).m_start, result.matchAt(i, j).m_end, &state)));
+                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(captureString(result.matchAt(i, j))));
             }
         }
     }
 
     if (option() & HasIndices) {
         ArrayObject* indices = new ArrayObject(state, len);
-        arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().indices), ObjectPropertyDescriptor(Value(indices), ObjectPropertyDescriptor::AllPresent));
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().indices), ObjectPropertyDescriptor(Value(indices), ObjectPropertyDescriptor::AllPresent));
 
         size_t idx = 0;
         for (unsigned i = 0; i < result.matchCount(); i++) {
@@ -729,29 +737,15 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
     }
 
-    if (yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
-        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
-    } else {
+    if (!yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
         Object* groups = new Object(state, Object::PrototypeIsNull);
         for (auto it = yarrPatternSlot()->m_captureGroupNames.begin(); it != yarrPatternSlot()->m_captureGroupNames.end(); ++it) {
             auto foundMapElement = yarrPatternSlot()->m_namedGroupToParenIndices.find(*it);
             if (foundMapElement != yarrPatternSlot()->m_namedGroupToParenIndices.end()) {
                 Value value;
                 for (size_t i = 0; i < foundMapElement->second.size(); i++) {
-                    Value indexValue;
                     size_t index = foundMapElement->second[i];
-                    size_t indicesIndex = 0;
-                    for (unsigned i = 0; i < result.matchCount(); i++) {
-                        for (unsigned j = 0; j < result.captureCount(); j++) {
-                            if (indicesIndex == index) {
-                                if (result.matchAt(i, j).m_start != std::numeric_limits<unsigned>::max()) {
-                                    indexValue = input->substring(result.matchAt(i, j).m_start, result.matchAt(i, j).m_end, &state);
-                                }
-                                break;
-                            }
-                            indicesIndex++;
-                        }
-                    }
+                    Value indexValue = arr->getOwnProperty(state, ObjectPropertyName(state, index)).value(state, arr);
 
                     if (!indexValue.isUndefinedOrNull()) {
                         value = indexValue;
@@ -762,7 +756,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
                                                 ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
             }
         }
-        arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
     }
 
     // FIXME RegExp should have own Realm internal slot when allocated

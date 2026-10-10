@@ -179,6 +179,8 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForWrappedFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForStringObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpResultStructure));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpResultWithIndicesStructure));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
@@ -334,6 +336,24 @@ void VMInstance::releaseRegExpMatchBuffer(unsigned* buffer, size_t count)
         return;
     }
     std::allocator<unsigned>().deallocate(buffer, count);
+}
+
+ObjectStructure* VMInstance::regExpResultStructure(bool hasIndices)
+{
+    auto& cached = hasIndices ? m_regexpResultWithIndicesStructure : m_regexpResultStructure;
+    if (!cached) {
+        // Share only the immutable property layout, never result values or
+        // prototypes. Create the layout on first use in this VM.
+        auto descriptor = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
+        ObjectStructure* structure = m_defaultStructureForObject->addProperty(m_staticStrings.index, descriptor);
+        structure = structure->addProperty(m_staticStrings.input, descriptor);
+        if (hasIndices) {
+            structure = structure->addProperty(m_staticStrings.indices, descriptor);
+        }
+        cached = structure->addProperty(m_staticStrings.groups, descriptor);
+        cached.value()->markReferencedByInlineCache();
+    }
+    return cached.value();
 }
 
 VMInstance::~VMInstance()
