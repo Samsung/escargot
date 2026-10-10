@@ -517,7 +517,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     size_t len = 0, previousLastIndex = 0;
     bool testResult;
     RegexMatchResult temp;
-    temp.m_matchResults.push_back(result.m_matchResults[0]);
+    temp.m_matchResults.push_back(std::move(result.m_matchResults[0]));
     result.m_matchResults.clear();
     do {
         const size_t maximumReasonableMatchSize = 1000000000;
@@ -537,7 +537,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
             ++end;
         }
         for (size_t i = 0; i < temp.m_matchResults.size(); i++) {
-            result.m_matchResults.push_back(temp.m_matchResults[i]);
+            result.m_matchResults.push_back(std::move(temp.m_matchResults[i]));
         }
         len++;
         temp.m_matchResults.clear();

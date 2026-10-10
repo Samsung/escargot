@@ -25,6 +25,38 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2019 the V8 project authors. All rights reserved.
+ * Copyright 2014, the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "WTFBridge.h"
 #include "YarrPattern.h"
 
@@ -2372,6 +2404,7 @@ void CharacterClass::initializeLatin1Bitmap()
     if (m_hasLatin1Bitmap)
         return;
     memset(m_latin1Bitmap, 0, sizeof(m_latin1Bitmap));
+    m_hasNonLatin1Matches = m_anyCharacter;
     auto add = [this](char32_t ch) {
         m_latin1Bitmap[ch >> 5] |= 1u << (ch & 31);
     };
@@ -2386,13 +2419,38 @@ void CharacterClass::initializeLatin1Bitmap()
             add(ch);
     }
     for (auto ch : m_matchesUnicode) {
+        m_hasNonLatin1Matches |= ch > 0xff;
         if (ch >= 0x80 && ch <= 0xff)
             add(ch);
     }
     for (auto range : m_rangesUnicode) {
+        m_hasNonLatin1Matches |= range.end > 0xff;
         for (char32_t ch = std::max<char32_t>(range.begin, 0x80); ch <= std::min<char32_t>(range.end, 0xff); ++ch)
             add(ch);
     }
+    // Adapted from V8 ChoiceNode::MaybeEmitFixedLengthConsumeScan: cache
+    // a one- or two-character exit set. Non-Latin1 membership determines
+    // whether that exit set is also complete for a legacy UTF-16 subject.
+    // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/regexp/regexp-compiler.cc
+    unsigned matches = 0;
+    unsigned nonMatches = 0;
+    m_latin1SmallMatches[1] = 0x100;
+    m_latin1SmallNonMatches[1] = 0x100;
+    for (unsigned ch = 0; ch < 256; ++ch) {
+        if (m_latin1Bitmap[ch >> 5] & (1u << (ch & 31))) {
+            if (matches < 2)
+                m_latin1SmallMatches[matches] = ch;
+            ++matches;
+        } else {
+            if (nonMatches < 2)
+                m_latin1SmallNonMatches[nonMatches] = ch;
+            ++nonMatches;
+        }
+    }
+    if (!matches || matches > 2)
+        m_latin1SmallMatches[0] = 0x100;
+    if (!nonMatches || nonMatches > 2)
+        m_latin1SmallNonMatches[0] = 0x100;
     m_hasLatin1Bitmap = true;
 }
 
