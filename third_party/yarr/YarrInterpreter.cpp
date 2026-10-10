@@ -577,10 +577,11 @@ public:
         }
 
         // Inspired by V8 BoyerMooreLookahead search prefilters. This
-        // Yarr-specific absence check also handles variable-width prefixes;
-        // it does not change the candidate position or alternative order.
+        // Yarr-specific check also handles variable-width prefixes, where
+        // only absence can reject a match. A leading atom can instead advance
+        // directly to the next candidate without a second prefix scan.
         // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/regexp/regexp-compiler.cc
-        bool containsRequiredAtom(const Vector<LChar>& atom)
+        bool containsRequiredAtom(const Vector<LChar>& atom, bool advanceToAtom = false)
         {
             unsigned length = atom.size();
             if (length > static_cast<size_t>(inputEnd - current))
@@ -593,14 +594,20 @@ public:
                     if (!found)
                         return false;
                     cursor = found.value();
-                    if (!memcmp(cursor, &atom[0], length))
+                    if (!memcmp(cursor, &atom[0], length)) {
+                        if (advanceToAtom)
+                            current = cursor;
                         return true;
+                    }
                 } else if (*cursor == atom[0]) {
                     unsigned i = 1;
                     while (i < length && cursor[i] == atom[i])
                         ++i;
-                    if (i == length)
+                    if (i == length) {
+                        if (advanceToAtom)
+                            current = cursor;
                         return true;
+                    }
                 }
                 ++cursor;
             }
@@ -832,6 +839,8 @@ public:
     {
         if (pattern->m_fixedPrefixSearch) {
             const auto& search = *pattern->m_fixedPrefixSearch.value();
+            if (search.requiredAtomIsPrefix)
+                return input.containsRequiredAtom(search.requiredAtom, true);
             if (search.length) {
                 while (input.isAvailableInput(search.length)) {
                     if (search.singleLatin1Character <= 0xff
@@ -2124,14 +2133,6 @@ public:
         if (btrack)
             BACKTRACK();
 
-        // Only the body may skip start offsets; a parentheses/assertion
-        // disjunction has to match exactly where its caller left the input.
-        // A once-through alternative has to try the requested position. Do
-        // not scan ahead before its BOL check; the body search loop will skip
-        // anchored alternatives and filter later starts if necessary.
-        if (disjunction == pattern->m_body.get() && !disjunction->terms[0].alternative.onceThrough && !advanceToPossibleStart())
-            return JSRegExpResult::NoMatch;
-
         context->matchBegin = input.getPos();
         context->term = disjunction->terms.data();
 
@@ -2688,9 +2689,22 @@ public:
         if (pattern->hasEndAnchoredFixedSize() && input.end() >= pattern->m_endAnchoredFixedSize)
             input.setPos(std::max(input.getPos(), input.end() - pattern->m_endAnchoredFixedSize));
 
-        if (pattern->m_fixedPrefixSearch && !pattern->m_fixedPrefixSearch.value()->requiredAtom.isEmpty()
-            && !input.containsRequiredAtom(pattern->m_fixedPrefixSearch.value()->requiredAtom))
+        // Inspired by V8 RegExpNode::EmitQuickCheck, specialized for a
+        // Yarr body whose start filter permits only the anchored position.
+        // Reject its impossible first character before searching the entire
+        // suffix for a mandatory literal or allocating backtracking state.
+        // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/regexp/regexp-compiler.cc
+        if (pattern->m_startCharFilter.valid && pattern->m_startCharFilter.fixedPosition
+            && !advanceToPossibleStart())
             return offsetNoMatch;
+
+        bool initialStartFiltered = false;
+        if (pattern->m_fixedPrefixSearch && !pattern->m_fixedPrefixSearch.value()->requiredAtom.isEmpty()) {
+            const auto& search = *pattern->m_fixedPrefixSearch.value();
+            if (!input.containsRequiredAtom(search.requiredAtom, search.requiredAtomIsPrefix))
+                return offsetNoMatch;
+            initialStartFiltered = search.requiredAtomIsPrefix;
+        }
 
         using SpecificPattern = BytecodePattern::SpecificPattern;
         if (pattern->m_specificPattern == SpecificPattern::Newlines) {
@@ -2766,13 +2780,11 @@ public:
             return offsetNoMatch;
         }
 
-        // Inspired by V8 RegExpNode::EmitQuickCheck, specialized for a
-        // Yarr body whose start filter permits only the anchored position.
-        // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/regexp/regexp-compiler.cc
-        // An anchored body cannot search later starts. Reject its impossible
-        // first character before allocating interpreter backtracking state.
-        if (pattern->m_startCharFilter.valid && pattern->m_startCharFilter.fixedPosition
-            && !advanceToPossibleStart())
+        // Only the body may skip initial starts; parentheses/assertions
+        // match exactly where their caller left the input. A once-through
+        // alternative must try the requested position before its BOL check.
+        // A leading required atom has already located this initial candidate.
+        if (!pattern->m_body->terms[0].alternative.onceThrough && !initialStartFiltered && !advanceToPossibleStart())
             return offsetNoMatch;
 
         for (unsigned i = 0; i < pattern->m_body->m_numSubpatterns + 1; ++i)
@@ -2938,21 +2950,31 @@ public:
         // A literal beyond a variable-width prefix still has to occur in
         // every successful match. Require the same mandatory literal in
         // every alternative, including copies split by beginning anchors.
+        // A leading literal can drive candidate search directly, rather than
+        // scanning the same suffix again with the shorter fixed prefix. A
+        // later literal still only rejects absence: its position cannot skip
+        // candidate starts after a variable-width prefix.
         if (!pattern.eitherUnicode() && search.atoms.isEmpty()) {
             bool first = true;
             for (auto& alternative : body.value()->m_alternatives) {
                 Vector<LChar> longest;
                 Vector<LChar> candidate;
+                bool followsNonliteral = false;
+                bool longestFollowsNonliteral = false;
                 for (auto& term : alternative->m_terms) {
                     if (term.type == PatternTerm::Type::PatternCharacter && term.matchDirection() == Forward
                         && !term.ignoreCase() && term.quantityMinCount == 1 && term.quantityMaxCount == 1
                         && term.patternCharacter <= 0xff) {
                         if (candidate.size() < 16)
                             candidate.append(static_cast<LChar>(term.patternCharacter));
-                        if (candidate.size() > longest.size())
+                        if (candidate.size() > longest.size()) {
                             longest = candidate;
-                    } else
+                            longestFollowsNonliteral = followsNonliteral;
+                        }
+                    } else {
                         candidate.clear();
+                        followsNonliteral = true;
+                    }
                 }
                 if (longest.size() < 4 || longest.size() <= search.length) {
                     search.requiredAtom.clear();
@@ -2960,14 +2982,19 @@ public:
                 }
                 if (first) {
                     search.requiredAtom = WTFMove(longest);
+                    search.requiredAtomIsPrefix = search.length && !longestFollowsNonliteral;
                     first = false;
                 } else if (longest.size() != search.requiredAtom.size()
                     || memcmp(&longest[0], &search.requiredAtom[0], longest.size())) {
                     search.requiredAtom.clear();
                     break;
+                } else {
+                    search.requiredAtomIsPrefix &= search.length && !longestFollowsNonliteral;
                 }
             }
         }
+        if (search.requiredAtom.isEmpty())
+            search.requiredAtomIsPrefix = false;
         if (!search.length && search.atoms.isEmpty() && search.requiredAtom.isEmpty())
             return nullptr;
         return new FixedPrefixSearch(WTFMove(search));

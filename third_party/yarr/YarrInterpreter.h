@@ -578,6 +578,7 @@ struct FixedPrefixSearch {
     unsigned longestAtomLength { 0 };
     bool anchoredStart { false };
     bool anchoredEnd { false };
+    bool requiredAtomIsPrefix { false };
 };
 
 struct BytecodePattern : public gc {
