@@ -17,6 +17,37 @@
  *  USA
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2014, 2017 the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
@@ -340,11 +371,290 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
+// Sparse replacement slices share one source string and one atomic array.
+// Materialize only when a caller needs contiguous characters.
+class ReplacementSlicesString : public String {
+public:
+    struct Slice {
+        uint32_t begin;
+        uint32_t end;
+        uint32_t outputOffset;
+    };
+
+    ReplacementSlicesString(String* source, Slice* slices, size_t sliceCount, size_t length)
+        : m_source(source)
+        , m_slices(slices)
+        , m_sliceCount(sliceCount)
+    {
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = length;
+    }
+
+    void* operator new(size_t size)
+    {
+        static MAY_THREAD_LOCAL bool typeInitialized = false;
+        static MAY_THREAD_LOCAL GC_descr descriptor;
+        if (!typeInitialized) {
+            GC_word bitmap[GC_BITMAP_SIZE(ReplacementSlicesString)] = { 0 };
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_bufferData.buffer));
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_source));
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_slices));
+            descriptor = GC_make_descriptor(bitmap, GC_WORD_LEN(ReplacementSlicesString));
+            typeInitialized = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descriptor);
+    }
+
+    virtual char16_t charAt(size_t index) const override
+    {
+        ASSERT(index < length());
+        if (!m_source || !m_slices) {
+            return m_bufferData.uncheckedCharAtFor8Bit(index);
+        }
+        const Slice* slices = m_slices.value();
+        size_t low = 0;
+        size_t high = m_sliceCount;
+        while (low + 1 < high) {
+            size_t middle = low + (high - low) / 2;
+            if (slices[middle].outputOffset <= index) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        return m_source.value()->charAt(slices[low].begin + index - slices[low].outputOffset);
+    }
+
+protected:
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        if (!m_source || !m_slices) {
+            return m_bufferData;
+        }
+        auto input = m_source.value()->bufferAccessData();
+        ASSERT(input.has8BitContent);
+        LChar* result = static_cast<LChar*>(GC_MALLOC_ATOMIC(length()));
+        const Slice* slices = m_slices.value();
+        for (size_t i = 0; i < m_sliceCount; ++i) {
+            memcpy(result + slices[i].outputOffset, input.bufferAs8Bit + slices[i].begin,
+                   slices[i].end - slices[i].begin);
+        }
+        m_bufferData.buffer = result;
+        m_bufferData.hasSpecialImpl = false;
+        m_source.reset();
+        m_slices.reset();
+        return m_bufferData;
+    }
+
+private:
+    Optional<String*> m_source;
+    Optional<Slice*> m_slices;
+    size_t m_sliceCount;
+};
+
+template <typename Character, typename MatchAt>
+static void copyUnmatchedRanges(const StringBufferAccessData& input, size_t matchCount, MatchAt matchAt, Character* output, size_t expectedLength)
+{
+    size_t position = 0;
+    auto copyRange = [&](size_t begin, size_t end) {
+        size_t count = end - begin;
+        if (!count)
+            return;
+        if (sizeof(*output) == 1 && input.has8BitContent)
+            memcpy(output + position, input.bufferAs8Bit + begin, count);
+        else if (sizeof(*output) == 2 && !input.has8BitContent)
+            memcpy(output + position, input.bufferAs16Bit + begin, count * sizeof(char16_t));
+        else {
+            for (size_t i = begin; i < end; ++i)
+                output[position + i - begin] = input.charAt(i);
+        }
+        position += count;
+    };
+    size_t end = 0;
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        copyRange(end, match.m_start);
+        end = match.m_end;
+    }
+    copyRange(end, input.length);
+    ASSERT(position == expectedLength);
+}
+
+// Adapted from V8 StringReplaceGlobalAtomRegExpWithString's empty-replacement
+// copy loop. Reuse the already validated match ranges for any pattern; matching,
+// captures, lastIndex, legacy RegExp state and observable calls stay upstream.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+template <typename MatchAt>
+static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, size_t matchCount, MatchAt matchAt)
+{
+    auto input = string->bufferAccessData();
+    size_t length = input.length;
+    size_t previousEnd = 0;
+    size_t sliceCount = 0;
+    bool latin1 = true;
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        ASSERT(match.m_start >= previousEnd && match.m_end >= match.m_start && match.m_end <= input.length);
+        length -= match.m_end - match.m_start;
+        sliceCount += match.m_start > previousEnd;
+        if (!input.has8BitContent && latin1) {
+            for (size_t i = previousEnd; i < match.m_start; ++i) {
+                if (input.bufferAs16Bit[i] > 0xff) {
+                    latin1 = false;
+                    break;
+                }
+            }
+        }
+        previousEnd = match.m_end;
+    }
+    sliceCount += previousEnd < input.length;
+    if (!input.has8BitContent && latin1) {
+        for (size_t i = previousEnd; i < input.length; ++i) {
+            if (input.bufferAs16Bit[i] > 0xff) {
+                latin1 = false;
+                break;
+            }
+        }
+    }
+    if (!length)
+        return String::emptyString();
+    if (UNLIKELY(length > STRING_MAXIMUM_LENGTH))
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+
+    // V8 RegExpReplaceGlobalSimpleString composes unmatched substring slices
+    // with StringAdd instead of copying the complete result eagerly.
+    // https://github.com/v8/v8/blob/15.5.35.20/src/builtins/builtins-regexp-gen.cc
+    // Bound metadata size, require twice its cost in avoided buffer bytes, and
+    // avoid keeping a much larger input alive for a small result.
+    constexpr size_t minimumResultLength = 1024;
+    // Keep the offset array small and avoid adding many GC-traced nodes.
+    constexpr size_t maximumSliceCount = 16;
+    using Slice = ReplacementSlicesString::Slice;
+    size_t retainedSourceLength = input.length;
+    if (string->hasSpecialImpl() && string->isStringView()) {
+        retainedSourceLength = static_cast<StringView*>(string)->underlyingString()->length();
+    }
+    if (input.has8BitContent && length >= minimumResultLength && length >= retainedSourceLength - length
+        && input.length <= std::numeric_limits<uint32_t>::max() && sliceCount <= maximumSliceCount
+        && sizeof(ReplacementSlicesString) + sliceCount * sizeof(Slice) <= length / 2) {
+        if (sliceCount == 1) {
+            size_t begin = 0;
+            for (size_t i = 0; i < matchCount; ++i) {
+                const auto& match = matchAt(i);
+                if (begin < match.m_start) {
+                    return string->substring(begin, match.m_start, &state);
+                }
+                begin = match.m_end;
+            }
+            return string->substring(begin, input.length, &state);
+        }
+        Slice* slices = static_cast<Slice*>(GC_MALLOC_ATOMIC(sliceCount * sizeof(Slice)));
+        size_t begin = 0;
+        size_t index = 0;
+        size_t outputOffset = 0;
+        auto appendSlice = [&](size_t end) {
+            if (begin < end) {
+                slices[index++] = { static_cast<uint32_t>(begin), static_cast<uint32_t>(end), static_cast<uint32_t>(outputOffset) };
+                outputOffset += end - begin;
+            }
+        };
+        for (size_t i = 0; i < matchCount; ++i) {
+            const auto& match = matchAt(i);
+            appendSlice(match.m_start);
+            begin = match.m_end;
+        }
+        appendSlice(input.length);
+        ASSERT(index == sliceCount && outputOffset == length);
+        return new ReplacementSlicesString(string, slices, sliceCount, length);
+    }
+    if (latin1) {
+        Latin1StringData data;
+        data.resizeWithUninitializedValues(length);
+        copyUnmatchedRanges(input, matchCount, matchAt, data.data(), length);
+        return new Latin1String(std::move(data));
+    }
+    UTF16StringData data;
+    data.resizeWithUninitializedValues(length);
+    copyUnmatchedRanges(input, matchCount, matchAt, data.data(), length);
+    return new UTF16String(std::move(data));
+}
+
+// V8's atom replacement path collects literal match offsets together, bypassing
+// per-match interpreter calls and capture-vector allocation. Keep this path
+// restricted to nonempty ASCII source without regexp syntax, case folding or
+// sticky matching; escaped literals and all other patterns use Yarr unchanged.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+static bool canRemoveLiteralMatches(RegExpObject* regexp)
+{
+    if (regexp->option() & (RegExpObject::Option::IgnoreCase | RegExpObject::Option::Sticky)) {
+        return false;
+    }
+    auto source = regexp->source()->bufferAccessData();
+    if (!source.length || !source.has8BitContent) {
+        return false;
+    }
+    for (size_t i = 0; i < source.length; ++i) {
+        auto ch = static_cast<unsigned char>(source.bufferAs8Bit[i]);
+        if (ch > 0x7f || strchr("^$\\.*+?()[]{}|/", ch)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// V8 GetRewoundRegexpIndicesList / TruncateRegexpIndicesList retain a bounded
+// start-index buffer between calls. Move its storage into a local owner while
+// it is in use so a reentrant call cannot overwrite the outer match offsets.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+class LiteralMatchIndices {
+public:
+    LiteralMatchIndices()
+    {
+        m_indices.swap(ThreadLocal::regexpMatchIndices());
+        ASSERT(m_indices.empty());
+    }
+
+    ~LiteralMatchIndices()
+    {
+        constexpr size_t maximumRetainedCapacity = 8192 / sizeof(unsigned);
+        auto& cached = ThreadLocal::regexpMatchIndices();
+        if (m_indices.capacity() <= maximumRetainedCapacity && m_indices.capacity() > cached.capacity()) {
+            m_indices.clear();
+            m_indices.swap(cached);
+        }
+    }
+
+    std::vector<unsigned>& indices()
+    {
+        return m_indices;
+    }
+
+private:
+    std::vector<unsigned> m_indices;
+};
+
+static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp)
+{
+    LiteralMatchIndices storage;
+    auto& matches = storage.indices();
+    regexp->collectLiteralMatches(state, string, matches);
+    if (matches.empty()) {
+        return string;
+    }
+    const unsigned matchLength = regexp->source()->length();
+    return stringRemoveMatchedRanges(state, string, matches.size(), [&](size_t i) -> RegexMatchResult::RegexMatchResultPiece {
+        return { matches[i], matches[i] + matchLength };
+    });
+}
+
 static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
 {
     ASSERT(string && replaceString);
 
     auto replaceStringBad = replaceString->bufferAccessData();
+    if (!replaceStringBad.length && result.m_matchResults.size() > 1)
+        return stringRemoveMatchedRanges(state, string, result.m_matchResults.size(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.m_matchResults[i][0]; });
     bool hasDollar = false;
     for (size_t i = 0; i < replaceStringBad.length; i++) {
         if (replaceStringBad.charAt(i) == '$') {
@@ -488,11 +798,12 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             if (isGlobal) {
                 regexp->setLastIndex(state, Value(0));
             }
+            if (isGlobal && replaceValue.isString() && !replaceValue.asString()->length() && canRemoveLiteralMatches(regexp)) {
+                return stringRemoveLiteralMatches(state, string, regexp);
+            }
             bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
-            if (testResult) {
-                if (isGlobal) {
-                    regexp->createRegexMatchResult(state, string, result);
-                }
+            if (testResult && isGlobal) {
+                regexp->createRegexMatchResult(state, string, result);
             }
         } else {
             ASSERT(searchString);

@@ -17,6 +17,37 @@
  *  USA
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2014 the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "Escargot.h"
 #include "ThreadLocal.h"
 #include "RegExpObject.h"
@@ -369,6 +400,63 @@ RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(
 }
 
 
+// Adapted from V8 FindStringIndices / StringReplaceGlobalAtomRegExpWithString:
+// collect literal offsets directly, including the first match, without Yarr or
+// per-match capture vectors. The caller admits only nonempty ASCII literals
+// without syntax, case folding, or sticky matching.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, std::vector<unsigned>& matches)
+{
+    ASSERT(!(option() & (Option::IgnoreCase | Option::Sticky)));
+    ASSERT(source()->length() && matches.empty());
+    auto& legacy = state.context()->regexpLegacyFeatures();
+    legacy.input = string;
+    m_lastExecutedString = string;
+    String* source = this->source();
+    const size_t matchLength = source->length();
+    auto input = string->bufferAccessData();
+    auto literal = source->bufferAccessData();
+    size_t position = 0;
+    if (input.length < matchLength) {
+        return;
+    }
+    while (position <= input.length - matchLength) {
+        if (input.has8BitContent) {
+            Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
+            if (!found) {
+                break;
+            }
+            position = found.value() - input.bufferAs8Bit;
+            if (memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength)) {
+                ++position;
+                continue;
+            }
+        } else {
+            if (input.bufferAs16Bit[position] != literal.bufferAs8Bit[0]) {
+                ++position;
+                continue;
+            }
+            size_t i = 1;
+            for (; i < matchLength && input.bufferAs16Bit[position + i] == literal.bufferAs8Bit[i]; ++i) {}
+            if (i < matchLength) {
+                ++position;
+                continue;
+            }
+        }
+        matches.push_back(position);
+        position += matchLength;
+    }
+    if (matches.empty()) {
+        return;
+    }
+    const size_t last = matches.back();
+    legacy.dollarCount = 0;
+    legacy.lastParen = StringView();
+    legacy.lastMatch = StringView(string, last, last + matchLength);
+    legacy.leftContext = StringView(string, 0, last);
+    legacy.rightContext = StringView(string, last + matchLength, string->length());
+}
+
 bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
     Option prevOption = option();
@@ -517,7 +605,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     size_t len = 0, previousLastIndex = 0;
     bool testResult;
     RegexMatchResult temp;
-    temp.m_matchResults.push_back(result.m_matchResults[0]);
+    temp.m_matchResults.push_back(std::move(result.m_matchResults[0]));
     result.m_matchResults.clear();
     do {
         const size_t maximumReasonableMatchSize = 1000000000;
@@ -537,7 +625,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
             ++end;
         }
         for (size_t i = 0; i < temp.m_matchResults.size(); i++) {
-            result.m_matchResults.push_back(temp.m_matchResults[i]);
+            result.m_matchResults.push_back(std::move(temp.m_matchResults[i]));
         }
         len++;
         temp.m_matchResults.clear();
