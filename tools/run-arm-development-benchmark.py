@@ -181,7 +181,28 @@ def main():
             spec = importlib.util.spec_from_file_location('monthly', harness / 'tools/monthly-engine-benchmark.py')
             monthly = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(monthly)
-            monthly.build_wtb()
+            # Share the exact generated inputs across source revisions and
+            # runner workspaces. Webpack embeds workspace-dependent paths.
+            wtb = harness / 'test/web-tooling-benchmark'
+            identity = hashlib.sha256((revision(wtb) + hashlib.sha256(
+                (harness / 'tools/monthly-engine-benchmark.py').read_bytes()).hexdigest()
+                + subprocess.check_output(['node', '--version'], text=True)).encode()).hexdigest()
+            bundles = Path.home() / '.cache/escargot-benchmark-inputs' / identity
+            if not bundles.is_dir():
+                monthly.build_wtb()
+                bundles.parent.mkdir(parents=True, exist_ok=True)
+                staging = Path(tempfile.mkdtemp(prefix='inputs.', dir=bundles.parent))
+                shutil.copytree(wtb / 'dist', staging / 'dist')
+                staging.rename(bundles)
+            shutil.copytree(bundles / 'dist', wtb / 'dist', dirs_exist_ok=True)
+            (report / 'benchmark-inputs.json').write_text(json.dumps({
+                'bundle_identity': identity,
+                'wtb_revision': revision(wtb),
+                'octane_revision': revision(harness / 'test/octane'),
+                'vendortest_revision': revision(harness / 'test/vendortest'),
+                'wtb_cli_sha256': hashlib.sha256((wtb / 'dist/cli.js').read_bytes()).hexdigest(),
+                'wtb_memory_sha256': hashlib.sha256((wtb / 'dist/memory.js').read_bytes()).hexdigest(),
+            }, indent=2) + '\n')
             if profile:
                 prepare_perf(report)
             run(['docker', 'pull', '--platform', 'linux/arm/v7', 'arm32v7/ubuntu:24.04'])
