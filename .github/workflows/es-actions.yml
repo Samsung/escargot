@@ -648,11 +648,15 @@ jobs:
       # The ARM runner services share one physical host. Normal jobs retain a
       # shared lock so that they may overlap each other, while a performance
       # job takes this same file exclusively for an idle-host measurement.
-      - name: Acquire shared performance-host lock
+      # Separate runner services share /system and /apex. Hold an exclusive
+      # Android lock from artifact download through the last test so another
+      # job cannot truncate mapped bionic libraries while they are in use.
+      - name: Acquire performance-host and Android runtime locks
         shell: bash
         run: |
           lock_dir="$HOME/.cache/escargot-locks"
           lock_file="$lock_dir/performance-host.lock"
+          android_lock_file="$lock_dir/android-baremetal.lock"
           ready_file="$(mktemp "$RUNNER_TEMP/performance-host-lock.XXXXXX")"
           rm -f "$ready_file"
           install -d -m 700 "$lock_dir"
@@ -665,9 +669,9 @@ jobs:
           # it would wedge the exclusive performance-benchmark lock
           # forever instead of just until this lease expires.
           lease_seconds=14400 # 4h, comfortably above this lock's real hold times
-          RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" &
+          RUNNER_TRACKING_ID="" bash -c 'exec 9>"$1"; flock -s 9; exec 8>"$4"; flock -x 8; printf acquired > "$2"; exec sleep "$3"' bash "$lock_file" "$ready_file" "$lease_seconds" "$android_lock_file" &
           lock_pid=$!
-          # A performance run may hold the exclusive lock for several minutes.
+          # Wait for benchmarks or another Android job to release its lock.
           for _ in $(seq 1 3600); do
             test -s "$ready_file" && break
             kill -0 "$lock_pid" 2>/dev/null || exit 1
@@ -760,7 +764,7 @@ jobs:
           cd ../..
           grep -q ': Passed$' test262-result.log
 
-      - name: Release shared performance-host lock
+      - name: Release performance-host and Android runtime locks
         if: always()
         shell: bash
         run: |
