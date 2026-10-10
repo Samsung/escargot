@@ -17,6 +17,37 @@
  *  USA
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2019 the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
@@ -90,7 +121,13 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
     return regexp;
 }
 
-static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+enum class RegExpExecResult {
+    Array,
+    Index,
+    MatchedString,
+};
+
+static Value builtinRegExpExecImpl(ExecutionState& state, Value thisValue, Value argument, RegExpExecResult resultKind)
 {
     Object* thisObject = thisValue.toObject(state);
     if (!thisObject->isRegExpObject()) {
@@ -98,7 +135,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
     unsigned int option = regexp->option();
-    String* str = argv[0].toString(state);
+    String* str = argument.toString(state);
     uint64_t lastIndex = 0;
     if (option & (RegExpObject::Global | RegExpObject::Sticky)) {
         lastIndex = regexp->computedLastIndex(state);
@@ -113,7 +150,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
 
     RegexMatchResult result;
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
-        int e = result.m_matchResults[0][0].m_end;
+        int e = result.matchAt(0, 0).m_end;
         if (option & RegExpObject::Option::Unicode) {
             char16_t utfRes = (static_cast<size_t>(e) == str->length()) ? 0 : str->charAt(e);
             const char* buf = reinterpret_cast<const char*>(&utfRes);
@@ -128,6 +165,16 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
             regexp->setLastIndex(state, Value(e));
         }
 
+        if (resultKind != RegExpExecResult::Array && state.context() == regexp->getFunctionRealm(state) && !regexp->legacyFeaturesEnabled()) {
+            state.context()->regexpLegacyFeatures().invalidate();
+        }
+        if (resultKind == RegExpExecResult::Index) {
+            return Value(result.matchAt(0, 0).m_start);
+        }
+        if (resultKind == RegExpExecResult::MatchedString) {
+            const auto& match = result.matchAt(0, 0);
+            return str->substring(match.m_start, match.m_end, &state);
+        }
         return regexp->createRegExpMatchedArray(state, result, str);
     }
 
@@ -138,20 +185,36 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     return Value(Value::Null);
 }
 
-static Value regExpExec(ExecutionState& state, Object* R, String* S)
+static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return builtinRegExpExecImpl(state, thisValue, argv[0], RegExpExecResult::Array);
+}
+
+// Adapted from V8's RegExpPrototypeSearchBodyFast and
+// RegExpPrototypeExecBodyWithoutResultFast: search needs only the match index.
+// Global match likewise needs only the complete match, as in V8's
+// RegExpPrototypeMatchBody / RegExpMatchGlobal.
+// Keep the observable exec lookup and lastIndex operations in their original
+// order, and share builtin exec's capture and legacy-state updates.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/builtins/regexp-search.tq
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/builtins/regexp-match.tq
+static Value regExpExec(ExecutionState& state, Object* R, String* S, RegExpExecResult resultKind = RegExpExecResult::Array)
 {
     ASSERT(R->isObject());
     ASSERT(S->isString());
     Value exec = R->get(state, ObjectPropertyName(state.context()->staticStrings().exec)).value(state, R);
     Value arg[1] = { S };
     if (exec.isCallable()) {
+        if (resultKind != RegExpExecResult::Array && R->isRegExpObject() && exec == state.context()->globalObject()->regexpExecMethod()) {
+            return builtinRegExpExecImpl(state, R, S, resultKind);
+        }
         Value result = Object::call(state, exec, R, 1, arg);
         if (result.isNull() || result.isObject()) {
             return result;
         }
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
-    return builtinRegExpExec(state, R, 1, arg, nullptr);
+    return builtinRegExpExecImpl(state, R, S, resultKind);
 }
 
 static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -245,7 +308,7 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, Value(0))) {
         rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
     }
-    Value result = regExpExec(state, rx, s);
+    Value result = regExpExec(state, rx, s, RegExpExecResult::Index);
 
     Value currentLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
     if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, currentLastIndex)) {
@@ -253,9 +316,11 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     }
     if (result.isNull()) {
         return Value(-1);
-    } else {
-        return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
     }
+    if (result.isNumber()) {
+        return result;
+    }
+    return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
 }
 
 // $21.2.5.11 RegExp.prototype[@@split]
@@ -558,7 +623,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     // 21.2.5.6.8.g.i
     while (true) {
         // 21.2.5.6.8.g.i
-        Value result = regExpExec(state, rx.asObject(), str);
+        Value result = regExpExec(state, rx.asObject(), str, RegExpExecResult::MatchedString);
         // 21.2.5.6.8.g.iii
         if (result.isNull()) {
             if (n == 0) {
@@ -567,8 +632,8 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
             return A;
         } else {
             // 21.2.5.6.8.g.iv
-            Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
-            A->defineOwnProperty(state, ObjectPropertyName(state, Value(n).toString(state)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
+            Value matchStr = result.isString() ? result : result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
+            A->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
             if (matchStr.asString()->length() == 0) {
                 // 21.2.5.6.8.g.iv.5
                 uint64_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);

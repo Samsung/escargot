@@ -361,6 +361,14 @@ public:
         return m_regexpOptionStringCache;
     }
 
+    size_t regexpMatchBufferCapacity() const
+    {
+        return m_regexpMatchBufferCapacity;
+    }
+
+    unsigned* allocateRegExpMatchBuffer(size_t count);
+    void releaseRegExpMatchBuffer(unsigned* buffer, size_t count);
+
     void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
     {
         m_onVMInstanceDestroy = onVMInstanceDestroy;
@@ -829,6 +837,11 @@ public:
         // protected slot by being looked up a second time.
         m_atomicStringLookupCache.insertProbation(src, len, resultString);
     }
+
+private:
+    // Free native storage only: no strings or GC-managed objects are retained.
+    Optional<unsigned*> m_regexpMatchBuffer;
+    size_t m_regexpMatchBufferCapacity { 0 };
 };
 } // namespace Escargot
 

@@ -37,13 +37,76 @@ struct BytecodePattern;
 
 namespace Escargot {
 
+class VMInstance;
+
+class LiteralMatchIndices {
+public:
+    explicit LiteralMatchIndices(VMInstance* vmInstance);
+    ~LiteralMatchIndices();
+    LiteralMatchIndices(const LiteralMatchIndices&) = delete;
+    LiteralMatchIndices& operator=(const LiteralMatchIndices&) = delete;
+
+    bool empty() const { return m_end == m_buffer; }
+    size_t size() const
+    {
+        return m_buffer ? m_end.value() - m_buffer.value() : 0;
+    }
+
+    unsigned operator[](size_t index) const
+    {
+        ASSERT(m_buffer && index < size());
+        return m_buffer.value()[index];
+    }
+
+    unsigned back() const
+    {
+        ASSERT(m_buffer && !empty());
+        return m_end.value()[-1];
+    }
+
+    void push_back(unsigned index)
+    {
+        if (m_end == m_capacityEnd) {
+            grow();
+        }
+        ASSERT(m_end);
+        *m_end.value() = index;
+        m_end = m_end.value() + 1;
+    }
+
+private:
+    void grow();
+    Optional<unsigned*> m_buffer;
+    Optional<unsigned*> m_end;
+    Optional<unsigned*> m_capacityEnd;
+    VMInstance* m_vmInstance;
+};
+
 struct RegexMatchResult {
     struct RegexMatchResultPiece {
         unsigned m_start, m_end;
     };
     COMPILE_ASSERT((sizeof(RegexMatchResultPiece)) == (sizeof(unsigned) * 2), sizeof_RegexMatchResultPiece_wrong);
-    int m_subPatternNum;
-    std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
+    int m_subPatternNum { 0 };
+    // Captures of successive matches share one contiguous offset buffer.
+    // No strings or GC-managed values are stored here.
+    std::vector<RegexMatchResultPiece> m_matchResults;
+
+    size_t captureCount() const { return m_subPatternNum + 1; }
+    size_t matchCount() const { return m_matchResults.size() / captureCount(); }
+
+    const RegexMatchResultPiece& matchAt(size_t matchIndex, size_t captureIndex) const
+    {
+        ASSERT(matchIndex < matchCount() && captureIndex < captureCount());
+        return m_matchResults[matchIndex * captureCount() + captureIndex];
+    }
+
+    void append(const RegexMatchResult& result)
+    {
+        ASSERT(m_matchResults.empty() || captureCount() == result.captureCount());
+        m_subPatternNum = result.m_subPatternNum;
+        m_matchResults.insert(m_matchResults.end(), result.m_matchResults.begin(), result.m_matchResults.end());
+    }
 };
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -152,7 +215,7 @@ public:
         return res;
     }
 
-    void collectLiteralMatches(ExecutionState& state, String* str, std::vector<unsigned>& matches);
+    void collectLiteralMatches(ExecutionState& state, String* str, LiteralMatchIndices& matches);
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     uint32_t getOptions(ExecutionState& state);

@@ -173,7 +173,6 @@ class ThreadLocal {
     static MAY_THREAD_LOCAL GCEventListenerSet* g_gcEventListenerSet;
     static MAY_THREAD_LOCAL ASTAllocator* g_astAllocator;
     static MAY_THREAD_LOCAL WTF::BumpPointerAllocator* g_bumpPointerAllocator;
-    static MAY_THREAD_LOCAL Optional<std::vector<unsigned>*> g_regexpMatchIndices;
 #if defined(ENABLE_TCO)
     static MAY_THREAD_LOCAL Value* g_tcoBuffer;
 #endif
@@ -386,8 +385,6 @@ public:
         ASSERT(inited && !!g_bumpPointerAllocator);
         return g_bumpPointerAllocator;
     }
-
-    static std::vector<unsigned>& regexpMatchIndices();
 
 #if defined(ENABLE_TCO)
     static Value* tcoBuffer()
