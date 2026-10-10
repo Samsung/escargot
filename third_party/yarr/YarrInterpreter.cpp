@@ -912,6 +912,12 @@ public:
         if (inputChar == errorCodePoint)
             return false;
 
+        if (term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion) {
+            ASSERT(!isEitherUnicodeCompilation() && term.matchDirection() == Forward);
+            return testCharacterClass(term.atom.characterClass, inputChar) != term.invert()
+                && !testCharacterClass(term.atom.secondaryCharacterClass, inputChar);
+        }
+
         bool match;
         // Escargot update for `built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-p.js`
         if (term.m_flags.contains(Flags::IgnoreCase) && term.m_flags.contains(Flags::Unicode)) {
@@ -1199,7 +1205,8 @@ public:
 
     bool matchCharacterClass(ByteTerm& term, DisjunctionContext* context)
     {
-        ASSERT(term.type == ByteTerm::Type::CharacterClass);
+        ASSERT(term.type == ByteTerm::Type::CharacterClass
+            || term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion);
         BackTrackInfoCharacterClass* backTrack = reinterpret_cast<BackTrackInfoCharacterClass*>(context->frame + term.frameLocation);
 
         switch (term.atom.quantityType) {
@@ -1315,7 +1322,8 @@ public:
 
     bool backtrackCharacterClass(ByteTerm& term, DisjunctionContext* context)
     {
-        ASSERT(term.type == ByteTerm::Type::CharacterClass);
+        ASSERT(term.type == ByteTerm::Type::CharacterClass
+            || term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion);
         BackTrackInfoCharacterClass* backTrack = reinterpret_cast<BackTrackInfoCharacterClass*>(context->frame + term.frameLocation);
 
         switch (term.atom.quantityType) {
@@ -2181,6 +2189,34 @@ public:
             if (input.matchesLiteral16(currentTerm()))
                 MATCH_NEXT();
             BACKTRACK();
+        case ByteTerm::Type::CheckInputLiteral:
+            if (!input.checkInput(currentTerm().frameLocation))
+                BACKTRACK();
+            if (input.matchesLiteral(currentTerm()))
+                MATCH_NEXT();
+            input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
+        case ByteTerm::Type::CheckInputLiteral16:
+            if (!input.checkInput(currentTerm().frameLocation))
+                BACKTRACK();
+            if (input.matchesLiteral16(currentTerm()))
+                MATCH_NEXT();
+            input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
+        case ByteTerm::Type::CheckInputCharacter:
+            if (!input.checkInput(currentTerm().frameLocation))
+                BACKTRACK();
+            if ((input.readCheckedDontAdvance(currentTerm().inputPosition) | currentTerm().literal.masks[0]) == currentTerm().literal.characters[0])
+                MATCH_NEXT();
+            input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
+        case ByteTerm::Type::CheckInputCharacter16:
+            if (!input.checkInput(currentTerm().frameLocation))
+                BACKTRACK();
+            if ((input.readCheckedDontAdvance(currentTerm().inputPosition) | currentTerm().literal16.masks[0]) == currentTerm().literal16.characters[0])
+                MATCH_NEXT();
+            input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
         case ByteTerm::Type::PatternCharacterOnce:
         case ByteTerm::Type::PatternCharacterFixed: {
             DUMP_CURR_CHAR();
@@ -2359,10 +2395,29 @@ public:
         }
 
         case ByteTerm::Type::CharacterClass:
+        case ByteTerm::Type::CharacterClassWithNegativeAssertion:
             DUMP_CURR_CHAR();
             if (matchCharacterClass(currentTerm(), context))
                 MATCH_NEXT();
             BACKTRACK();
+        case ByteTerm::Type::CheckInputCapturedCharacterClass:
+            if (!input.checkInput(currentTerm().frameLocation))
+                BACKTRACK();
+            FALLTHROUGH;
+        case ByteTerm::Type::CapturedCharacterClass: {
+            unsigned captureOffset = currentTerm().atom.parenthesesWidth << 1;
+            if (checkCharacterClass(currentTerm(), currentTerm().inputPosition)) {
+                unsigned begin = input.getPos() - currentTerm().inputPosition;
+                output[captureOffset] = begin;
+                output[captureOffset + 1] = begin + 1;
+                MATCH_NEXT();
+            }
+            output[captureOffset] = offsetNoMatch;
+            output[captureOffset + 1] = offsetNoMatch;
+            if (currentTerm().type == ByteTerm::Type::CheckInputCapturedCharacterClass)
+                input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
+        }
         case ByteTerm::Type::BackReference:
             if (matchBackReference(currentTerm(), context))
                 MATCH_NEXT();
@@ -2510,6 +2565,13 @@ public:
         case ByteTerm::Type::PatternLiteral16:
             BACKTRACK();
 
+        case ByteTerm::Type::CheckInputLiteral:
+        case ByteTerm::Type::CheckInputLiteral16:
+        case ByteTerm::Type::CheckInputCharacter:
+        case ByteTerm::Type::CheckInputCharacter16:
+            input.uncheckInput(currentTerm().frameLocation);
+            BACKTRACK();
+
         case ByteTerm::Type::PatternCharacterOnce:
         case ByteTerm::Type::PatternCharacterFixed:
         case ByteTerm::Type::PatternCharacterGreedy:
@@ -2525,9 +2587,19 @@ public:
                 MATCH_NEXT();
             BACKTRACK();
         case ByteTerm::Type::CharacterClass:
+        case ByteTerm::Type::CharacterClassWithNegativeAssertion:
             if (backtrackCharacterClass(currentTerm(), context))
                 MATCH_NEXT();
             BACKTRACK();
+        case ByteTerm::Type::CheckInputCapturedCharacterClass:
+            input.uncheckInput(currentTerm().frameLocation);
+            FALLTHROUGH;
+        case ByteTerm::Type::CapturedCharacterClass: {
+            unsigned captureOffset = currentTerm().atom.parenthesesWidth << 1;
+            output[captureOffset] = offsetNoMatch;
+            output[captureOffset + 1] = offsetNoMatch;
+            BACKTRACK();
+        }
         case ByteTerm::Type::BackReference:
             if (backtrackBackReference(currentTerm(), context))
                 MATCH_NEXT();
@@ -3471,6 +3543,46 @@ public:
         m_bodyDisjunction->terms.append(ByteTerm::WordBoundary(invert, matchDirection, inputPosition, flags));
     }
 
+    struct GuardedClassTerm {
+        const CharacterClass* guard;
+        const CharacterClass* characterClass;
+        bool invert;
+        OptionSet<Flags> flags;
+    };
+
+    std::optional<GuardedClassTerm> guardedClassFor(PatternTerm& parent)
+    {
+        if (m_pattern.eitherUnicode() || parent.matchDirection() != Forward || parent.capture()
+            || parent.containsAnyCaptures() || parent.parentheses.isTerminal || parent.m_possessive)
+            return std::nullopt;
+        bool fixedOnce = parent.quantityType == QuantifierType::FixedCount && parent.quantityMinCount == 1
+            && parent.quantityMaxCount == 1 && !parent.parentheses.isCopy;
+        bool greedy = parent.quantityType == QuantifierType::Greedy && !parent.quantityMinCount;
+        if (!fixedOnce && !greedy)
+            return std::nullopt;
+        auto& alternatives = parent.parentheses.disjunction->m_alternatives;
+        if (alternatives.size() != 1 || alternatives[0]->m_terms.size() != 2)
+            return std::nullopt;
+        auto& assertion = alternatives[0]->m_terms[0];
+        auto& consumer = alternatives[0]->m_terms[1];
+        if (assertion.type != PatternTerm::Type::ParentheticalAssertion || !assertion.invert()
+            || assertion.matchDirection() != Forward || assertion.containsAnyCaptures()
+            || assertion.quantityType != QuantifierType::FixedCount || assertion.quantityMaxCount != 1
+            || consumer.type != PatternTerm::Type::CharacterClass || consumer.matchDirection() != Forward
+            || consumer.quantityType != QuantifierType::FixedCount || consumer.quantityMaxCount != 1
+            || assertion.inputPosition != consumer.inputPosition)
+            return std::nullopt;
+        auto& guardAlternatives = assertion.parentheses.disjunction->m_alternatives;
+        if (guardAlternatives.size() != 1 || guardAlternatives[0]->m_terms.size() != 1)
+            return std::nullopt;
+        auto& guard = guardAlternatives[0]->m_terms[0];
+        if (guard.type != PatternTerm::Type::CharacterClass || guard.invert() || guard.matchDirection() != Forward
+            || guard.quantityType != QuantifierType::FixedCount || guard.quantityMaxCount != 1
+            || guard.m_currentFlags != consumer.m_currentFlags)
+            return std::nullopt;
+        return GuardedClassTerm { guard.characterClass, consumer.characterClass, consumer.invert(), consumer.m_currentFlags };
+    }
+
     void appendPatternCharacter(ByteTerm term)
     {
         // Fuse before control-flow offsets are finalized. Fixed BMP literals
@@ -3498,7 +3610,29 @@ public:
         uint16_t character, mask;
         if (term.matchDirection() == Forward && literalCharacter(term, character, mask) && !m_bodyDisjunction->terms.isEmpty()) {
             auto& previous = m_bodyDisjunction->terms.last();
+            if (previous.type == ByteTerm::Type::CheckInput) {
+                unsigned count = previous.checkInputCount;
+                previous = term;
+                previous.frameLocation = count;
+                memset(&previous.literal, 0, sizeof(previous.literal));
+                if (character <= 0xff) {
+                    previous.type = ByteTerm::Type::CheckInputCharacter;
+                    previous.literal.characters[0] = character;
+                    previous.literal.masks[0] = mask;
+                    previous.literal.length = 1;
+                } else {
+                    previous.type = ByteTerm::Type::CheckInputCharacter16;
+                    previous.literal16.characters[0] = character;
+                    previous.literal16.masks[0] = mask;
+                    previous.literal16.length = 1;
+                }
+                return;
+            }
             if (previous.matchDirection() == Forward) {
+                if (previous.type == ByteTerm::Type::CheckInputCharacter)
+                    previous.type = ByteTerm::Type::CheckInputLiteral;
+                if (previous.type == ByteTerm::Type::CheckInputCharacter16)
+                    previous.type = ByteTerm::Type::CheckInputLiteral16;
                 uint16_t previousCharacter, previousMask;
                 if (literalCharacter(previous, previousCharacter, previousMask) && previous.inputPosition == term.inputPosition + 1) {
                     bool latin1 = previousCharacter <= 0xff && character <= 0xff;
@@ -3514,7 +3648,8 @@ public:
                         previous.literal16.length = 1;
                     }
                 }
-                if (previous.type == ByteTerm::Type::PatternLiteral && character > 0xff
+                bool checkedLiteral = previous.type == ByteTerm::Type::CheckInputLiteral;
+                if ((previous.type == ByteTerm::Type::PatternLiteral || checkedLiteral) && character > 0xff
                     && previous.literal.length < 4 && previous.inputPosition == term.inputPosition + previous.literal.length) {
                     unsigned length = previous.literal.length;
                     uint16_t characters[4] { }, masks[4] { };
@@ -3522,12 +3657,12 @@ public:
                         characters[i] = previous.literal.characters[i];
                         masks[i] = previous.literal.masks[i];
                     }
-                    previous.type = ByteTerm::Type::PatternLiteral16;
+                    previous.type = checkedLiteral ? ByteTerm::Type::CheckInputLiteral16 : ByteTerm::Type::PatternLiteral16;
                     memcpy(previous.literal16.characters, characters, sizeof(characters));
                     memcpy(previous.literal16.masks, masks, sizeof(masks));
                     previous.literal16.length = length;
                 }
-                if (previous.type == ByteTerm::Type::PatternLiteral && character <= 0xff
+                if ((previous.type == ByteTerm::Type::PatternLiteral || previous.type == ByteTerm::Type::CheckInputLiteral) && character <= 0xff
                     && previous.literal.length < sizeof(previous.literal.characters)
                     && previous.inputPosition == term.inputPosition + previous.literal.length) {
                     unsigned i = previous.literal.length++;
@@ -3535,7 +3670,7 @@ public:
                     previous.literal.masks[i] = mask;
                     return;
                 }
-                if (previous.type == ByteTerm::Type::PatternLiteral16 && previous.literal16.length < 4
+                if ((previous.type == ByteTerm::Type::PatternLiteral16 || previous.type == ByteTerm::Type::CheckInputLiteral16) && previous.literal16.length < 4
                     && previous.inputPosition == term.inputPosition + previous.literal16.length) {
                     unsigned i = previous.literal16.length++;
                     previous.literal16.characters[i] = character;
@@ -3812,6 +3947,31 @@ public:
         bool capture = m_bodyDisjunction->terms[beginTerm].capture();
         unsigned subpatternId = m_bodyDisjunction->terms[beginTerm].subpatternId();
 
+        // A fixed single-class capture has no alternatives or variable-width
+        // state to restore. Fuse its capture writes with the class comparison
+        // before the enclosing alternative's offsets are finalized.
+        if (capture && !m_pattern.eitherUnicode() && !m_pattern.hasDuplicateNamedCaptureGroups()
+            && quantityType == QuantifierType::FixedCount && quantityMaxCount == 1
+            && m_bodyDisjunction->terms[beginTerm].matchDirection() == Forward && endTerm == beginTerm + 2) {
+            ByteTerm term = m_bodyDisjunction->terms[beginTerm + 1];
+            if (term.type == ByteTerm::Type::CharacterClass && term.matchDirection() == Forward
+                && term.atom.quantityType == QuantifierType::FixedCount && term.atom.quantityMaxCount == 1
+                && term.inputPosition == m_bodyDisjunction->terms[beginTerm].inputPosition
+                && term.inputPosition == inputPosition + 1) {
+                term.type = ByteTerm::Type::CapturedCharacterClass;
+                term.atom.parenthesesWidth = subpatternId;
+                term.m_capture = true;
+                m_bodyDisjunction->terms.shrink(beginTerm);
+                if (beginTerm && m_bodyDisjunction->terms.last().type == ByteTerm::Type::CheckInput) {
+                    term.type = ByteTerm::Type::CheckInputCapturedCharacterClass;
+                    term.frameLocation = m_bodyDisjunction->terms.last().checkInputCount;
+                    m_bodyDisjunction->terms.last() = term;
+                } else
+                    m_bodyDisjunction->terms.append(term);
+                return;
+            }
+        }
+
         m_bodyDisjunction->terms.append(ByteTerm(ByteTerm::Type::ParenthesesSubpatternOnceEnd, subpatternId, capture, false, inputPosition, m_currentFlags));
         if (m_bodyDisjunction->terms[beginTerm].matchDirection() == Backward) {
             // Swap input positions for backward captures.
@@ -4016,6 +4176,28 @@ public:
                     break;
 
                 case PatternTerm::Type::ParenthesesSubpattern: {
+                    if (matchDirection == Forward) {
+                        if (auto guarded = guardedClassFor(term)) {
+                            auto inputPosition = currentCountAlreadyChecked - term.inputPosition;
+                            if (inputPosition.hasOverflowed())
+                                return ErrorCode::OffsetTooLarge;
+                            // Fixed groups store their end offset; zero-minimum
+                            // variable groups store their start offset.
+                            if (term.quantityType == QuantifierType::FixedCount)
+                                inputPosition += 1;
+                            if (inputPosition.hasOverflowed())
+                                return ErrorCode::OffsetTooLarge;
+                            ByteTerm guardedTerm(guarded->characterClass, guarded->invert, inputPosition, guarded->flags);
+                            guardedTerm.type = ByteTerm::Type::CharacterClassWithNegativeAssertion;
+                            guardedTerm.atom.secondaryCharacterClass = guarded->guard;
+                            guardedTerm.atom.quantityMinCount = term.quantityType == QuantifierType::FixedCount ? 1 : 0;
+                            guardedTerm.atom.quantityMaxCount = term.quantityMaxCount;
+                            guardedTerm.atom.quantityType = term.quantityType;
+                            guardedTerm.frameLocation = term.frameLocation;
+                            m_bodyDisjunction->terms.append(guardedTerm);
+                            break;
+                        }
+                    }
                     unsigned disjunctionAlreadyCheckedCount = 0;
                     if (term.quantityMaxCount == 1 && !term.parentheses.isCopy) {
                         unsigned alternativeFrameLocation = term.frameLocation;
