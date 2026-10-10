@@ -49,6 +49,7 @@
  */
 
 #include "Escargot.h"
+#include "heap/ScopedGCBuffer.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
@@ -484,6 +485,10 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     Value replaceValue = argv[1];
     size_t lengthStr = str->length();
     bool functionalReplace = replaceValue.isCallable();
+    // Async functions can retain argv in their paused execution state.
+    // Wrapped/native callables do not expose that ownership here.
+    bool canFreeReplacerArgs = functionalReplace && replaceValue.asObject()->isScriptFunctionObject()
+        && !replaceValue.asObject()->isScriptAsyncFunctionObject();
     bool fullUnicode = false;
     String* replacement = String::emptyString();
     size_t nextSourcePosition = 0;
@@ -549,18 +554,21 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         }
         size_t n = 1;
         StringVector captures;
-        Value* replacerArgs = nullptr;
+        Optional<Value*> replacerArgs;
         Value namedCaptures = result->get(state, ObjectPropertyName(state, state.context()->staticStrings().groups)).value(state, result);
         size_t replacerArgsSize = nCaptures + 3;
         if (functionalReplace) {
-            if (namedCaptures.isUndefined()) {
-                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value);
-            } else {
-                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 4), Value);
+            if (!namedCaptures.isUndefined()) {
                 replacerArgsSize++;
-                replacerArgs[nCaptures + 3] = namedCaptures;
             }
-            replacerArgs[0] = matched;
+            replacerArgs = ALLOCA(sizeof(Value) * replacerArgsSize, Value);
+        }
+        ScopedGCBuffer replacerArgsOwner(canFreeReplacerArgs && sizeof(Value) * replacerArgsSize >= ALLOCA_STACK_LIMIT ? replacerArgs.unwrap() : nullptr);
+        if (replacerArgs) {
+            if (!namedCaptures.isUndefined()) {
+                replacerArgs.value()[nCaptures + 3] = namedCaptures;
+            }
+            replacerArgs.value()[0] = matched;
         }
         while (n <= nCaptures) {
             Value capN = result->get(state, ObjectPropertyName(state, Value(n))).value(state, result);
@@ -569,16 +577,18 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
             } else {
                 captures.push_back(String::emptyString());
             }
-            if (functionalReplace) {
-                replacerArgs[n] = capN;
+            if (replacerArgs) {
+                replacerArgs.value()[n] = capN;
             }
             n++;
         }
         if (functionalReplace) {
-            replacerArgs[nCaptures + 1] = Value((size_t)position);
-            replacerArgs[nCaptures + 2] = Value(str);
+            if (replacerArgs) {
+                replacerArgs.value()[nCaptures + 1] = Value((size_t)position);
+                replacerArgs.value()[nCaptures + 2] = Value(str);
+            }
 
-            replacement = Object::call(state, replaceValue, Value(), replacerArgsSize, replacerArgs).toString(state);
+            replacement = Object::call(state, replaceValue, Value(), replacerArgsSize, replacerArgs.unwrap()).toString(state);
         } else {
             replacement = String::getSubstitution(state, matched, str, position, captures, namedCaptures, replaceValue.toString(state));
         }

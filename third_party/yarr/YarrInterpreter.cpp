@@ -2797,8 +2797,10 @@ public:
         RELEASE_ASSERT(allocatorPool);
 
         DisjunctionContext* context = allocDisjunctionContext(pattern->m_body.get());
-        if (UNLIKELY(!context))
+        if (UNLIKELY(!context)) {
+            pattern->m_allocator->stopAllocator();
             return offsetNoMatch;
+        }
 
         dataLogLnIf(verbose, "  Interpret input: ", input, "\n  Matching");
 
