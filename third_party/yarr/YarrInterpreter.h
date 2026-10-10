@@ -91,6 +91,8 @@ struct ByteTerm {
             };
             union {
                 ByteDisjunction* parenthesesDisjunction;
+                // Non-null for guarded character-class instructions.
+                const CharacterClass* secondaryCharacterClass;
                 unsigned parenthesesWidth;
             };
             QuantifierType quantityType;
@@ -138,12 +140,19 @@ struct ByteTerm {
         PatternCharacterNonGreedy,
         PatternLiteral,
         PatternLiteral16,
+        // The input check count occupies the otherwise unused frameLocation.
+        CheckInputLiteral,
+        CheckInputLiteral16,
+        CheckInputCharacter,
+        CheckInputCharacter16,
         // Cased Characeter Types
         PatternCasedCharacterOnce,
         PatternCasedCharacterFixed,
         PatternCasedCharacterGreedy,
         PatternCasedCharacterNonGreedy,
         CharacterClass,
+        CapturedCharacterClass,
+        CheckInputCapturedCharacterClass,
         BackReference,
         ParenthesesSubpattern,
         ParenthesesSubpatternOnceBegin,
@@ -156,6 +165,7 @@ struct ByteTerm {
         UncheckInput,
         HaveCheckedInput,
         DotStarEnclosure,
+        CharacterClassWithNegativeAssertion,
     };
     Type type;
     OptionSet<Flags> m_flags;
@@ -445,7 +455,9 @@ struct ByteTerm {
 
     bool isCharacterClass()
     {
-        return type == Type::CharacterClass;
+        return type == Type::CharacterClass || type == Type::CapturedCharacterClass
+            || type == Type::CheckInputCapturedCharacterClass
+            || type == Type::CharacterClassWithNegativeAssertion;
     }
 
     bool containsAnyCaptures()
