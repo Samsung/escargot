@@ -110,6 +110,7 @@ MAY_THREAD_LOCAL GCEventListenerSet* ThreadLocal::g_gcEventListenerSet;
 static MAY_THREAD_LOCAL GC_on_mark_stack_empty_proc g_previousMarkStackEmptyListener;
 MAY_THREAD_LOCAL ASTAllocator* ThreadLocal::g_astAllocator;
 MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
+MAY_THREAD_LOCAL Optional<std::vector<unsigned>*> ThreadLocal::g_regexpMatchIndices;
 #if defined(ENABLE_TCO)
 MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
 #endif
@@ -750,6 +751,15 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     inited = true;
 }
 
+std::vector<unsigned>& ThreadLocal::regexpMatchIndices()
+{
+    ASSERT(inited);
+    if (!g_regexpMatchIndices) {
+        g_regexpMatchIndices = new std::vector<unsigned>();
+    }
+    return *g_regexpMatchIndices.value();
+}
+
 void ThreadLocal::finalize()
 {
     ESCARGOT_RELEASE_ASSERT(inited);
@@ -806,6 +816,11 @@ void ThreadLocal::finalize()
     // g_bumpPointerAllocator
     delete g_bumpPointerAllocator;
     g_bumpPointerAllocator = nullptr;
+
+    if (g_regexpMatchIndices) {
+        delete g_regexpMatchIndices.value();
+        g_regexpMatchIndices.reset();
+    }
 
     // g_gcEpoch
     g_gcEpoch = 0;

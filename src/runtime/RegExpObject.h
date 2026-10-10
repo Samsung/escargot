@@ -152,6 +152,7 @@ public:
         return res;
     }
 
+    void collectLiteralMatches(ExecutionState& state, String* str, std::vector<unsigned>& matches);
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     uint32_t getOptions(ExecutionState& state);
