@@ -17,6 +17,37 @@
  *  USA
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2014 the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
@@ -340,11 +371,163 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
+template <typename Character, typename MatchAt>
+static void copyUnmatchedRanges(const StringBufferAccessData& input, size_t matchCount, MatchAt matchAt, Character* output, size_t expectedLength)
+{
+    size_t position = 0;
+    auto copyRange = [&](size_t begin, size_t end) {
+        size_t count = end - begin;
+        if (!count)
+            return;
+        if (sizeof(*output) == 1 && input.has8BitContent)
+            memcpy(output + position, input.bufferAs8Bit + begin, count);
+        else if (sizeof(*output) == 2 && !input.has8BitContent)
+            memcpy(output + position, input.bufferAs16Bit + begin, count * sizeof(char16_t));
+        else {
+            for (size_t i = begin; i < end; ++i)
+                output[position + i - begin] = input.charAt(i);
+        }
+        position += count;
+    };
+    size_t end = 0;
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        copyRange(end, match.m_start);
+        end = match.m_end;
+    }
+    copyRange(end, input.length);
+    ASSERT(position == expectedLength);
+}
+
+// Adapted from V8 StringReplaceGlobalAtomRegExpWithString's empty-replacement
+// copy loop. Reuse the already validated match ranges for any pattern; matching,
+// captures, lastIndex, legacy RegExp state and observable calls stay upstream.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+template <typename MatchAt>
+static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, size_t matchCount, MatchAt matchAt)
+{
+    auto input = string->bufferAccessData();
+    size_t length = input.length;
+    size_t previousEnd = 0;
+    bool latin1 = true;
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        ASSERT(match.m_start >= previousEnd && match.m_end >= match.m_start && match.m_end <= input.length);
+        length -= match.m_end - match.m_start;
+        if (!input.has8BitContent && latin1) {
+            for (size_t i = previousEnd; i < match.m_start; ++i) {
+                if (input.bufferAs16Bit[i] > 0xff) {
+                    latin1 = false;
+                    break;
+                }
+            }
+        }
+        previousEnd = match.m_end;
+    }
+    if (!input.has8BitContent && latin1) {
+        for (size_t i = previousEnd; i < input.length; ++i) {
+            if (input.bufferAs16Bit[i] > 0xff) {
+                latin1 = false;
+                break;
+            }
+        }
+    }
+    if (!length)
+        return String::emptyString();
+    if (UNLIKELY(length > STRING_MAXIMUM_LENGTH))
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+
+    if (latin1) {
+        Latin1StringData data;
+        data.resizeWithUninitializedValues(length);
+        copyUnmatchedRanges(input, matchCount, matchAt, data.data(), length);
+        return new Latin1String(std::move(data));
+    }
+    UTF16StringData data;
+    data.resizeWithUninitializedValues(length);
+    copyUnmatchedRanges(input, matchCount, matchAt, data.data(), length);
+    return new UTF16String(std::move(data));
+}
+
+// V8's atom replacement path collects literal match offsets together, bypassing
+// per-match interpreter calls and capture-vector allocation. Keep this path
+// restricted to nonempty ASCII source without regexp syntax, case folding or
+// sticky matching; escaped literals and all other patterns use Yarr unchanged.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+static bool canRemoveLiteralMatches(RegExpObject* regexp)
+{
+    if (regexp->option() & (RegExpObject::Option::IgnoreCase | RegExpObject::Option::Sticky)) {
+        return false;
+    }
+    auto source = regexp->source()->bufferAccessData();
+    if (!source.length || !source.has8BitContent) {
+        return false;
+    }
+    for (size_t i = 0; i < source.length; ++i) {
+        auto ch = static_cast<unsigned char>(source.bufferAs8Bit[i]);
+        if (ch > 0x7f || strchr("^$\\.*+?()[]{}|/", ch)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp, const RegexMatchResult::RegexMatchResultPiece& firstMatch)
+{
+    String* source = regexp->source();
+    const size_t matchLength = source->length();
+    ASSERT(matchLength && firstMatch.m_end - firstMatch.m_start == matchLength);
+    // The initial global lastIndex reset and first Yarr match have already
+    // run. Non-sticky matching leaves lastIndex at zero throughout collection.
+    std::vector<RegexMatchResult::RegexMatchResultPiece> matches;
+    matches.push_back(firstMatch);
+    auto input = string->bufferAccessData();
+    auto literal = source->bufferAccessData();
+    size_t position = firstMatch.m_end;
+    while (position <= input.length - matchLength) {
+        if (input.has8BitContent) {
+            Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
+            if (!found) {
+                break;
+            }
+            position = found.value() - input.bufferAs8Bit;
+            if (memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength)) {
+                ++position;
+                continue;
+            }
+        } else {
+            if (input.bufferAs16Bit[position] != literal.bufferAs8Bit[0]) {
+                ++position;
+                continue;
+            }
+            size_t i = 1;
+            for (; i < matchLength && input.bufferAs16Bit[position + i] == literal.bufferAs8Bit[i]; ++i) {}
+            if (i < matchLength) {
+                ++position;
+                continue;
+            }
+        }
+        RegexMatchResult::RegexMatchResultPiece match;
+        match.m_start = position;
+        match.m_end = position + matchLength;
+        matches.push_back(match);
+        position += matchLength;
+    }
+    const auto& last = matches.back();
+    auto& legacy = state.context()->regexpLegacyFeatures();
+    legacy.lastMatch = StringView(string, last.m_start, last.m_end);
+    legacy.leftContext = StringView(string, 0, last.m_start);
+    legacy.rightContext = StringView(string, last.m_end, string->length());
+    return stringRemoveMatchedRanges(state, string, matches.size(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return matches[i]; });
+}
+
 static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
 {
     ASSERT(string && replaceString);
 
     auto replaceStringBad = replaceString->bufferAccessData();
+    if (!replaceStringBad.length && result.m_matchResults.size() > 1)
+        return stringRemoveMatchedRanges(state, string, result.m_matchResults.size(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.m_matchResults[i][0]; });
     bool hasDollar = false;
     for (size_t i = 0; i < replaceStringBad.length; i++) {
         if (replaceStringBad.charAt(i) == '$') {
@@ -491,6 +674,9 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
             if (testResult) {
                 if (isGlobal) {
+                    if (replaceValue.isString() && !replaceValue.asString()->length() && canRemoveLiteralMatches(regexp)) {
+                        return stringRemoveLiteralMatches(state, string, regexp, result.m_matchResults[0][0]);
+                    }
                     regexp->createRegexMatchResult(state, string, result);
                 }
             }

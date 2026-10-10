@@ -23,6 +23,38 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
+/*
+ * Portions adapted from V8 RegExp optimizations.
+ * Copyright 2019 the V8 project authors. All rights reserved.
+ * Copyright 2014, the V8 project authors. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #pragma once
 
 #include "YarrErrorCode.h"
@@ -514,6 +546,8 @@ struct StartCharFilter {
     // surrogate.
     bool mayStartAboveLatin1 { false };
     bool valid { false };
+    bool fixedPosition { false };
+    uint16_t singleLatin1Character { 0x100 };
 };
 
 struct FixedPrefixSearch {
@@ -521,8 +555,14 @@ struct FixedPrefixSearch {
     StartCharFilter positions[maxLength];
     uint8_t shifts[256] { };
     unsigned length { 0 };
+    uint32_t packedMask { 0 };
+    uint32_t packedValue { 0 };
+    uint16_t singleLatin1Character { 0x100 };
+    uint8_t singleCharacterOffset { 0 };
     // Capture-free, case-sensitive literal alternatives bypass bytecode.
     Vector<Vector<UChar>> atoms;
+    // A required literal may occur after a variable-width prefix.
+    Vector<LChar> requiredAtom;
     unsigned longestAtomLength { 0 };
     bool anchoredStart { false };
     bool anchoredEnd { false };
