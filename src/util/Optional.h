@@ -219,10 +219,7 @@ public:
 
     bool operator==(const Optional<T*>& other) const
     {
-        if (hasValue() != other.hasValue()) {
-            return false;
-        }
-        return hasValue() ? m_value == other.m_value : true;
+        return m_value == other.m_value;
     }
 
     bool operator!=(const Optional<T*>& other) const

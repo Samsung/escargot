@@ -64,6 +64,43 @@
 
 namespace Escargot {
 
+LiteralMatchIndices::LiteralMatchIndices(VMInstance* vmInstance)
+    : m_vmInstance(vmInstance)
+{
+    const size_t capacity = vmInstance->regexpMatchBufferCapacity();
+    if (capacity) {
+        unsigned* buffer = vmInstance->allocateRegExpMatchBuffer(capacity);
+        m_buffer = buffer;
+        m_end = buffer;
+        m_capacityEnd = buffer + capacity;
+    }
+}
+
+LiteralMatchIndices::~LiteralMatchIndices()
+{
+    if (m_buffer) {
+        m_vmInstance->releaseRegExpMatchBuffer(m_buffer.value(), m_capacityEnd.value() - m_buffer.value());
+    }
+}
+
+void LiteralMatchIndices::grow()
+{
+    const size_t length = size();
+    const size_t maximumCapacity = std::allocator<unsigned>().max_size();
+    if (UNLIKELY(length == maximumCapacity)) {
+        throw std::length_error("RegExp match indices exceed maximum size");
+    }
+    const size_t capacity = length > maximumCapacity / 2 ? maximumCapacity : std::max(size_t(1), length * 2);
+    unsigned* buffer = m_vmInstance->allocateRegExpMatchBuffer(capacity);
+    if (m_buffer) {
+        memcpy(buffer, m_buffer.value(), length * sizeof(unsigned));
+        m_vmInstance->releaseRegExpMatchBuffer(m_buffer.value(), length);
+    }
+    m_buffer = buffer;
+    m_end = buffer + length;
+    m_capacityEnd = buffer + capacity;
+}
+
 void* RegExpObject::operator new(size_t size)
 {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -405,7 +442,7 @@ RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(
 // per-match capture vectors. The caller admits only nonempty ASCII literals
 // without syntax, case folding, or sticky matching.
 // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
-void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, std::vector<unsigned>& matches)
+void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, LiteralMatchIndices& matches)
 {
     ASSERT(!(option() & (Option::IgnoreCase | Option::Sticky)));
     ASSERT(source()->length() && matches.empty());
@@ -422,11 +459,15 @@ void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, 
     }
     while (position <= input.length - matchLength) {
         if (input.has8BitContent) {
-            Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
-            if (!found) {
-                break;
+            // Dense literals often begin at the next candidate already.
+            // Avoid calling the scanner again for that known first character.
+            if (input.bufferAs8Bit[position] != literal.bufferAs8Bit[0]) {
+                Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
+                if (!found) {
+                    break;
+                }
+                position = found.value() - input.bufferAs8Bit;
             }
-            position = found.value() - input.bufferAs8Bit;
             if (memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength)) {
                 ++position;
                 continue;
@@ -560,26 +601,18 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 legacyFeatures.rightContext = StringView(str, outputBuf[1], length);
                 return true;
             }
-            std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
-            piece.resize(subPatternNum + 1);
-
-            for (unsigned i = 0; i < subPatternNum + 1; i++) {
-                RegexMatchResult::RegexMatchResultPiece p;
-                p.m_start = outputBuf[i * 2];
-                p.m_end = outputBuf[i * 2 + 1];
-                piece[i] = p;
-            }
-
             if (!lastParenInvalid && subPatternNum) {
-                legacyFeatures.lastParen = StringView(str, piece[maxMatchedIndex].m_start, piece[maxMatchedIndex].m_end);
+                legacyFeatures.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
             } else {
                 legacyFeatures.lastParen = StringView();
             }
 
-            legacyFeatures.leftContext = StringView(str, 0, piece[0].m_start);
-            legacyFeatures.rightContext = StringView(str, piece[maxMatchedIndex].m_end, length);
-            legacyFeatures.lastMatch = StringView(str, piece[0].m_start, piece[0].m_end);
-            matchResult.m_matchResults.push_back(std::vector<RegexMatchResult::RegexMatchResultPiece>(std::move(piece)));
+            legacyFeatures.leftContext = StringView(str, 0, outputBuf[0]);
+            legacyFeatures.rightContext = StringView(str, outputBuf[maxMatchedIndex * 2 + 1], length);
+            legacyFeatures.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
+            size_t offset = matchResult.m_matchResults.size();
+            matchResult.m_matchResults.resize(offset + subPatternNum + 1);
+            memcpy(matchResult.m_matchResults.data() + offset, outputBuf, sizeof(unsigned) * 2 * (subPatternNum + 1));
             if (!isGlobal)
                 break;
             if (start == outputBuf[1]) {
@@ -597,7 +630,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         setLastIndex(state, Value(0));
     }
 
-    return matchResult.m_matchResults.size();
+    return matchResult.matchCount();
 }
 
 void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, RegexMatchResult& result)
@@ -605,7 +638,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     size_t len = 0, previousLastIndex = 0;
     bool testResult;
     RegexMatchResult temp;
-    temp.m_matchResults.push_back(std::move(result.m_matchResults[0]));
+    temp.append(result);
     result.m_matchResults.clear();
     do {
         const size_t maximumReasonableMatchSize = 1000000000;
@@ -619,14 +652,12 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
             previousLastIndex = lastIndex().toIndex(state);
         }
 
-        size_t end = temp.m_matchResults[0][0].m_end;
-        size_t length = end - temp.m_matchResults[0][0].m_start;
+        size_t end = temp.matchAt(0, 0).m_end;
+        size_t length = end - temp.matchAt(0, 0).m_start;
         if (!length) {
             ++end;
         }
-        for (size_t i = 0; i < temp.m_matchResults.size(); i++) {
-            result.m_matchResults.push_back(std::move(temp.m_matchResults[i]));
-        }
+        result.append(temp);
         len++;
         temp.m_matchResults.clear();
         testResult = matchNonGlobally(state, str, temp, false, end);
@@ -635,24 +666,19 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
 
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
 {
-    uint64_t len = 0;
-    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
-        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
-            len++;
-        }
-    }
+    uint64_t len = result.m_matchResults.size();
 
     ArrayObject* arr = new ArrayObject(state, len);
-    arr->directDefineOwnProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
+    arr->directDefineOwnProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.matchAt(0, 0).m_start)));
     arr->directDefineOwnProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
 
     size_t idx = 0;
-    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
-        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
-            if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
+    for (unsigned i = 0; i < result.matchCount(); i++) {
+        for (unsigned j = 0; j < result.captureCount(); j++) {
+            if (result.matchAt(i, j).m_start == std::numeric_limits<unsigned>::max()) {
                 arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
             } else {
-                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state)));
+                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(input->substring(result.matchAt(i, j).m_start, result.matchAt(i, j).m_end, &state)));
             }
         }
     }
@@ -662,14 +688,14 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().indices), ObjectPropertyDescriptor(Value(indices), ObjectPropertyDescriptor::AllPresent));
 
         size_t idx = 0;
-        for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
-            for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
-                if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
+        for (unsigned i = 0; i < result.matchCount(); i++) {
+            for (unsigned j = 0; j < result.captureCount(); j++) {
+                if (result.matchAt(i, j).m_start == std::numeric_limits<unsigned>::max()) {
                     indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
                 } else {
                     ArrayObject* pair = new ArrayObject(state, 2);
-                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 0, Value(result.m_matchResults[i][j].m_start));
-                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 1, Value(result.m_matchResults[i][j].m_end));
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 0, Value(result.matchAt(i, j).m_start));
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 1, Value(result.matchAt(i, j).m_end));
 
                     indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(pair));
                 }
@@ -712,11 +738,11 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
                     Value indexValue;
                     size_t index = foundMapElement->second[i];
                     size_t indicesIndex = 0;
-                    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
-                        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+                    for (unsigned i = 0; i < result.matchCount(); i++) {
+                        for (unsigned j = 0; j < result.captureCount(); j++) {
                             if (indicesIndex == index) {
-                                if (result.m_matchResults[i][j].m_start != std::numeric_limits<unsigned>::max()) {
-                                    indexValue = input->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state);
+                                if (result.matchAt(i, j).m_start != std::numeric_limits<unsigned>::max()) {
+                                    indexValue = input->substring(result.matchAt(i, j).m_start, result.matchAt(i, j).m_end, &state);
                                 }
                                 break;
                             }
@@ -747,15 +773,15 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
 
 void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str)
 {
-    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
-        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+    for (unsigned i = 0; i < result.matchCount(); i++) {
+        for (unsigned j = 0; j < result.captureCount(); j++) {
             if (i == 0 && j == 0)
                 continue;
 
-            if (std::numeric_limits<unsigned>::max() == result.m_matchResults[i][j].m_start) {
+            if (std::numeric_limits<unsigned>::max() == result.matchAt(i, j).m_start) {
                 array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
             } else {
-                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(str->substring(result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end, &state), ObjectPropertyDescriptor::AllPresent));
+                array->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index++)), ObjectPropertyDescriptor(str->substring(result.matchAt(i, j).m_start, result.matchAt(i, j).m_end, &state), ObjectPropertyDescriptor::AllPresent));
             }
             if (index == limit)
                 return;

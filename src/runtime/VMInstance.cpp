@@ -308,6 +308,34 @@ void vmReclaimEndCallback(void* data)
     */
 }
 
+unsigned* VMInstance::allocateRegExpMatchBuffer(size_t count)
+{
+    if (m_regexpMatchBuffer && m_regexpMatchBufferCapacity == count) {
+        unsigned* result = m_regexpMatchBuffer.value();
+        m_regexpMatchBuffer.reset();
+        m_regexpMatchBufferCapacity = 0;
+        return result;
+    }
+    return std::allocator<unsigned>().allocate(count);
+}
+
+void VMInstance::releaseRegExpMatchBuffer(unsigned* buffer, size_t count)
+{
+    // A growing vector can return its old bounded buffer while retaining
+    // exclusive ownership of a larger one. Reentrant calls cannot borrow
+    // storage still owned by another vector.
+    constexpr size_t maximumCapacity = 8192 / sizeof(unsigned);
+    if (count <= maximumCapacity && count > m_regexpMatchBufferCapacity) {
+        if (m_regexpMatchBuffer) {
+            std::allocator<unsigned>().deallocate(m_regexpMatchBuffer.value(), m_regexpMatchBufferCapacity);
+        }
+        m_regexpMatchBuffer = buffer;
+        m_regexpMatchBufferCapacity = count;
+        return;
+    }
+    std::allocator<unsigned>().deallocate(buffer, count);
+}
+
 VMInstance::~VMInstance()
 {
     // set this first; the ByteCodeBlock disclaim callback reads it (through
@@ -383,6 +411,11 @@ VMInstance::~VMInstance()
 #if defined(ENABLE_CODE_CACHE)
     delete m_codeCache;
 #endif
+    if (m_regexpMatchBuffer) {
+        std::allocator<unsigned>().deallocate(m_regexpMatchBuffer.value(), m_regexpMatchBufferCapacity);
+        m_regexpMatchBuffer.reset();
+        m_regexpMatchBufferCapacity = 0;
+    }
 }
 
 VMInstance::VMInstance(const char* locale, const char* timezone, const char* baseCacheDir)

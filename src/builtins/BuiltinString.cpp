@@ -603,41 +603,13 @@ static bool canRemoveLiteralMatches(RegExpObject* regexp)
     return true;
 }
 
-// V8 GetRewoundRegexpIndicesList / TruncateRegexpIndicesList retain a bounded
-// start-index buffer between calls. Move its storage into a local owner while
-// it is in use so a reentrant call cannot overwrite the outer match offsets.
+// V8's bounded indices cache inspires the retention limit. The buffer
+// also recovers bounded storage released when a large match vector grows;
+// active vectors retain exclusive ownership during reentrant calls.
 // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
-class LiteralMatchIndices {
-public:
-    LiteralMatchIndices()
-    {
-        m_indices.swap(ThreadLocal::regexpMatchIndices());
-        ASSERT(m_indices.empty());
-    }
-
-    ~LiteralMatchIndices()
-    {
-        constexpr size_t maximumRetainedCapacity = 8192 / sizeof(unsigned);
-        auto& cached = ThreadLocal::regexpMatchIndices();
-        if (m_indices.capacity() <= maximumRetainedCapacity && m_indices.capacity() > cached.capacity()) {
-            m_indices.clear();
-            m_indices.swap(cached);
-        }
-    }
-
-    std::vector<unsigned>& indices()
-    {
-        return m_indices;
-    }
-
-private:
-    std::vector<unsigned> m_indices;
-};
-
 static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp)
 {
-    LiteralMatchIndices storage;
-    auto& matches = storage.indices();
+    LiteralMatchIndices matches(state.context()->vmInstance());
     regexp->collectLiteralMatches(state, string, matches);
     if (matches.empty()) {
         return string;
@@ -653,8 +625,8 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
     ASSERT(string && replaceString);
 
     auto replaceStringBad = replaceString->bufferAccessData();
-    if (!replaceStringBad.length && result.m_matchResults.size() > 1)
-        return stringRemoveMatchedRanges(state, string, result.m_matchResults.size(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.m_matchResults[i][0]; });
+    if (!replaceStringBad.length && result.matchCount() > 1)
+        return stringRemoveMatchedRanges(state, string, result.matchCount(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.matchAt(i, 0); });
     bool hasDollar = false;
     for (size_t i = 0; i < replaceStringBad.length; i++) {
         if (replaceStringBad.charAt(i) == '$') {
@@ -666,19 +638,19 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
     StringBuilder builder;
     if (!hasDollar) {
         // flat replace
-        int32_t matchCount = result.m_matchResults.size();
-        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
+        int32_t matchCount = result.matchCount();
+        builder.appendSubString(string, 0, result.matchAt(0, 0).m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
             builder.appendString(replaceString, &state);
             if (i < matchCount - 1) {
-                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start, &state);
+                builder.appendSubString(string, result.matchAt(i, 0).m_end, result.matchAt(i + 1, 0).m_start, &state);
             }
         }
-        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length(), &state);
+        builder.appendSubString(string, result.matchAt(matchCount - 1, 0).m_end, string->length(), &state);
     } else {
         // dollar replace
-        int32_t matchCount = result.m_matchResults.size();
-        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
+        int32_t matchCount = result.matchCount();
+        builder.appendSubString(string, 0, result.matchAt(0, 0).m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
             for (unsigned j = 0; j < replaceStringBad.length; j++) {
                 if (replaceStringBad.charAt(j) == '$' && (j + 1) < replaceStringBad.length) {
@@ -686,11 +658,11 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                     if (c == '$') {
                         builder.appendChar(replaceStringBad.charAt(j), &state);
                     } else if (c == '&') {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end, &state);
+                        builder.appendSubString(string, result.matchAt(i, 0).m_start, result.matchAt(i, 0).m_end, &state);
                     } else if (c == '\'') {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length(), &state);
+                        builder.appendSubString(string, result.matchAt(i, 0).m_end, string->length(), &state);
                     } else if (c == '`') {
-                        builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start, &state);
+                        builder.appendSubString(string, 0, result.matchAt(i, 0).m_start, &state);
                     } else if ('0' <= c && c <= '9') {
                         size_t idx = c - '0';
                         bool usePeek = false;
@@ -703,14 +675,14 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                             }
                         }
 
-                        if (idx < result.m_matchResults[i].size() && idx != 0) {
-                            builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end, &state);
+                        if (idx < result.captureCount() && idx != 0) {
+                            builder.appendSubString(string, result.matchAt(i, idx).m_start, result.matchAt(i, idx).m_end, &state);
                             if (usePeek)
                                 j++;
                         } else {
                             idx = c - '0';
-                            if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end, &state);
+                            if (idx < result.captureCount() && idx != 0) {
+                                builder.appendSubString(string, result.matchAt(i, idx).m_start, result.matchAt(i, idx).m_end, &state);
                             } else {
                                 builder.appendChar('$', &state);
                                 builder.appendChar(c, &state);
@@ -726,11 +698,11 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                 }
             }
             if (i < matchCount - 1) {
-                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start, &state);
+                builder.appendSubString(string, result.matchAt(i, 0).m_end, result.matchAt(i + 1, 0).m_start, &state);
             }
         }
 
-        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length(), &state);
+        builder.appendSubString(string, result.matchAt(matchCount - 1, 0).m_end, string->length(), &state);
     }
 
     return builder.finalize(&state);
@@ -809,12 +781,10 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             ASSERT(searchString);
             size_t idx = string->find(searchString);
             if (idx != (size_t)-1) {
-                std::vector<RegexMatchResult::RegexMatchResultPiece> piece;
                 RegexMatchResult::RegexMatchResultPiece p;
                 p.m_start = idx;
                 p.m_end = idx + searchString->length();
-                piece.push_back(std::move(p));
-                result.m_matchResults.push_back(std::move(piece));
+                result.m_matchResults.push_back(p);
             }
         }
 
@@ -824,41 +794,41 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         }
 
         // If no occurrences of searchString were found, return string.
-        if (result.m_matchResults.size() == 0) {
+        if (result.matchCount() == 0) {
             return string;
         }
 
         if (functionalReplace) {
-            uint32_t matchCount = result.m_matchResults.size();
+            uint32_t matchCount = result.matchCount();
             Value callee = replaceValue;
 
             StringBuilder builer;
-            builer.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
+            builer.appendSubString(string, 0, result.matchAt(0, 0).m_start);
 
             for (uint32_t i = 0; i < matchCount; i++) {
-                size_t subLen = result.m_matchResults[i].size();
+                size_t subLen = result.captureCount();
                 Value* arguments;
                 arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value);
                 for (unsigned j = 0; j < (unsigned)subLen; j++) {
-                    if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max())
+                    if (result.matchAt(i, j).m_start == std::numeric_limits<unsigned>::max())
                         arguments[j] = Value();
                     else {
                         StringBuilder argStrBuilder;
-                        argStrBuilder.appendSubString(string, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end);
+                        argStrBuilder.appendSubString(string, result.matchAt(i, j).m_start, result.matchAt(i, j).m_end);
                         arguments[j] = argStrBuilder.finalize(&state);
                     }
                 }
-                arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
+                arguments[subLen] = Value((int)result.matchAt(i, 0).m_start);
                 arguments[subLen + 1] = string;
                 // 21.1.3.14 (11) it should be called with this as undefined
                 String* res = Object::call(state, callee, Value(), subLen + 2, arguments).toString(state);
                 builer.appendSubString(res, 0, res->length());
 
                 if (i < matchCount - 1) {
-                    builer.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
+                    builer.appendSubString(string, result.matchAt(i, 0).m_end, result.matchAt(i + 1, 0).m_start);
                 }
             }
-            builer.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
+            builer.appendSubString(string, result.matchAt(matchCount - 1, 0).m_end, string->length());
             return builer.finalize(&state);
         } else {
             return stringReplaceFastPathHelper(state, string, replaceString, result);
@@ -1088,17 +1058,17 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                 break;
             }
 
-            if ((size_t)result.m_matchResults[0][0].m_end == p) {
+            if ((size_t)result.matchAt(0, 0).m_end == p) {
                 q++;
             } else {
-                if (result.m_matchResults[0][0].m_start >= S->length())
+                if (result.matchAt(0, 0).m_start >= S->length())
                     break;
 
-                String* T = S->substring(p, result.m_matchResults[0][0].m_start, &state);
+                String* T = S->substring(p, result.matchAt(0, 0).m_start, &state);
                 A->defineOwnProperty(state, ObjectPropertyName(state, Value(lengthA++)), ObjectPropertyDescriptor(T, ObjectPropertyDescriptor::AllPresent));
                 if (lengthA == lim)
                     return A;
-                p = result.m_matchResults[0][0].m_end;
+                p = result.matchAt(0, 0).m_end;
                 R->pushBackToRegExpMatchedArray(state, A, lengthA, lim, result, S);
                 if (lengthA == lim)
                     return A;
