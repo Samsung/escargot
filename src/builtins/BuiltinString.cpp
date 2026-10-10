@@ -603,53 +603,49 @@ static bool canRemoveLiteralMatches(RegExpObject* regexp)
     return true;
 }
 
-static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp, const RegexMatchResult::RegexMatchResultPiece& firstMatch)
-{
-    String* source = regexp->source();
-    const size_t matchLength = source->length();
-    ASSERT(matchLength && firstMatch.m_end - firstMatch.m_start == matchLength);
-    // The initial global lastIndex reset and first Yarr match have already
-    // run. Non-sticky matching leaves lastIndex at zero throughout collection.
-    std::vector<RegexMatchResult::RegexMatchResultPiece> matches;
-    matches.push_back(firstMatch);
-    auto input = string->bufferAccessData();
-    auto literal = source->bufferAccessData();
-    size_t position = firstMatch.m_end;
-    while (position <= input.length - matchLength) {
-        if (input.has8BitContent) {
-            Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
-            if (!found) {
-                break;
-            }
-            position = found.value() - input.bufferAs8Bit;
-            if (memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength)) {
-                ++position;
-                continue;
-            }
-        } else {
-            if (input.bufferAs16Bit[position] != literal.bufferAs8Bit[0]) {
-                ++position;
-                continue;
-            }
-            size_t i = 1;
-            for (; i < matchLength && input.bufferAs16Bit[position + i] == literal.bufferAs8Bit[i]; ++i) {}
-            if (i < matchLength) {
-                ++position;
-                continue;
-            }
-        }
-        RegexMatchResult::RegexMatchResultPiece match;
-        match.m_start = position;
-        match.m_end = position + matchLength;
-        matches.push_back(match);
-        position += matchLength;
+// V8 GetRewoundRegexpIndicesList / TruncateRegexpIndicesList retain a bounded
+// start-index buffer between calls. Move its storage into a local owner while
+// it is in use so a reentrant call cannot overwrite the outer match offsets.
+// https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
+class LiteralMatchIndices {
+public:
+    LiteralMatchIndices()
+    {
+        m_indices.swap(ThreadLocal::regexpMatchIndices());
+        ASSERT(m_indices.empty());
     }
-    const auto& last = matches.back();
-    auto& legacy = state.context()->regexpLegacyFeatures();
-    legacy.lastMatch = StringView(string, last.m_start, last.m_end);
-    legacy.leftContext = StringView(string, 0, last.m_start);
-    legacy.rightContext = StringView(string, last.m_end, string->length());
-    return stringRemoveMatchedRanges(state, string, matches.size(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return matches[i]; });
+
+    ~LiteralMatchIndices()
+    {
+        constexpr size_t maximumRetainedCapacity = 8192 / sizeof(unsigned);
+        auto& cached = ThreadLocal::regexpMatchIndices();
+        if (m_indices.capacity() <= maximumRetainedCapacity && m_indices.capacity() > cached.capacity()) {
+            m_indices.clear();
+            m_indices.swap(cached);
+        }
+    }
+
+    std::vector<unsigned>& indices()
+    {
+        return m_indices;
+    }
+
+private:
+    std::vector<unsigned> m_indices;
+};
+
+static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp)
+{
+    LiteralMatchIndices storage;
+    auto& matches = storage.indices();
+    regexp->collectLiteralMatches(state, string, matches);
+    if (matches.empty()) {
+        return string;
+    }
+    const unsigned matchLength = regexp->source()->length();
+    return stringRemoveMatchedRanges(state, string, matches.size(), [&](size_t i) -> RegexMatchResult::RegexMatchResultPiece {
+        return { matches[i], matches[i] + matchLength };
+    });
 }
 
 static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
@@ -802,14 +798,12 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             if (isGlobal) {
                 regexp->setLastIndex(state, Value(0));
             }
+            if (isGlobal && replaceValue.isString() && !replaceValue.asString()->length() && canRemoveLiteralMatches(regexp)) {
+                return stringRemoveLiteralMatches(state, string, regexp);
+            }
             bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
-            if (testResult) {
-                if (isGlobal) {
-                    if (replaceValue.isString() && !replaceValue.asString()->length() && canRemoveLiteralMatches(regexp)) {
-                        return stringRemoveLiteralMatches(state, string, regexp, result.m_matchResults[0][0]);
-                    }
-                    regexp->createRegexMatchResult(state, string, result);
-                }
+            if (testResult && isGlobal) {
+                regexp->createRegexMatchResult(state, string, result);
             }
         } else {
             ASSERT(searchString);
