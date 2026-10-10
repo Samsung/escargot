@@ -49,6 +49,7 @@
  */
 
 #include "Escargot.h"
+#include "heap/ScopedGCBuffer.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
@@ -433,8 +434,16 @@ protected:
             return m_bufferData;
         }
         auto input = m_source.value()->bufferAccessData();
+        // Accessing a reloadable source may reenter and materialize this string.
+        if (!m_slices) {
+            return m_bufferData;
+        }
         ASSERT(input.has8BitContent);
         LChar* result = static_cast<LChar*>(GC_MALLOC_ATOMIC(length()));
+        if (!m_slices) {
+            GC_FREE(result);
+            return m_bufferData;
+        }
         const Slice* slices = m_slices.value();
         for (size_t i = 0; i < m_sliceCount; ++i) {
             memcpy(result + slices[i].outputOffset, input.bufferAs8Bit + slices[i].begin,
@@ -443,6 +452,7 @@ protected:
         m_bufferData.buffer = result;
         m_bufferData.hasSpecialImpl = false;
         m_source.reset();
+        GC_FREE(m_slices.value());
         m_slices.reset();
         return m_bufferData;
     }
@@ -509,6 +519,8 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
         previousEnd = match.m_end;
     }
     sliceCount += previousEnd < input.length;
+    if (length == input.length)
+        return string;
     if (!input.has8BitContent && latin1) {
         for (size_t i = previousEnd; i < input.length; ++i) {
             if (input.bufferAs16Bit[i] > 0xff) {
@@ -801,14 +813,16 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         if (functionalReplace) {
             uint32_t matchCount = result.matchCount();
             Value callee = replaceValue;
+            bool canFreeArguments = callee.asObject()->isScriptFunctionObject() && !callee.asObject()->isScriptAsyncFunctionObject();
 
             StringBuilder builer;
             builer.appendSubString(string, 0, result.matchAt(0, 0).m_start);
 
             for (uint32_t i = 0; i < matchCount; i++) {
                 size_t subLen = result.captureCount();
-                Value* arguments;
-                arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value);
+                size_t argumentsBytes = sizeof(Value) * (subLen + 2);
+                Value* arguments = ALLOCA(argumentsBytes, Value);
+                ScopedGCBuffer argumentsOwner(canFreeArguments && argumentsBytes >= ALLOCA_STACK_LIMIT ? arguments : nullptr);
                 for (unsigned j = 0; j < (unsigned)subLen; j++) {
                     if (result.matchAt(i, j).m_start == std::numeric_limits<unsigned>::max())
                         arguments[j] = Value();

@@ -690,8 +690,9 @@ extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertNotReachedAndAbort(con
     static void operator delete(void*) = delete;  \
     static void operator delete[](void*) = delete;
 
-#define ALLOCA(bytes, typenameWithoutPointer) (typenameWithoutPointer*)(LIKELY(bytes < 512) ? alloca(bytes) : GC_MALLOC(bytes))
-#define ALLOCA_ATOMIC(bytes, typenameWithoutPointer) (typenameWithoutPointer*)(LIKELY(bytes < 512) ? alloca(bytes) : GC_MALLOC_ATOMIC(bytes))
+#define ALLOCA_STACK_LIMIT 512
+#define ALLOCA(bytes, typenameWithoutPointer) (typenameWithoutPointer*)(LIKELY(bytes < ALLOCA_STACK_LIMIT) ? alloca(bytes) : GC_MALLOC(bytes))
+#define ALLOCA_ATOMIC(bytes, typenameWithoutPointer) (typenameWithoutPointer*)(LIKELY(bytes < ALLOCA_STACK_LIMIT) ? alloca(bytes) : GC_MALLOC_ATOMIC(bytes))
 
 typedef uint16_t ByteCodeRegisterIndex;
 #define REGISTER_INDEX_IN_BIT 16

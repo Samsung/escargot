@@ -52,6 +52,7 @@
 #include "ThreadLocal.h"
 #include "RegExpObject.h"
 #include "heap/Heap.h"
+#include "heap/ScopedGCBuffer.h"
 #include "Context.h"
 #include "VMInstance.h"
 #include "ArrayObject.h"
@@ -546,7 +547,9 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
     unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), bytecodePatternSlot()->m_offsetsSize);
-    unsigned* outputBuf = ALLOCA_ATOMIC(sizeof(unsigned) * outputBufLength, unsigned int);
+    size_t outputBufBytes = sizeof(unsigned) * outputBufLength;
+    unsigned* outputBuf = ALLOCA_ATOMIC(outputBufBytes, unsigned int);
+    ScopedGCBuffer outputBufOwner(outputBufBytes >= ALLOCA_STACK_LIMIT ? outputBuf : nullptr);
     outputBuf[1] = start;
     // keep the buffer of `str` alive(it may be a CompressibleString or a
     // ReloadableString) while the matcher walks it
