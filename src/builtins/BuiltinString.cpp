@@ -19,7 +19,7 @@
 
 /*
  * Portions adapted from V8 RegExp optimizations.
- * Copyright 2014 the V8 project authors. All rights reserved.
+ * Copyright 2014, 2017 the V8 project authors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -371,6 +371,88 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
+// Sparse replacement slices share one source string and one atomic array.
+// Materialize only when a caller needs contiguous characters.
+class ReplacementSlicesString : public String {
+public:
+    struct Slice {
+        uint32_t begin;
+        uint32_t end;
+        uint32_t outputOffset;
+    };
+
+    ReplacementSlicesString(String* source, Slice* slices, size_t sliceCount, size_t length)
+        : m_source(source)
+        , m_slices(slices)
+        , m_sliceCount(sliceCount)
+    {
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.has8BitContent = true;
+        m_bufferData.length = length;
+    }
+
+    void* operator new(size_t size)
+    {
+        static MAY_THREAD_LOCAL bool typeInitialized = false;
+        static MAY_THREAD_LOCAL GC_descr descriptor;
+        if (!typeInitialized) {
+            GC_word bitmap[GC_BITMAP_SIZE(ReplacementSlicesString)] = { 0 };
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_bufferData.buffer));
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_source));
+            GC_set_bit(bitmap, GC_WORD_OFFSET(ReplacementSlicesString, m_slices));
+            descriptor = GC_make_descriptor(bitmap, GC_WORD_LEN(ReplacementSlicesString));
+            typeInitialized = true;
+        }
+        return GC_MALLOC_EXPLICITLY_TYPED(size, descriptor);
+    }
+
+    virtual char16_t charAt(size_t index) const override
+    {
+        ASSERT(index < length());
+        if (!m_source || !m_slices) {
+            return m_bufferData.uncheckedCharAtFor8Bit(index);
+        }
+        const Slice* slices = m_slices.value();
+        size_t low = 0;
+        size_t high = m_sliceCount;
+        while (low + 1 < high) {
+            size_t middle = low + (high - low) / 2;
+            if (slices[middle].outputOffset <= index) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        return m_source.value()->charAt(slices[low].begin + index - slices[low].outputOffset);
+    }
+
+protected:
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        if (!m_source || !m_slices) {
+            return m_bufferData;
+        }
+        auto input = m_source.value()->bufferAccessData();
+        ASSERT(input.has8BitContent);
+        LChar* result = static_cast<LChar*>(GC_MALLOC_ATOMIC(length()));
+        const Slice* slices = m_slices.value();
+        for (size_t i = 0; i < m_sliceCount; ++i) {
+            memcpy(result + slices[i].outputOffset, input.bufferAs8Bit + slices[i].begin,
+                   slices[i].end - slices[i].begin);
+        }
+        m_bufferData.buffer = result;
+        m_bufferData.hasSpecialImpl = false;
+        m_source.reset();
+        m_slices.reset();
+        return m_bufferData;
+    }
+
+private:
+    Optional<String*> m_source;
+    Optional<Slice*> m_slices;
+    size_t m_sliceCount;
+};
+
 template <typename Character, typename MatchAt>
 static void copyUnmatchedRanges(const StringBufferAccessData& input, size_t matchCount, MatchAt matchAt, Character* output, size_t expectedLength)
 {
@@ -409,11 +491,13 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
     auto input = string->bufferAccessData();
     size_t length = input.length;
     size_t previousEnd = 0;
+    size_t sliceCount = 0;
     bool latin1 = true;
     for (size_t i = 0; i < matchCount; ++i) {
         const auto& match = matchAt(i);
         ASSERT(match.m_start >= previousEnd && match.m_end >= match.m_start && match.m_end <= input.length);
         length -= match.m_end - match.m_start;
+        sliceCount += match.m_start > previousEnd;
         if (!input.has8BitContent && latin1) {
             for (size_t i = previousEnd; i < match.m_start; ++i) {
                 if (input.bufferAs16Bit[i] > 0xff) {
@@ -424,6 +508,7 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
         }
         previousEnd = match.m_end;
     }
+    sliceCount += previousEnd < input.length;
     if (!input.has8BitContent && latin1) {
         for (size_t i = previousEnd; i < input.length; ++i) {
             if (input.bufferAs16Bit[i] > 0xff) {
@@ -437,6 +522,52 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
     if (UNLIKELY(length > STRING_MAXIMUM_LENGTH))
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
 
+    // V8 RegExpReplaceGlobalSimpleString composes unmatched substring slices
+    // with StringAdd instead of copying the complete result eagerly.
+    // https://github.com/v8/v8/blob/15.5.35.20/src/builtins/builtins-regexp-gen.cc
+    // Bound metadata size, require twice its cost in avoided buffer bytes, and
+    // avoid keeping a much larger input alive for a small result.
+    constexpr size_t minimumResultLength = 1024;
+    // Keep the offset array small and avoid adding many GC-traced nodes.
+    constexpr size_t maximumSliceCount = 16;
+    using Slice = ReplacementSlicesString::Slice;
+    size_t retainedSourceLength = input.length;
+    if (string->hasSpecialImpl() && string->isStringView()) {
+        retainedSourceLength = static_cast<StringView*>(string)->underlyingString()->length();
+    }
+    if (input.has8BitContent && length >= minimumResultLength && length >= retainedSourceLength - length
+        && input.length <= std::numeric_limits<uint32_t>::max() && sliceCount <= maximumSliceCount
+        && sizeof(ReplacementSlicesString) + sliceCount * sizeof(Slice) <= length / 2) {
+        if (sliceCount == 1) {
+            size_t begin = 0;
+            for (size_t i = 0; i < matchCount; ++i) {
+                const auto& match = matchAt(i);
+                if (begin < match.m_start) {
+                    return string->substring(begin, match.m_start, &state);
+                }
+                begin = match.m_end;
+            }
+            return string->substring(begin, input.length, &state);
+        }
+        Slice* slices = static_cast<Slice*>(GC_MALLOC_ATOMIC(sliceCount * sizeof(Slice)));
+        size_t begin = 0;
+        size_t index = 0;
+        size_t outputOffset = 0;
+        auto appendSlice = [&](size_t end) {
+            if (begin < end) {
+                slices[index++] = { static_cast<uint32_t>(begin), static_cast<uint32_t>(end), static_cast<uint32_t>(outputOffset) };
+                outputOffset += end - begin;
+            }
+        };
+        for (size_t i = 0; i < matchCount; ++i) {
+            const auto& match = matchAt(i);
+            appendSlice(match.m_start);
+            begin = match.m_end;
+        }
+        appendSlice(input.length);
+        ASSERT(index == sliceCount && outputOffset == length);
+        return new ReplacementSlicesString(string, slices, sliceCount, length);
+    }
     if (latin1) {
         Latin1StringData data;
         data.resizeWithUninitializedValues(length);
