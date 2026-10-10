@@ -186,7 +186,6 @@ Pass these options when configuring with CMake.
 | **-DESCARGOT_DEPLOY** | Build for deployment (set up RPATH for a bundled ICU) | ON/OFF | OFF |
 | **-DESCARGOT_USE_EXTENDED_API** | Enable the extended C++ API (FunctionTemplateRef, etc.) | ON/OFF | ON when NAPI is ON, otherwise OFF |
 | **-DESCARGOT_USE_CUSTOM_LOGGING** | Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen) | ON/OFF | OFF |
-| **-DESCARGOT_YARR_START_CHAR_FILTER** | Enable the Yarr interpreter first-character prefilter | ON/OFF | ON |
 | **-DESCARGOT_TCO_DEBUG** | Enable extra tail-call-optimization debug checks (debug builds only, requires ESCARGOT_TCO) | ON/OFF | OFF |
 | **-DESCARGOT_PROFILE_BDWGC** | Enable bdwgc (Boehm GC) profiling |  ON/OFF | OFF |
 | **-DESCARGOT_MEM_STATS** | Enable memory usage statistics | ON/OFF | OFF |

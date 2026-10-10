@@ -47,7 +47,7 @@ struct ByteTerm {
                     char32_t lo;
                     char32_t hi;
                 } casedCharacter;
-                CharacterClass* characterClass;
+                const CharacterClass* characterClass;
                 struct {
                     unsigned subpatternId;
                     unsigned duplicateNamedGroupId;
@@ -74,6 +74,16 @@ struct ByteTerm {
             bool m_bol : 1;
             bool m_eol : 1;
         } anchors;
+        struct {
+            uint8_t characters[8];
+            uint8_t masks[8];
+            unsigned length;
+        } literal;
+        struct {
+            uint16_t characters[4];
+            uint16_t masks[4];
+            unsigned length;
+        } literal16;
         unsigned checkInputCount;
     };
     unsigned frameLocation { 0 };
@@ -94,6 +104,8 @@ struct ByteTerm {
         PatternCharacterFixed,
         PatternCharacterGreedy,
         PatternCharacterNonGreedy,
+        PatternLiteral,
+        PatternLiteral16,
         // Cased Characeter Types
         PatternCasedCharacterOnce,
         PatternCasedCharacterFixed,
@@ -118,6 +130,7 @@ struct ByteTerm {
     bool m_capture : 1;
     bool m_invert : 1;
     MatchDirection m_matchDirection : 1;
+    bool m_possessive { false };
     unsigned inputPosition { 0 };
 
     ByteTerm(char32_t ch, unsigned inputPos, unsigned frameLocation, Checked<unsigned> quantityCount, QuantifierType quantityType, OptionSet<Flags> flags)
@@ -177,7 +190,7 @@ struct ByteTerm {
         atom.quantityMaxCount = quantityCount;
     }
 
-    ByteTerm(CharacterClass* characterClass, bool invert, unsigned inputPos, OptionSet<Flags> flags)
+    ByteTerm(const CharacterClass* characterClass, bool invert, unsigned inputPos, OptionSet<Flags> flags)
         : type(ByteTerm::Type::CharacterClass)
         , m_flags(flags)
         , m_capture(false)
@@ -460,6 +473,9 @@ struct ByteTerm {
     }
 };
 
+static_assert(sizeof(ByteTerm::literal) <= sizeof(ByteTerm::atom), "Literal terms must fit the existing bytecode payload");
+static_assert(sizeof(ByteTerm::literal16) <= sizeof(ByteTerm::atom), "UTF-16 literal terms must fit the existing bytecode payload");
+
 class ByteDisjunction {
     WTF_MAKE_TZONE_ALLOCATED(ByteDisjunction);
 public:
@@ -500,9 +516,30 @@ struct StartCharFilter {
     bool valid { false };
 };
 
+struct FixedPrefixSearch {
+    static constexpr unsigned maxLength = 4;
+    StartCharFilter positions[maxLength];
+    uint8_t shifts[256] { };
+    unsigned length { 0 };
+    // Capture-free, case-sensitive literal alternatives bypass bytecode.
+    Vector<Vector<UChar>> atoms;
+    unsigned longestAtomLength { 0 };
+    bool anchoredStart { false };
+    bool anchoredEnd { false };
+};
+
 struct BytecodePattern : public gc {
     WTF_MAKE_TZONE_ALLOCATED(BytecodePattern);
 public:
+    enum class SpecificPattern : uint8_t {
+        None,
+        LeadingSpacesStar,
+        LeadingSpacesPlus,
+        TrailingSpacesStar,
+        TrailingSpacesPlus,
+        Newlines,
+    };
+
     static void bytecodePatternClear(void* obj, void* cd)
     {
         BytecodePattern* self = reinterpret_cast<BytecodePattern*>(obj);
@@ -538,12 +575,23 @@ public:
         m_userCharacterClasses.swap(pattern.m_userCharacterClasses);
         m_userCharacterClasses.shrinkToFit();
 
+        for (auto& characterClass : m_userCharacterClasses)
+            characterClass->initializeLatin1Bitmap();
+
         m_numDuplicateNamedCaptureGroups = pattern.m_numDuplicateNamedCaptureGroups;
+        m_endAnchoredFixedSize = pattern.m_endAnchoredFixedSize;
+    }
+
+    ~BytecodePattern()
+    {
+        if (m_fixedPrefixSearch)
+            delete m_fixedPrefixSearch.value();
     }
 
     size_t estimatedSizeInBytes() const { return m_body->estimatedSizeInBytes(); }
 
     bool hasDuplicateNamedCaptureGroups() const { return !!m_numDuplicateNamedCaptureGroups; }
+    bool hasEndAnchoredFixedSize() const { return m_endAnchoredFixedSize != YarrPattern::endAnchoredFixedSizeNotSet; }
 
     unsigned offsetForDuplicateNamedGroupId(unsigned duplicateNamedGroupId)
     {
@@ -573,21 +621,22 @@ public:
 
     std::unique_ptr<ByteDisjunction> m_body;
     OptionSet<Flags> m_flags;
+    SpecificPattern m_specificPattern { SpecificPattern::None };
     // Each BytecodePattern is associated with a RegExp, each RegExp is associated
     // with a VM.  Cache a pointer to our VM's m_regExpAllocator.
     BumpPointerAllocator* m_allocator;
 
     unsigned m_numDuplicateNamedCaptureGroups;
+    unsigned m_endAnchoredFixedSize { YarrPattern::endAnchoredFixedSizeNotSet };
     unsigned m_offsetVectorBaseForNamedCaptures;
     unsigned m_offsetsSize;
     Vector<unsigned> m_duplicateNamedGroupForSubpatternId;
 
-    CharacterClass* newlineCharacterClass;
-    CharacterClass* wordcharCharacterClass;
-    CharacterClass* ignoreCaseWordcharCharacterClass;
-#if defined(ENABLE_YARR_START_CHAR_FILTER)
+    const CharacterClass* newlineCharacterClass;
+    const CharacterClass* wordcharCharacterClass;
+    const CharacterClass* ignoreCaseWordcharCharacterClass;
     StartCharFilter m_startCharFilter;
-#endif
+    ::Escargot::Optional<FixedPrefixSearch*> m_fixedPrefixSearch;
 
 private:
     Vector<std::unique_ptr<ByteDisjunction>> m_allParenthesesInfo;

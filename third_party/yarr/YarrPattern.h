@@ -125,6 +125,7 @@ public:
     }
 
     void copyOnly8BitCharacterData(const CharacterClass& other);
+    void initializeLatin1Bitmap();
 
     bool hasNonBMPCharacters() const { return m_characterWidths & CharacterClassWidths::HasNonBMPChars; }
 
@@ -144,6 +145,9 @@ public:
     bool m_tableInverted : 1;
     bool m_anyCharacter : 1;
     bool m_inCanonicalForm : 1;
+    // Keep word alignment on ARM32, including GC allocations.
+    uint32_t m_latin1Bitmap[8] { };
+    bool m_hasLatin1Bitmap { false };
 };
 
 struct ClassSet : public CharacterClass {
@@ -214,12 +218,13 @@ struct PatternTerm {
     bool m_capture : 1;
     bool m_invert : 1;
     MatchDirection m_matchDirection : 1;
+    bool m_possessive { false };
     QuantifierType quantityType;
     Checked<unsigned> quantityMinCount;
     Checked<unsigned> quantityMaxCount;
     union {
         char32_t patternCharacter;
-        CharacterClass* characterClass;
+        const CharacterClass* characterClass;
         unsigned backReferenceSubpatternId;
         struct {
             PatternDisjunction* disjunction;
@@ -273,7 +278,7 @@ struct PatternTerm {
         quantityMinCount = quantityMaxCount = 1;
     }
 
-    PatternTerm(CharacterClass* charClass, bool invert, OptionSet<Flags> currFlags, MatchDirection matchDirection = Forward)
+    PatternTerm(const CharacterClass* charClass, bool invert, OptionSet<Flags> currFlags, MatchDirection matchDirection = Forward)
         : type(PatternTerm::Type::CharacterClass)
         , m_currentFlags(currFlags)
         , m_capture(false)
@@ -566,6 +571,7 @@ struct YarrPattern : public gc {
         m_numSubpatterns = 0;
         m_initialStartValueFrameLocation = 0;
         m_numDuplicateNamedCaptureGroups = 0;
+        m_endAnchoredFixedSize = endAnchoredFixedSizeNotSet;
 
         m_containsBackreferences = false;
         m_containsBOL = false;
@@ -575,16 +581,6 @@ struct YarrPattern : public gc {
         m_hasNamedCaptureGroups = false;
         m_saveInitialStartValue = false;
 
-        anycharCached = nullptr;
-        newlineCached = nullptr;
-        digitsCached = nullptr;
-        spacesCached = nullptr;
-        wordcharCached = nullptr;
-        wordUnicodeIgnoreCaseCharCached = nullptr;
-        nondigitsCached = nullptr;
-        nonspacesCached = nullptr;
-        nonwordcharCached = nullptr;
-        nonwordUnicodeIgnoreCasecharCached = nullptr;
         unicodePropertiesCached.clear();
 
         m_disjunctions.clear();
@@ -599,87 +595,23 @@ struct YarrPattern : public gc {
         return m_containsUnsignedLengthPattern;
     }
 
-    CharacterClass* anyCharacterClass()
-    {
-        if (!anycharCached) {
-            m_userCharacterClasses.append(anycharCreate());
-            anycharCached = m_userCharacterClasses.last().get();
-        }
-        return anycharCached;
-    }
-    CharacterClass* newlineCharacterClass()
-    {
-        if (!newlineCached) {
-            m_userCharacterClasses.append(newlineCreate());
-            newlineCached = m_userCharacterClasses.last().get();
-        }
-        return newlineCached;
-    }
-    CharacterClass* digitsCharacterClass()
-    {
-        if (!digitsCached) {
-            m_userCharacterClasses.append(digitsCreate());
-            digitsCached = m_userCharacterClasses.last().get();
-        }
-        return digitsCached;
-    }
-    CharacterClass* spacesCharacterClass()
-    {
-        if (!spacesCached) {
-            m_userCharacterClasses.append(spacesCreate());
-            spacesCached = m_userCharacterClasses.last().get();
-        }
-        return spacesCached;
-    }
-    CharacterClass* wordcharCharacterClass()
-    {
-        if (!wordcharCached) {
-            m_userCharacterClasses.append(wordcharCreate());
-            wordcharCached = m_userCharacterClasses.last().get();
-        }
-        return wordcharCached;
-    }
-    CharacterClass* wordUnicodeIgnoreCaseCharCharacterClass()
-    {
-        if (!wordUnicodeIgnoreCaseCharCached) {
-            m_userCharacterClasses.append(wordUnicodeIgnoreCaseCharCreate());
-            wordUnicodeIgnoreCaseCharCached = m_userCharacterClasses.last().get();
-        }
-        return wordUnicodeIgnoreCaseCharCached;
-    }
-    CharacterClass* nondigitsCharacterClass()
-    {
-        if (!nondigitsCached) {
-            m_userCharacterClasses.append(nondigitsCreate());
-            nondigitsCached = m_userCharacterClasses.last().get();
-        }
-        return nondigitsCached;
-    }
-    CharacterClass* nonspacesCharacterClass()
-    {
-        if (!nonspacesCached) {
-            m_userCharacterClasses.append(nonspacesCreate());
-            nonspacesCached = m_userCharacterClasses.last().get();
-        }
-        return nonspacesCached;
-    }
-    CharacterClass* nonwordcharCharacterClass()
-    {
-        if (!nonwordcharCached) {
-            m_userCharacterClasses.append(nonwordcharCreate());
-            nonwordcharCached = m_userCharacterClasses.last().get();
-        }
-        return nonwordcharCached;
-    }
-    CharacterClass* nonwordUnicodeIgnoreCaseCharCharacterClass()
-    {
-        if (!nonwordUnicodeIgnoreCasecharCached) {
-            m_userCharacterClasses.append(nonwordUnicodeIgnoreCaseCharCreate());
-            nonwordUnicodeIgnoreCasecharCached = m_userCharacterClasses.last().get();
-        }
-        return nonwordUnicodeIgnoreCasecharCached;
-    }
-    CharacterClass* unicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
+private:
+    template<std::unique_ptr<CharacterClass> (*create)()>
+    static const CharacterClass* sharedCharacterClass();
+
+public:
+    static const CharacterClass* anyCharacterClass();
+    static const CharacterClass* newlineCharacterClass();
+    static const CharacterClass* digitsCharacterClass();
+    static const CharacterClass* spacesCharacterClass();
+    static const CharacterClass* wordcharCharacterClass();
+    static const CharacterClass* wordUnicodeIgnoreCaseCharCharacterClass();
+    static const CharacterClass* nondigitsCharacterClass();
+    static const CharacterClass* nonspacesCharacterClass();
+    static const CharacterClass* nonwordcharCharacterClass();
+    static const CharacterClass* nonwordUnicodeIgnoreCaseCharCharacterClass();
+
+    const CharacterClass* unicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
     {
         ASSERT(unicodeClassID >= BuiltInCharacterClassID::BaseUnicodePropertyID);
 
@@ -687,7 +619,7 @@ struct YarrPattern : public gc {
 
         if (unicodePropertiesCached.find(classID) == unicodePropertiesCached.end()) {
             m_userCharacterClasses.append(createUnicodeCharacterClassFor(unicodeClassID));
-            CharacterClass* result = m_userCharacterClasses.last().get();
+            const CharacterClass* result = m_userCharacterClasses.last().get();
             unicodePropertiesCached.add(classID, result);
             return result;
         }
@@ -727,6 +659,9 @@ struct YarrPattern : public gc {
 
     bool hasDuplicateNamedCaptureGroups() const { return !!m_numDuplicateNamedCaptureGroups; }
 
+    static constexpr unsigned endAnchoredFixedSizeNotSet = std::numeric_limits<unsigned>::max();
+    bool hasEndAnchoredFixedSize() const { return m_endAnchoredFixedSize != endAnchoredFixedSizeNotSet; }
+
     CompileMode compileMode() const
     {
         if (unicode())
@@ -747,6 +682,7 @@ struct YarrPattern : public gc {
     bool m_hasNamedCaptureGroups : 1;
     bool m_saveInitialStartValue : 1;
     OptionSet<Flags> m_flags;
+    unsigned m_endAnchoredFixedSize { endAnchoredFixedSizeNotSet };
     unsigned m_numSubpatterns { 0 };
     unsigned m_initialStartValueFrameLocation { 0 };
     unsigned m_numDuplicateNamedCaptureGroups { 0 };
@@ -777,22 +713,12 @@ struct YarrPattern : public gc {
 private:
     ErrorCode compile(StringView patternString);
 
-    CharacterClass* anycharCached { nullptr };
-    CharacterClass* newlineCached { nullptr };
-    CharacterClass* digitsCached { nullptr };
-    CharacterClass* spacesCached { nullptr };
-    CharacterClass* wordcharCached { nullptr };
-    CharacterClass* wordUnicodeIgnoreCaseCharCached { nullptr };
-    CharacterClass* nondigitsCached { nullptr };
-    CharacterClass* nonspacesCached { nullptr };
-    CharacterClass* nonwordcharCached { nullptr };
-    CharacterClass* nonwordUnicodeIgnoreCasecharCached { nullptr };
-    HashMap<unsigned, CharacterClass*> unicodePropertiesCached;
+    HashMap<unsigned, const CharacterClass*> unicodePropertiesCached;
 };
 
     void indentForNestingLevel(PrintStream&, unsigned);
     void dumpUChar32(PrintStream&, char32_t);
-    void dumpCharacterClass(PrintStream&, YarrPattern*, CharacterClass*);
+    void dumpCharacterClass(PrintStream&, YarrPattern*, const CharacterClass*);
 
     struct BackTrackInfoPatternCharacter {
         uintptr_t begin; // Only needed for unicode patterns
@@ -842,8 +768,10 @@ private:
 
     struct BackTrackInfoParenthesesTerminal {
         uintptr_t begin;
+        uintptr_t entryPosition;
 
         static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesTerminal, begin) / sizeof(uintptr_t); }
+        static unsigned entryPositionIndex() { return offsetof(BackTrackInfoParenthesesTerminal, entryPosition) / sizeof(uintptr_t); }
     };
 
     struct BackTrackInfoParentheses {

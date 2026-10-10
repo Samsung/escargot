@@ -459,43 +459,33 @@ private:
 
     void addSortedRange(Vector<CharacterRange>& ranges, char32_t lo, char32_t hi)
     {
-        size_t end = ranges.size();
-
         if (U_IS_BMP(lo))
             m_characterWidths |= CharacterClassWidths::HasBMPChars;
         if (!U_IS_BMP(hi))
             m_characterWidths |= CharacterClassWidths::HasNonBMPChars;
 
-        // Simple linear scan - I doubt there are that many ranges anyway...
-        // feel free to fix this with something faster (eg binary chop).
-        for (size_t i = 0; i < end; ++i) {
-            // does the new range fall before the current position in the array
-            if (hi < ranges[i].begin) {
-                // Concatenate appending ranges.
-                if (hi == (ranges[i].begin - 1)) {
-                    ranges[i].begin = lo;
-                    return;
-                }
-                ranges.insert(i, CharacterRange(lo, hi));
-                return;
-            }
-            // Okay, since we didn't hit the last case, the end of the new range is definitely at or after the begining
-            // If the new range start at or before the end of the last range, then the overlap (if it starts one after the
-            // end of the last range they concatenate, which is just as good.
-            if (lo <= (ranges[i].end + 1)) {
-                // found an intersect! we'll replace this entry in the array.
-                ranges[i].begin = std::min(ranges[i].begin, lo);
-                ranges[i].end = std::max(ranges[i].end, hi);
-
-                mergeRangesFrom(ranges, i);
-                return;
-            }
+        auto iter = std::lower_bound(ranges.begin(), ranges.end(), lo,
+            [](const CharacterRange& range, char32_t value) {
+                return static_cast<uint64_t>(range.end) + 1 < value;
+            });
+        if (iter == ranges.end()) {
+            ranges.append(CharacterRange(lo, hi));
+            return;
         }
 
-        // CharacterRange comes after all existing ranges.
-        ranges.append(CharacterRange(lo, hi));
-    }
+        if (hi < iter->begin) {
+            if (hi == iter->begin - 1) {
+                iter->begin = lo;
+                return;
+            }
+            ranges.insert(iter - ranges.begin(), CharacterRange(lo, hi));
+            return;
+        }
 
+        iter->begin = std::min(iter->begin, lo);
+        iter->end = std::max(iter->end, hi);
+        mergeRangesFrom(ranges, iter - ranges.begin());
+    }
 
     void addSortedRange(char32_t lo, char32_t hi)
     {
@@ -930,6 +920,31 @@ private:
     Vector<char32_t> m_matchesUnicode;
     Vector<CharacterRange> m_rangesUnicode;
 };
+
+template<std::unique_ptr<CharacterClass> (*create)()>
+const CharacterClass* YarrPattern::sharedCharacterClass()
+{
+    // C++11 initializes the cache once, including with concurrent isolates.
+    // Keep the class alive for the process lifetime: GC finalizers may still
+    // reference it after ordinary static destructors have run.
+    static const CharacterClass* const characterClass = [] {
+        auto result = create();
+        result->initializeLatin1Bitmap();
+        return result.release();
+    }();
+    return characterClass;
+}
+
+const CharacterClass* YarrPattern::anyCharacterClass() { return sharedCharacterClass<anycharCreate>(); }
+const CharacterClass* YarrPattern::newlineCharacterClass() { return sharedCharacterClass<newlineCreate>(); }
+const CharacterClass* YarrPattern::digitsCharacterClass() { return sharedCharacterClass<digitsCreate>(); }
+const CharacterClass* YarrPattern::spacesCharacterClass() { return sharedCharacterClass<spacesCreate>(); }
+const CharacterClass* YarrPattern::wordcharCharacterClass() { return sharedCharacterClass<wordcharCreate>(); }
+const CharacterClass* YarrPattern::wordUnicodeIgnoreCaseCharCharacterClass() { return sharedCharacterClass<wordUnicodeIgnoreCaseCharCreate>(); }
+const CharacterClass* YarrPattern::nondigitsCharacterClass() { return sharedCharacterClass<nondigitsCreate>(); }
+const CharacterClass* YarrPattern::nonspacesCharacterClass() { return sharedCharacterClass<nonspacesCreate>(); }
+const CharacterClass* YarrPattern::nonwordcharCharacterClass() { return sharedCharacterClass<nonwordcharCreate>(); }
+const CharacterClass* YarrPattern::nonwordUnicodeIgnoreCaseCharCharacterClass() { return sharedCharacterClass<nonwordUnicodeIgnoreCaseCharCreate>(); }
 
 class YarrPatternConstructor {
     class UnresolvedForwardReference {
@@ -1799,15 +1814,10 @@ public:
     // We can presently avoid backtracking for:
     //   * where the parens are at the end of the regular expression (last term in any of the
     //     alternatives of the main body disjunction).
-    //   * where the parens are non-capturing, and quantified unbounded greedy (*).
+    //   * where the parens are non-capturing, and quantified unbounded greedy (* or +).
     //   * where the parens do not contain any capturing subpatterns.
     void checkForTerminalParentheses()
     {
-        // This check is much too crude; should be just checking whether the candidate
-        // node contains nested capturing subpatterns, not the whole expression!
-        if (m_pattern.m_numSubpatterns)
-            return;
-
         Vector<std::unique_ptr<PatternAlternative>>& alternatives = m_pattern.m_body->m_alternatives;
         for (size_t i = 0; i < alternatives.size(); ++i) {
             Vector<PatternTerm>& terms = alternatives[i]->m_terms;
@@ -1815,9 +1825,10 @@ public:
                 PatternTerm& term = terms.last();
                 if (term.type == PatternTerm::Type::ParenthesesSubpattern
                     && term.quantityType == QuantifierType::Greedy
-                    && term.quantityMinCount == 0
+                    && term.quantityMinCount <= 1
                     && term.quantityMaxCount == quantifyInfinite
-                    && !term.capture())
+                    && !term.capture()
+                    && !term.containsAnyCaptures())
                     term.parentheses.isTerminal = true;
             }
         }
@@ -1885,7 +1896,7 @@ public:
         if (alternatives.size() != 1)
             return;
 
-        CharacterClass* dotCharacterClass = dotAll() ? m_pattern.anyCharacterClass() : m_pattern.newlineCharacterClass();
+        const CharacterClass* dotCharacterClass = dotAll() ? m_pattern.anyCharacterClass() : m_pattern.newlineCharacterClass();
         PatternAlternative* alternative = alternatives[0].get();
         Vector<PatternTerm>& terms = alternative->m_terms;
         if (terms.size() >= 3) {
@@ -1938,6 +1949,78 @@ public:
                 m_pattern.m_containsBOL = false;
             }
         }
+    }
+
+    void optimizePossessiveQuantifiers()
+    {
+        // In legacy mode the parsed classes already contain their case folds.
+        // Unicode folding and variable-width reads need a separate proof.
+        if (m_pattern.eitherUnicode())
+            return;
+
+        auto rejectsCharacter = [](const PatternTerm& term, char32_t ch) {
+            if (term.type == PatternTerm::Type::PatternCharacter) {
+                if (term.patternCharacter == ch)
+                    return false;
+                if (term.m_currentFlags.contains(Flags::IgnoreCase)) {
+                    if (!isASCII(term.patternCharacter) || !isASCII(ch))
+                        return false;
+                    return toASCIILower(term.patternCharacter) != toASCIILower(ch);
+                }
+                return true;
+            }
+
+            const auto& characterClass = *term.characterClass;
+            bool contains = characterClass.m_anyCharacter;
+            const auto& matches = isASCII(ch) ? characterClass.m_matches : characterClass.m_matchesUnicode;
+            const auto& ranges = isASCII(ch) ? characterClass.m_ranges : characterClass.m_rangesUnicode;
+            for (auto match : matches)
+                contains |= match == ch;
+            for (auto range : ranges)
+                contains |= ch >= range.begin && ch <= range.end;
+            return term.m_invert ? contains : !contains;
+        };
+
+        for (auto& disjunction : m_pattern.m_disjunctions) {
+            for (auto& alternative : disjunction->m_alternatives) {
+                auto& terms = alternative->m_terms;
+                for (unsigned i = 1; i < terms.size(); ++i) {
+                    auto& greedy = terms[i - 1];
+                    const auto& next = terms[i];
+                    if (greedy.quantityType != QuantifierType::Greedy || greedy.m_matchDirection != Forward
+                        || (greedy.type != PatternTerm::Type::PatternCharacter && greedy.type != PatternTerm::Type::CharacterClass)
+                        || next.type != PatternTerm::Type::PatternCharacter || next.m_matchDirection != Forward
+                        || next.quantityType != QuantifierType::FixedCount || !next.quantityMinCount
+                        || !rejectsCharacter(greedy, next.patternCharacter))
+                        continue;
+                    if (next.m_currentFlags.contains(Flags::IgnoreCase)
+                        && (!isASCII(next.patternCharacter)
+                            || !rejectsCharacter(greedy, toASCIILower(next.patternCharacter))
+                            || !rejectsCharacter(greedy, toASCIIUpper(next.patternCharacter))))
+                        continue;
+                    // Giving a character back cannot help the mandatory next
+                    // literal. Rewind the whole greedy term on failure.
+                    greedy.m_possessive = true;
+                }
+            }
+        }
+    }
+
+    void computeEndAnchoredFixedSize()
+    {
+        if (m_pattern.multiline() || m_pattern.sticky() || m_pattern.m_containsModifiers
+            || m_pattern.m_containsBOL || m_pattern.m_containsUnsignedLengthPattern
+            || !m_pattern.m_body->m_hasFixedSize || m_pattern.m_saveInitialStartValue)
+            return;
+
+        unsigned maximumSize = 0;
+        for (auto& alternative : m_pattern.m_body->m_alternatives) {
+            if (!alternative->m_hasFixedSize || alternative->m_terms.isEmpty()
+                || alternative->m_terms.last().type != PatternTerm::Type::AssertionEOL)
+                return;
+            maximumSize = std::max(maximumSize, alternative->m_minimumSize);
+        }
+        m_pattern.m_endAnchoredFixedSize = maximumSize;
     }
 
     void setupNamedCaptures()
@@ -2236,6 +2319,8 @@ ErrorCode YarrPattern::compile(StringView patternString)
             return error;
     }
 
+    constructor.optimizePossessiveQuantifiers();
+    constructor.computeEndAnchoredFixedSize();
     constructor.setupNamedCaptures();
 
     // NOTE(unused)
@@ -2282,9 +2367,39 @@ std::unique_ptr<CharacterClass> anycharCreate()
     return characterClass;
 }
 
+void CharacterClass::initializeLatin1Bitmap()
+{
+    if (m_hasLatin1Bitmap)
+        return;
+    memset(m_latin1Bitmap, 0, sizeof(m_latin1Bitmap));
+    auto add = [this](char32_t ch) {
+        m_latin1Bitmap[ch >> 5] |= 1u << (ch & 31);
+    };
+    // Mirror the interpreter's ASCII / non-ASCII split, including classes
+    // produced by set operations and case folding.
+    for (auto ch : m_matches) {
+        if (ch < 0x80)
+            add(ch);
+    }
+    for (auto range : m_ranges) {
+        for (char32_t ch = range.begin; ch <= std::min<char32_t>(range.end, 0x7f); ++ch)
+            add(ch);
+    }
+    for (auto ch : m_matchesUnicode) {
+        if (ch >= 0x80 && ch <= 0xff)
+            add(ch);
+    }
+    for (auto range : m_rangesUnicode) {
+        for (char32_t ch = std::max<char32_t>(range.begin, 0x80); ch <= std::min<char32_t>(range.end, 0xff); ++ch)
+            add(ch);
+    }
+    m_hasLatin1Bitmap = true;
+}
+
 void CharacterClass::copyOnly8BitCharacterData(const CharacterClass& other)
 {
     RELEASE_ASSERT(!m_table);
+    m_hasLatin1Bitmap = false;
 
     m_strings.clear();
     m_matches.clear();
