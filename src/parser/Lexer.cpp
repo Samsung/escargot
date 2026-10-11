@@ -1878,8 +1878,8 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                                 this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
                             }
                             cooked += (char16_t)'\0';
-                        } else if (isOctalDigit(ch)) {
-                            // Illegal: \1 \2
+                        } else if (isDecimalDigit(ch)) {
+                            // Illegal: \1 \2 and also \8 \9
                             this->throwUnexpectedToken(Messages::TemplateOctalLiteral);
                         } else {
                             cooked += ch;

@@ -751,9 +751,6 @@
     <test id="language/expressions/prefix-decrement/S11.4.5_A6_T3"><reason>TODO</reason></test>
     <test id="language/expressions/prefix-increment/S11.4.4_A6_T3"><reason>TODO</reason></test>
     <test id="language/expressions/super/call-proto-not-ctor"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/invalid-escape-sequences"><reason>TODO</reason></test>
-    <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-8"><reason>TODO</reason></test>
-    <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-9"><reason>TODO</reason></test>
     <test id="language/identifier-resolution/assign-to-global-undefined"><reason>TODO</reason></test>
     <test id="language/import/import-attributes/text-empty"><reason>TODO</reason></test>
     <test id="language/import/import-attributes/text-javascript"><reason>TODO</reason></test>
