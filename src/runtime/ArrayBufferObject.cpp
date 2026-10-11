@@ -113,18 +113,13 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
 
     ASSERT(byteLength < ArrayBuffer::maxArrayBufferSize);
 
-    const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
-    if (byteLength > (GC_get_heap_size() / ratio)) {
-        size_t n = 0;
-        size_t times = byteLength / (GC_get_heap_size() / ratio) / 3;
-        do {
-            GC_gcollect_and_unmap();
-            n += 1;
-        } while (n < times);
-        GC_invoke_finalizers();
-    }
+    VMInstance* vm = state.context()->vmInstance();
+    vm->collectGarbageForArrayBufferAllocation(byteLength);
 
-    updateBackingStore(BackingStore::createDefaultNonSharedBackingStore(byteLength));
+    BackingStore* backingStore = BackingStore::createDefaultNonSharedBackingStore(byteLength);
+    vm->accountArrayBufferAllocation(byteLength);
+    // Observer registration can collect; account before it resets pressure.
+    updateBackingStore(backingStore);
 }
 
 void ArrayBufferObject::allocateResizableBuffer(ExecutionState& state, size_t byteLength, size_t maxByteLength)
@@ -134,18 +129,12 @@ void ArrayBufferObject::allocateResizableBuffer(ExecutionState& state, size_t by
     ASSERT(byteLength <= maxByteLength);
     ASSERT(maxByteLength < ArrayBuffer::maxArrayBufferSize);
 
-    const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
-    if (maxByteLength > (GC_get_heap_size() / ratio)) {
-        size_t n = 0;
-        size_t times = maxByteLength / (GC_get_heap_size() / ratio) / 3;
-        do {
-            GC_gcollect_and_unmap();
-            n += 1;
-        } while (n < times);
-        GC_invoke_finalizers();
-    }
+    VMInstance* vm = state.context()->vmInstance();
+    vm->collectGarbageForArrayBufferAllocation(maxByteLength);
 
-    updateBackingStore(BackingStore::createDefaultResizableNonSharedBackingStore(byteLength, maxByteLength));
+    BackingStore* backingStore = BackingStore::createDefaultResizableNonSharedBackingStore(byteLength, maxByteLength);
+    vm->accountArrayBufferAllocation(maxByteLength);
+    updateBackingStore(backingStore);
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)

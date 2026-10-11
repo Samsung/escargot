@@ -240,6 +240,9 @@ public:
         return m_inIdleMode;
     }
 
+    void collectGarbageForArrayBufferAllocation(size_t byteLength);
+    void accountArrayBufferAllocation(size_t byteLength);
+
     // whether any object in the heap is dirty as a prototype. a pure
     // short-circuit: while it is false no prototype chain can answer an array
     // index, so chain walks can be skipped entirely. the fast-mode invariant
@@ -549,6 +552,8 @@ private:
     IteratorRecord* m_iteratorRecordPool[iteratorRecordPoolCapacity];
 
     uint64_t m_lastGCMarkStartTickCount;
+    // Native backing stores do not contribute to BDWGC's allocation counter.
+    size_t m_arrayBufferBytesSinceGC{ 0 };
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
