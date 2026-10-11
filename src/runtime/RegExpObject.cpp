@@ -438,48 +438,81 @@ RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(
 }
 
 
+Optional<const char16_t*> RegExpObject::literalMatchCharacters(ExecutionState& state, size_t& length)
+{
+    if (option() & (Option::IgnoreCase | Option::Sticky))
+        return nullptr;
+    if (yarrPatern()->m_numSubpatterns || yarrPatern()->m_containsModifiers)
+        return nullptr;
+    if ((!bytecodePatternSlot() && !ensureBytecodePattern(state)) || !bytecodePattern()->m_fixedPrefixSearch)
+        return nullptr;
+    const auto& search = *bytecodePattern()->m_fixedPrefixSearch.value();
+    if (search.anchoredStart || search.anchoredEnd || search.atoms.size() != 1 || search.atoms[0].isEmpty())
+        return nullptr;
+    const auto& atom = search.atoms[0];
+    // Long parsed atoms already use Yarr's adaptive search. A forward-only
+    // collector would lose that benefit on repeated-prefix inputs.
+    if (atom.size() >= 7)
+        return nullptr;
+    length = atom.size();
+    return &atom[0];
+}
+
 // Adapted from V8 FindStringIndices / StringReplaceGlobalAtomRegExpWithString:
 // collect literal offsets directly, including the first match, without Yarr or
-// per-match capture vectors. The caller admits only nonempty ASCII literals
-// without syntax, case folding, or sticky matching.
+// per-match capture vectors. The caller admits nonempty raw ASCII literals or
+// parsed, unanchored atoms without captures, case folding or sticky matching.
 // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
-void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, LiteralMatchIndices& matches)
+void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, const StringBufferAccessData& literal, LiteralMatchIndices& matches)
 {
     ASSERT(!(option() & (Option::IgnoreCase | Option::Sticky)));
-    ASSERT(source()->length() && matches.empty());
+    ASSERT(literal.length && matches.empty());
     auto& legacy = state.context()->regexpLegacyFeatures();
     legacy.input = string;
     m_lastExecutedString = string;
-    String* source = this->source();
-    const size_t matchLength = source->length();
+    const size_t matchLength = literal.length;
     auto input = string->bufferAccessData();
-    auto literal = source->bufferAccessData();
     size_t position = 0;
     if (input.length < matchLength) {
         return;
     }
+    if (input.has8BitContent && !literal.has8BitContent) {
+        for (size_t i = 0; i < matchLength; ++i) {
+            if (literal.bufferAs16Bit[i] > 0xff)
+                return;
+        }
+    }
+    const char16_t first = literal.charAt(0);
     while (position <= input.length - matchLength) {
         if (input.has8BitContent) {
             // Dense literals often begin at the next candidate already.
             // Avoid calling the scanner again for that known first character.
-            if (input.bufferAs8Bit[position] != literal.bufferAs8Bit[0]) {
-                Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, literal.bufferAs8Bit[0], input.length - matchLength - position + 1));
+            if (static_cast<unsigned char>(input.bufferAs8Bit[position]) != first) {
+                Optional<const char*> found = static_cast<const char*>(memchr(input.bufferAs8Bit + position, first, input.length - matchLength - position + 1));
                 if (!found) {
                     break;
                 }
                 position = found.value() - input.bufferAs8Bit;
             }
-            if (memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength)) {
+            bool equal;
+            if (literal.has8BitContent) {
+                equal = !memcmp(input.bufferAs8Bit + position, literal.bufferAs8Bit, matchLength);
+            } else {
+                size_t i = 1;
+                for (; i < matchLength && static_cast<unsigned char>(input.bufferAs8Bit[position + i]) == literal.bufferAs16Bit[i]; ++i) {}
+                equal = i == matchLength;
+            }
+            if (!equal) {
                 ++position;
                 continue;
             }
         } else {
-            if (input.bufferAs16Bit[position] != literal.bufferAs8Bit[0]) {
+            if (input.bufferAs16Bit[position] != first) {
                 ++position;
                 continue;
             }
             size_t i = 1;
-            for (; i < matchLength && input.bufferAs16Bit[position + i] == literal.bufferAs8Bit[i]; ++i) {}
+            for (; i < matchLength && input.bufferAs16Bit[position + i] == literal.charAt(i); ++i) {}
             if (i < matchLength) {
                 ++position;
                 continue;
@@ -488,6 +521,9 @@ void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, 
         matches.push_back(position);
         position += matchLength;
     }
+    // Parsed characters belong to the compiled pattern; keep its owner alive
+    // across match-buffer growth and any collection that growth may trigger.
+    GC_reachable_here(this);
     if (matches.empty()) {
         return;
     }
@@ -507,6 +543,32 @@ bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMat
     setOption(prevOption);
     return ret;
 }
+
+ALWAYS_INLINE bool RegExpObject::ensureBytecodePattern(ExecutionState& state)
+{
+    if (!bytecodePatternSlot()) {
+        RegExpCacheEntry& entry = state.context()->regexpCache()->getCacheEntryAndCompileIfNeeded(state, m_source, option());
+        if (entry.m_yarrError) {
+            return false;
+        }
+        yarrPatternSlot() = entry.m_yarrPattern;
+
+        if (entry.m_bytecodePattern) {
+            bytecodePatternSlot() = entry.m_bytecodePattern;
+        } else {
+            WTF::BumpPointerAllocator* bumpAlloc = ThreadLocal::bumpPointerAllocator();
+            JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
+            std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*yarrPatternSlot(), bumpAlloc, errorCode);
+            if (errorCode != JSC::Yarr::ErrorCode::NoError) {
+                return false;
+            }
+            bytecodePatternSlot() = ownedBytecode.release();
+            entry.m_bytecodePattern = bytecodePatternSlot();
+        }
+    }
+    return true;
+}
+
 
 bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
@@ -546,14 +608,22 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isGlobal = option() & RegExpObject::Option::Global;
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
+    // Keep reloadable and compressible input alive while reading its buffer.
+    auto strAccessData = str->bufferAccessData();
+    const auto& startFilter = bytecodePatternSlot()->m_startCharFilter;
+    // An anchored first-character rejection needs no capture output or
+    // backtracking storage. Preserve the same failed-match state updates.
+    if (startFilter.fixedPosition && startFilter.valid
+        && (start >= length || !startFilter.contains(strAccessData.charAt(start)))) {
+        if (isGlobal || isSticky)
+            setLastIndex(state, Value(0));
+        return matchResult.matchCount();
+    }
     unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), bytecodePatternSlot()->m_offsetsSize);
     size_t outputBufBytes = sizeof(unsigned) * outputBufLength;
     unsigned* outputBuf = ALLOCA_ATOMIC(outputBufBytes, unsigned int);
     ScopedGCBuffer outputBufOwner(outputBufBytes >= ALLOCA_STACK_LIMIT ? outputBuf : nullptr);
     outputBuf[1] = start;
-    // keep the buffer of `str` alive(it may be a CompressibleString or a
-    // ReloadableString) while the matcher walks it
-    auto strAccessData = str->bufferAccessData();
     do {
         start = outputBuf[1];
         memset(outputBuf, -1, sizeof(unsigned) * 2 * (subPatternNum + 1));
@@ -613,9 +683,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             legacyFeatures.leftContext = StringView(str, 0, outputBuf[0]);
             legacyFeatures.rightContext = StringView(str, outputBuf[maxMatchedIndex * 2 + 1], length);
             legacyFeatures.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
-            size_t offset = matchResult.m_matchResults.size();
-            matchResult.m_matchResults.resize(offset + subPatternNum + 1);
-            memcpy(matchResult.m_matchResults.data() + offset, outputBuf, sizeof(unsigned) * 2 * (subPatternNum + 1));
+            matchResult.appendCaptures(outputBuf);
             if (!isGlobal)
                 break;
             if (start == outputBuf[1]) {
@@ -658,7 +726,10 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
         size_t end = temp.matchAt(0, 0).m_end;
         size_t length = end - temp.matchAt(0, 0).m_start;
         if (!length) {
-            ++end;
+            if (option() & (Unicode | UnicodeSets))
+                end = str->advanceStringIndex(end, true);
+            else
+                ++end;
         }
         result.append(temp);
         len++;
@@ -669,7 +740,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
 
 ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input)
 {
-    uint64_t len = result.m_matchResults.size();
+    uint64_t len = result.matchCount() * result.captureCount();
 
     // Like V8 AllocateRegExpResult, initialize a shared result layout and its
     // own values directly instead of transitioning once per named property.

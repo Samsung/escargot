@@ -599,7 +599,14 @@ public:
                             current = cursor;
                         return true;
                     }
-                } else if (*cursor == atom[0]) {
+                } else {
+                    // Share the bounded word scan used by singleton filters;
+                    // do not branch once for every UTF-16 code unit.
+                    unsigned available = static_cast<unsigned>(last - cursor) + 1;
+                    unsigned skipped = countUntilEitherCharacter(cursor, available, atom[0], atom[0]);
+                    if (skipped == available)
+                        return false;
+                    cursor += skipped;
                     unsigned i = 1;
                     while (i < length && cursor[i] == atom[i])
                         ++i;
@@ -610,6 +617,69 @@ public:
                     }
                 }
                 ++cursor;
+            }
+            return false;
+        }
+
+        // Adapted from V8 InitialSearch / BoyerMooreHorspoolSearch. Begin
+        // with the cheap first-character scan, then use the pattern's bounded
+        // shift table when repeated prefix comparisons become expensive.
+        // If the full-atom shifts make little progress, return to the scan for
+        // this invocation instead of allocating another search table.
+        // https://github.com/v8/v8/blob/15.5.35.20/src/strings/string-search.h
+        bool findLongLiteralAtom(const Vector<UChar>& atom, const uint8_t* shifts)
+        {
+            unsigned length = atom.size();
+            ASSERT(length >= 7);
+            if (!isAvailableInput(length) || (sizeof(CharType) == 1 && atom[0] > 0xff))
+                return false;
+            const CharType* cursor = current;
+            const CharType* last = inputEnd - length;
+            int64_t badness = -32;
+            bool useHorspool = false;
+            bool mayUpgrade = true;
+            while (cursor <= last) {
+                unsigned compared = 0;
+                unsigned shift = 1;
+                if (!useHorspool) {
+                    const CharType* previous = cursor;
+                    if (sizeof(CharType) == 1) {
+                        ::Escargot::Optional<const CharType*> found = static_cast<const CharType*>(memchr(cursor, atom[0], last - cursor + 1));
+                        if (!found)
+                            return false;
+                        cursor = found.value();
+                    } else {
+                        while (cursor <= last && *cursor != atom[0])
+                            ++cursor;
+                        if (cursor > last)
+                            return false;
+                    }
+                    compared = 1;
+                    while (compared < length && cursor[compared] == atom[compared])
+                        ++compared;
+                    if (mayUpgrade)
+                        badness += static_cast<int64_t>(compared) - (cursor - previous);
+                } else {
+                    while (compared < length && cursor[length - compared - 1] == atom[length - compared - 1])
+                        ++compared;
+                    shift = shifts[cursor[length - 1] & 0xff];
+                    ASSERT(shift && shift <= length);
+                    badness += static_cast<int>(compared) + 1 - static_cast<int>(shift);
+                }
+                if (compared == length) {
+                    current = cursor;
+                    return true;
+                }
+                cursor += shift;
+                if (badness > 0) {
+                    if (useHorspool) {
+                        useHorspool = false;
+                        mayUpgrade = false;
+                    } else if (mayUpgrade) {
+                        useHorspool = true;
+                        badness = -32;
+                    }
+                }
             }
             return false;
         }
@@ -825,10 +895,7 @@ public:
 
     ALWAYS_INLINE bool mayStartMatchAt(char32_t ch)
     {
-        const StartCharFilter& filter = pattern->m_startCharFilter;
-        if (ch > 0xFF)
-            return filter.mayStartAboveLatin1;
-        return filter.latin1Bitmap[ch >> 5] & (1u << (ch & 31));
+        return pattern->m_startCharFilter.contains(ch);
     }
 
     // Advances over the start offsets at which no alternative of the body
@@ -1214,8 +1281,7 @@ public:
 
     bool matchCharacterClass(ByteTerm& term, DisjunctionContext* context)
     {
-        ASSERT(term.type == ByteTerm::Type::CharacterClass
-            || term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion);
+        ASSERT(term.isCharacterClass());
         BackTrackInfoCharacterClass* backTrack = reinterpret_cast<BackTrackInfoCharacterClass*>(context->frame + term.frameLocation);
 
         switch (term.atom.quantityType) {
@@ -1331,8 +1397,7 @@ public:
 
     bool backtrackCharacterClass(ByteTerm& term, DisjunctionContext* context)
     {
-        ASSERT(term.type == ByteTerm::Type::CharacterClass
-            || term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion);
+        ASSERT(term.isCharacterClass());
         BackTrackInfoCharacterClass* backTrack = reinterpret_cast<BackTrackInfoCharacterClass*>(context->frame + term.frameLocation);
 
         switch (term.atom.quantityType) {
@@ -2751,6 +2816,14 @@ public:
 
         if (pattern->m_fixedPrefixSearch && !pattern->m_fixedPrefixSearch.value()->atoms.isEmpty()) {
             const auto& search = *pattern->m_fixedPrefixSearch.value();
+            if (!pattern->sticky() && !search.anchoredStart && !search.anchoredEnd && !search.length
+                && search.atoms.size() == 1 && search.longestAtomLength >= 7) {
+                if (!input.findLongLiteralAtom(search.atoms[0], search.shifts))
+                    return offsetNoMatch;
+                output[0] = input.getPos();
+                output[1] = output[0] + search.longestAtomLength;
+                return output[0];
+            }
             if (search.anchoredStart && input.getPos())
                 return offsetNoMatch;
             if (search.anchoredEnd && !search.anchoredStart && !pattern->sticky() && input.end() >= search.longestAtomLength)
@@ -2871,6 +2944,31 @@ public:
         // Sticky atoms compare only the requested position.
         if (pattern.sticky())
             return search.atoms.isEmpty() ? nullptr : new FixedPrefixSearch(WTFMove(search));
+
+        if (!search.anchoredStart && !search.anchoredEnd && search.atoms.size() == 1 && search.longestAtomLength >= 7) {
+            // Reuse the existing 256-byte prefix table for the complete atom.
+            // Distinct UTF-16 characters sharing a low byte can make this
+            // table ineffective; retain the exact prefix search for them.
+            const auto& atom = search.atoms[0];
+            uint32_t bucketCharacters[256]{};
+            bool hasCollision = false;
+            for (auto ch : atom) {
+                auto& bucket = bucketCharacters[ch & 0xff];
+                if (bucket && bucket != static_cast<uint32_t>(ch) + 1) {
+                    hasCollision = true;
+                    break;
+                }
+                bucket = static_cast<uint32_t>(ch) + 1;
+            }
+            if (!hasCollision) {
+                // A zero prefix length identifies the full-atom shift table.
+                unsigned maximumShift = std::min(search.longestAtomLength, 255u);
+                memset(search.shifts, maximumShift, sizeof(search.shifts));
+                for (unsigned i = search.longestAtomLength - maximumShift; i + 1 < search.longestAtomLength; ++i)
+                    search.shifts[atom[i] & 0xff] = search.longestAtomLength - i - 1;
+                return new FixedPrefixSearch(WTFMove(search));
+            }
+        }
 
         unsigned length = FixedPrefixSearch::maxLength;
         for (auto& alternative : body.value()->m_alternatives) {
@@ -3710,6 +3808,7 @@ public:
         }
         m_bodyDisjunction->terms.append(term);
     }
+
 
     void atomPatternCharacter(char32_t ch, MatchDirection matchDirection, unsigned inputPosition, unsigned frameLocation, Checked<unsigned> quantityMaxCount, QuantifierType quantityType, OptionSet<Flags> flags)
     {
