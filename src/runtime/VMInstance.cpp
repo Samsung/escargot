@@ -278,6 +278,7 @@ void vmReclaimEndCallback(void* data)
     }
 
     ThreadLocal::gcEpoch() = GC_get_gc_no();
+    self->m_arrayBufferBytesSinceGC = 0;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     auto currentTick = fastTickCount();
     if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
@@ -924,6 +925,36 @@ void VMInstance::clearCachesRelatedWithContext()
     if (ThreadLocal::isInited()) {
         bf_clear_cache(ThreadLocal::bfContext());
     }
+}
+
+void VMInstance::collectGarbageForArrayBufferAllocation(size_t byteLength)
+{
+    if (!byteLength || GC_is_disabled() || GC_get_disable_automatic_collection()) {
+        return;
+    }
+
+    // Unmapped pages remain reusable heap capacity. Returning them to the OS
+    // must not lower the allocation budget and cause more collections.
+    const size_t heapSize = GC_get_heap_size() + GC_get_unmapped_bytes();
+    const size_t budget = std::max(heapSize / (size_t)GC_get_free_space_divisor(), (size_t)1);
+    const GC_word gcNo = GC_get_gc_no();
+    if (m_arrayBufferBytesSinceGC >= budget) {
+        // Account for native storage independently of the managed heap. One
+        // collection suffices; the next buffer's size does not justify repeats.
+        GC_gcollect_and_unmap();
+    } else if (GC_get_bytes_since_gc() >= budget) {
+        // Let the collector decide whether managed allocation warrants GC,
+        // preserving its adjusted allocation and incremental-work policies.
+        GC_collect_a_little();
+    }
+    if (GC_get_gc_no() != gcNo) {
+        GC_invoke_finalizers();
+    }
+}
+
+void VMInstance::accountArrayBufferAllocation(size_t byteLength)
+{
+    m_arrayBufferBytesSinceGC += std::min(byteLength, std::numeric_limits<size_t>::max() - m_arrayBufferBytesSinceGC);
 }
 
 void VMInstance::enterIdleMode()
