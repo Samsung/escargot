@@ -89,7 +89,7 @@ struct RegexMatchResult {
         unsigned m_start, m_end;
     };
     COMPILE_ASSERT((sizeof(RegexMatchResultPiece)) == (sizeof(unsigned) * 2), sizeof_RegexMatchResultPiece_wrong);
-    int m_subPatternNum { 0 };
+    int m_subPatternNum{ 0 };
 #if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     // Captures of successive matches share one contiguous offset buffer.
     // No strings or GC-managed values are stored here.

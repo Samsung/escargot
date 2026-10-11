@@ -849,7 +849,7 @@ public:
 private:
     // Free native storage only: no strings or GC-managed objects are retained.
     Optional<unsigned*> m_regexpMatchBuffer;
-    size_t m_regexpMatchBufferCapacity { 0 };
+    size_t m_regexpMatchBufferCapacity{ 0 };
 #endif
 };
 } // namespace Escargot
