@@ -361,6 +361,7 @@ public:
         return m_regexpOptionStringCache;
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     size_t regexpMatchBufferCapacity() const
     {
         return m_regexpMatchBufferCapacity;
@@ -370,6 +371,7 @@ public:
     void releaseRegExpMatchBuffer(unsigned* buffer, size_t count);
     ObjectStructure* regExpResultStructure(bool hasIndices);
 
+#endif
     void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
     {
         m_onVMInstanceDestroy = onVMInstanceDestroy;
@@ -559,8 +561,10 @@ private:
     ObjectStructure* m_defaultStructureForWrappedFunctionObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     Optional<ObjectStructure*> m_regexpResultStructure;
     Optional<ObjectStructure*> m_regexpResultWithIndicesStructure;
+#endif
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
@@ -841,10 +845,12 @@ public:
         m_atomicStringLookupCache.insertProbation(src, len, resultString);
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 private:
     // Free native storage only: no strings or GC-managed objects are retained.
     Optional<unsigned*> m_regexpMatchBuffer;
     size_t m_regexpMatchBufferCapacity { 0 };
+#endif
 };
 } // namespace Escargot
 

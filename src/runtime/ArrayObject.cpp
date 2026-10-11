@@ -154,6 +154,7 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
     return spreadArray;
 }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 ArrayObject* ArrayObject::createRegExpResult(ExecutionState& state, uint64_t size, unsigned index, String* input, bool hasIndices)
 {
     ArrayObject* result = new ArrayObject(state, size, false);
@@ -168,6 +169,7 @@ ArrayObject* ArrayObject::createRegExpResult(ExecutionState& state, uint64_t siz
     return result;
 }
 
+#endif
 ObjectHasPropertyResult ArrayObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectGetResult v = getVirtualValue(state, P);

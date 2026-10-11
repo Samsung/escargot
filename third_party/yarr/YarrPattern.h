@@ -157,7 +157,9 @@ public:
     }
 
     void copyOnly8BitCharacterData(const CharacterClass& other);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     void initializeLatin1Bitmap();
+#endif
 
     bool hasNonBMPCharacters() const { return m_characterWidths & CharacterClassWidths::HasNonBMPChars; }
 
@@ -177,6 +179,7 @@ public:
     bool m_tableInverted : 1;
     bool m_anyCharacter : 1;
     bool m_inCanonicalForm : 1;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     // Keep word alignment on ARM32, including GC allocations.
     uint32_t m_latin1Bitmap[8] { };
     bool m_hasLatin1Bitmap { false };
@@ -186,6 +189,7 @@ public:
     // slot it denotes a singleton instead of a pair.
     uint16_t m_latin1SmallMatches[2] { 0x100, 0x100 };
     uint16_t m_latin1SmallNonMatches[2] { 0x100, 0x100 };
+#endif
 };
 
 struct ClassSet : public CharacterClass {
@@ -256,7 +260,9 @@ struct PatternTerm {
     bool m_capture : 1;
     bool m_invert : 1;
     MatchDirection m_matchDirection : 1;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     bool m_possessive { false };
+#endif
     QuantifierType quantityType;
     Checked<unsigned> quantityMinCount;
     Checked<unsigned> quantityMaxCount;
@@ -609,7 +615,11 @@ struct YarrPattern : public gc {
         m_numSubpatterns = 0;
         m_initialStartValueFrameLocation = 0;
         m_numDuplicateNamedCaptureGroups = 0;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         m_endAnchoredFixedSize = endAnchoredFixedSizeNotSet;
+#else
+        m_builtinCharacterClasses.fill(nullptr);
+#endif
 
         m_containsBackreferences = false;
         m_containsBOL = false;
@@ -634,10 +644,25 @@ struct YarrPattern : public gc {
     }
 
 private:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     template<std::unique_ptr<CharacterClass> (*create)()>
     static const CharacterClass* sharedCharacterClass();
+#else
+    template <std::unique_ptr<CharacterClass> (*create)()>
+    const CharacterClass* cachedCharacterClass(unsigned index)
+    {
+        auto& cached = m_builtinCharacterClasses[index];
+        if (!cached) {
+            m_userCharacterClasses.append(create());
+            cached = m_userCharacterClasses.last().get();
+        }
+        return cached.value();
+    }
+    std::array<::Escargot::Optional<const CharacterClass*>, 10> m_builtinCharacterClasses;
+#endif
 
 public:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     static const CharacterClass* anyCharacterClass();
     static const CharacterClass* newlineCharacterClass();
     static const CharacterClass* digitsCharacterClass();
@@ -648,6 +673,19 @@ public:
     static const CharacterClass* nonspacesCharacterClass();
     static const CharacterClass* nonwordcharCharacterClass();
     static const CharacterClass* nonwordUnicodeIgnoreCaseCharCharacterClass();
+
+#else
+    const CharacterClass* anyCharacterClass() { return cachedCharacterClass<anycharCreate>(0); }
+    const CharacterClass* newlineCharacterClass() { return cachedCharacterClass<newlineCreate>(1); }
+    const CharacterClass* digitsCharacterClass() { return cachedCharacterClass<digitsCreate>(2); }
+    const CharacterClass* spacesCharacterClass() { return cachedCharacterClass<spacesCreate>(3); }
+    const CharacterClass* wordcharCharacterClass() { return cachedCharacterClass<wordcharCreate>(4); }
+    const CharacterClass* wordUnicodeIgnoreCaseCharCharacterClass() { return cachedCharacterClass<wordUnicodeIgnoreCaseCharCreate>(5); }
+    const CharacterClass* nondigitsCharacterClass() { return cachedCharacterClass<nondigitsCreate>(6); }
+    const CharacterClass* nonspacesCharacterClass() { return cachedCharacterClass<nonspacesCreate>(7); }
+    const CharacterClass* nonwordcharCharacterClass() { return cachedCharacterClass<nonwordcharCreate>(8); }
+    const CharacterClass* nonwordUnicodeIgnoreCaseCharCharacterClass() { return cachedCharacterClass<nonwordUnicodeIgnoreCaseCharCreate>(9); }
+#endif
 
     const CharacterClass* unicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
     {
@@ -697,9 +735,11 @@ public:
 
     bool hasDuplicateNamedCaptureGroups() const { return !!m_numDuplicateNamedCaptureGroups; }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     static constexpr unsigned endAnchoredFixedSizeNotSet = std::numeric_limits<unsigned>::max();
     bool hasEndAnchoredFixedSize() const { return m_endAnchoredFixedSize != endAnchoredFixedSizeNotSet; }
 
+#endif
     CompileMode compileMode() const
     {
         if (unicode())
@@ -720,7 +760,9 @@ public:
     bool m_hasNamedCaptureGroups : 1;
     bool m_saveInitialStartValue : 1;
     OptionSet<Flags> m_flags;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     unsigned m_endAnchoredFixedSize { endAnchoredFixedSizeNotSet };
+#endif
     unsigned m_numSubpatterns { 0 };
     unsigned m_initialStartValueFrameLocation { 0 };
     unsigned m_numDuplicateNamedCaptureGroups { 0 };
@@ -806,10 +848,14 @@ private:
 
     struct BackTrackInfoParenthesesTerminal {
         uintptr_t begin;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         uintptr_t entryPosition;
+#endif
 
         static unsigned beginIndex() { return offsetof(BackTrackInfoParenthesesTerminal, begin) / sizeof(uintptr_t); }
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         static unsigned entryPositionIndex() { return offsetof(BackTrackInfoParenthesesTerminal, entryPosition) / sizeof(uintptr_t); }
+#endif
     };
 
     struct BackTrackInfoParentheses {

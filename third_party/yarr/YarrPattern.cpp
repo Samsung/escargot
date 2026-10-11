@@ -491,6 +491,7 @@ private:
 
     void addSortedRange(Vector<CharacterRange>& ranges, char32_t lo, char32_t hi)
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (U_IS_BMP(lo))
             m_characterWidths |= CharacterClassWidths::HasBMPChars;
         if (!U_IS_BMP(hi))
@@ -517,6 +518,43 @@ private:
         iter->begin = std::min(iter->begin, lo);
         iter->end = std::max(iter->end, hi);
         mergeRangesFrom(ranges, iter - ranges.begin());
+#else
+        size_t end = ranges.size();
+
+        if (U_IS_BMP(lo))
+            m_characterWidths |= CharacterClassWidths::HasBMPChars;
+        if (!U_IS_BMP(hi))
+            m_characterWidths |= CharacterClassWidths::HasNonBMPChars;
+
+        // Simple linear scan - I doubt there are that many ranges anyway...
+        // feel free to fix this with something faster (eg binary chop).
+        for (size_t i = 0; i < end; ++i) {
+            // does the new range fall before the current position in the array
+            if (hi < ranges[i].begin) {
+                // Concatenate appending ranges.
+                if (hi == (ranges[i].begin - 1)) {
+                    ranges[i].begin = lo;
+                    return;
+                }
+                ranges.insert(i, CharacterRange(lo, hi));
+                return;
+            }
+            // Okay, since we didn't hit the last case, the end of the new range is definitely at or after the begining
+            // If the new range start at or before the end of the last range, then the overlap (if it starts one after the
+            // end of the last range they concatenate, which is just as good.
+            if (lo <= (ranges[i].end + 1)) {
+                // found an intersect! we'll replace this entry in the array.
+                ranges[i].begin = std::min(ranges[i].begin, lo);
+                ranges[i].end = std::max(ranges[i].end, hi);
+
+                mergeRangesFrom(ranges, i);
+                return;
+            }
+        }
+
+        // CharacterRange comes after all existing ranges.
+        ranges.append(CharacterRange(lo, hi));
+#endif
     }
 
     void addSortedRange(char32_t lo, char32_t hi)
@@ -953,6 +991,7 @@ private:
     Vector<CharacterRange> m_rangesUnicode;
 };
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 template<std::unique_ptr<CharacterClass> (*create)()>
 const CharacterClass* YarrPattern::sharedCharacterClass()
 {
@@ -978,6 +1017,7 @@ const CharacterClass* YarrPattern::nonspacesCharacterClass() { return sharedChar
 const CharacterClass* YarrPattern::nonwordcharCharacterClass() { return sharedCharacterClass<nonwordcharCreate>(); }
 const CharacterClass* YarrPattern::nonwordUnicodeIgnoreCaseCharCharacterClass() { return sharedCharacterClass<nonwordUnicodeIgnoreCaseCharCreate>(); }
 
+#endif
 class YarrPatternConstructor {
     class UnresolvedForwardReference {
     public:
@@ -1850,6 +1890,7 @@ public:
     //   * where the parens do not contain any capturing subpatterns.
     void checkForTerminalParentheses()
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         Vector<std::unique_ptr<PatternAlternative>>& alternatives = m_pattern.m_body->m_alternatives;
         for (size_t i = 0; i < alternatives.size(); ++i) {
             Vector<PatternTerm>& terms = alternatives[i]->m_terms;
@@ -1864,6 +1905,26 @@ public:
                     term.parentheses.isTerminal = true;
             }
         }
+#else
+        // This check is much too crude; should be just checking whether the candidate
+        // node contains nested capturing subpatterns, not the whole expression!
+        if (m_pattern.m_numSubpatterns)
+            return;
+
+        Vector<std::unique_ptr<PatternAlternative>>& alternatives = m_pattern.m_body->m_alternatives;
+        for (size_t i = 0; i < alternatives.size(); ++i) {
+            Vector<PatternTerm>& terms = alternatives[i]->m_terms;
+            if (terms.size()) {
+                PatternTerm& term = terms.last();
+                if (term.type == PatternTerm::Type::ParenthesesSubpattern
+                    && term.quantityType == QuantifierType::Greedy
+                    && term.quantityMinCount == 0
+                    && term.quantityMaxCount == quantifyInfinite
+                    && !term.capture())
+                    term.parentheses.isTerminal = true;
+            }
+        }
+#endif
     }
 
     void optimizeBOL()
@@ -1983,6 +2044,7 @@ public:
         }
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     void optimizePossessiveQuantifiers()
     {
         // In legacy mode the parsed classes already contain their case folds.
@@ -2055,6 +2117,7 @@ public:
         m_pattern.m_endAnchoredFixedSize = maximumSize;
     }
 
+#endif
     void setupNamedCaptures()
     {
         if (!m_pattern.m_hasNamedCaptureGroups)
@@ -2351,8 +2414,10 @@ ErrorCode YarrPattern::compile(StringView patternString)
             return error;
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     constructor.optimizePossessiveQuantifiers();
     constructor.computeEndAnchoredFixedSize();
+#endif
     constructor.setupNamedCaptures();
 
     // NOTE(unused)
@@ -2399,6 +2464,7 @@ std::unique_ptr<CharacterClass> anycharCreate()
     return characterClass;
 }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 void CharacterClass::initializeLatin1Bitmap()
 {
     if (m_hasLatin1Bitmap)
@@ -2454,10 +2520,13 @@ void CharacterClass::initializeLatin1Bitmap()
     m_hasLatin1Bitmap = true;
 }
 
+#endif
 void CharacterClass::copyOnly8BitCharacterData(const CharacterClass& other)
 {
     RELEASE_ASSERT(!m_table);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     m_hasLatin1Bitmap = false;
+#endif
 
     m_strings.clear();
     m_matches.clear();

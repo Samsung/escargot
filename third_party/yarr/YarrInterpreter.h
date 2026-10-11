@@ -91,8 +91,10 @@ struct ByteTerm {
             };
             union {
                 ByteDisjunction* parenthesesDisjunction;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                 // Non-null for guarded character-class instructions.
                 const CharacterClass* secondaryCharacterClass;
+#endif
                 unsigned parenthesesWidth;
             };
             QuantifierType quantityType;
@@ -108,6 +110,7 @@ struct ByteTerm {
             bool m_bol : 1;
             bool m_eol : 1;
         } anchors;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         struct {
             uint8_t characters[8];
             uint8_t masks[8];
@@ -118,6 +121,7 @@ struct ByteTerm {
             uint16_t masks[4];
             unsigned length;
         } literal16;
+#endif
         unsigned checkInputCount;
     };
     unsigned frameLocation { 0 };
@@ -138,6 +142,7 @@ struct ByteTerm {
         PatternCharacterFixed,
         PatternCharacterGreedy,
         PatternCharacterNonGreedy,
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         PatternLiteral,
         PatternLiteral16,
         // The input check count occupies the otherwise unused frameLocation.
@@ -145,14 +150,17 @@ struct ByteTerm {
         CheckInputLiteral16,
         CheckInputCharacter,
         CheckInputCharacter16,
+#endif
         // Cased Characeter Types
         PatternCasedCharacterOnce,
         PatternCasedCharacterFixed,
         PatternCasedCharacterGreedy,
         PatternCasedCharacterNonGreedy,
         CharacterClass,
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         CapturedCharacterClass,
         CheckInputCapturedCharacterClass,
+#endif
         BackReference,
         ParenthesesSubpattern,
         ParenthesesSubpatternOnceBegin,
@@ -165,14 +173,18 @@ struct ByteTerm {
         UncheckInput,
         HaveCheckedInput,
         DotStarEnclosure,
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         CharacterClassWithNegativeAssertion,
+#endif
     };
     Type type;
     OptionSet<Flags> m_flags;
     bool m_capture : 1;
     bool m_invert : 1;
     MatchDirection m_matchDirection : 1;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     bool m_possessive { false };
+#endif
     unsigned inputPosition { 0 };
 
     ByteTerm(char32_t ch, unsigned inputPos, unsigned frameLocation, Checked<unsigned> quantityCount, QuantifierType quantityType, OptionSet<Flags> flags)
@@ -455,9 +467,13 @@ struct ByteTerm {
 
     bool isCharacterClass()
     {
-        return type == Type::CharacterClass || type == Type::CapturedCharacterClass
+        return type == Type::CharacterClass
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+            || type == Type::CapturedCharacterClass
             || type == Type::CheckInputCapturedCharacterClass
-            || type == Type::CharacterClassWithNegativeAssertion;
+            || type == Type::CharacterClassWithNegativeAssertion
+#endif
+            ;
     }
 
     bool containsAnyCaptures()
@@ -517,9 +533,11 @@ struct ByteTerm {
     }
 };
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 static_assert(sizeof(ByteTerm::literal) <= sizeof(ByteTerm::atom), "Literal terms must fit the existing bytecode payload");
 static_assert(sizeof(ByteTerm::literal16) <= sizeof(ByteTerm::atom), "UTF-16 literal terms must fit the existing bytecode payload");
 
+#endif
 class ByteDisjunction {
     WTF_MAKE_TZONE_ALLOCATED(ByteDisjunction);
 public:
@@ -542,6 +560,7 @@ public:
 // Interpreter::advanceToPossibleStart(). It is computed once per pattern by
 // StartCharFilterBuilder (YarrInterpreter.cpp); anything not fully understood
 // there leaves the filter invalid, which keeps matching unchanged.
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 struct StartCharFilter {
     // Characters 0x00..0xFF that can begin a match. The whole Latin1 range has to
     // be covered, not just ASCII, because for 8-bit subject strings this bitmap
@@ -586,9 +605,11 @@ struct FixedPrefixSearch {
     bool requiredAtomIsPrefix { false };
 };
 
+#endif
 struct BytecodePattern : public gc {
     WTF_MAKE_TZONE_ALLOCATED(BytecodePattern);
 public:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     enum class SpecificPattern : uint8_t {
         None,
         LeadingSpacesStar,
@@ -598,6 +619,7 @@ public:
         Newlines,
     };
 
+#endif
     static void bytecodePatternClear(void* obj, void* cd)
     {
         BytecodePattern* self = reinterpret_cast<BytecodePattern*>(obj);
@@ -633,23 +655,31 @@ public:
         m_userCharacterClasses.swap(pattern.m_userCharacterClasses);
         m_userCharacterClasses.shrinkToFit();
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         for (auto& characterClass : m_userCharacterClasses)
             characterClass->initializeLatin1Bitmap();
+#endif
 
         m_numDuplicateNamedCaptureGroups = pattern.m_numDuplicateNamedCaptureGroups;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         m_endAnchoredFixedSize = pattern.m_endAnchoredFixedSize;
+#endif
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     ~BytecodePattern()
     {
         if (m_fixedPrefixSearch)
             delete m_fixedPrefixSearch.value();
     }
+#endif
 
     size_t estimatedSizeInBytes() const { return m_body->estimatedSizeInBytes(); }
 
     bool hasDuplicateNamedCaptureGroups() const { return !!m_numDuplicateNamedCaptureGroups; }
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     bool hasEndAnchoredFixedSize() const { return m_endAnchoredFixedSize != YarrPattern::endAnchoredFixedSizeNotSet; }
+#endif
 
     unsigned offsetForDuplicateNamedGroupId(unsigned duplicateNamedGroupId)
     {
@@ -679,13 +709,17 @@ public:
 
     std::unique_ptr<ByteDisjunction> m_body;
     OptionSet<Flags> m_flags;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     SpecificPattern m_specificPattern { SpecificPattern::None };
+#endif
     // Each BytecodePattern is associated with a RegExp, each RegExp is associated
     // with a VM.  Cache a pointer to our VM's m_regExpAllocator.
     BumpPointerAllocator* m_allocator;
 
     unsigned m_numDuplicateNamedCaptureGroups;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     unsigned m_endAnchoredFixedSize { YarrPattern::endAnchoredFixedSizeNotSet };
+#endif
     unsigned m_offsetVectorBaseForNamedCaptures;
     unsigned m_offsetsSize;
     Vector<unsigned> m_duplicateNamedGroupForSubpatternId;
@@ -693,8 +727,10 @@ public:
     const CharacterClass* newlineCharacterClass;
     const CharacterClass* wordcharCharacterClass;
     const CharacterClass* ignoreCaseWordcharCharacterClass;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     StartCharFilter m_startCharFilter;
     ::Escargot::Optional<FixedPrefixSearch*> m_fixedPrefixSearch;
+#endif
 
 private:
     Vector<std::unique_ptr<ByteDisjunction>> m_allParenthesesInfo;

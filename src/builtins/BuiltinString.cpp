@@ -372,6 +372,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 // Sparse replacement slices share one source string and one atomic array.
 // Materialize only when a caller needs contiguous characters.
 class ReplacementSlicesString : public String {
@@ -757,15 +758,27 @@ static String* stringReplaceLiteralMatches(ExecutionState& state, String* string
     return stringReplaceSimple(state, string, replacement, matches.size(), matchAt);
 }
 
+#endif
 static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
 {
     ASSERT(string && replaceString);
 
     auto replaceStringBad = replaceString->bufferAccessData();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     if (!replaceStringBad.length && result.m_matchResults.size() > result.captureCount())
         return stringRemoveMatchedRanges(state, string, result.matchCount(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.matchAt(i, 0); });
     bool hasDollar = replacementContainsDollar(replaceStringBad);
+#else
+    bool hasDollar = false;
+    for (size_t i = 0; i < replaceStringBad.length; i++) {
+        if (replaceStringBad.charAt(i) == '$') {
+            hasDollar = true;
+            break;
+        }
+    }
+#endif
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     if (!hasDollar && replaceStringBad.length && result.m_matchResults.size() > result.captureCount()) {
         const size_t captureCount = result.captureCount();
         return stringReplaceSimple(state, string, replaceStringBad, result.matchCount(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& {
@@ -773,6 +786,7 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
         });
     }
 
+#endif
     StringBuilder builder;
     if (!hasDollar) {
         // flat replace
@@ -908,6 +922,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             if (isGlobal) {
                 regexp->setLastIndex(state, Value(0));
             }
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             if (isGlobal && replaceValue.isString()) {
                 const bool rawLiteral = canReplaceLiteralMatches(regexp);
                 size_t matchLength = regexp->source()->length();
@@ -925,6 +940,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                     }
                 }
             }
+#endif
             bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
             if (testResult && isGlobal) {
                 regexp->createRegexMatchResult(state, string, result);
@@ -936,7 +952,11 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                 RegexMatchResult::RegexMatchResultPiece p;
                 p.m_start = idx;
                 p.m_end = idx + searchString.value()->length();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                 result.m_matchResults.push_back(p);
+#else
+                result.m_matchResults.push_back({ p });
+#endif
             }
         }
 
