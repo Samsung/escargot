@@ -560,6 +560,11 @@ struct StartCharFilter {
     bool valid { false };
     bool fixedPosition { false };
     uint16_t singleLatin1Character { 0x100 };
+
+    bool contains(char32_t ch) const
+    {
+        return ch > 0xff ? mayStartAboveLatin1 : latin1Bitmap[ch >> 5] & (1u << (ch & 31));
+    }
 };
 
 struct FixedPrefixSearch {

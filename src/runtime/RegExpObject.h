@@ -107,6 +107,12 @@ struct RegexMatchResult {
         m_subPatternNum = result.m_subPatternNum;
         m_matchResults.insert(m_matchResults.end(), result.m_matchResults.begin(), result.m_matchResults.end());
     }
+    void appendCaptures(const unsigned* offsets)
+    {
+        size_t offset = m_matchResults.size();
+        m_matchResults.resize(offset + captureCount());
+        memcpy(m_matchResults.data() + offset, offsets, sizeof(unsigned) * 2 * captureCount());
+    }
 };
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -215,7 +221,8 @@ public:
         return res;
     }
 
-    void collectLiteralMatches(ExecutionState& state, String* str, LiteralMatchIndices& matches);
+    Optional<const char16_t*> literalMatchCharacters(ExecutionState& state, size_t& length);
+    void collectLiteralMatches(ExecutionState& state, String* str, const StringBufferAccessData& literal, LiteralMatchIndices& matches);
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     uint32_t getOptions(ExecutionState& state);
@@ -304,6 +311,7 @@ private:
     }
     void setOption(const Option& option);
     void internalInit(ExecutionState& state, String* source, Option option = None);
+    bool ensureBytecodePattern(ExecutionState& state);
 
     // has source, option...
     static bool hasOwnRegExpProperty(ExecutionState& state, Object* obj);

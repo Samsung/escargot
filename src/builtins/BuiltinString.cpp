@@ -463,6 +463,22 @@ private:
     size_t m_sliceCount;
 };
 
+template <typename Character>
+static void copyStringRange(const StringBufferAccessData& input, size_t begin, size_t end, Character* output)
+{
+    size_t count = end - begin;
+    if (!count)
+        return;
+    if (sizeof(*output) == 1 && input.has8BitContent)
+        memcpy(output, input.bufferAs8Bit + begin, count);
+    else if (sizeof(*output) == 2 && !input.has8BitContent)
+        memcpy(output, input.bufferAs16Bit + begin, count * sizeof(char16_t));
+    else {
+        for (size_t i = begin; i < end; ++i)
+            output[i - begin] = input.charAt(i);
+    }
+}
+
 template <typename Character, typename MatchAt>
 static void copyUnmatchedRanges(const StringBufferAccessData& input, size_t matchCount, MatchAt matchAt, Character* output, size_t expectedLength)
 {
@@ -489,6 +505,71 @@ static void copyUnmatchedRanges(const StringBufferAccessData& input, size_t matc
     }
     copyRange(end, input.length);
     ASSERT(position == expectedLength);
+}
+
+template <typename Character, typename MatchAt>
+static void copySimpleReplacement(const StringBufferAccessData& input, const StringBufferAccessData& replacement, size_t matchCount, MatchAt matchAt, Character* output, size_t expectedLength)
+{
+    size_t position = 0;
+    size_t previousEnd = 0;
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        copyStringRange(input, previousEnd, match.m_start, output + position);
+        position += match.m_start - previousEnd;
+        copyStringRange(replacement, 0, replacement.length, output + position);
+        position += replacement.length;
+        previousEnd = match.m_end;
+    }
+    copyStringRange(input, previousEnd, input.length, output + position);
+    position += input.length - previousEnd;
+    ASSERT(position == expectedLength);
+}
+
+// A constant replacement without substitution tokens needs only the validated
+// match offsets and two input buffers. Size and copy the result directly rather
+// than allocating StringBuilder pieces and roots for every occurrence.
+template <typename MatchAt>
+static String* stringReplaceSimple(ExecutionState& state, String* string, const StringBufferAccessData& replacement, size_t matchCount, MatchAt matchAt)
+{
+    ASSERT(replacement.length && matchCount > 1);
+
+    auto input = string->bufferAccessData();
+    size_t unmatchedLength = input.length;
+    size_t previousEnd = 0;
+    bool latin1 = true;
+    auto checkLatin1 = [&](const StringBufferAccessData& data, size_t begin, size_t end) {
+        if (!data.has8BitContent && latin1) {
+            for (size_t i = begin; i < end; ++i) {
+                if (data.bufferAs16Bit[i] > 0xff) {
+                    latin1 = false;
+                    break;
+                }
+            }
+        }
+    };
+    checkLatin1(replacement, 0, replacement.length);
+    for (size_t i = 0; i < matchCount; ++i) {
+        const auto& match = matchAt(i);
+        ASSERT(match.m_start >= previousEnd && match.m_end >= match.m_start && match.m_end <= input.length);
+        unmatchedLength -= match.m_end - match.m_start;
+        checkLatin1(input, previousEnd, match.m_start);
+        previousEnd = match.m_end;
+    }
+    checkLatin1(input, previousEnd, input.length);
+    // Division checks the product before multiplication, including on ARM32.
+    if (UNLIKELY(replacement.length > (STRING_MAXIMUM_LENGTH - unmatchedLength) / matchCount))
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+    size_t length = unmatchedLength + replacement.length * matchCount;
+    if (latin1) {
+        Latin1StringData data;
+        data.resizeWithUninitializedValues(length);
+        copySimpleReplacement(input, replacement, matchCount, matchAt, data.data(), length);
+        return new Latin1String(std::move(data));
+    }
+    UTF16StringData data;
+    data.resizeWithUninitializedValues(length);
+    copySimpleReplacement(input, replacement, matchCount, matchAt, data.data(), length);
+    return new UTF16String(std::move(data));
 }
 
 // Adapted from V8 StringReplaceGlobalAtomRegExpWithString's empty-replacement
@@ -592,12 +673,27 @@ static String* stringRemoveMatchedRanges(ExecutionState& state, String* string, 
     return new UTF16String(std::move(data));
 }
 
+static ALWAYS_INLINE bool replacementContainsDollar(const StringBufferAccessData& replacement)
+{
+    if (replacement.length <= 1)
+        return replacement.length && replacement.charAt(0) == '$';
+    // Amortize the scanner call on longer byte strings; short replacements
+    // and UTF-16 keep the bounded scalar check.
+    if (replacement.has8BitContent && replacement.length >= 16)
+        return memchr(replacement.bufferAs8Bit, '$', replacement.length);
+    for (size_t i = 0; i < replacement.length; ++i) {
+        if (replacement.charAt(i) == '$')
+            return true;
+    }
+    return false;
+}
+
 // V8's atom replacement path collects literal match offsets together, bypassing
 // per-match interpreter calls and capture-vector allocation. Keep this path
 // restricted to nonempty ASCII source without regexp syntax, case folding or
-// sticky matching; escaped literals and all other patterns use Yarr unchanged.
+// sticky matching. Decoded atoms have a separate eligibility check.
 // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
-static bool canRemoveLiteralMatches(RegExpObject* regexp)
+static bool canReplaceLiteralMatches(RegExpObject* regexp)
 {
     if (regexp->option() & (RegExpObject::Option::IgnoreCase | RegExpObject::Option::Sticky)) {
         return false;
@@ -619,17 +715,46 @@ static bool canRemoveLiteralMatches(RegExpObject* regexp)
 // also recovers bounded storage released when a large match vector grows;
 // active vectors retain exclusive ownership during reentrant calls.
 // https://github.com/v8/v8/blob/e3e0f1c146fc15721a3e8f539ab412cd70fb1082/src/runtime/runtime-regexp.cc
-static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp)
+static String* stringRemoveLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp, const StringBufferAccessData& literal)
 {
     LiteralMatchIndices matches(state.context()->vmInstance());
-    regexp->collectLiteralMatches(state, string, matches);
+    regexp->collectLiteralMatches(state, string, literal, matches);
     if (matches.empty()) {
         return string;
     }
-    const unsigned matchLength = regexp->source()->length();
+    const unsigned matchLength = literal.length;
     return stringRemoveMatchedRanges(state, string, matches.size(), [&](size_t i) -> RegexMatchResult::RegexMatchResultPiece {
         return { matches[i], matches[i] + matchLength };
     });
+}
+
+static String* stringReplaceLiteralMatches(ExecutionState& state, String* string, RegExpObject* regexp, String* replaceString, const StringBufferAccessData& literal)
+{
+    LiteralMatchIndices matches(state.context()->vmInstance());
+    regexp->collectLiteralMatches(state, string, literal, matches);
+    if (matches.empty()) {
+        return string;
+    }
+    const unsigned matchLength = literal.length;
+    // One replacement fits in the builder's inline storage. Keep its assembly
+    // path instead of sizing and scanning a separate multi-match copy pass.
+    if (matches.size() == 1) {
+        size_t begin = matches[0];
+        size_t end = begin + matchLength;
+        if (!begin && end == string->length())
+            return replaceString;
+        StringBuilder builder;
+        builder.appendSubString(string, 0, begin, &state);
+        builder.appendString(replaceString, &state);
+        builder.appendSubString(string, end, string->length(), &state);
+        return builder.finalize(&state);
+    }
+    auto matchAt = [&](size_t i) -> RegexMatchResult::RegexMatchResultPiece {
+        return { matches[i], matches[i] + matchLength };
+    };
+    auto replacement = replaceString->bufferAccessData();
+    ASSERT(replacement.length);
+    return stringReplaceSimple(state, string, replacement, matches.size(), matchAt);
 }
 
 static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
@@ -637,14 +762,15 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
     ASSERT(string && replaceString);
 
     auto replaceStringBad = replaceString->bufferAccessData();
-    if (!replaceStringBad.length && result.matchCount() > 1)
+    if (!replaceStringBad.length && result.m_matchResults.size() > result.captureCount())
         return stringRemoveMatchedRanges(state, string, result.matchCount(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& { return result.matchAt(i, 0); });
-    bool hasDollar = false;
-    for (size_t i = 0; i < replaceStringBad.length; i++) {
-        if (replaceStringBad.charAt(i) == '$') {
-            hasDollar = true;
-            break;
-        }
+    bool hasDollar = replacementContainsDollar(replaceStringBad);
+
+    if (!hasDollar && replaceStringBad.length && result.m_matchResults.size() > result.captureCount()) {
+        const size_t captureCount = result.captureCount();
+        return stringReplaceSimple(state, string, replaceStringBad, result.matchCount(), [&](size_t i) -> const RegexMatchResult::RegexMatchResultPiece& {
+            return result.m_matchResults[i * captureCount];
+        });
     }
 
     StringBuilder builder;
@@ -764,8 +890,8 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     // performs ToString(searchValue) - doing it here would call a user-visible
     // RegExp.prototype.toString and, since it escapes the whole pattern source, cost far
     // more than the match itself for long patterns.
-    // searchString stays null only on the RegExp fast path below, which never reads it.
-    String* searchString = nullptr;
+    // searchString remains empty on the RegExp fast path, which never reads it.
+    Optional<String*> searchString;
     if (!isSearchValueRegExp || !canUseFastPath) {
         searchString = searchValue.toString(state);
     }
@@ -773,7 +899,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 
     if (canUseFastPath) {
         RegexMatchResult result;
-        String* replaceString = nullptr;
+        Optional<String*> replaceString;
 
         if (isSearchValueRegExp) {
             RegExpObject* regexp = searchValue.asPointerValue()->asRegExpObject();
@@ -782,8 +908,22 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             if (isGlobal) {
                 regexp->setLastIndex(state, Value(0));
             }
-            if (isGlobal && replaceValue.isString() && !replaceValue.asString()->length() && canRemoveLiteralMatches(regexp)) {
-                return stringRemoveLiteralMatches(state, string, regexp);
+            if (isGlobal && replaceValue.isString()) {
+                const bool rawLiteral = canReplaceLiteralMatches(regexp);
+                size_t matchLength = regexp->source()->length();
+                Optional<const char16_t*> parsedLiteral;
+                if (!rawLiteral)
+                    parsedLiteral = regexp->literalMatchCharacters(state, matchLength);
+                if (rawLiteral || parsedLiteral) {
+                    auto replacement = replaceValue.asString()->bufferAccessData();
+                    if (!replacementContainsDollar(replacement)) {
+                        auto literal = rawLiteral ? regexp->source()->bufferAccessData()
+                                                  : StringBufferAccessData(false, matchLength, const_cast<char16_t*>(parsedLiteral.value()));
+                        if (!replacement.length)
+                            return stringRemoveLiteralMatches(state, string, regexp, literal);
+                        return stringReplaceLiteralMatches(state, string, regexp, replaceValue.asString(), literal);
+                    }
+                }
             }
             bool testResult = regexp->matchNonGlobally(state, string, result, false, 0);
             if (testResult && isGlobal) {
@@ -791,11 +931,11 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             }
         } else {
             ASSERT(searchString);
-            size_t idx = string->find(searchString);
+            size_t idx = string->find(searchString.value());
             if (idx != (size_t)-1) {
                 RegexMatchResult::RegexMatchResultPiece p;
                 p.m_start = idx;
-                p.m_end = idx + searchString->length();
+                p.m_end = idx + searchString.value()->length();
                 result.m_matchResults.push_back(p);
             }
         }
@@ -845,15 +985,16 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             builer.appendSubString(string, result.matchAt(matchCount - 1, 0).m_end, string->length());
             return builer.finalize(&state);
         } else {
-            return stringReplaceFastPathHelper(state, string, replaceString, result);
+            ASSERT(replaceString);
+            return stringReplaceFastPathHelper(state, string, replaceString.value(), result);
         }
     } else {
         ASSERT(searchString);
         if (!functionalReplace) {
             replaceValue = replaceValue.toString(state);
         }
-        size_t pos = string->find(searchString, 0);
-        String* matched = searchString;
+        size_t pos = string->find(searchString.value(), 0);
+        String* matched = searchString.value();
 
         // If no occurrences of searchString were found, return string.
         if (pos == SIZE_MAX) {
