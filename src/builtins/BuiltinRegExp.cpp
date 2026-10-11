@@ -124,8 +124,10 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 
 enum class RegExpExecResult {
     Array,
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     Index,
     MatchedString,
+#endif
 };
 
 static Value builtinRegExpExecImpl(ExecutionState& state, Value thisValue, Value argument, RegExpExecResult resultKind)
@@ -157,6 +159,7 @@ static Value builtinRegExpExecImpl(ExecutionState& state, Value thisValue, Value
             regexp->setLastIndex(state, Value(result.matchAt(0, 0).m_end));
         }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (resultKind != RegExpExecResult::Array && state.context() == regexp->getFunctionRealm(state) && !regexp->legacyFeaturesEnabled()) {
             state.context()->regexpLegacyFeatures().invalidate();
         }
@@ -167,6 +170,7 @@ static Value builtinRegExpExecImpl(ExecutionState& state, Value thisValue, Value
             const auto& match = result.matchAt(0, 0);
             return str->substring(match.m_start, match.m_end, &state);
         }
+#endif
         return regexp->createRegExpMatchedArray(state, result, str);
     }
 
@@ -197,9 +201,11 @@ static Value regExpExec(ExecutionState& state, Object* R, String* S, RegExpExecR
     Value exec = R->get(state, ObjectPropertyName(state.context()->staticStrings().exec)).value(state, R);
     Value arg[1] = { S };
     if (exec.isCallable()) {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (resultKind != RegExpExecResult::Array && R->isRegExpObject() && exec == state.context()->globalObject()->regexpExecMethod()) {
             return builtinRegExpExecImpl(state, R, S, resultKind);
         }
+#endif
         Value result = Object::call(state, exec, R, 1, arg);
         if (result.isNull() || result.isObject()) {
             return result;
@@ -300,7 +306,11 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, Value(0))) {
         rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
     }
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     Value result = regExpExec(state, rx, s, RegExpExecResult::Index);
+#else
+    Value result = regExpExec(state, rx, s);
+#endif
 
     Value currentLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
     if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, currentLastIndex)) {
@@ -309,9 +319,11 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     if (result.isNull()) {
         return Value(-1);
     }
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     if (result.isNumber()) {
         return result;
     }
+#endif
     return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
 }
 
@@ -624,7 +636,11 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     // 21.2.5.6.8.g.i
     while (true) {
         // 21.2.5.6.8.g.i
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         Value result = regExpExec(state, rx.asObject(), str, RegExpExecResult::MatchedString);
+#else
+        Value result = regExpExec(state, rx.asObject(), str);
+#endif
         // 21.2.5.6.8.g.iii
         if (result.isNull()) {
             if (n == 0) {
@@ -633,8 +649,13 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
             return A;
         } else {
             // 21.2.5.6.8.g.iv
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             Value matchStr = result.isString() ? result : result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
             A->defineOwnProperty(state, ObjectPropertyName(state, Value(n)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
+#else
+            Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
+            A->defineOwnProperty(state, ObjectPropertyName(state, Value(n).toString(state)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
+#endif
             if (matchStr.asString()->length() == 0) {
                 // 21.2.5.6.8.g.iv.5
                 uint64_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);

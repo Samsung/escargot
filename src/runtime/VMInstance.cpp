@@ -179,8 +179,10 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForWrappedFunctionObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForStringObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForRegExpObject));
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpResultStructure));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpResultWithIndicesStructure));
+#endif
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
@@ -310,6 +312,7 @@ void vmReclaimEndCallback(void* data)
     */
 }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 unsigned* VMInstance::allocateRegExpMatchBuffer(size_t count)
 {
     if (m_regexpMatchBuffer && m_regexpMatchBufferCapacity == count) {
@@ -356,6 +359,7 @@ ObjectStructure* VMInstance::regExpResultStructure(bool hasIndices)
     return cached.value();
 }
 
+#endif
 VMInstance::~VMInstance()
 {
     // set this first; the ByteCodeBlock disclaim callback reads it (through
@@ -431,11 +435,13 @@ VMInstance::~VMInstance()
 #if defined(ENABLE_CODE_CACHE)
     delete m_codeCache;
 #endif
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     if (m_regexpMatchBuffer) {
         std::allocator<unsigned>().deallocate(m_regexpMatchBuffer.value(), m_regexpMatchBufferCapacity);
         m_regexpMatchBuffer.reset();
         m_regexpMatchBufferCapacity = 0;
     }
+#endif
 }
 
 VMInstance::VMInstance(const char* locale, const char* timezone, const char* baseCacheDir)

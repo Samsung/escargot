@@ -65,6 +65,7 @@
 
 namespace Escargot {
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 LiteralMatchIndices::LiteralMatchIndices(VMInstance* vmInstance)
     : m_vmInstance(vmInstance)
 {
@@ -102,6 +103,7 @@ void LiteralMatchIndices::grow()
     m_capacityEnd = buffer + capacity;
 }
 
+#endif
 void* RegExpObject::operator new(size_t size)
 {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -438,6 +440,7 @@ RegExpObject::RegExpCacheEntry& RegExpCacheMap::getCacheEntryAndCompileIfNeeded(
 }
 
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 Optional<const char16_t*> RegExpObject::literalMatchCharacters(ExecutionState& state, size_t& length)
 {
     if (option() & (Option::IgnoreCase | Option::Sticky))
@@ -535,6 +538,7 @@ void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, 
     legacy.rightContext = StringView(string, last + matchLength, string->length());
 }
 
+#endif
 bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
     Option prevOption = option();
@@ -544,6 +548,7 @@ bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMat
     return ret;
 }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 ALWAYS_INLINE bool RegExpObject::ensureBytecodePattern(ExecutionState& state)
 {
     if (!bytecodePatternSlot()) {
@@ -569,6 +574,7 @@ ALWAYS_INLINE bool RegExpObject::ensureBytecodePattern(ExecutionState& state)
     return true;
 }
 
+#endif
 
 bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
 {
@@ -610,6 +616,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool gotResult = false;
     // Keep reloadable and compressible input alive while reading its buffer.
     auto strAccessData = str->bufferAccessData();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     const auto& startFilter = bytecodePatternSlot()->m_startCharFilter;
     // An anchored first-character rejection needs no capture output or
     // backtracking storage. Preserve the same failed-match state updates.
@@ -619,6 +626,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             setLastIndex(state, Value(0));
         return matchResult.matchCount();
     }
+#endif
     unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), bytecodePatternSlot()->m_offsetsSize);
     size_t outputBufBytes = sizeof(unsigned) * outputBufLength;
     unsigned* outputBuf = ALLOCA_ATOMIC(outputBufBytes, unsigned int);
@@ -746,11 +754,19 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     // own values directly instead of transitioning once per named property.
     // https://github.com/v8/v8/blob/15.5.35.20/src/builtins/builtins-regexp-gen.cc
     // Full-input captures already have the required immutable string value.
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     ArrayObject* arr = ArrayObject::createRegExpResult(state, len, result.matchAt(0, 0).m_start, input, option() & HasIndices);
+#else
+    ArrayObject* arr = new ArrayObject(state, len);
+    arr->directDefineOwnProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.matchAt(0, 0).m_start)));
+    arr->directDefineOwnProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
+#endif
     auto captureString = [&](const RegexMatchResult::RegexMatchResultPiece& match) -> String* {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (!match.m_start && match.m_end == input->length()) {
             return input;
         }
+#endif
         return input->substring(match.m_start, match.m_end, &state);
     };
 
@@ -808,6 +824,11 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         }
     }
 
+#if !defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    if (yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
+        arr->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+    }
+#endif
     if (!yarrPatternSlot()->m_namedGroupToParenIndices.empty()) {
         Object* groups = new Object(state, Object::PrototypeIsNull);
         for (auto it = yarrPatternSlot()->m_captureGroupNames.begin(); it != yarrPatternSlot()->m_captureGroupNames.end(); ++it) {

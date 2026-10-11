@@ -280,6 +280,7 @@ public:
             ++current;
         }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         void advance(unsigned count)
         {
             ASSERT(count <= static_cast<size_t>(inputEnd - current));
@@ -397,6 +398,7 @@ public:
             return true;
         }
 
+#endif
         void rewind(unsigned amount)
         {
             ASSERT(static_cast<size_t>(current - input) >= amount);
@@ -576,6 +578,7 @@ public:
             return (static_cast<size_t>(current - input) >= offset) && ((current - offset) < inputEnd);
         }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         // Inspired by V8 BoyerMooreLookahead search prefilters. This
         // Yarr-specific check also handles variable-width prefixes, where
         // only absence can reject a match. A leading atom can instead advance
@@ -781,6 +784,7 @@ public:
         {
         }
 
+#endif
     private:
         const CharType* input;
         const CharType* current;
@@ -851,8 +855,10 @@ public:
         if (characterClass->m_anyCharacter)
             return true;
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (ch <= 0xff && characterClass->m_hasLatin1Bitmap)
             return characterClass->m_latin1Bitmap[ch >> 5] & (1u << (ch & 31));
+#endif
 
         const size_t thresholdForBinarySearch = 6;
 
@@ -893,6 +899,7 @@ public:
         return false;
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     ALWAYS_INLINE bool mayStartMatchAt(char32_t ch)
     {
         return pattern->m_startCharFilter.contains(ch);
@@ -958,6 +965,7 @@ public:
         return false;
     }
 
+#endif
     bool checkCharacter(ByteTerm& term, unsigned negativeInputOffset)
     {
         ASSERT(term.isCharacterType());
@@ -988,11 +996,13 @@ public:
         if (inputChar == errorCodePoint)
             return false;
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (term.type == ByteTerm::Type::CharacterClassWithNegativeAssertion) {
             ASSERT(!isEitherUnicodeCompilation() && term.matchDirection() == Forward);
             return testCharacterClass(term.atom.characterClass, inputChar) != term.invert()
                 && !testCharacterClass(term.atom.secondaryCharacterClass, inputChar);
         }
+#endif
 
         bool match;
         // Escargot update for `built-ins/RegExp/regexp-modifiers/add-ignoreCase-affects-slash-upper-p.js`
@@ -1085,6 +1095,7 @@ public:
                 return false;
         }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (sizeof(CharType) == 1 || (!term.ignoreCase() && isLegacyCompilation())) {
             if (!input.matchesBackReference(matchBegin, matchSize, term.inputPosition + matchSize, term.ignoreCase())) {
                 if (term.matchDirection() == Forward)
@@ -1095,6 +1106,7 @@ public:
                 input.uncheckInput(matchSize);
             return true;
         }
+#endif
 
         for (unsigned i = 0; i < matchSize; ++i) {
             unsigned negativeInputOffset = term.inputPosition + matchSize - i;
@@ -1177,12 +1189,14 @@ public:
             break;
 
         case QuantifierType::Greedy:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             if (term.m_possessive) {
                 ASSERT(!isEitherUnicodeCompilation() && term.matchDirection() == Forward);
                 input.uncheckInput(backTrack->matchAmount * U16_LENGTH(term.atom.patternCharacter));
                 backTrack->matchAmount = 0;
                 return false;
             }
+#endif
             if (backTrack->matchAmount) {
                 --backTrack->matchAmount;
                 if (term.matchDirection() == Forward)
@@ -1233,12 +1247,14 @@ public:
             break;
 
         case QuantifierType::Greedy:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             if (term.m_possessive) {
                 ASSERT(!isEitherUnicodeCompilation() && term.matchDirection() == Forward);
                 input.uncheckInput(backTrack->matchAmount);
                 backTrack->matchAmount = 0;
                 return false;
             }
+#endif
             if (backTrack->matchAmount) {
                 --backTrack->matchAmount;
                 if (term.matchDirection() == Forward)
@@ -1351,12 +1367,14 @@ public:
             unsigned position = input.getPos();
             unsigned matchAmount = 0;
             if (term.matchDirection() == Forward) {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                 if (!isEitherUnicodeCompilation() && term.type == ByteTerm::Type::CharacterClass
                     && term.atom.characterClass->m_hasLatin1Bitmap) {
                     matchAmount = input.consumeLatin1CharacterClass(*term.atom.characterClass,
                         term.atom.quantityMaxCount, term.inputPosition, term.invert());
                     position = input.getPos();
                 }
+#endif
                 while ((matchAmount < term.atom.quantityMaxCount) && input.checkInput(1)) {
                     if (!checkCharacterClass(term, term.inputPosition + 1)) {
                         input.setPos(position);
@@ -1407,12 +1425,14 @@ public:
             break;
 
         case QuantifierType::Greedy:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             if (term.m_possessive) {
                 ASSERT(!isEitherUnicodeCompilation() && term.matchDirection() == Forward);
                 input.uncheckInput(backTrack->matchAmount);
                 backTrack->matchAmount = 0;
                 return false;
             }
+#endif
             if (backTrack->matchAmount) {
                 if (isEitherUnicodeCompilation()) {
                     // Unmatch one codepoint
@@ -1759,6 +1779,7 @@ public:
 
     bool matchParenthesesTerminalBegin(ByteTerm& term, DisjunctionContext* context)
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalBegin);
         ASSERT(term.atom.quantityType == QuantifierType::Greedy);
         ASSERT(term.atom.quantityMinCount <= 1);
@@ -1769,10 +1790,21 @@ public:
         backTrack->begin = input.getPos();
         backTrack->entryPosition = input.getPos();
         return true;
+#else
+        ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalBegin);
+        ASSERT(term.atom.quantityType == QuantifierType::Greedy);
+        ASSERT(term.atom.quantityMaxCount == quantifyInfinite);
+        ASSERT(!term.capture());
+
+        BackTrackInfoParenthesesTerminal* backTrack = reinterpret_cast<BackTrackInfoParenthesesTerminal*>(context->frame + term.frameLocation);
+        backTrack->begin = input.getPos();
+        return true;
+#endif
     }
 
     bool matchParenthesesTerminalEnd(ByteTerm& term, DisjunctionContext* context)
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalEnd);
         ASSERT(term.atom.quantityMinCount <= 1);
 
@@ -1790,10 +1822,23 @@ public:
         // Initialize the group once; subsequent iterations enter its body.
         context->term -= term.atom.parenthesesWidth;
         return true;
+#else
+        ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalEnd);
+
+        BackTrackInfoParenthesesTerminal* backTrack = reinterpret_cast<BackTrackInfoParenthesesTerminal*>(context->frame + term.frameLocation);
+        // Empty match is a failed match.
+        if (backTrack->begin == input.getPos())
+            return false;
+
+        // Successful match! Okay, what's next? - loop around and try to match more!
+        context->term -= (term.atom.parenthesesWidth + 1);
+        return true;
+#endif
     }
 
     bool backtrackParenthesesTerminalBegin(ByteTerm& term, DisjunctionContext* context)
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalBegin);
         ASSERT(term.atom.quantityType == QuantifierType::Greedy);
         ASSERT(term.atom.quantityMinCount <= 1);
@@ -1811,6 +1856,17 @@ public:
         }
         context->term += term.atom.parenthesesWidth;
         return true;
+#else
+        ASSERT(term.type == ByteTerm::Type::ParenthesesSubpatternTerminalBegin);
+        ASSERT(term.atom.quantityType == QuantifierType::Greedy);
+        ASSERT(term.atom.quantityMaxCount == quantifyInfinite);
+        ASSERT(!term.capture());
+
+        // If we backtrack to this point, we have failed to match this iteration of the parens.
+        // Since this is greedy / zero minimum a failed is also accepted as a match!
+        context->term += term.atom.parenthesesWidth;
+        return true;
+#endif
     }
 
     bool backtrackParenthesesTerminalEnd(ByteTerm&, DisjunctionContext*)
@@ -2247,6 +2303,7 @@ public:
                 MATCH_NEXT();
             BACKTRACK();
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::PatternLiteral:
             if (input.matchesLiteral(currentTerm()))
                 MATCH_NEXT();
@@ -2283,6 +2340,7 @@ public:
                 MATCH_NEXT();
             input.uncheckInput(currentTerm().frameLocation);
             BACKTRACK();
+#endif
         case ByteTerm::Type::PatternCharacterOnce:
         case ByteTerm::Type::PatternCharacterFixed: {
             DUMP_CURR_CHAR();
@@ -2461,11 +2519,14 @@ public:
         }
 
         case ByteTerm::Type::CharacterClass:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::CharacterClassWithNegativeAssertion:
+#endif
             DUMP_CURR_CHAR();
             if (matchCharacterClass(currentTerm(), context))
                 MATCH_NEXT();
             BACKTRACK();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::CheckInputCapturedCharacterClass:
             if (!input.checkInput(currentTerm().frameLocation))
                 BACKTRACK();
@@ -2484,6 +2545,7 @@ public:
                 input.uncheckInput(currentTerm().frameLocation);
             BACKTRACK();
         }
+#endif
         case ByteTerm::Type::BackReference:
             if (matchBackReference(currentTerm(), context))
                 MATCH_NEXT();
@@ -2596,10 +2658,12 @@ public:
 
             // Skip the start offsets where no alternative can even consume its
             // first character, rather than retrying the whole body at each one.
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
             if (!advanceToPossibleStart()) {
                 DUMP_EXTRA("- Return NoMatch\n");
                 return JSRegExpResult::NoMatch;
             }
+#endif
 
             context->matchBegin = input.getPos();
 
@@ -2627,6 +2691,8 @@ public:
         case ByteTerm::Type::AssertionBOL:
         case ByteTerm::Type::AssertionEOL:
         case ByteTerm::Type::AssertionWordBoundary:
+            BACKTRACK();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::PatternLiteral:
         case ByteTerm::Type::PatternLiteral16:
             BACKTRACK();
@@ -2637,6 +2703,7 @@ public:
         case ByteTerm::Type::CheckInputCharacter16:
             input.uncheckInput(currentTerm().frameLocation);
             BACKTRACK();
+#endif
 
         case ByteTerm::Type::PatternCharacterOnce:
         case ByteTerm::Type::PatternCharacterFixed:
@@ -2653,10 +2720,13 @@ public:
                 MATCH_NEXT();
             BACKTRACK();
         case ByteTerm::Type::CharacterClass:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::CharacterClassWithNegativeAssertion:
+#endif
             if (backtrackCharacterClass(currentTerm(), context))
                 MATCH_NEXT();
             BACKTRACK();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         case ByteTerm::Type::CheckInputCapturedCharacterClass:
             input.uncheckInput(currentTerm().frameLocation);
             FALLTHROUGH;
@@ -2666,6 +2736,7 @@ public:
             output[captureOffset + 1] = offsetNoMatch;
             BACKTRACK();
         }
+#endif
         case ByteTerm::Type::BackReference:
             if (backtrackBackReference(currentTerm(), context))
                 MATCH_NEXT();
@@ -2751,6 +2822,7 @@ public:
         if (!input.isAvailableInput(0))
             return offsetNoMatch;
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         if (pattern->hasEndAnchoredFixedSize() && input.end() >= pattern->m_endAnchoredFixedSize)
             input.setPos(std::max(input.getPos(), input.end() - pattern->m_endAnchoredFixedSize));
 
@@ -2860,6 +2932,7 @@ public:
         if (!pattern->m_body->terms[0].alternative.onceThrough && !initialStartFiltered && !advanceToPossibleStart())
             return offsetNoMatch;
 
+#endif
         for (unsigned i = 0; i < pattern->m_body->m_numSubpatterns + 1; ++i)
             output[i << 1] = offsetNoMatch;
 
@@ -2921,6 +2994,7 @@ private:
 };
 
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 // Computes the StartCharFilter of a pattern (see YarrInterpreter.h) from the
 // parsed form rather than from the bytecode, because PatternTerm still has the
 // quantifiers and the nested disjunctions in place.
@@ -3500,6 +3574,7 @@ private:
 };
 
 
+#endif
 class ByteCompiler {
     struct ParenthesesStackEntry {
         unsigned beginTerm;
@@ -3533,6 +3608,7 @@ public:
         regexEnd();
 
         auto bytecodePattern = makeUnique<BytecodePattern>(WTFMove(m_bodyDisjunction), m_allParenthesesInfo, m_pattern, allocator, m_pattern.offsetVectorBaseForNamedCaptures(), m_pattern.offsetsSize());
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         bytecodePattern->m_specificPattern = extractSpacesPattern();
         if (bytecodePattern->m_specificPattern == BytecodePattern::SpecificPattern::None)
             bytecodePattern->m_specificPattern = extractNewlinesPattern();
@@ -3556,9 +3632,11 @@ public:
         }
         bytecodePattern->m_fixedPrefixSearch = StartCharFilterBuilder::buildFixedPrefixSearch(m_pattern);
 
+#endif
         return bytecodePattern;
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     BytecodePattern::SpecificPattern extractSpacesPattern()
     {
         using SpecificPattern = BytecodePattern::SpecificPattern;
@@ -3640,6 +3718,7 @@ public:
         return SpecificPattern::None;
     }
 
+#endif
     void checkInput(unsigned count)
     {
         m_bodyDisjunction->terms.append(ByteTerm::CheckInput(count, { }));
@@ -3670,6 +3749,7 @@ public:
         m_bodyDisjunction->terms.append(ByteTerm::WordBoundary(invert, matchDirection, inputPosition, flags));
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     struct GuardedClassTerm {
         const CharacterClass* guard;
         const CharacterClass* characterClass;
@@ -3809,6 +3889,12 @@ public:
         m_bodyDisjunction->terms.append(term);
     }
 
+#else
+    void appendPatternCharacter(ByteTerm term)
+    {
+        m_bodyDisjunction->terms.append(term);
+    }
+#endif
 
     void atomPatternCharacter(char32_t ch, MatchDirection matchDirection, unsigned inputPosition, unsigned frameLocation, Checked<unsigned> quantityMaxCount, QuantifierType quantityType, OptionSet<Flags> flags)
     {
@@ -4075,6 +4161,7 @@ public:
         bool capture = m_bodyDisjunction->terms[beginTerm].capture();
         unsigned subpatternId = m_bodyDisjunction->terms[beginTerm].subpatternId();
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         // A fixed single-class capture has no alternatives or variable-width
         // state to restore. Fuse its capture writes with the class comparison
         // before the enclosing alternative's offsets are finalized.
@@ -4100,6 +4187,7 @@ public:
             }
         }
 
+#endif
         m_bodyDisjunction->terms.append(ByteTerm(ByteTerm::Type::ParenthesesSubpatternOnceEnd, subpatternId, capture, false, inputPosition, m_currentFlags));
         if (m_bodyDisjunction->terms[beginTerm].matchDirection() == Backward) {
             // Swap input positions for backward captures.
@@ -4279,7 +4367,9 @@ public:
                     if (currentInputPosition.hasOverflowed())
                         return ErrorCode::OffsetTooLarge;
                     atomPatternCharacter(term.patternCharacter, matchDirection, currentInputPosition, term.frameLocation, term.quantityMaxCount, term.quantityType, term.m_currentFlags);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                     m_bodyDisjunction->terms.last().m_possessive = term.m_possessive;
+#endif
                     break;
                 }
 
@@ -4288,7 +4378,9 @@ public:
                     if (currentInputPosition.hasOverflowed())
                         return ErrorCode::OffsetTooLarge;
                     atomCharacterClass(term.characterClass, term.invert(), matchDirection, currentInputPosition, term.frameLocation, term.quantityMaxCount, term.quantityType, term.m_currentFlags);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                     m_bodyDisjunction->terms.last().m_possessive = term.m_possessive;
+#endif
                     break;
                 }
 
@@ -4304,6 +4396,7 @@ public:
                     break;
 
                 case PatternTerm::Type::ParenthesesSubpattern: {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
                     if (matchDirection == Forward) {
                         if (auto guarded = guardedClassFor(term)) {
                             auto inputPosition = currentCountAlreadyChecked - term.inputPosition;
@@ -4326,6 +4419,7 @@ public:
                             break;
                         }
                     }
+#endif
                     unsigned disjunctionAlreadyCheckedCount = 0;
                     if (term.quantityMaxCount == 1 && !term.parentheses.isCopy) {
                         unsigned alternativeFrameLocation = term.frameLocation;

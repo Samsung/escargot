@@ -66,7 +66,9 @@ public:
     ArrayObject(ExecutionState& state, Object* proto, const Value* src, const uint64_t& size);
 
     static ArrayObject* createSpreadArray(ExecutionState& state);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     static ArrayObject* createRegExpResult(ExecutionState& state, uint64_t size, unsigned index, String* input, bool hasIndices);
+#endif
 
     virtual bool hasOwnEnumeration() const override
     {

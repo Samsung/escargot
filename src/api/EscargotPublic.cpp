@@ -4459,6 +4459,7 @@ RegExpObjectRef* RegExpObjectRef::create(ExecutionStateRef* state, ValueRef* sou
 
 bool RegExpObjectRef::match(ExecutionStateRef* state, ValueRef* str, RegExpObjectRef::RegexMatchResult& result, bool testOnly, size_t startIndex)
 {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     // Keep the public nested-vector representation independent of the
     // interpreter's contiguous capture offsets.
     Escargot::RegexMatchResult internalResult;
@@ -4474,6 +4475,9 @@ bool RegExpObjectRef::match(ExecutionStateRef* state, ValueRef* str, RegExpObjec
         result.m_matchResults.push_back(std::move(captures));
     }
     return matched || !result.m_matchResults.empty();
+#else
+    return toImpl(this)->match(*toImpl(state), toImpl(str).toString(*toImpl(state)), (Escargot::RegexMatchResult&)result, testOnly, startIndex);
+#endif
 }
 
 StringRef* RegExpObjectRef::source()

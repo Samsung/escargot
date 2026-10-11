@@ -39,6 +39,7 @@ namespace Escargot {
 
 class VMInstance;
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
 class LiteralMatchIndices {
 public:
     explicit LiteralMatchIndices(VMInstance* vmInstance);
@@ -82,23 +83,39 @@ private:
     VMInstance* m_vmInstance;
 };
 
+#endif
 struct RegexMatchResult {
     struct RegexMatchResultPiece {
         unsigned m_start, m_end;
     };
     COMPILE_ASSERT((sizeof(RegexMatchResultPiece)) == (sizeof(unsigned) * 2), sizeof_RegexMatchResultPiece_wrong);
     int m_subPatternNum { 0 };
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     // Captures of successive matches share one contiguous offset buffer.
     // No strings or GC-managed values are stored here.
     std::vector<RegexMatchResultPiece> m_matchResults;
+#else
+    std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
+#endif
 
     size_t captureCount() const { return m_subPatternNum + 1; }
-    size_t matchCount() const { return m_matchResults.size() / captureCount(); }
+    size_t matchCount() const
+    {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+        return m_matchResults.size() / captureCount();
+#else
+        return m_matchResults.size();
+#endif
+    }
 
     const RegexMatchResultPiece& matchAt(size_t matchIndex, size_t captureIndex) const
     {
         ASSERT(matchIndex < matchCount() && captureIndex < captureCount());
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         return m_matchResults[matchIndex * captureCount() + captureIndex];
+#else
+        return m_matchResults[matchIndex][captureIndex];
+#endif
     }
 
     void append(const RegexMatchResult& result)
@@ -109,9 +126,16 @@ struct RegexMatchResult {
     }
     void appendCaptures(const unsigned* offsets)
     {
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
         size_t offset = m_matchResults.size();
         m_matchResults.resize(offset + captureCount());
         memcpy(m_matchResults.data() + offset, offsets, sizeof(unsigned) * 2 * captureCount());
+#else
+        std::vector<RegexMatchResultPiece> captures(captureCount());
+        for (size_t i = 0; i < captureCount(); ++i)
+            captures[i] = { offsets[i * 2], offsets[i * 2 + 1] };
+        m_matchResults.push_back(std::move(captures));
+#endif
     }
 };
 
@@ -221,8 +245,10 @@ public:
         return res;
     }
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     Optional<const char16_t*> literalMatchCharacters(ExecutionState& state, size_t& length);
     void collectLiteralMatches(ExecutionState& state, String* str, const StringBufferAccessData& literal, LiteralMatchIndices& matches);
+#endif
     bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
     uint32_t getOptions(ExecutionState& state);
@@ -311,7 +337,9 @@ private:
     }
     void setOption(const Option& option);
     void internalInit(ExecutionState& state, String* source, Option option = None);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
     bool ensureBytecodePattern(ExecutionState& state);
+#endif
 
     // has source, option...
     static bool hasOwnRegExpProperty(ExecutionState& state, Object* obj);
