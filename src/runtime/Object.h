@@ -891,6 +891,7 @@ public:
     void* operator new(size_t size);
 #endif
     explicit Object(ExecutionState& state);
+    static Object* createWithStructure(ExecutionState& state, ObjectStructure* structure, ObjectPropertyValueVector&& values);
     explicit Object(ExecutionState& state, Object* proto);
     enum PrototypeIsNullTag { PrototypeIsNull };
     explicit Object(ExecutionState& state, PrototypeIsNullTag); // I added new function for reducing checking null for prototype

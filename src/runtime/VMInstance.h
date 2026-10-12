@@ -36,6 +36,7 @@ class Job;
 class Symbol;
 class String;
 class IteratorRecord;
+class JSONStructureCache;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 class CompressibleString;
 #endif
@@ -275,6 +276,7 @@ public:
 
     void addObjectStructureToRootSet(ObjectStructure* structure);
     Optional<ObjectStructure*> findRootedObjectStructure(ObjectStructureItem* properties, size_t propertyCount);
+    JSONStructureCache* jsonStructureCache();
 
     // an object in a prototype chain can now answer an array index. marks it as
     // dirty and, when something may already inherit from it, drops every
@@ -576,6 +578,7 @@ private:
     ObjectPrivateMemberStructure* m_defaultPrivateMemberStructure;
 
     HashSet<ObjectStructure*, ObjectStructureHash, ObjectStructureEqualTo, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_rootedObjectStructure;
+    Optional<JSONStructureCache*> m_jsonStructureCache;
 
     // sum of the sizes registered by ByteCodeBlock::accountCompiledByteCodeSize();
     // each block's registered amount is subtracted back in its disclaim callback
