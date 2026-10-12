@@ -21,11 +21,14 @@
 #include "runtime/JSON.h"
 #include "runtime/Context.h"
 #include "runtime/StringObject.h"
+#include "runtime/StringView.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/BooleanObject.h"
 #include "runtime/BigIntObject.h"
 #include "runtime/RawJSONObject.h"
+#include "util/CharacterSpan.h"
+#include "runtime/VMInstance.h"
 
 #define RAPIDJSON_PARSE_DEFAULT_FLAGS kParseFullPrecisionFlag
 #define RAPIDJSON_ERROR_CHARTYPE char
@@ -37,16 +40,88 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/error/en.h>
 
+#include <simdutf.h>
+
 namespace Escargot {
 
-template <typename Encoding>
-struct JSONStringStream {
-    typedef typename Encoding::Ch Ch;
+#if !defined(ESCARGOT_SMALL_CONFIG)
+// JavaScript one-byte strings contain Latin1, not UTF-8. Keep both raw
+// characters and Latin1 escapes in a one-byte RapidJSON reader and DOM.
+struct JSONLatin1Encoding : rapidjson::ASCII<LChar> {
+    template <typename OutputStream>
+    static bool Encode(OutputStream& output, unsigned codepoint)
+    {
+        if (UNLIKELY(codepoint > 0xFF)) {
+            return false;
+        }
+        output.Put(static_cast<LChar>(codepoint));
+        return true;
+    }
 
-    JSONStringStream(const Ch* src, size_t length)
+    template <typename InputStream>
+    static bool Decode(InputStream& input, unsigned* codepoint)
+    {
+        *codepoint = input.Take();
+        return true;
+    }
+
+    template <typename InputStream, typename OutputStream>
+    static bool Validate(InputStream& input, OutputStream& output)
+    {
+        output.Put(input.Take());
+        return true;
+    }
+};
+
+template <typename OutputStream>
+inline bool EncodeJSONCodePoint(JSONLatin1Encoding, OutputStream& output, unsigned codepoint)
+{
+    return JSONLatin1Encoding::Encode(output, codepoint);
+}
+#endif
+
+template <typename CharType>
+static inline void copyJSONCharacters(const CharType* src, CharType* dst, size_t count)
+{
+    memmove(dst, src, count * sizeof(CharType));
+}
+
+static inline void copyJSONCharacters(const LChar* src, char16_t* dst, size_t count)
+{
+    if (count >= 32) {
+        const size_t written = simdutf::convert_latin1_to_utf16(reinterpret_cast<const char*>(src), count, dst);
+        ASSERT(written == count);
+    } else {
+        for (size_t i = 0; i < count; i++) {
+            dst[i] = src[i];
+        }
+    }
+}
+
+static inline void copyJSONCharacters(const char16_t* src, LChar* dst, size_t count)
+{
+    if (count >= 32) {
+        const size_t written = simdutf::convert_utf16_to_latin1(src, count, reinterpret_cast<char*>(dst));
+        ASSERT(written == count);
+    } else {
+        for (size_t i = 0; i < count; i++) {
+            dst[i] = src[i];
+        }
+    }
+}
+
+template <typename SourceCharType, typename OutputCharType = char16_t>
+struct JSONStringStream {
+    using Ch = OutputCharType;
+    static_assert(std::is_same<Ch, LChar>::value || std::is_same<Ch, char16_t>::value, "Expected Latin1 or UTF-16 output");
+    static_assert(sizeof(SourceCharType) <= sizeof(Ch), "Cannot narrow raw input code units");
+
+    JSONStringStream(const SourceCharType* src, size_t length, Ch* output)
         : src_(src)
         , head_(src)
         , tail_(src + length)
+        , dst_(output)
+        , outputHead_(output)
     {
     }
 
@@ -65,23 +140,64 @@ struct JSONStringStream {
         return *src_++;
     }
     size_t Tell() const { return static_cast<size_t>(src_ - head_); }
-    Ch* PutBegin()
+    Ch* PutBegin() { return dst_; }
+    void Put(Ch c)
     {
-        RAPIDJSON_ASSERT(false);
-        return 0;
+        ASSERT(static_cast<size_t>(dst_ - outputHead_) < Tell());
+        *dst_++ = c;
     }
-    void Put(Ch) { RAPIDJSON_ASSERT(false); }
-    void Flush() { RAPIDJSON_ASSERT(false); }
-    size_t PutEnd(Ch*)
+    void Flush() {}
+    size_t PutEnd(Ch* begin) { return static_cast<size_t>(dst_ - begin); }
+
+    void scanUnescapedString()
     {
-        RAPIDJSON_ASSERT(false);
-        return 0;
+        // Decode short spans in one pass, without scanning then copying the
+        // same code units. Long spans use the shared word scan and converter.
+        const size_t prefixLength = std::min(static_cast<size_t>(tail_ - src_), size_t(8));
+        size_t prefix = 0;
+        while (prefix < prefixLength) {
+            const Ch c = src_[prefix];
+            if (c == '"' || c == '\\' || c < 0x20) {
+                break;
+            }
+            dst_[prefix] = c;
+            prefix++;
+        }
+        src_ += prefix;
+        dst_ += prefix;
+        ASSERT(static_cast<size_t>(dst_ - outputHead_) <= Tell());
+        if (prefix < prefixLength || prefixLength < 8) {
+            return;
+        }
+        const size_t count = findFirstOfOrLessThan(src_, static_cast<size_t>(tail_ - src_),
+                                                   SourceCharType('"'), SourceCharType('\\'), SourceCharType(0x20));
+        copyUnescaped(count);
     }
 
-    const Ch* src_; //!< Current read position.
-    const Ch* head_; //!< Original head of the string.
-    const Ch* tail_;
+    void copyUnescaped(size_t count)
+    {
+        if (!count) {
+            return;
+        }
+        copyJSONCharacters(src_, dst_, count);
+        src_ += count;
+        dst_ += count;
+        ASSERT(static_cast<size_t>(dst_ - outputHead_) <= Tell());
+    }
+
+    const SourceCharType* src_; //!< Current read position.
+    const SourceCharType* head_; //!< Original head of the string.
+    const SourceCharType* tail_;
+    Ch* dst_; //!< Packed decoded strings in the owned output buffer.
+    Ch* outputHead_;
 };
+
+template <typename SourceCharType, typename OutputCharType>
+inline void ScanCopyUnescapedString(JSONStringStream<SourceCharType, OutputCharType>& input, JSONStringStream<SourceCharType, OutputCharType>& output)
+{
+    ASSERT(&input == &output);
+    input.scanUnescapedString();
+}
 
 template <typename JSONCharType>
 class JSONDocument : public rapidjson::GenericDocument<JSONCharType> {
@@ -107,6 +223,51 @@ private:
     ExecutionState& m_state;
 };
 
+struct JSONKey {
+    const void* characters;
+    size_t length;
+    bool has8BitContent;
+
+    char16_t charAt(size_t index) const
+    {
+        return has8BitContent ? static_cast<const LChar*>(characters)[index] : static_cast<const char16_t*>(characters)[index];
+    }
+
+    AtomicString intern(ExecutionState& state, std::basic_string<LChar>& latin1Key) const
+    {
+        if (has8BitContent) {
+            const auto* chars = static_cast<const LChar*>(characters);
+            if (isAllASCII(reinterpret_cast<const char*>(chars), length)) {
+                return AtomicString(state.context(), reinterpret_cast<const char*>(chars), length);
+            }
+            return AtomicString(state.context(), chars, length);
+        }
+        const auto* chars = static_cast<const char16_t*>(characters);
+        // Match ordinary Latin1 property-name lookup, including non-ASCII keys.
+        if (!isAllASCII(chars, length) && isAllLatin1(chars, length)) {
+            latin1Key.resize(length);
+            for (size_t i = 0; i < length; ++i) {
+                latin1Key[i] = static_cast<LChar>(chars[i]);
+            }
+            return AtomicString(state.context(), latin1Key.data(), length);
+        }
+        return AtomicString(state, chars, length);
+    }
+};
+
+template <typename KeyAt, typename ValueAt>
+static Object* createJSONObject(ExecutionState& state, size_t memberCount, KeyAt&& keyAt, ValueAt&& valueAt)
+{
+    Object* object = new Object(state);
+    std::basic_string<LChar> latin1Key;
+    for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
+        AtomicString name = keyAt(ordinal).intern(state, latin1Key);
+        object->defineOwnProperty(state, ObjectPropertyName(name),
+                                  ObjectPropertyDescriptor(valueAt(ordinal), ObjectPropertyDescriptor::AllPresent));
+    }
+    return object;
+}
+
 template <typename CharType, typename JSONCharType>
 static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValue<JSONCharType>& value)
 {
@@ -130,18 +291,12 @@ static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValu
             const char16_t* chars = (const char16_t*)value.GetString();
             unsigned len = value.GetStringLength();
             if (isAllLatin1(chars, len)) {
-                return String::fromLatin1(chars, len, state.context());
+                return String::fromLatin1(chars, len, state.context(), String::ShortStringCacheAdmission::MostRecentlyUsed, String::AtomicStringLookup::Skip);
             } else {
                 return new UTF16String(chars, len);
             }
         } else {
-            const char* valueAsString = (const char*)value.GetString();
-            size_t len = value.GetStringLength();
-            if (isAllASCII(valueAsString, len)) {
-                return String::fromASCII(valueAsString, len);
-            } else {
-                return new UTF16String(utf8StringToUTF16String(valueAsString, len));
-            }
+            return String::fromLatin1(reinterpret_cast<const LChar*>(value.GetString()), value.GetStringLength(), state.context(), String::ShortStringCacheAdmission::MostRecentlyUsed, String::AtomicStringLookup::Skip);
         }
     } else if (value.IsArray()) {
         ArrayObject* arr = new ArrayObject(state, value.Size(), false);
@@ -150,53 +305,672 @@ static Value parseJSONWorker(ExecutionState& state, const rapidjson::GenericValu
         }
         return arr;
     } else if (value.IsObject()) {
-        Object* obj;
-        auto memberCount = value.MemberCount();
-        if (!ObjectStructure::isTransitionModeAvailable(memberCount)) {
-            typedef typename rapidjson::GenericValue<JSONCharType>::ConstMemberIterator JSONIter;
-            JSONIter iter = value.MemberBegin();
-            obj = new Object(state, memberCount, [](ExecutionState& state, void* data) -> std::pair<Value, Value> {
-                                 JSONIter& iter = *reinterpret_cast<JSONIter*>(data);
-                                 Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
-                                 Value value = parseJSONWorker<CharType, JSONCharType>(state, iter->value);
-                                 iter++;
-                                 return std::make_pair(propertyName, value); }, &iter, true, true, true);
-            ASSERT(iter == value.MemberEnd());
-        } else {
-            obj = new Object(state);
-            auto iter = value.MemberBegin();
-            while (iter != value.MemberEnd()) {
-                Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
-                ASSERT(propertyName.isString());
-                obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
-                                       ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
-                iter++;
-            }
-        }
-        return obj;
+        auto keyAt = [&](size_t ordinal) {
+            const auto& name = (value.MemberBegin() + ordinal)->name;
+            return JSONKey{ name.GetString(), name.GetStringLength(), sizeof(CharType) == 1 };
+        };
+        auto valueAt = [&](size_t ordinal) { return parseJSONWorker<CharType, JSONCharType>(state, (value.MemberBegin() + ordinal)->value); };
+        return createJSONObject(state, value.MemberCount(), keyAt, valueAt);
     } else {
         ASSERT_UNREACHABLE();
     }
 }
 
 template <typename CharType, typename JSONCharType>
-static Value parseJSON(ExecutionState& state, const CharType* data, size_t length, JSONDocument<JSONCharType>& jsonDocument)
+static bool parseJSONDocument(ExecutionState& state, const CharType* data, size_t length, typename JSONCharType::Ch* output, JSONDocument<JSONCharType>& jsonDocument)
 {
     auto strings = &state.context()->staticStrings();
 
-    JSONStringStream<JSONCharType> stringStream(data, length);
-    jsonDocument.template ParseStream<rapidjson::kParseDefaultFlags, JSONCharType, JSONStringStream<JSONCharType>, JSONDocument<JSONCharType>>(stringStream);
+    using Stream = JSONStringStream<CharType, typename JSONCharType::Ch>;
+    Stream stringStream(data, length, output);
+    jsonDocument.template ParseStream<rapidjson::kParseDefaultFlags | rapidjson::kParseInsituFlag, JSONCharType, Stream, JSONDocument<JSONCharType>>(stringStream);
     if (jsonDocument.HasParseError()) {
+#if !defined(ESCARGOT_SMALL_CONFIG)
+        // Our DOM handler accepts every event. Only an unrepresentable Unicode
+        // escape terminates the Latin1 reader; retry it before materialization.
+        if (std::is_same<JSONCharType, JSONLatin1Encoding>::value && jsonDocument.GetParseError() == rapidjson::kParseErrorTermination) {
+            return false;
+        }
+#endif
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
-
-    return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
+    return true;
 }
 
-using JSONValue = rapidjson::GenericValue<rapidjson::UTF16<char16_t>>;
-using JSONSourceMap = std::unordered_map<const JSONValue*, String*>;
+#if !defined(ESCARGOT_SMALL_CONFIG)
+// Borrow unescaped strings from the original input. Reader's in-situ callbacks
+// select this sink without modifying the input. On the first escape, decode
+// only this token into reusable storage, widening it if a Unicode escape needs
+// UTF16. Only our handler consumes these callbacks and the stream's metadata.
+template <typename CharType>
+struct JSONSAXStream {
+    static constexpr size_t OwnedTokenThreshold = 8192;
+    using Ch = CharType;
 
+    JSONSAXStream(const Ch* input, size_t length)
+        : current(input)
+        , begin(input)
+        , end(input + length)
+        , tokenBegin(input)
+    {
+    }
+
+    Ch Peek() const { return current < end ? *current : 0; }
+    Ch Take() { return current < end ? *current++ : 0; }
+    size_t Tell() const { return current - begin; }
+    Ch* PutBegin()
+    {
+        tokenBegin = current + 1; // Reader has not consumed the opening quote.
+        decodedUnits = 0;
+        decoding = false;
+        wide = false;
+        hasNonLatin1 = false;
+        return const_cast<Ch*>(tokenBegin);
+    }
+    void Put(Ch c)
+    {
+        // Reader's terminating NUL is metadata, not part of the string. An
+        // escaped NUL ends in a hex digit and therefore takes the decode path.
+        if (c == 0 && current[-1] == '"') {
+            ++decodedUnits;
+            return;
+        }
+        beginDecoding(c > 0xFF);
+        if (wide) {
+            ensureSpace(m_utf16, decodedUnits + 1);
+            m_utf16[decodedUnits] = c;
+        } else {
+            ensureSpace(m_latin1, decodedUnits + 1);
+            m_latin1[decodedUnits] = c;
+        }
+        ++decodedUnits;
+    }
+    void Flush() {}
+    size_t PutEnd(Ch*)
+    {
+        ASSERT(decodedUnits && current > tokenBegin);
+        rawLength = current - tokenBegin - 1; // Exclude the closing quote.
+        return decodedUnits; // Includes Reader's terminating NUL.
+    }
+    void putCodePoint(unsigned codepoint)
+    {
+        beginDecoding(codepoint > 0xFF);
+        if (!wide) {
+            ensureSpace(m_latin1, decodedUnits + 1);
+            m_latin1[decodedUnits++] = static_cast<LChar>(codepoint);
+        } else {
+            ensureSpace(m_utf16, decodedUnits + 2);
+            if (codepoint <= 0xFFFF) {
+                m_utf16[decodedUnits++] = static_cast<char16_t>(codepoint);
+            } else {
+                const unsigned value = codepoint - 0x10000;
+                m_utf16[decodedUnits++] = (value >> 10) | 0xD800;
+                m_utf16[decodedUnits++] = (value & 0x3FF) | 0xDC00;
+            }
+        }
+    }
+    void scanUnescapedString()
+    {
+        uintptr_t codeUnits = 0;
+        const size_t remaining = end - current;
+        const size_t count = sizeof(Ch) == 1
+            ? findFirstOfOrLessThan(current, remaining, Ch('"'), Ch('\\'), Ch(0x20))
+            : findFirstOfOrLessThan(current, remaining, Ch('"'), Ch('\\'), Ch(0x20), codeUnits);
+        constexpr uintptr_t highBytes = (std::numeric_limits<uintptr_t>::max() / 0xFFFF) * 0xFF00;
+        const bool needsWide = sizeof(Ch) != 1 && (codeUnits & highBytes);
+        hasNonLatin1 |= needsWide;
+        if (decoding && count) {
+            if (needsWide && !wide) {
+                beginDecoding(true);
+            }
+            if (wide) {
+                ensureSpace(m_utf16, decodedUnits + count);
+                copyJSONCharacters(current, m_utf16.data() + decodedUnits, count);
+            } else {
+                ensureSpace(m_latin1, decodedUnits + count);
+                copyJSONCharacters(current, m_latin1.data() + decodedUnits, count);
+            }
+        }
+        current += count;
+        decodedUnits += count;
+    }
+    size_t length() const { return decodedUnits - 1; }
+    bool has8BitContent() const { return decoding ? !wide : sizeof(Ch) == 1; }
+    bool contentIsLatin1() const { return !hasNonLatin1 && !wide; }
+    const void* characters() const
+    {
+        if (!decoding) {
+            return tokenBegin;
+        }
+        return wide ? static_cast<const void*>(m_utf16.data()) : static_cast<const void*>(m_latin1.data());
+    }
+    Optional<String*> takeLatin1String() { return m_latin1.takeString(length()); }
+    Optional<String*> takeUTF16String() { return m_utf16.takeString(length()); }
+    void finishBuffers()
+    {
+        m_latin1.trimExcessCapacity();
+        m_utf16.trimExcessCapacity();
+    }
+
+private:
+    template <typename T>
+    class TokenBuffer {
+    public:
+        TokenBuffer()
+            : m_data(m_inline)
+        {
+        }
+        TokenBuffer(const TokenBuffer&) = delete;
+        TokenBuffer& operator=(const TokenBuffer&) = delete;
+        ~TokenBuffer()
+        {
+            if (m_external && !m_owner) {
+                GC_FREE(m_external.value());
+            }
+        }
+
+        T* data() { return m_data; }
+        const T* data() const { return m_data; }
+        T& operator[](size_t index) { return data()[index]; }
+        Optional<String*> takeString(size_t length)
+        {
+            ASSERT(length <= m_capacity);
+            if (!m_external) {
+                return NullOption;
+            }
+            m_data[length] = 0;
+            if (!m_owner) {
+                m_owner = sizeof(T) == 1
+                    ? static_cast<String*>(new Latin1String(Latin1StringData::adoptBuffer(reinterpret_cast<LChar*>(m_external.value()), m_capacity)))
+                    : static_cast<String*>(new UTF16String(UTF16StringData::adoptBuffer(reinterpret_cast<char16_t*>(m_external.value()), m_capacity)));
+            }
+            const size_t offset = m_data - m_external.value();
+            auto* string = new StringView(m_owner.value(), offset, offset + length);
+            // Published slices are immutable. Decode the next token only into
+            // the unused tail; the owner keeps the allocation base GC-visible.
+            if (length < m_capacity) {
+                m_data += length + 1;
+                m_capacity -= length + 1;
+            } else {
+                m_data += length;
+                m_capacity = 0;
+            }
+            return string;
+        }
+
+        void trimExcessCapacity()
+        {
+            if (!m_owner) {
+                return;
+            }
+            const size_t used = m_data - m_external.value();
+            const size_t capacity = m_owner.value()->length();
+            // Ordinary escape overhead does not justify copying the buffer.
+            // Trim only a large allocation that is more than seven eighths unused.
+            if (capacity <= (64 * 1024) / sizeof(T) || used > capacity / 8) {
+                return;
+            }
+            Optional<T*> buffer(static_cast<T*>(GC_REALLOC(m_external.value(), (used + 1) * sizeof(T))));
+            if (!buffer) {
+                return; // A failed optional shrink leaves the original buffer valid.
+            }
+            if (sizeof(T) == 1) {
+                auto data = Latin1StringData::adoptBuffer(reinterpret_cast<LChar*>(buffer.value()), used);
+                static_cast<Latin1String*>(m_owner.value())->initBufferAccessData(data);
+            } else {
+                auto data = UTF16StringData::adoptBuffer(reinterpret_cast<char16_t*>(buffer.value()), used);
+                static_cast<UTF16String*>(m_owner.value())->initBufferAccessData(data);
+            }
+            m_external = buffer;
+            m_data = buffer.value() + used;
+            m_capacity = 0;
+        }
+
+        void ensureSpace(size_t size, size_t preserved, size_t limit)
+        {
+            if (UNLIKELY(size > m_capacity)) {
+                grow(size, preserved, limit);
+            }
+        }
+
+    private:
+        NEVER_INLINE void grow(size_t size, size_t preserved, size_t limit)
+        {
+            if (size <= OwnedTokenThreshold) {
+                if (!m_native.size()) {
+                    m_native.resize(OwnedTokenThreshold);
+                }
+                if (preserved) {
+                    copyJSONCharacters(m_data, m_native.data(), preserved);
+                }
+                if (m_external && !m_owner) {
+                    GC_FREE(m_external.value());
+                }
+                m_owner = NullOption;
+                m_external = NullOption;
+                m_data = m_native.data();
+                m_capacity = OwnedTokenThreshold;
+                return;
+            }
+            // The remaining input is an upper bound for all subsequent decoded
+            // tokens. Reserve it once and share the unused tail, without a
+            // length prepass or geometric GC-buffer growth.
+            const size_t capacity = std::max(size, limit);
+            const size_t bytes = (capacity + 1) * sizeof(T);
+            Optional<T*> buffer(static_cast<T*>(m_external && !m_owner
+                                                    ? GC_REALLOC_NO_SHRINK(m_external.value(), bytes)
+                                                    : GC_MALLOC_ATOMIC(bytes)));
+            if (!buffer) {
+                throw std::bad_alloc();
+            }
+            if ((!m_external || m_owner) && preserved) {
+                copyJSONCharacters(m_data, buffer.value(), preserved);
+            }
+            m_owner = NullOption;
+            m_external = buffer;
+            m_data = buffer.value();
+            m_capacity = capacity;
+        }
+
+        static constexpr size_t InlineCapacity = 64;
+        T m_inline[InlineCapacity + 1];
+        T* m_data;
+        size_t m_capacity{ InlineCapacity };
+        Optional<T*> m_external;
+        Optional<String*> m_owner;
+        Vector<T, std::allocator<T>> m_native;
+    };
+
+    template <typename Buffer>
+    void ensureSpace(Buffer& buffer, size_t size, bool preserve = true)
+    {
+        // A Unicode escape may already be consumed while its two output units
+        // are still pending. Include them in the reservation upper bound.
+        buffer.ensureSpace(size, preserve ? decodedUnits : 0, decodedUnits + (end - current) + 2);
+    }
+    void beginDecoding(bool needsWide = false)
+    {
+        if (!decoding) {
+            wide = hasNonLatin1 || needsWide;
+            if (wide) {
+                ensureSpace(m_utf16, decodedUnits + 2, false);
+                copyJSONCharacters(tokenBegin, m_utf16.data(), decodedUnits);
+            } else {
+                ensureSpace(m_latin1, decodedUnits + 1, false);
+                copyJSONCharacters(tokenBegin, m_latin1.data(), decodedUnits);
+            }
+            decoding = true;
+        } else if (needsWide && !wide) {
+            ensureSpace(m_utf16, decodedUnits + 2, false);
+            copyJSONCharacters(m_latin1.data(), m_utf16.data(), decodedUnits);
+            wide = true;
+        }
+    }
+    // Inline tokens need no allocation; medium tokens reuse native scratch.
+    // Large tokens share GC-owned output through StringViews. Reserve from the
+    // known input bound and leave room for each terminating NUL.
+    TokenBuffer<LChar> m_latin1;
+    TokenBuffer<char16_t> m_utf16;
+
+public:
+    const Ch* current;
+    const Ch* const begin;
+    const Ch* const end;
+    const Ch* tokenBegin;
+    size_t decodedUnits{ 0 };
+    size_t rawLength{ 0 };
+    bool decoding{ false };
+    bool wide{ false };
+    bool hasNonLatin1{ false };
+};
+
+template <typename CharType>
+inline void ScanCopyUnescapedString(JSONSAXStream<CharType>& input, JSONSAXStream<CharType>& output)
+{
+    ASSERT(&input == &output);
+    input.scanUnescapedString();
+}
+
+inline bool EncodeJSONCodePoint(JSONLatin1Encoding, JSONSAXStream<LChar>& output, unsigned codepoint)
+{
+    output.putCodePoint(codepoint);
+    return true;
+}
+
+inline bool EncodeJSONCodePoint(rapidjson::UTF16<char16_t>, JSONSAXStream<char16_t>& output, unsigned codepoint)
+{
+    output.putCodePoint(codepoint);
+    return true;
+}
+
+// Integers need no full-precision digit backup. Borrow their input span and
+// materialize only the mantissa digits when RapidJSON converts a double.
+template <typename Ch, typename DefaultNumberStream>
+class JSONNumberStream {
+public:
+    using Reader = typename DefaultNumberStream::ReaderType;
+
+    JSONNumberStream(Reader& reader, JSONSAXStream<Ch>& input)
+        : m_reader(reader)
+        , m_input(input)
+        , m_numberBegin(input.current)
+        , m_skippedUnits(0)
+    {
+    }
+
+    Ch Peek() const { return m_input.Peek(); }
+    Ch TakePush() { return m_input.Take(); }
+    Ch Take()
+    {
+        ++m_skippedUnits;
+        return m_input.Take();
+    }
+    size_t Tell() { return m_input.Tell(); }
+    size_t Length() { return static_cast<size_t>(m_input.current - m_numberBegin) - m_skippedUnits; }
+
+    const char* Pop(bool needsDigits)
+    {
+        return needsDigits ? materializeDigits() : "";
+    }
+
+private:
+    NEVER_INLINE const char* materializeDigits()
+    {
+        DefaultNumberStream backup(m_reader, m_input);
+        const Ch* numberEnd = m_input.current;
+        m_input.current = m_numberBegin;
+        while (m_input.current < numberEnd) {
+            const Ch c = m_input.Peek();
+            if (c == 'e' || c == 'E') {
+                break;
+            }
+            if (c >= '0' && c <= '9') {
+                backup.TakePush();
+            } else {
+                ASSERT(c == '-' || c == '.');
+                m_input.Take();
+            }
+        }
+        m_input.current = numberEnd;
+        ASSERT(backup.Length() == Length());
+        return backup.Pop(true);
+    }
+
+    Reader& m_reader;
+    JSONSAXStream<Ch>& m_input;
+    const Ch* m_numberBegin;
+    size_t m_skippedUnits;
+};
+
+} // namespace Escargot
+
+namespace rapidjson {
+namespace internal {
+template <typename Ch, typename DefaultNumberStream>
+struct NumberStreamAdapter<Escargot::JSONSAXStream<Ch>, DefaultNumberStream> {
+    typedef Escargot::JSONNumberStream<Ch, DefaultNumberStream> Type;
+};
+} // namespace internal
+} // namespace rapidjson
+
+namespace Escargot {
+
+template <typename T>
+static inline void clearJSONSAXSlot(T& slot)
+{
+    slot = T();
+}
+
+static inline void clearJSONSAXSlot(JSONKey& slot)
+{
+    slot = JSONKey{ "", 0, true };
+}
+
+template <size_t InlineCapacity, typename T, typename Allocator>
+class JSONSAXStack {
+public:
+    T* data() { return m_external.size() ? m_external.data() : m_inline; }
+    const T* data() const { return m_external.size() ? m_external.data() : m_inline; }
+    T& operator[](size_t index) { return data()[index]; }
+    const T& operator[](size_t index) const { return data()[index]; }
+
+    void put(size_t index, const T& value)
+    {
+        if (LIKELY(!m_external.size() && index < InlineCapacity)) {
+            m_inline[index] = value;
+            return;
+        }
+        grow(index + 1);
+        m_external[index] = value;
+    }
+
+private:
+    void grow(size_t size)
+    {
+        if (size <= m_external.size()) {
+            return;
+        }
+        const bool wasInline = !m_external.size();
+        m_external.resize(size);
+        if (wasInline) {
+            // The first spill occurs when every inline slot is active. The
+            // external allocator traces Values or pointers as appropriate.
+            for (size_t i = 0; i < InlineCapacity; ++i) {
+                m_external[i] = m_inline[i];
+                clearJSONSAXSlot(m_inline[i]);
+            }
+        }
+    }
+
+    // Only active slots are read. Values initialize themselves; scalar frames
+    // and key slices do not need to initialize unused inline slots.
+    T m_inline[InlineCapacity];
+    Vector<T, Allocator, ComputeReservedCapacityFunctionWithLog2<>> m_external;
+};
+
+template <typename CharType>
+class JSONSAXHandler {
+public:
+    MAKE_STACK_ALLOCATED();
+
+    JSONSAXHandler(ExecutionState& state, JSONSAXStream<CharType>& stream)
+        : m_state(state)
+        , m_stream(stream)
+    {
+    }
+
+    bool Null() { return append(Value(Value::Null)); }
+    bool Bool(bool value) { return append(Value(value)); }
+    bool Int(int value) { return append(Value(value)); }
+    bool Uint(unsigned value) { return append(Value(value)); }
+    bool Int64(int64_t value) { return append(Value(value)); }
+    bool Uint64(uint64_t value) { return append(Value(value)); }
+    bool Double(double value) { return append(Value(Value::DoubleToIntConvertibleTestNeeds, value)); }
+
+    bool String(const CharType*, rapidjson::SizeType, bool)
+    {
+        Escargot::String* string;
+        const auto length = m_stream.length();
+        if (m_stream.has8BitContent()) {
+            const auto* chars = static_cast<const LChar*>(m_stream.characters());
+            auto owned = m_stream.decoding && length > JSONSAXStream<CharType>::OwnedTokenThreshold ? m_stream.takeLatin1String() : Optional<Escargot::String*>(NullOption);
+            string = owned ? owned.value()
+                           : Escargot::String::fromLatin1(chars, length, m_state.context(), String::ShortStringCacheAdmission::MostRecentlyUsed, String::AtomicStringLookup::Skip);
+        } else {
+            const auto* chars = static_cast<const char16_t*>(m_stream.characters());
+            auto owned = m_stream.decoding && length > JSONSAXStream<CharType>::OwnedTokenThreshold ? m_stream.takeUTF16String() : Optional<Escargot::String*>(NullOption);
+            if (owned) {
+                string = owned.value();
+            } else {
+                string = m_stream.contentIsLatin1() ? Escargot::String::fromLatin1(chars, length, m_state.context(), String::ShortStringCacheAdmission::MostRecentlyUsed, String::AtomicStringLookup::Skip) : new UTF16String(chars, length);
+            }
+        }
+        append(Value(string));
+        return true;
+    }
+
+    bool Key(const CharType*, rapidjson::SizeType, bool)
+    {
+        JSONKey key{ m_stream.characters(), m_stream.length(), m_stream.has8BitContent() };
+        if (m_stream.decoding) {
+            // The stream reuses its decoded storage at the next token. Keep
+            // escaped key slices rooted without interning before cache lookup.
+            const size_t bytes = key.length * (key.has8BitContent ? sizeof(LChar) : sizeof(char16_t));
+            const size_t start = (m_keyStorageUsed + alignof(char16_t) - 1) & ~(alignof(char16_t) - 1);
+            void* characters;
+            if (bytes <= sizeof(m_keyStorage) - start) {
+                characters = m_keyStorage + start;
+                m_keyStorageUsed = start + bytes;
+            } else {
+                characters = GC_MALLOC_ATOMIC(bytes);
+            }
+            memcpy(characters, key.characters, bytes);
+            key.characters = characters;
+        }
+        m_keys.put(m_keyCount, key);
+        ++m_keyCount;
+        return true;
+    }
+
+    bool StartObject() { return start(true); }
+    bool StartArray() { return start(false); }
+    bool EndObject(rapidjson::SizeType count)
+    {
+        const auto frame = m_frames[m_frameCount - 1];
+        ASSERT(frame.object && m_keyCount - frame.keyStart == count && m_valueCount - frame.valueStart == count);
+        Object* object = createJSONObject(m_state, count, [&](size_t ordinal) { return m_keys[frame.keyStart + ordinal]; }, [&](size_t ordinal) { return m_values[frame.valueStart + ordinal]; });
+        finish(frame, object);
+        return true;
+    }
+    bool EndArray(rapidjson::SizeType count)
+    {
+        const auto frame = m_frames[m_frameCount - 1];
+        ASSERT(!frame.object && m_valueCount - frame.valueStart == count);
+        // The source Values remain traced during array allocation and copying.
+        // Empty arrays use a valid non-null buffer, although it is not read.
+        const Value empty;
+        ArrayObject* array = Object::createArrayFromList(m_state, count, count ? m_values.data() + frame.valueStart : &empty);
+        finish(frame, array);
+        return true;
+    }
+    Value result() const
+    {
+        ASSERT(m_frameCount == 0 && m_valueCount == 1);
+        return m_values[0];
+    }
+
+private:
+    // Keep small parse stacks inline. Native pointers and Values are traced
+    // on the C++ stack; external Values use their custom GC mark procedure.
+    // Frames contain only offsets and do not require pointer tracing.
+    struct Frame {
+        size_t valueStart;
+        size_t keyStart;
+        size_t keyStorageStart;
+        bool object;
+    };
+    bool append(Value value)
+    {
+        m_values.put(m_valueCount, value);
+        ++m_valueCount;
+        return true;
+    }
+    bool start(bool object)
+    {
+        CHECK_STACK_OVERFLOW(m_state);
+        const Frame frame{ m_valueCount, m_keyCount, m_keyStorageUsed, object };
+        m_frames.put(m_frameCount, frame);
+        ++m_frameCount;
+        return true;
+    }
+    void finish(const Frame& frame, Object* object)
+    {
+        if (m_valueCount == frame.valueStart) {
+            append(Value(object));
+        } else {
+            m_values[frame.valueStart] = Value(object);
+        }
+        // Retain buffer capacity across sibling containers, but release roots
+        // immediately so earlier values and decoded keys do not stay alive.
+        for (size_t i = frame.valueStart + 1; i < m_valueCount; ++i) {
+            m_values[i] = Value();
+        }
+        m_valueCount = frame.valueStart + 1;
+        for (size_t i = frame.keyStart; i < m_keyCount; ++i) {
+            m_keys[i] = JSONKey{ "", 0, true };
+        }
+        m_keyCount = frame.keyStart;
+        m_keyStorageUsed = frame.keyStorageStart;
+        --m_frameCount;
+    }
+
+    ExecutionState& m_state;
+    JSONSAXStream<CharType>& m_stream;
+    JSONSAXStack<32, Value, CustomAllocator<Value>> m_values;
+    JSONSAXStack<16, JSONKey, GCUtil::gc_malloc_allocator<JSONKey>> m_keys;
+    JSONSAXStack<16, Frame, GCUtil::gc_malloc_atomic_allocator<Frame>> m_frames;
+    size_t m_valueCount{ 0 };
+    size_t m_keyCount{ 0 };
+    size_t m_frameCount{ 0 };
+    size_t m_keyStorageUsed{ 0 };
+    alignas(char16_t) LChar m_keyStorage[256];
+};
+
+// Full-precision numbers use Reader's scratch stack even for integers.
+// Keep ordinary numbers inline, allocating only for unusually long tokens.
+class JSONReaderAllocator {
+public:
+    static constexpr bool kNeedFree = false;
+
+    void* Malloc(size_t size) { return Realloc(nullptr, 0, size); }
+    void* Realloc(Optional<void*> original, size_t originalSize, size_t size)
+    {
+        if (!m_external.size() && size <= sizeof(m_inline)) {
+            return m_inline;
+        }
+        const bool wasInline = !m_external.size();
+        if (size > m_external.size()) {
+            m_external.resizeWithUninitializedValues(size);
+        }
+        if (wasInline && original) {
+            ASSERT(original.value() == m_inline && originalSize <= sizeof(m_inline));
+            memcpy(m_external.data(), m_inline, originalSize);
+        }
+        return m_external.data();
+    }
+    static void Free(Optional<void*>) {}
+
+private:
+    alignas(char16_t) char m_inline[256];
+    Vector<char, std::allocator<char>, ComputeReservedCapacityFunctionWithLog2<>> m_external;
+};
+
+
+template <typename CharType, typename Encoding>
+static Value parseJSONSAX(ExecutionState& state, const CharType* input, size_t length)
+{
+    JSONSAXStream<CharType> stream(input, length);
+    JSONSAXHandler<CharType> handler(state, stream);
+    JSONReaderAllocator allocator;
+    rapidjson::GenericReader<Encoding, Encoding, JSONReaderAllocator> reader(&allocator, 256);
+    auto result = reader.template Parse<rapidjson::kParseDefaultFlags | rapidjson::kParseInsituFlag>(stream, handler);
+    if (!result) {
+        auto& strings = state.context()->staticStrings();
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings.JSON.string(), true, strings.parse.string(), rapidjson::GetParseError_En(result.Code()));
+    }
+    stream.finishBuffers();
+    return handler.result();
+}
+#endif
+
+template <typename JSONCharType>
 class JSONSourceCollector {
+    using JSONValue = rapidjson::GenericValue<JSONCharType>;
+    // Revivers may run GC before later source strings have been visited.
+    using JSONSourceMap = std::unordered_map<const JSONValue*, String*,
+                                             std::hash<const JSONValue*>, std::equal_to<const JSONValue*>,
+                                             GCUtil::gc_malloc_allocator<std::pair<const JSONValue* const, String*>>>;
+
 public:
     JSONSourceCollector(ExecutionState& state, String* text)
         : m_state(state)
@@ -318,48 +1092,30 @@ static void codePointTo4digitString(int codepoint, std::basic_string<char16_t>& 
     }
 }
 
-Value JSON::parse(ExecutionState& state, Value text, Value reviver)
+template <typename JSONCharType>
+static Value finishJSONParse(ExecutionState& state, String* JText, Value reviver, Value unfiltered, const rapidjson::GenericValue<JSONCharType>& parseResult)
 {
-    auto strings = &state.context()->staticStrings();
-
-    // 1, 2, 3
-    String* JText = text.toString(state);
-    JSONDocument<rapidjson::UTF16<char16_t>> parseResult(state);
-    Value unfiltered;
-    if (JText->has8BitContent()) {
-        size_t len = JText->length();
-        char16_t* char16Buf = new char16_t[len];
-        std::unique_ptr<char16_t[]> buf(char16Buf);
-        auto accessData = JText->bufferAccessData();
-        const LChar* srcBuf = (const LChar*)accessData.bufferAs8Bit;
-        for (size_t i = 0; i < len; i++) {
-            char16Buf[i] = srcBuf[i];
-        }
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), JText->length(), parseResult);
-    } else {
-        auto accessData = JText->bufferAccessData();
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, accessData.bufferAs16Bit, JText->length(), parseResult);
-    }
+    using JSONValue = rapidjson::GenericValue<JSONCharType>;
 
     // 4
     if (reviver.isCallable()) {
         Object* root = new Object(state);
-        JSONSourceMap sourceMap = JSONSourceCollector(state, JText).collect(parseResult);
+        auto sourceMap = JSONSourceCollector<JSONCharType>(state, JText).collect(parseResult);
         root->markThisObjectDontNeedStructureTransitionTable();
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString()), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
-        std::function<Value(Value, const ObjectPropertyName&, const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>&)> Walk;
-        Walk = [&](Value holder, const ObjectPropertyName& name, const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>& source) -> Value {
+        std::function<Value(Value, const ObjectPropertyName&, const JSONValue&)> Walk;
+        Walk = [&](Value holder, const ObjectPropertyName& name, const JSONValue& source) -> Value {
             CHECK_STACK_OVERFLOW(state);
             Object* context = new Object(state);
             Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
             if (val.isObject()) {
-                rapidjson::GenericValue<rapidjson::UTF16<char16_t>> undefined;
+                JSONValue undefined;
                 if (val.asObject()->isArray(state)) {
                     Object* object = val.asObject();
                     uint64_t i = 0;
                     uint64_t len = object->length(state);
                     while (i < len) {
-                        const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>* s = &undefined;
+                        const JSONValue* s = &undefined;
                         if (source.IsArray() && i < source.Size()) {
                             s = &source[i];
                         }
@@ -376,7 +1132,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                     uint64_t i = 0;
                     uint64_t len = arrObject->arrayLength();
                     while (i < len) {
-                        const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>* s = &undefined;
+                        const JSONValue* s = &undefined;
                         if (source.IsArray() && i < source.Size()) {
                             s = &source[i];
                         }
@@ -398,10 +1154,10 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                     }
 
                     for (auto key : keys) {
-                        const rapidjson::GenericValue<rapidjson::UTF16<char16_t>>* s = &undefined;
+                        const JSONValue* s = &undefined;
                         if (source.IsObject()) {
                             for (auto iter = source.MemberBegin(); iter != source.MemberEnd(); ++iter) {
-                                Value sourceKey = parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, iter->name);
+                                Value sourceKey = parseJSONWorker<typename JSONCharType::Ch, JSONCharType>(state, iter->name);
                                 if (key.toPlainValue().toString(state)->equals(sourceKey.asString())) {
                                     // Duplicate JSON property names are resolved last-wins.
                                     s = &iter->value;
@@ -419,7 +1175,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
             } else {
                 Value sourceValue;
                 auto sourceIt = sourceMap.find(&source);
-                if (sourceIt != sourceMap.end() && val.equalsToByTheSameValueAlgorithm(state, parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, source))) {
+                if (sourceIt != sourceMap.end() && val.equalsToByTheSameValueAlgorithm(state, parseJSONWorker<typename JSONCharType::Ch, JSONCharType>(state, source))) {
                     sourceValue = sourceIt->second;
                 }
                 context->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().source),
@@ -435,6 +1191,54 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
 
     // 5
     return unfiltered;
+}
+
+Value JSON::parse(ExecutionState& state, Value text, Value reviver)
+{
+    // 1, 2, 3
+    String* JText = text.toString(state);
+    const size_t len = JText->length();
+    auto accessData = JText->bufferAccessData();
+
+#if !defined(ESCARGOT_SMALL_CONFIG)
+    if (!reviver.isCallable()) {
+        if (JText->has8BitContent()) {
+            const LChar* src = reinterpret_cast<const LChar*>(len ? accessData.bufferAs8Bit : "");
+            return parseJSONSAX<LChar, JSONLatin1Encoding>(state, src, len);
+        }
+        const char16_t* src = len ? accessData.bufferAs16Bit : u"";
+        return parseJSONSAX<char16_t, rapidjson::UTF16<char16_t>>(state, src, len);
+    }
+    if (JText->has8BitContent()) {
+        const LChar* src = reinterpret_cast<const LChar*>(len ? accessData.bufferAs8Bit : "");
+        // The document borrows this one-byte buffer through reviver processing.
+        std::unique_ptr<LChar[]> buf(new LChar[len]);
+        JSONDocument<JSONLatin1Encoding> parseResult(state);
+        if (parseJSONDocument<LChar, JSONLatin1Encoding>(state, src, len, buf.get(), parseResult)) {
+            Value unfiltered = parseJSONWorker<LChar, JSONLatin1Encoding>(state, parseResult);
+            return finishJSONParse<JSONLatin1Encoding>(state, JText, reviver, unfiltered, parseResult);
+        }
+        // Discard the partial one-byte DOM and retry from the original text.
+    }
+#endif
+
+    // Keep the existing UTF-16 path for SMALL_CONFIG, two-byte input, and
+    // Unicode escapes that could not be represented by the one-byte parser.
+    // Own the decoded DOM strings through reviver processing, while preserving
+    // the original text for context.source. Destroy the document first.
+    std::unique_ptr<char16_t[]> buf(new char16_t[len]);
+    JSONDocument<rapidjson::UTF16<char16_t>> parseResult(state);
+    if (JText->has8BitContent()) {
+        const LChar* src = reinterpret_cast<const LChar*>(len ? accessData.bufferAs8Bit : "");
+        parseJSONDocument<LChar, rapidjson::UTF16<char16_t>>(state, src, len, buf.get(), parseResult);
+    } else {
+        if (len) {
+            memcpy(buf.get(), accessData.bufferAs16Bit, len * sizeof(char16_t));
+        }
+        parseJSONDocument<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), len, buf.get(), parseResult);
+    }
+    Value unfiltered = parseJSONWorker<char16_t, rapidjson::UTF16<char16_t>>(state, parseResult);
+    return finishJSONParse<rapidjson::UTF16<char16_t>>(state, JText, reviver, unfiltered, parseResult);
 }
 
 static void builtinJSONArrayReplacerHelper(ExecutionState& state, ValueVectorWithInlineStorage& propertyList, Value property)

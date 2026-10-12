@@ -441,11 +441,16 @@ public:
         Probation,
     };
 
+    enum class AtomicStringLookup {
+        Check,
+        Skip,
+    };
+
     // `context` only enables the short string cache, it is never required. the cache needs
     // nothing of an ExecutionState, so a caller without one -- the parser, which creates a
     // string for every string literal it reads -- can take it too
-    static String* fromLatin1(const LChar* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed);
-    static String* fromLatin1(const char16_t* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed);
+    static String* fromLatin1(const LChar* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed, AtomicStringLookup atomicStringLookup = AtomicStringLookup::Check);
+    static String* fromLatin1(const char16_t* s, size_t len, Optional<Context*> context = NullOption, ShortStringCacheAdmission admission = ShortStringCacheAdmission::MostRecentlyUsed, AtomicStringLookup atomicStringLookup = AtomicStringLookup::Check);
 
     static String* fromCharCode(char32_t code, Optional<ExecutionState*> state = NullOption);
     ATTRIBUTE_NO_SANITIZE_FLOAT_CAST_OVERFLOW static String* fromDouble(double v);

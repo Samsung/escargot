@@ -163,6 +163,14 @@
 //!@endcond
 #endif // RAPIDJSON_FORCEINLINE
 
+#ifndef RAPIDJSON_UNLIKELY
+#if defined(__GNUC__) || defined(__clang__)
+#define RAPIDJSON_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define RAPIDJSON_UNLIKELY(x) (x)
+#endif
+#endif // RAPIDJSON_UNLIKELY
+
 ///////////////////////////////////////////////////////////////////////////////
 // RAPIDJSON_ENDIAN
 #define RAPIDJSON_LITTLEENDIAN 0 //!< Little endian machine

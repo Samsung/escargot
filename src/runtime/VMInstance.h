@@ -826,14 +826,29 @@ public:
         return m_smallStringCache.lookup(src, len);
     }
 
+    inline Optional<String*> lookupShortStringCache(const LChar* src, size_t len, size_t hash)
+    {
+        return m_smallStringCache.lookup(src, len, hash);
+    }
+
     inline void insertShortStringCache(const LChar* src, size_t len, String* resultString)
     {
         m_smallStringCache.insertMRU(src, len, resultString);
     }
 
+    inline void insertShortStringCache(const LChar* src, size_t len, String* resultString, size_t hash)
+    {
+        m_smallStringCache.insertMRU(src, len, resultString, hash);
+    }
+
     inline void insertShortStringCacheAsProbation(const LChar* src, size_t len, String* resultString)
     {
         m_smallStringCache.insertProbation(src, len, resultString);
+    }
+
+    inline void insertShortStringCacheAsProbation(const LChar* src, size_t len, String* resultString, size_t hash)
+    {
+        m_smallStringCache.insertProbation(src, len, resultString, hash);
     }
 
     inline Optional<String*> lookupAtomicStringCache(const LChar* src, size_t len)

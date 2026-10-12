@@ -226,13 +226,13 @@ inline double StrtodBigInteger(double approx, const char* decimals, size_t lengt
         return a.NextPositiveDouble();
 }
 
-inline double StrtodFullPrecision(double d, int p, const char* decimals, size_t length, size_t decimalPosition, int exp)
+inline double StrtodFullPrecision(double d, int p, const char* decimals, size_t length, size_t decimalPosition, int exp, bool tryFast = true)
 {
     RAPIDJSON_ASSERT(d >= 0.0);
     RAPIDJSON_ASSERT(length >= 1);
 
     double result;
-    if (StrtodFast(d, p, &result))
+    if (tryFast && StrtodFast(d, p, &result))
         return result;
 
     // Trim leading zeros

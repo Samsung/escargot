@@ -189,8 +189,8 @@ bool isAllLatin1(const char16_t* buf, const size_t len)
 bool isAllASCIIAlphanumeric(const LChar* buf, const size_t len)
 {
     for (unsigned i = 0; i < len; i++) {
-        auto ch = buf[i];
-        if (ch >= 128 || !isASCIIAlphanumeric(static_cast<char>(buf[i]))) {
+        const unsigned ch = buf[i];
+        if ((ch | 0x20) - 'a' > 'z' - 'a' && ch - '0' > '9' - '0') {
             return false;
         }
     }
@@ -780,7 +780,7 @@ ASCIIStringDataNonGCStd dtoa(double number)
 
 LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_DEFINE)
 
-String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission)
+String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission, AtomicStringLookup atomicStringLookup)
 {
     if (len == 0) {
         return String::emptyString();
@@ -793,15 +793,16 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> cont
     } else {
         if (context && len <= VMInstance::smallStringCacheStringLength) {
             auto* vm = context->vmInstance();
+            const size_t hash = VMInstance::SmallStringCache::computeHash(src, len);
             auto insertIntoCache = [&](String* resultString) {
                 if (admission == ShortStringCacheAdmission::Probation) {
-                    vm->insertShortStringCacheAsProbation(src, len, resultString);
+                    vm->insertShortStringCacheAsProbation(src, len, resultString, hash);
                 } else {
-                    vm->insertShortStringCache(src, len, resultString);
+                    vm->insertShortStringCache(src, len, resultString, hash);
                 }
             };
 
-            auto hitObj = vm->lookupShortStringCache(src, len);
+            auto hitObj = vm->lookupShortStringCache(src, len, hash);
             if (hitObj) {
                 return hitObj.value();
             }
@@ -833,7 +834,7 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> cont
                 return resultString;
             }
 
-            if (!isNumeric && isAllASCIIAlphanumeric(src, len)) {
+            if (atomicStringLookup == AtomicStringLookup::Check && !isNumeric && isAllASCIIAlphanumeric(src, len)) {
                 auto a = AtomicString::has(context->atomicStringMap(), src, len);
                 if (a) {
                     String* resultString = a.value().string();
@@ -858,7 +859,7 @@ String* String::fromLatin1(const LChar* src, size_t len, Optional<Context*> cont
     }
 }
 
-String* String::fromLatin1(const char16_t* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission)
+String* String::fromLatin1(const char16_t* src, size_t len, Optional<Context*> context, ShortStringCacheAdmission admission, AtomicStringLookup atomicStringLookup)
 {
     if (len == 0) {
         return String::emptyString();
@@ -868,7 +869,7 @@ String* String::fromLatin1(const char16_t* src, size_t len, Optional<Context*> c
             ASSERT(src[i] < 256);
             dest[i] = src[i];
         }
-        return String::fromLatin1(dest, len, context, admission);
+        return String::fromLatin1(dest, len, context, admission, atomicStringLookup);
     } else {
         return new Latin1String(src, len);
     }

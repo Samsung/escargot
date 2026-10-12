@@ -126,6 +126,19 @@ void stackCheck();
 
 RAPIDJSON_NAMESPACE_BEGIN
 
+// Custom in-situ streams may scan unescaped string spans through ADL. Other
+// streams retain the ordinary per-code-unit reader path.
+template <typename InputStream, typename OutputStream>
+inline void ScanCopyUnescapedString(InputStream&, OutputStream&) {}
+
+// A custom encoding may reject an unrepresentable code point through ADL.
+// Ordinary encodings accept every code point supported by their Encode method.
+template <typename Encoding, typename OutputStream>
+inline bool EncodeJSONCodePoint(Encoding, OutputStream& output, unsigned codepoint) {
+    Encoding::Encode(output, codepoint);
+    return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // ParseFlag
 
@@ -212,6 +225,12 @@ struct BaseReaderHandler {
 // StreamLocalCopy
 
 namespace internal {
+
+// Contiguous streams may defer numeric backups until full-precision conversion.
+template <typename InputStream, typename DefaultNumberStream>
+struct NumberStreamAdapter {
+    typedef DefaultNumberStream Type;
+};
 
 template <typename Stream, int = StreamTraits<Stream>::copyOptimization>
 class StreamLocalCopy;
@@ -729,6 +748,8 @@ private:
         is.Take(); // Skip '\"'
 
         for (;;) {
+            if ((parseFlags & kParseInsituFlag) && !(parseFlags & kParseValidateEncodingFlag))
+                ScanCopyUnescapedString(is, os);
             Ch c = is.Peek();
             if (c == '\\') { // Escape
                 is.Take();
@@ -748,7 +769,8 @@ private:
                             RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, is.Tell() - 2);
                         codepoint = (((codepoint - 0xD800) << 10) | (codepoint2 - 0xDC00)) + 0x10000;
                     }
-                    TEncoding::Encode(os, codepoint);
+                    if (!EncodeJSONCodePoint(TEncoding(), os, codepoint))
+                        RAPIDJSON_PARSE_ERROR(kParseErrorTermination, is.Tell());
                 } else
                     RAPIDJSON_PARSE_ERROR(kParseErrorStringEscapeInvalid, is.Tell() - 1);
             } else if (c == '"') { // Closing double quote
@@ -772,6 +794,8 @@ private:
     template <typename InputStream>
     class NumberStream<InputStream, false> {
     public:
+        typedef GenericReader ReaderType;
+
         NumberStream(GenericReader& reader, InputStream& s)
             : is(s)
         {
@@ -784,7 +808,7 @@ private:
         RAPIDJSON_FORCEINLINE Ch Take() { return is.Take(); }
         size_t Tell() { return is.Tell(); }
         size_t Length() { return 0; }
-        const char* Pop() { return 0; }
+        const char* Pop(bool) { return 0; }
 
     protected:
         NumberStream& operator=(const NumberStream&);
@@ -812,7 +836,7 @@ private:
 
         size_t Length() { return stackStream.Length(); }
 
-        const char* Pop()
+        const char* Pop(bool)
         {
             stackStream.Put('\0');
             return stackStream.Pop();
@@ -826,7 +850,8 @@ private:
     void ParseNumber(InputStream& is, Handler& handler)
     {
         internal::StreamLocalCopy<InputStream> copy(is);
-        NumberStream<InputStream, (parseFlags & kParseFullPrecisionFlag) != 0> s(*this, copy.s);
+        typedef NumberStream<InputStream, (parseFlags & kParseFullPrecisionFlag) != 0> DefaultNumberStream;
+        typename internal::NumberStreamAdapter<InputStream, DefaultNumberStream>::Type s(*this, copy.s);
 
         // Parse minus
         bool minus = false;
@@ -1015,15 +1040,24 @@ private:
         // Finish parsing, call event according to the type of number.
         bool cont = true;
         size_t length = s.Length();
-        const char* decimal = s.Pop(); // Pop stack no matter if it will be used or not.
+        bool useFast = false;
+        if (useDouble && (parseFlags & kParseFullPrecisionFlag) && !numberTooBig) {
+            double result;
+            if (internal::StrtodFast(d, exp + expFrac, &result)) {
+                d = result;
+                useFast = true;
+            }
+        }
+        const char* decimal = s.Pop(useDouble && (parseFlags & kParseFullPrecisionFlag) && !useFast && !numberTooBig);
 
         if (useDouble) {
-            if (numberTooBig && d != 0.0)
-                d = std::numeric_limits<double>::infinity();
-            else {
+            if (numberTooBig)
+                // A zero significand stays zero even outside converter tables.
+                d = d == 0.0 ? 0.0 : std::numeric_limits<double>::infinity();
+            else if (!useFast) {
                 int p = exp + expFrac;
                 if (parseFlags & kParseFullPrecisionFlag)
-                    d = internal::StrtodFullPrecision(d, p, decimal, length, decimalPosition, exp);
+                    d = internal::StrtodFullPrecision(d, p, decimal, length, decimalPosition, exp, false);
                 else
                     d = internal::StrtodNormalPrecision(d, p);
             }

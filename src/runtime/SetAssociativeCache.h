@@ -61,9 +61,14 @@ public:
 
     ALWAYS_INLINE Optional<String*> lookup(const LChar* src, size_t len)
     {
+        return lookup(src, len, computeHash(src, len));
+    }
+
+    // Precomputed hashes must describe the same src/len as the operation.
+    ALWAYS_INLINE Optional<String*> lookup(const LChar* src, size_t len, size_t hash)
+    {
         ASSERT(len <= maxKeyLength);
 
-        size_t hash = computeHash(src, len);
         size_t index = hash & (sets - 1);
         size_t baseIdx = index * 2;
 
@@ -97,9 +102,13 @@ public:
     // whatever currently sits in Way 1 (LRU).
     ALWAYS_INLINE void insertMRU(const LChar* src, size_t len, String* resultString)
     {
+        insertMRU(src, len, resultString, computeHash(src, len));
+    }
+
+    ALWAYS_INLINE void insertMRU(const LChar* src, size_t len, String* resultString, size_t hash)
+    {
         ASSERT(len <= maxKeyLength);
 
-        size_t hash = computeHash(src, len);
         size_t index = hash & (sets - 1);
         size_t baseIdx = index * 2;
 
@@ -120,9 +129,13 @@ public:
     // only earns the protected slot by being looked up a second time.
     ALWAYS_INLINE void insertProbation(const LChar* src, size_t len, String* resultString)
     {
+        insertProbation(src, len, resultString, computeHash(src, len));
+    }
+
+    ALWAYS_INLINE void insertProbation(const LChar* src, size_t len, String* resultString, size_t hash)
+    {
         ASSERT(len <= maxKeyLength);
 
-        size_t hash = computeHash(src, len);
         size_t index = hash & (sets - 1);
         size_t baseIdx = index * 2;
 
@@ -137,9 +150,11 @@ public:
     String** m_objects{ nullptr };
     Metadata* m_metadata{ nullptr };
 
-private:
+    // A miss can reuse this content hash when admitting the resulting string.
+    // Keep only the hash across allocations, never a cache-slot reference.
     static ALWAYS_INLINE size_t computeHash(const LChar* src, size_t len)
     {
+        ASSERT(len <= maxKeyLength);
         unsigned int hash = 2166136261U;
         for (size_t i = 0; i < len; ++i) {
             hash = (hash ^ src[i]) * 16777619U;
