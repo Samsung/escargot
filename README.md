@@ -42,7 +42,7 @@ or executable memory for generated machine code.
 
 ### Measured performance and memory
 
-Compare Escargot with QuickJS and V8, including V8's `--jitless` mode.
+Compare Escargot with QuickJS and V8, including V8 Lite (`--lite-mode`).
 Hermes V1 results, when available, include explicit compatibility failures.
 Choose your target architecture below. Execution scores and memory are
 measured separately; memory comparisons use a fixed amount of work for

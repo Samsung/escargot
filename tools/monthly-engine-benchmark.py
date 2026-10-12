@@ -33,6 +33,7 @@ if ARCHITECTURE not in ("arm64", "arm32"):
 REPORT = Path(os.environ.get("BENCHMARK_REPORT_DIR", WORK / "monthly-engine-report"))
 CACHE = Path(os.environ.get("MONTHLY_ENGINE_CACHE", Path.home() / ".cache" / "escargot-monthly-engines"))
 JOBS = 8
+ENGINE_LABELS = {"d8_lite": "V8 Lite (--lite-mode)"}
 CPU = int(os.environ.get("BENCHMARK_CPU", min(os.sched_getaffinity(0))))
 if CPU not in os.sched_getaffinity(0):
     raise ValueError("BENCHMARK_CPU is outside the allowed CPU affinity")
@@ -263,11 +264,10 @@ def build_escargot():
     options = [
         "-DCMAKE_BUILD_TYPE=Release", "-DESCARGOT_DEPLOY=ON",
         "-DESCARGOT_THREADING=ON", "-DESCARGOT_TCO=ON",
-        "-DESCARGOT_ENABLE_SHELL=ON",
+        "-DESCARGOT_ENABLE_SHELL=ON", "-DESCARGOT_TEMPORAL=ON",
     ]
     if ARCHITECTURE == "arm32":
-        options += ["-DESCARGOT_ARCH=arm", "-DCMAKE_SYSTEM_PROCESSOR=arm",
-                    "-DESCARGOT_TEMPORAL=OFF"]
+        options += ["-DESCARGOT_ARCH=arm", "-DCMAKE_SYSTEM_PROCESSOR=arm"]
     env = os.environ.copy()
     icu = Path("/usr/icu78-64")
     if ARCHITECTURE == "arm64" and icu.is_dir():
@@ -339,8 +339,9 @@ def build_wtb():
     directory = ROOT / "test" / "web-tooling-benchmark"
     suite = directory / "src" / "suite.js"
     text = suite.read_text()
-    changed = text.replace("minSamples: 20", "minSamples: 3")
-    if changed == text and "minSamples: 3" not in text:
+    changed, replacements = re.subn(r"(?m)^([ \t]*minSamples:[ \t]*)\d+([ \t]*,?[ \t]*)$",
+                                    r"\g<1>3\2", text)
+    if replacements != 1:
         raise RuntimeError("WTB minSamples setting changed upstream")
     suite.write_text(changed)
     # npm 6 resolves this GitHub dependency through git://, which is blocked on
@@ -508,15 +509,15 @@ def build_memory_drivers(wtb):
     driver = REPORT / "octane-memory.js"
     driver.write_text(begin + "\n".join("load(" + json.dumps(
         "base_mem.js" if name == "base.js" else name) + ");" for name in loads) + "\n" +
-        "benchmarkCheckpoint('loaded');\nvar memoryCounts = {};\n" +
+        "benchmarkCheckpoint('loaded');\nvar memoryCounts = {}; var memoryGCCounts = {};\n" +
         "var memoryRun = BenchmarkSuite.prototype.RunSingleBenchmark;\n" +
         "BenchmarkSuite.prototype.RunSingleBenchmark = function(benchmark, data) {\n" +
         " memoryCounts[benchmark.name] = (memoryCounts[benchmark.name] || 0) + 1;\n" +
         " return memoryRun.call(this, benchmark, data);\n};\n" +
         "BenchmarkSuite.RunSuites({\n" +
-        " NotifyResult: function(name) { benchmarkCheckpoint('test:' + name); },\n" +
+        " NotifyResult: function(name) { gc(); memoryGCCounts[name] = (memoryGCCounts[name] || 0) + 1; benchmarkCheckpoint('test:' + name); },\n" +
         " NotifyError: function(name, error) { throw Error(name + ': ' + error); },\n" +
-        " NotifyScore: function() { print('MEM_WORK_JSON ' + JSON.stringify(memoryCounts)); }\n" +
+        " NotifyScore: function() { print('MEM_WORK_JSON ' + JSON.stringify(memoryCounts)); print('MEM_GC_JSON ' + JSON.stringify(memoryGCCounts)); }\n" +
         "});\n" + end)
     web = REPORT / "web-tooling-memory.js"
     web.write_text(begin + "load('dist/memory.js');\n" + end)
@@ -534,9 +535,10 @@ def run_memory_comparison(data, engines, drivers):
     data["memory_protocol"] = {
         "repetitions": 3, "monitor_cpu": monitor_cpu, "sample_interval_ms": 10,
         "average_method": "time-weighted trapezoidal integration of smaps_rollup; checkpoint waits excluded",
-        "average_window": "baseline to workload_end, including code/data loading and natural GC",
+        "average_window": "baseline to workload_end, including code/data loading and GC execution; checkpoint waits excluded",
         "uss_definition": "Private_Clean + Private_Dirty; no explicit huge pages",
-        "gc_policy": "natural GC during work; two explicit gc calls only for the separate after_gc checkpoint",
+        "gc_policy": "Octane: one explicit gc call before each NotifyResult checkpoint, including Latency; other suites: natural GC during work; all suites: two explicit gc calls after workload_end for the separate after_gc checkpoint",
+        "octane_gc_time_in_average": True,
         "peak_method": "whole-process lifetime GNU time ru_maxrss; sampled smaps peaks also retained"}
     failures = []
     fatal_failures = []
@@ -558,6 +560,13 @@ def run_memory_comparison(data, engines, drivers):
                     work = sample["work_counts"]
                     if (count is not None and len(work) != count) or any(value != iterations for value in work.values()):
                         raise RuntimeError(f"Incorrect fixed-work counts: {work}")
+                    if kind == "octane":
+                        result_names = [point["label"][5:] for point in sample["checkpoints"]
+                                        if point["label"].startswith("test:")]
+                        if (len(result_names) != 17 or len(set(result_names)) != 17 or
+                                sample["gc_calls"] != dict.fromkeys(result_names, 1) or
+                                not {"SplayLatency", "MandreelLatency"}.issubset(result_names)):
+                            raise RuntimeError(f"Incorrect Octane result GC calls: {sample['gc_calls']}")
                     if kind in signatures and signatures[kind] != sample["work_signature"]:
                         raise RuntimeError("Workload counts differ between engines or repetitions")
                     signatures[kind] = sample["work_signature"]
@@ -590,8 +599,9 @@ def run_memory_comparison(data, engines, drivers):
             result = data["engines"][name]["memory"][kind]
             cells.append("failed" if "error" in result else
                          f"{result['average_rss_kib'] / 1024:.1f} / {result['peak_rss_kib'] / 1024:.1f}")
-        rows.append("| " + " | ".join([name] + cells) + " |")
-    rows.extend(["", "All suites use fixed work and natural GC. Loading is included; checkpoint waits are excluded.",
+        rows.append("| " + " | ".join([ENGINE_LABELS.get(name, name)] + cells) + " |")
+    rows.extend(["", "All suites use fixed work. Octane calls GC once at each result, including Latency.",
+                 "Loading and Octane GC execution are included in averages; checkpoint waits are excluded.",
                  "Raw data includes timestamped RSS/PSS/USS samples, exact phase snapshots, per-run peaks and ranges.", ""])
     summary = "\n".join(rows)
     with (REPORT / "summary.md").open("a") as output:
@@ -640,7 +650,7 @@ def write_report_summary(data):
         values = [cell(name, suite, engine.get(suite, {}), key) for suite, key in
                   (("sunspider", "total_milliseconds"), ("octane", "score"),
                    ("web_tooling", "score_runs_per_second"))]
-        rows.append(f"| {name} | {engine['version']} | " + " | ".join(values) + " |")
+        rows.append(f"| {ENGINE_LABELS.get(name, name)} | {engine['version']} | " + " | ".join(values) + " |")
     rows += ["", "SunSpider: one discarded run and five fresh-process repetitions; Octane: one scored run.",
              f"WTB: all 18 workloads, minSamples={data['wtb_min_samples']}; direct JavaScript source input.", "",
              f"## {architecture} fixed-work memory", "",
@@ -649,7 +659,8 @@ def write_report_summary(data):
     for name, engine in data["engines"].items():
         values = [cell(name, suite, engine.get("memory", {}).get(suite, {}), "average_rss_kib", memory=True)
                   for suite in ("sunspider", "octane", "web_tooling")]
-        rows.append("| " + " | ".join([name] + values) + " |")
+        rows.append("| " + " | ".join([ENGINE_LABELS.get(name, name)] + values) + " |")
+    rows += ["", "Octane memory calls gc() once after each result, including Latency; GC execution is included in the average."]
     if errors:
         rows += ["", "## Measurement errors", "",
                  "Failed workloads are not omitted or represented as scores. No partial-suite results are comparable.", "",
@@ -731,11 +742,13 @@ def main():
                 ["git", "rev-parse", "HEAD"], cwd=ROOT / "test" / name, text=True).strip()
                 for name in ("octane", "web-tooling-benchmark", "vendortest")},
             "engines": {"quickjs": qjs_info, "d8": d8_info,
-                        "d8_jitless": {**d8_info, "flags": ["--jitless", "--expose-gc"]},
+                        "d8_lite": {**d8_info, "flags": ["--lite-mode", "--expose-gc"],
+                                    "label": ENGINE_LABELS["d8_lite"],
+                                    "mode": "standard d8 binary with --lite-mode"},
                         "escargot": {"version": revision}}}
     engines = [("quickjs", [loader, "--library-path", f"{runtime_dir}:{SYSTEM_LIBRARY_PATH}", qjs, "--std", "--stack-size", "8388608", "-I", adapter], os.environ.copy()),
                ("d8", [*d8, "--expose-gc"], os.environ.copy()),
-               ("d8_jitless", [*d8, "--jitless", "--expose-gc"], os.environ.copy()),
+               ("d8_lite", [*d8, "--lite-mode", "--expose-gc"], os.environ.copy()),
                ("escargot", [loader, "--library-path",
                               f"{runtime_dir}:{escargot_env.get('LD_LIBRARY_PATH', '')}:{SYSTEM_LIBRARY_PATH}", escargot], escargot_env)]
     if hermes_binary:
@@ -747,7 +760,7 @@ def main():
         for key in ("architecture", "hostname", "cpu", "escargot_source_revision", "suite_revisions"):
             if previous[key] != data[key]:
                 raise RuntimeError(f"Imported score context differs: {key}")
-        for name in ("quickjs", "d8", "d8_jitless"):
+        for name in ("quickjs", "d8", "d8_lite"):
             for key in ("version", "sha256"):
                 if previous["engines"][name][key] != data["engines"][name][key]:
                     raise RuntimeError(f"Imported engine version differs: {name}/{key}")
@@ -812,7 +825,7 @@ def main():
         return f"{result[key]:.2f}" if key in result else "failed"
     for name, _, _ in engines:
         result = data["engines"][name]
-        rows.append(f"| {name} | {result['version']} | " +
+        rows.append(f"| {ENGINE_LABELS.get(name, name)} | {result['version']} | " +
                     " | ".join((value(result["sunspider"], "total_milliseconds"),
                                 value(result["octane"], "score"),
                                 value(result["web_tooling"], "score_runs_per_second"))) + " |")

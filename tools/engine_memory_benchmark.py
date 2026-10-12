@@ -14,7 +14,7 @@ import subprocess
 import time
 import tty
 
-METHOD = "fixed-work-smaps-rollup-v2"
+METHOD = "fixed-work-smaps-rollup-v3"
 INTERVAL_SECONDS = 0.01
 
 
@@ -72,7 +72,7 @@ def measure_memory(name, engine, command, directory, env, script, report, cpu, m
     bridge = report / f"{name}.bridge.js"
     if engine == "quickjs":
         wait = "std.out.flush(); var ack = std.in.getline();"
-    elif engine in ("d8", "d8_jitless", "hermes"):
+    elif engine in ("d8", "d8_lite", "hermes"):
         wait = "var ack = readline();"
     elif engine == "escargot":
         wait = "var ack = read(" + json.dumps(str(fifo)) + ");"
@@ -97,6 +97,7 @@ def measure_memory(name, engine, command, directory, env, script, report, cpu, m
     segment = None
     engine_pid = None
     work = None
+    gc_calls = None
     buffer = b""
     started = time.monotonic()
     next_sample = started
@@ -135,6 +136,8 @@ def measure_memory(name, engine, command, directory, env, script, report, cpu, m
                         line = line.decode("utf-8", "replace").strip()
                         if line.startswith("MEM_WORK_JSON "):
                             work = json.loads(line[len("MEM_WORK_JSON "):])
+                        if line.startswith("MEM_GC_JSON "):
+                            gc_calls = json.loads(line[len("MEM_GC_JSON "):])
                         if not line.startswith("MEM_CHECKPOINT "):
                             continue
                         label = json.loads(line[len("MEM_CHECKPOINT "):])
@@ -221,6 +224,7 @@ def measure_memory(name, engine, command, directory, env, script, report, cpu, m
                 "sampled_peak_uss_kib": max(point["uss_kib"] for point in samples + checkpoints),
                 "active_duration_seconds": duration, "duration_seconds": time.monotonic() - started,
                 "checkpoints": checkpoints, "work_counts": work,
+                "gc_calls": gc_calls,
                 "work_signature": hashlib.sha256(json.dumps(work, sort_keys=True).encode()).hexdigest(),
                 "cpu_affinity": [str(cpu)], "monitor_cpu_affinity": [str(monitor_cpu)],
                 "rss_sample_count": len(samples), "sampling_interval_ms": 10,

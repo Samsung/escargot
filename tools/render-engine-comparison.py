@@ -9,11 +9,11 @@ from pathlib import Path
 import re
 import zipfile
 
-ENGINES = ("quickjs", "d8", "d8_jitless", "escargot", "hermes")
-NAMES = {"quickjs": "QuickJS (Bellard)", "d8": "V8 d8", "d8_jitless": "V8 d8 --jitless", "escargot": "Escargot", "hermes": "Hermes V1"}
+ENGINES = ("quickjs", "d8", "d8_lite", "escargot", "hermes")
+NAMES = {"quickjs": "QuickJS (Bellard)", "d8": "V8 d8", "d8_lite": "V8 Lite (--lite-mode)", "escargot": "Escargot", "hermes": "Hermes V1"}
 SUITES = ("sunspider", "octane", "web_tooling")
 TITLES = {"sunspider": "SunSpider", "octane": "Octane", "web_tooling": "Web Tooling"}
-METHOD = "fixed-work-smaps-rollup-v2"
+METHOD = "fixed-work-smaps-rollup-v3"
 
 
 def architecture(data):
@@ -48,6 +48,10 @@ def validate(data, report=None):
         raise ValueError("Only validated fixed-work memory comparisons may be published")
     if not set(ENGINES[:4]).issubset(data["engines"]) or set(data["engines"]) - set(ENGINES):
         raise ValueError("Unexpected or missing engine configuration")
+    if data["engines"]["d8_lite"].get("flags") != ["--lite-mode", "--expose-gc"]:
+        raise ValueError("V8 Lite flags differ from the validated protocol")
+    if data.get("memory_protocol", {}).get("octane_gc_time_in_average") is not True:
+        raise ValueError("Octane GC measurement window is unspecified")
     signatures = {}
     known_failures = []
     expected_work = {"sunspider": (26, 1), "octane": (18, 1), "web_tooling": (18, 3)}
@@ -88,6 +92,12 @@ def validate(data, report=None):
                 labels = [point["label"] for point in sample["checkpoints"]]
                 if labels[:2] != ["baseline", "loaded"] or labels[-2:] != ["workload_end", "after_gc"]:
                     raise ValueError("Incomplete memory checkpoints")
+                if suite == "octane":
+                    result_names = [label[5:] for label in labels if label.startswith("test:")]
+                    if (len(result_names) != 17 or len(set(result_names)) != 17 or
+                            sample.get("gc_calls") != dict.fromkeys(result_names, 1) or
+                            not {"SplayLatency", "MandreelLatency"}.issubset(result_names)):
+                        raise ValueError("Incorrect Octane result GC calls")
                 if sample["monitor_cpu_affinity"] == sample["cpu_affinity"] or sample["rss_sample_count"] < 1:
                     raise ValueError("Missing independent memory sampling")
                 signature = sample["work_signature"]
@@ -153,7 +163,7 @@ def svg(data):
             elements.append(f'<rect x="14" y="{y-23}" width="1052" height="31" rx="5" fill="#17324b"/>')
         for col, value in enumerate([NAMES[engine], "", *scores(data, engine)]):
             text(x[col], y, value, 16, weight="bold" if engine == "escargot" else "normal")
-    text(28, 555 + footer_shift, "Memory: median of 3 fresh processes; loading and natural GC included. Kernel peak RSS.", 14, "#b9c7da")
+    text(28, 555 + footer_shift, "Memory: median of 3 fresh processes; Octane has one GC per result. Kernel peak RSS.", 14, "#b9c7da")
     text(28, 580 + footer_shift, "Same CPU and work counts for successful entries. Click for methods, errors and raw data.", 14, "#b9c7da")
     if data.get("published_compatibility_failures"):
         text(28, 610 + footer_shift, "Hermes: SunSpider runtime error; WTB source syntax error. Failed entries have no comparable value.", 14, "#fca5a5")
@@ -168,7 +178,7 @@ def page(embed=False, arm32=False, default_architecture="arm64"):
     if arm32:
         paths["arm32"] = "" if default_architecture == "arm32" else "arm32/"
     script = 'const architecturePaths=' + json.dumps(paths) + ';\nconst defaultArchitecture=' + json.dumps(default_architecture) + ';\n' + r'''
-const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
+const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_lite:'V8 Lite (--lite-mode)',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
 let data, requestId=0, engines=[];
 const median=a=>{a=[...a].sort((a,b)=>a-b);return a[Math.floor(a.length/2)];};
 const mib=x=>(x/1024).toFixed(1);
@@ -205,7 +215,8 @@ document.getElementById('metric').addEventListener('change',memory);window.addEv
     methods = '''<details><summary>Measurement method and interpretation</summary><ul>
 <li>Memory uses three fresh processes per engine and suite, rotating engine order. The table shows medians; ranges appear below.</li>
 <li>Within each architecture, engines use the same native ARM host, engine CPU, glibc runtime and fixed work: SunSpider 26 scripts once; Octane 18 benchmark functions once, including normal setup/teardown; Web Tooling 18 functions three times. ARM32 uses an Ubuntu ARM32 container without emulation.</li>
-<li>Averages cover loading and execution with natural GC, from the baseline checkpoint to workload end. Checkpoint waiting time is excluded; no manual GC between subtests.</li>
+<li>Averages cover loading and execution from the baseline checkpoint to workload end. Octane calls gc() once after each result, including the two Latency notifications, before its memory checkpoint. GC execution time is included; checkpoint waiting time is excluded.</li>
+<li>V8 Lite uses the standard d8 binary with --lite-mode; it is not a separately stripped V8 build.</li>
 <li>RSS/PSS/private resident memory is read externally from Linux smaps_rollup every 10 ms, on a separate monitor CPU. Averages use actual timestamps. All threads are stopped for phase snapshots.</li>
 <li>Peak RSS uses GNU time / wait4 ru_maxrss over the whole process lifetime, including the post-GC checkpoint. PSS/USS peaks are sampled observations.</li>
 <li>PSS apportions shared resident pages; USS is Private_Clean plus Private_Dirty. The separate post-GC view follows two explicit GC requests; it is not a JS heap-size measurement.</li>
@@ -272,7 +283,8 @@ def main():
         (root / 'latest.svg').write_text(svg(data))
         history_path = root / 'history.json'
         history = json.loads(history_path.read_text()) if history_path.exists() else []
-        history = [row for row in history if row.get('memory_method') == METHOD and row.get('measured_at') != data['measured_at']]
+        history = [row for row in history if row.get('memory_method') in ("fixed-work-smaps-rollup-v2", METHOD)
+                   and row.get('measured_at') != data['measured_at']]
         history.append(data)
         history_path.write_text(json.dumps(history[-120:], indent=2) + '\n')
         has_arm32 = (comparison_root / 'arm32/latest.json').is_file()
