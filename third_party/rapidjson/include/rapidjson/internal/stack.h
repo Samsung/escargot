@@ -116,7 +116,7 @@ public:
         // to it below would be UB, so check for that case first -- the
         // short-circuit keeps the pointer arithmetic from ever running on
         // a null stackTop_.
-        if (stackTop_ == 0 || stackTop_ + sizeof(T) * count >= stackEnd_)
+        if (RAPIDJSON_UNLIKELY(stackTop_ == 0 || stackTop_ + sizeof(T) * count >= stackEnd_))
             Expand<T>(count);
 
         T* ret = reinterpret_cast<T*>(stackTop_);

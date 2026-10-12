@@ -32,6 +32,18 @@ class BasicString : public gc {
     }
 
 public:
+    // Transfer a buffer allocated with Allocator. It must have room for the
+    // terminating code unit; no allocation or content copy occurs here.
+    static BasicString adoptBuffer(T* buffer, size_t length)
+    {
+        ASSERT(buffer);
+        BasicString data;
+        data.m_buffer = buffer;
+        data.m_size = length;
+        buffer[length] = 0;
+        return data;
+    }
+
     BasicString()
     {
         makeEmpty();
