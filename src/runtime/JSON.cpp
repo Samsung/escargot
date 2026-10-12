@@ -27,6 +27,7 @@
 #include "runtime/BooleanObject.h"
 #include "runtime/BigIntObject.h"
 #include "runtime/RawJSONObject.h"
+#include "runtime/JSONStructureCache.h"
 #include "util/CharacterSpan.h"
 #include "runtime/VMInstance.h"
 
@@ -258,14 +259,126 @@ struct JSONKey {
 template <typename KeyAt, typename ValueAt>
 static Object* createJSONObject(ExecutionState& state, size_t memberCount, KeyAt&& keyAt, ValueAt&& valueAt)
 {
-    Object* object = new Object(state);
+    if (!memberCount) {
+        return Object::createWithStructure(state, state.context()->defaultStructureForObject(), ObjectPropertyValueVector());
+    }
+
+    // Hash decoded keys before interning them. The hash is only a filter:
+    // a candidate must also match every key's length and code units.
+    size_t signature = memberCount;
+    size_t keyBytes = 0;
+    for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
+        const auto key = keyAt(ordinal);
+        const size_t length = key.length;
+        signature = (signature ^ length) * 16777619;
+        for (size_t i = 0; i < length; ++i) {
+            signature = (signature ^ key.charAt(i)) * 16777619;
+        }
+        // Saturate the charge rather than overflowing on a large input.
+        if (length > (JSONStructureCache::MaxEntryBytes - keyBytes) / sizeof(char16_t)) {
+            keyBytes = JSONStructureCache::MaxEntryBytes;
+        } else {
+            keyBytes += length * sizeof(char16_t);
+        }
+    }
+
+    auto* cache = state.context()->vmInstance()->jsonStructureCache();
+    Optional<JSONStructureCache::Entry*> cached = cache->find(signature, memberCount, [&](const JSONStructureCache::Entry& entry) {
+        for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
+            const auto key = keyAt(ordinal);
+            const size_t length = key.length;
+            if (entry.m_keys[ordinal]->length() != length) {
+                return false;
+            }
+            const auto chars = entry.m_keys[ordinal]->bufferAccessData();
+            for (size_t i = 0; i < length; ++i) {
+                if (chars.charAt(i) != key.charAt(i)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+    if (cached) {
+        ObjectPropertyValueVector values;
+        values.resize(0, cached.value()->m_structure->propertyCount(), Value());
+        for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
+            values[cached.value()->m_valueIndexes[ordinal]] = valueAt(ordinal);
+        }
+        // Keep the entry rooted through recursive conversions, which can
+        // evict it from the cache while the parent is being materialized.
+        return Object::createWithStructure(state, cached.value()->m_structure, std::move(values));
+    }
+
+    JSONStructureCache::Entry::KeyVector keys;
+    JSONStructureCache::Entry::IndexVector valueIndexes;
+    keys.reserve(memberCount);
+    valueIndexes.resize(memberCount);
+    std::unordered_map<String*, size_t> uniqueKeys;
     std::basic_string<LChar> latin1Key;
+    size_t keyOrdinal = 0;
+    size_t uniqueKeyCount = 0;
     for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
         AtomicString name = keyAt(ordinal).intern(state, latin1Key);
-        object->defineOwnProperty(state, ObjectPropertyName(name),
-                                  ObjectPropertyDescriptor(valueAt(ordinal), ObjectPropertyDescriptor::AllPresent));
+        size_t slot;
+        if (memberCount <= 16) {
+            // Small schemas do not need a heap-allocated hash node for
+            // every key when the layout cache misses or is full.
+            slot = uniqueKeyCount;
+            for (size_t i = 0; i < keyOrdinal; ++i) {
+                if (keys[i] == name.string()) {
+                    slot = valueIndexes[i];
+                    break;
+                }
+            }
+            uniqueKeyCount += slot == uniqueKeyCount;
+        } else {
+            slot = uniqueKeys.emplace(name.string(), uniqueKeys.size()).first->second;
+            uniqueKeyCount = uniqueKeys.size();
+        }
+        keys.push_back(name.string());
+        valueIndexes[keyOrdinal++] = slot;
     }
-    return object;
+    ObjectStructureItemTightVector properties;
+    properties.resizeWithUninitializedValues(uniqueKeyCount);
+    bool hasIndexedProperties = false;
+    for (size_t i = 0; i < memberCount; ++i) {
+        ObjectStructurePropertyName name(AtomicString::fromPayload(keys[i]));
+        hasIndexedProperties |= name.isIndexString();
+        properties[valueIndexes[i]] = ObjectStructureItem(name, ObjectStructurePropertyDescriptor::createDataDescriptor());
+    }
+
+    ObjectStructure* structure = ObjectStructure::create(state.context(), std::move(properties), true);
+    ObjectPropertyValueVector values;
+    values.resize(0, structure->propertyCount(), Value());
+    for (size_t i = 0; hasIndexedProperties && i < memberCount; ++i) {
+        // Indexed names are partitioned and sorted by structure creation;
+        // map the original member order to the final storage slots.
+        auto slot = structure->findProperty(ObjectStructurePropertyName(AtomicString::fromPayload(keys[i])));
+        ASSERT(slot.second);
+        valueIndexes[i] = slot.first;
+    }
+    for (size_t ordinal = 0; ordinal < memberCount; ++ordinal) {
+        // Duplicate names reuse their first insertion slot and later
+        // values overwrite earlier ones, including above transition size.
+        values[valueIndexes[ordinal]] = valueAt(ordinal);
+    }
+    Object* obj = Object::createWithStructure(state, structure, std::move(values));
+
+    const size_t metadataBytes = sizeof(JSONStructureCache::Entry) + 256;
+    const size_t propertyBytes = 2 * sizeof(ObjectStructureItem) + 4 * sizeof(size_t);
+    size_t charge = JSONStructureCache::MaxEntryBytes;
+    if (keyBytes < JSONStructureCache::MaxEntryBytes
+        && structure->propertyCount() <= JSONStructureCache::MaxEntryBytes / propertyBytes
+        && keys.capacity() <= JSONStructureCache::MaxEntryBytes / sizeof(String*)
+        && valueIndexes.capacity() <= JSONStructureCache::MaxEntryBytes / sizeof(size_t)) {
+        charge = metadataBytes + keyBytes + structure->propertyCount() * propertyBytes
+            + keys.capacity() * sizeof(String*) + valueIndexes.capacity() * sizeof(size_t);
+    }
+    if (charge < JSONStructureCache::MaxEntryBytes && cache->shouldInsert(structure, charge)) {
+        cache->insert(new JSONStructureCache::Entry(structure, std::move(keys), std::move(valueIndexes), signature, charge));
+    }
+    return obj;
 }
 
 template <typename CharType, typename JSONCharType>

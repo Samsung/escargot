@@ -534,6 +534,11 @@ Object::Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, O
     ASSERT(!!proto);
 }
 
+Object* Object::createWithStructure(ExecutionState& state, ObjectStructure* structure, ObjectPropertyValueVector&& values)
+{
+    return new Object(structure, std::move(values), state.context()->globalObject()->objectPrototype());
+}
+
 Object::Object(ExecutionState& state, size_t propertyCount,
                std::pair<Value, Value> (*keyAndValueCallback)(ExecutionState& state, void* data), void* callbackData,
                bool isWritable, bool isEnumerable, bool isConfigurable)

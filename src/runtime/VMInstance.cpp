@@ -24,6 +24,7 @@
 #include "runtime/Platform.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/JSONStructureCache.h"
 #include "runtime/StringObject.h"
 #include "runtime/DateObject.h"
 #include "runtime/JobQueue.h"
@@ -187,6 +188,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
         markHashSet(desc, GC_WORD_OFFSET(VMInstance, m_rootedObjectStructure));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jsonStructureCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
@@ -809,6 +811,14 @@ void VMInstance::ensureTzname()
 }
 #endif
 
+JSONStructureCache* VMInstance::jsonStructureCache()
+{
+    if (!m_jsonStructureCache) {
+        m_jsonStructureCache = new JSONStructureCache();
+    }
+    return m_jsonStructureCache.value();
+}
+
 void VMInstance::addObjectStructureToRootSet(ObjectStructure* structure)
 {
     ASSERT(m_rootedObjectStructure.find(structure) == m_rootedObjectStructure.end());
@@ -916,6 +926,7 @@ Optional<ObjectStructure*> VMInstance::findRootedObjectStructure(ObjectStructure
 void VMInstance::clearCachesRelatedWithContext()
 {
     m_regexpCache->clear();
+    m_jsonStructureCache = nullptr;
     globalSymbolRegistry().clear();
 #if defined(ENABLE_CODE_CACHE)
     // CodeCache should be cleared here because CodeCache holds a lock of cache directory
