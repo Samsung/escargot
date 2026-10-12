@@ -8,7 +8,8 @@
 <details><summary>Measurement method and interpretation</summary><ul>
 <li>Memory uses three fresh processes per engine and suite, rotating engine order. The table shows medians; ranges appear below.</li>
 <li>Within each architecture, engines use the same native ARM host, engine CPU, glibc runtime and fixed work: SunSpider 26 scripts once; Octane 18 benchmark functions once, including normal setup/teardown; Web Tooling 18 functions three times. ARM32 uses an Ubuntu ARM32 container without emulation.</li>
-<li>Averages cover loading and execution with natural GC, from the baseline checkpoint to workload end. Checkpoint waiting time is excluded; no manual GC between subtests.</li>
+<li>Averages cover loading and execution from the baseline checkpoint to workload end. Octane calls gc() once after each result, including the two Latency notifications, before its memory checkpoint. GC execution time is included; checkpoint waiting time is excluded.</li>
+<li>V8 Lite uses the standard d8 binary with --lite-mode; it is not a separately stripped V8 build.</li>
 <li>RSS/PSS/private resident memory is read externally from Linux smaps_rollup every 10 ms, on a separate monitor CPU. Averages use actual timestamps. All threads are stopped for phase snapshots.</li>
 <li>Peak RSS uses GNU time / wait4 ru_maxrss over the whole process lifetime, including the post-GC checkpoint. PSS/USS peaks are sampled observations.</li>
 <li>PSS apportions shared resident pages; USS is Private_Clean plus Private_Dirty. The separate post-GC view follows two explicit GC requests; it is not a JS heap-size measurement.</li>
@@ -20,7 +21,7 @@
 </main><script>const architecturePaths={"arm64": "", "arm32": "arm32/"};
 const defaultArchitecture="arm64";
 
-const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_jitless:'V8 d8 --jitless',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
+const names={quickjs:'QuickJS (Bellard)',d8:'V8 d8',d8_lite:'V8 Lite (--lite-mode)',escargot:'Escargot',hermes:'Hermes V1'}, suites=['sunspider','octane','web_tooling'];
 let data, requestId=0, engines=[];
 const median=a=>{a=[...a].sort((a,b)=>a-b);return a[Math.floor(a.length/2)];};
 const mib=x=>(x/1024).toFixed(1);
