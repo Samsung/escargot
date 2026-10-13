@@ -4334,6 +4334,16 @@ public:
             }
         }
 
+        // A top-level `for await` suspends module evaluation exactly like a
+        // plain `await` does, so the module scope must be marked asynchronous.
+        // Without this, the module executes on the synchronous path and the
+        // loop's first implicit await walks a pauser-less parent chain (null
+        // dereference in ExecutionState::executionPauser). Mirrors the
+        // plain-`await` handling in parsePrimaryExpression.
+        if (seenAwait && this->sourceType == Module && inGlobalSourceCodeParsing()) {
+            this->currentScopeContext->m_isAsync = true;
+        }
+
         this->expect(LeftParenthesis);
 
         ParserBlockContext headBlockContext;
