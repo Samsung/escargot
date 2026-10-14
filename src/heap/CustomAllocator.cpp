@@ -530,6 +530,36 @@ int getValidValueInReloadableString(void* pointer, GC_mark_pair* pointers)
 #endif
 #endif
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static GC_ms_entry* markObjectStructureItemBuffer(GC_word* addr, GC_ms_entry* stack,
+                                                  GC_ms_entry* limit, GC_word)
+{
+#if defined(GC_DEBUG)
+    auto* item = static_cast<ObjectStructureItem*>(GC_USR_PTR_FROM_BASE(addr));
+#else
+    auto* item = reinterpret_cast<ObjectStructureItem*>(addr);
+#endif
+    auto* end = reinterpret_cast<ObjectStructureItem*>(reinterpret_cast<char*>(addr) + GC_size(addr));
+    uintptr_t base = reinterpret_cast<uintptr_t>(addr) & ~uintptr_t(UINT32_MAX);
+    GC_mark_pair pointers[32];
+    size_t count = 0;
+    for (; item < end; ++item) {
+        const auto* slots = reinterpret_cast<const uint32_t*>(item);
+        uint32_t name = slots[0] & ~uint32_t(OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
+        uint32_t descriptor = slots[1];
+        pointers[count].from = reinterpret_cast<GC_word*>(&item->m_propertyName);
+        pointers[count++].to = name ? reinterpret_cast<GC_word*>(base + name) : nullptr;
+        pointers[count].from = reinterpret_cast<GC_word*>(&item->m_descriptor);
+        pointers[count++].to = (!descriptor || (descriptor & 1)) ? nullptr : reinterpret_cast<GC_word*>(base + descriptor);
+        if (count == 32) {
+            stack = GC_mark_and_push_ptrs(stack, limit, pointers, count);
+            count = 0;
+        }
+    }
+    return count ? GC_mark_and_push_ptrs(stack, limit, pointers, count) : stack;
+}
+#endif
+
 void initializeCustomAllocators()
 {
     if (s_gcKinds[HeapObjectKind::ValueVectorKind]) {
@@ -573,6 +603,8 @@ void initializeCustomAllocators()
 #else
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind_32bit();
 #endif
+    s_gcKinds[HeapObjectKind::ObjectStructureItemBufferKind] = GC_new_kind(GC_new_free_list(),
+                                                                           GC_MAKE_PROC(GC_new_proc(markObjectStructureItemBuffer), 0), FALSE, TRUE);
     s_gcKinds[HeapObjectKind::RopeStringKind] = GC_new_kind(GC_new_free_list(),
                                                             GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInRopeString, 2>), 0), FALSE, TRUE);
 #if defined(ENABLE_RELOADABLE_STRING)
@@ -729,6 +761,10 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
 #endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+void* allocateObjectStructureItemBuffer(size_t size)
+{
+    return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::ObjectStructureItemBufferKind]);
+}
 
 void* allocateRopeString(size_t size)
 {

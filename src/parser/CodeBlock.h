@@ -55,7 +55,7 @@ private:
 };
 
 typedef HashMap<CompressibleAtomicString, CompressibleVariableMapIndex, std::hash<CompressibleAtomicString>, std::equal_to<CompressibleAtomicString>,
-                CompressedPointerAllocator<std::pair<const CompressibleAtomicString, CompressibleVariableMapIndex>>>
+                CompressiblePointerAllocator<std::pair<const CompressibleAtomicString, CompressibleVariableMapIndex>>>
     FunctionContextVarMap;
 static_assert(sizeof(tsl::detail_robin_hash::bucket_entry<std::pair<CompressibleAtomicString, CompressibleVariableMapIndex>, false>) == 12, "Variable-map buckets must keep four-byte keys and indexes");
 #else

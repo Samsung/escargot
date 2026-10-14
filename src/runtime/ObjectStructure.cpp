@@ -199,7 +199,7 @@ uint32_t ObjectStructureWithoutTransition::indexPropertyName(size_t) const
     return Value::InvalidIndexPropertyValue;
 }
 
-const ObjectStructurePropertyName& ObjectStructureWithoutTransition::nonIndexPropertyName(size_t valueIndex) const
+ObjectStructurePropertyNameResult ObjectStructureWithoutTransition::nonIndexPropertyName(size_t valueIndex) const
 {
     return m_properties->at(valueIndex).m_propertyName;
 }
@@ -365,7 +365,7 @@ ObjectStructureTransitionPropertyVector::ObjectStructureTransitionPropertyVector
     auto* storage = m_storage.value();
     if (m_size > storage->m_capacity) {
         size_t capacity = std::max(size(), std::max(static_cast<size_t>(storage->m_capacity) * 2, static_cast<size_t>(2)));
-        auto* buffer = GCUtil::gc_malloc_allocator<ObjectStructureItem>().allocate(capacity);
+        auto* buffer = CompressiblePointerAllocator<ObjectStructureItem>().allocate(capacity);
         if (properties.m_size) {
             memcpy(buffer, properties.data().value(), properties.m_size * sizeof(ObjectStructureItem));
         }
@@ -531,7 +531,7 @@ uint32_t ObjectStructureWithTransition::indexPropertyName(size_t) const
     return Value::InvalidIndexPropertyValue;
 }
 
-const ObjectStructurePropertyName& ObjectStructureWithTransition::nonIndexPropertyName(size_t valueIndex) const
+ObjectStructurePropertyNameResult ObjectStructureWithTransition::nonIndexPropertyName(size_t valueIndex) const
 {
     return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_propertyName;
 }
@@ -629,7 +629,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
                     auto buffer = transitionTableVectorBuffer();
                     m_transitionTableStorage = buffer
                         ? (ObjectStructureTransitionVectorItem*)GC_REALLOC_NO_SHRINK(buffer.value(), sizeof(ObjectStructureTransitionVectorItem) * m_transitionTableVectorBufferCapacity)
-                        : CompressedPointerAllocator<ObjectStructureTransitionVectorItem>().allocate(m_transitionTableVectorBufferCapacity);
+                        : CompressiblePointerAllocator<ObjectStructureTransitionVectorItem>().allocate(m_transitionTableVectorBufferCapacity);
                 }
                 transitionTableVectorBuffer().value()[m_transitionTableVectorBufferSize] = newTransitionItem;
                 m_transitionTableVectorBufferSize++;
@@ -752,7 +752,7 @@ const ObjectStructurePropertyDescriptor& ObjectStructureWithTransitionAndSymbols
     return m_symbolProperties.atWithBase(valueIndex - m_properties.size(), propertyStorageBase()).m_descriptor;
 }
 
-const ObjectStructurePropertyName& ObjectStructureWithTransitionAndSymbols::nonIndexPropertyName(size_t valueIndex) const
+ObjectStructurePropertyNameResult ObjectStructureWithTransitionAndSymbols::nonIndexPropertyName(size_t valueIndex) const
 {
     if (valueIndex < m_properties.size()) {
         return m_properties.atWithBase(valueIndex, propertyStorageBase()).m_propertyName;
@@ -1110,7 +1110,7 @@ uint32_t ObjectStructureWithMap::indexPropertyName(size_t) const
     return Value::InvalidIndexPropertyValue;
 }
 
-const ObjectStructurePropertyName& ObjectStructureWithMap::nonIndexPropertyName(size_t valueIndex) const
+ObjectStructurePropertyNameResult ObjectStructureWithMap::nonIndexPropertyName(size_t valueIndex) const
 {
     return m_properties->at(valueIndex).m_propertyName;
 }
@@ -1671,7 +1671,7 @@ uint32_t ObjectStructureWithIndexProperties::indexPropertyName(size_t valueIndex
     return indexPropertyAt(valueIndex - namedPropertyCount());
 }
 
-const ObjectStructurePropertyName& ObjectStructureWithIndexProperties::nonIndexPropertyName(size_t valueIndex) const
+ObjectStructurePropertyNameResult ObjectStructureWithIndexProperties::nonIndexPropertyName(size_t valueIndex) const
 {
     ASSERT(!isIndexProperty(valueIndex));
     if (valueIndex < m_namedProperties->size()) {

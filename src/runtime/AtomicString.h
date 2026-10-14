@@ -245,7 +245,7 @@ struct AtomicStringMapEqual {
     }
 };
 
-using AtomicStringMapBase = HashSet<CompressibleAtomicString, AtomicStringMapHash, AtomicStringMapEqual, CompressedPointerAllocator<CompressibleAtomicString>>;
+using AtomicStringMapBase = HashSet<CompressibleAtomicString, AtomicStringMapHash, AtomicStringMapEqual, CompressiblePointerAllocator<CompressibleAtomicString>>;
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 static_assert(sizeof(tsl::detail_robin_hash::bucket_entry<CompressibleAtomicString, false>) == 8, "Intern buckets must keep four-byte keys");
 #endif

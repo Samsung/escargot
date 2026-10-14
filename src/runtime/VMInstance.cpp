@@ -863,7 +863,7 @@ public:
         return Value::InvalidIndexPropertyValue;
     }
 
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override
     {
         return m_properties[valueIndex].m_propertyName;
     }

@@ -1208,9 +1208,9 @@ static ResultType objectOwnPropertyKeysCanonicalized(ExecutionState& state, Obje
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Properties {
-        VectorWithInlineStorage<16, IndexItem, GCUtil::gc_malloc_allocator<IndexItem>> indexes;
-        VectorWithInlineStorage<32, std::pair<String*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<String*, ObjectStructurePropertyDescriptor>>> strings;
-        VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
+        VectorWithInlineStorage<16, IndexItem, CompressiblePointerAllocator<IndexItem>> indexes;
+        VectorWithInlineStorage<32, std::pair<String*, ObjectStructurePropertyDescriptor>, CompressiblePointerAllocator<std::pair<String*, ObjectStructurePropertyDescriptor>>> strings;
+        VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, CompressiblePointerAllocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
     } properties;
 
     self->enumeration(

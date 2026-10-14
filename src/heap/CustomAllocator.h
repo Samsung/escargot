@@ -58,6 +58,7 @@ enum HeapObjectKind : unsigned {
     EncodedSmallValueVectorKind,
     FunctionEnvironmentRecordKind,
     RopeStringKind,
+    ObjectStructureItemBufferKind,
 #if defined(ENABLE_RELOADABLE_STRING)
     ReloadableStringKind,
 #endif
@@ -75,6 +76,7 @@ void setInterpretedCodeBlockDescriptorToTyped();
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void* allocateFunctionEnvironmentRecord(size_t size);
 void* allocateRopeString(size_t size);
+void* allocateObjectStructureItemBuffer(size_t size);
 #if defined(ENABLE_RELOADABLE_STRING)
 void* allocateReloadableString(size_t size);
 #endif
@@ -190,16 +192,16 @@ inline bool operator!=(const CustomAllocator<GC_T1>&, const CustomAllocator<GC_T
 // Scan each four-byte cage offset, including offsets inside rebound buckets.
 // Odd scalar payloads avoid conservatively retaining unrelated objects.
 template <class T>
-class CompressedPointerAllocator : public GCUtil::gc_malloc_allocator<T> {
+class CompressiblePointerAllocator : public GCUtil::gc_malloc_allocator<T> {
 public:
     template <class U>
     struct rebind {
-        typedef CompressedPointerAllocator<U> other;
+        typedef CompressiblePointerAllocator<U> other;
     };
 
-    CompressedPointerAllocator() = default;
+    CompressiblePointerAllocator() = default;
     template <class U>
-    CompressedPointerAllocator(const CompressedPointerAllocator<U>&) {}
+    CompressiblePointerAllocator(const CompressiblePointerAllocator<U>&) {}
 
     T* allocate(size_t count, const void* = nullptr)
     {

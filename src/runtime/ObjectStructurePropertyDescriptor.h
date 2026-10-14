@@ -148,7 +148,11 @@ public:
 
     size_t rawValue() const
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return (m_descriptorData.m_data & 1) ? m_descriptorData.m_data : reinterpret_cast<size_t>(m_descriptorData.nativeGetterSetterData());
+#else
         return m_descriptorData.m_data;
+#endif
     }
 
     enum ObjectStructurePropertyDescriptorMode {
@@ -158,10 +162,14 @@ public:
     };
 
     struct ObjectStructurePropertyDescriptorData {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        uint32_t m_data;
+#else
         union {
             size_t m_data;
             ObjectPropertyNativeGetterSetterData* m_nativeGetterSetterData;
         };
+#endif
 
         ObjectStructurePropertyDescriptorData(PresentAttribute attribute, ObjectStructurePropertyDescriptorMode mode)
         {
@@ -177,13 +185,22 @@ public:
 
         explicit ObjectStructurePropertyDescriptorData(ObjectPropertyNativeGetterSetterData* nativeGetterSetterData)
         {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            ASSERT(reinterpret_cast<uintptr_t>(nativeGetterSetterData) - ThreadLocal::cageBase() <= UINT32_MAX);
+            m_data = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(nativeGetterSetterData));
+#else
             m_nativeGetterSetterData = nativeGetterSetterData;
+#endif
         }
 
         ObjectPropertyNativeGetterSetterData* nativeGetterSetterData() const
         {
             ASSERT((m_data & 1) == 0);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            return reinterpret_cast<ObjectPropertyNativeGetterSetterData*>(ThreadLocal::cageBase() + m_data);
+#else
             return m_nativeGetterSetterData;
+#endif
         }
 
         bool presentAttribute(PresentAttribute a) const
@@ -191,7 +208,7 @@ public:
             if (LIKELY(m_data & 1)) {
                 return a & m_data;
             } else {
-                return m_nativeGetterSetterData->m_presentAttributes & a;
+                return nativeGetterSetterData()->m_presentAttributes & a;
             }
         }
 
@@ -207,7 +224,7 @@ public:
             if (LIKELY(m_data & 1)) {
                 return m_data;
             } else {
-                return m_nativeGetterSetterData->m_presentAttributes;
+                return nativeGetterSetterData()->m_presentAttributes;
             }
         }
         ObjectStructurePropertyDescriptorMode mode() const
@@ -234,6 +251,9 @@ private:
     explicit ObjectStructurePropertyDescriptor(size_t rawValue)
         : m_descriptorData(NotPresent, PlainDataMode)
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT((rawValue & 1) || rawValue - ThreadLocal::cageBase() <= UINT32_MAX);
+#endif
         m_descriptorData.m_data = rawValue;
     }
 

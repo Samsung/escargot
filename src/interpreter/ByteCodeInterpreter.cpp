@@ -3781,14 +3781,14 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
 
                 auto& item = inlineCache->m_cache.back();
                 if (old->m_cachedProtoStructures[i]) {
-                    item.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(2);
+                    item.m_cachedhiddenClassChain = CompressiblePointerAllocator<GetObjectInlineCacheStructure>().allocate(2);
                     auto chain = interpreterPointer(item.m_cachedhiddenClassChain);
                     ASSERT(chain);
                     chain.value()[0] = old->m_cachedStructures[i];
                     chain.value()[1] = old->m_cachedProtoStructures[i];
                     item.m_cachedhiddenClassChainLength = 2;
                 } else {
-                    item.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(1);
+                    item.m_cachedhiddenClassChain = CompressiblePointerAllocator<GetObjectInlineCacheStructure>().allocate(1);
                     auto chain = interpreterPointer(item.m_cachedhiddenClassChain);
                     ASSERT(chain);
                     chain.value()[0] = old->m_cachedStructures[i];
@@ -3820,7 +3820,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
         code->m_inlineCacheProtoTraverseMaxIndex = std::max(newProtoTraverseIndex, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
 
         newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
-        newItem.m_cachedhiddenClassChain = CompressedPointerAllocator<GetObjectInlineCacheStructure>().allocate(cachedhiddenClassChain.size());
+        newItem.m_cachedhiddenClassChain = CompressiblePointerAllocator<GetObjectInlineCacheStructure>().allocate(cachedhiddenClassChain.size());
         auto chain = interpreterPointer(newItem.m_cachedhiddenClassChain);
         ASSERT(chain);
         for (size_t i = 0; i < cachedhiddenClassChain.size(); i++) {
