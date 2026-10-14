@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "Allocator.h"
 #include "CustomAllocator.h"
+#include "Heap.h"
 
 #include "runtime/Value.h"
 #include "runtime/ArrayObject.h"
@@ -32,6 +33,10 @@
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
+#include "runtime/RopeString.h"
+#include "runtime/StringView.h"
+#include "runtime/CompressibleString.h"
+#include "runtime/ReloadableString.h"
 #include "runtime/EnvironmentRecord.h"
 
 typedef int(GC_get_sub_pointer_proc)(void* ptr,
@@ -381,6 +386,150 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_pair* arr
     return 0;
 }
 
+void* RopeString::operator new(size_t size, bool is8Bit)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return allocateRopeString(size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(RopeString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_left));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_bufferData.buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RopeString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
+void* StringView::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::StringView))) {
+        GC_word bitmap[(sizeof(StringView) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(StringView, m_bufferData.compressedStringData) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::StringView, size, bitmap, sizeof(StringView) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::StringView, size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(StringView)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(StringView, m_bufferData.bufferAsString));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(StringView));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
+void* UTF16String::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::UTF16String))) {
+        GC_word bitmap[(sizeof(UTF16String) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(UTF16String, m_bufferData.buffer) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::UTF16String, size, bitmap, sizeof(UTF16String) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::UTF16String, size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferData.buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16String));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+void* CompressibleString::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::CompressibleString))) {
+        GC_word bitmap[(sizeof(CompressibleString) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        GC_set_bit(bitmap, offsetof(CompressibleString, m_vmInstance) / 4);
+        Heap::initializeCompressedType(Heap::CompressedType::CompressibleString, size, bitmap, sizeof(CompressibleString) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::CompressibleString, size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CompressibleString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+#endif
+
+#if defined(ENABLE_RELOADABLE_STRING)
+void* ReloadableString::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return allocateReloadableString(size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(ReloadableString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_vmInstance));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_callbackData));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_bufferData.buffer));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ReloadableString));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+#endif
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+int getValidValueInRopeString(void* pointer, GC_mark_pair* pointers)
+{
+    auto* rope = static_cast<RopeString*>(pointer);
+    // Flattening changes this slot from two cage offsets to one native buffer.
+    pointers[0].from = reinterpret_cast<GC_word*>(&rope->m_bufferData.buffer);
+    pointers[1].from = pointers[0].from;
+    if (rope->wasFlattened()) {
+        pointers[0].to = const_cast<GC_word*>(static_cast<const GC_word*>(rope->m_bufferData.buffer));
+        pointers[1].to = nullptr;
+    } else {
+        // Mark workers need the allocation's cage, not the mutator's TLS/register.
+        uintptr_t base = reinterpret_cast<uintptr_t>(rope) & ~uintptr_t(UINT32_MAX);
+        uint32_t left = rope->m_bufferData.compressedStringData[0];
+        uint32_t right = rope->m_bufferData.compressedStringData[1];
+        pointers[0].to = left ? reinterpret_cast<GC_word*>(base + left) : nullptr;
+        pointers[1].to = right ? reinterpret_cast<GC_word*>(base + right) : nullptr;
+    }
+    return 0;
+}
+
+#if defined(ENABLE_RELOADABLE_STRING)
+int getValidValueInReloadableString(void* pointer, GC_mark_pair* pointers)
+{
+    auto* string = static_cast<ReloadableString*>(pointer);
+    uintptr_t base = reinterpret_cast<uintptr_t>(string) & ~uintptr_t(UINT32_MAX);
+    pointers[0].from = reinterpret_cast<GC_word*>(&string->m_vmInstance);
+    pointers[0].to = reinterpret_cast<GC_word*>(string->m_vmInstance.getWithBase(base).unwrap());
+    pointers[1].from = reinterpret_cast<GC_word*>(&string->m_callbackData);
+    pointers[1].to = static_cast<GC_word*>(string->m_callbackData);
+    pointers[2].from = reinterpret_cast<GC_word*>(&string->m_bufferData.buffer);
+    pointers[2].to = const_cast<GC_word*>(static_cast<const GC_word*>(string->m_bufferData.buffer));
+    return 0;
+}
+#endif
+#endif
+
 void initializeCustomAllocators()
 {
     if (s_gcKinds[HeapObjectKind::ValueVectorKind]) {
@@ -423,6 +572,12 @@ void initializeCustomAllocators()
                                                                          TRUE);
 #else
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind_32bit();
+#endif
+    s_gcKinds[HeapObjectKind::RopeStringKind] = GC_new_kind(GC_new_free_list(),
+                                                            GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInRopeString, 2>), 0), FALSE, TRUE);
+#if defined(ENABLE_RELOADABLE_STRING)
+    s_gcKinds[HeapObjectKind::ReloadableStringKind] = GC_new_kind(GC_new_free_list(),
+                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInReloadableString, 3>), 0), FALSE, TRUE);
 #endif
     s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind] = GC_new_kind(GC_new_free_list(),
                                                                            GC_MAKE_PROC(GC_new_proc(markFunctionEnvironmentRecord), 0),
@@ -574,6 +729,19 @@ SharedBackingStore* CustomAllocator<SharedBackingStore>::allocate(size_type GC_n
 #endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+
+void* allocateRopeString(size_t size)
+{
+    return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::RopeStringKind]);
+}
+
+#if defined(ENABLE_RELOADABLE_STRING)
+void* allocateReloadableString(size_t size)
+{
+    return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::ReloadableStringKind]);
+}
+#endif
+
 void* allocateFunctionEnvironmentRecord(size_t size)
 {
     return GC_GENERIC_MALLOC(size, s_gcKinds[HeapObjectKind::FunctionEnvironmentRecordKind]);

@@ -28,6 +28,11 @@ class Heap {
 public:
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     enum class CompressedType {
+        StringView,
+        UTF16String,
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        CompressibleString,
+#endif
         ObjectStructureWithMap,
         ObjectStructureWithIndexProperties,
         Symbol,

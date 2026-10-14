@@ -1326,7 +1326,7 @@ String* String::substring(size_t from, size_t to, Optional<ExecutionState*> stat
     }
     auto len = to - from;
     if (len > STRING_BUILDER_INLINE_STORAGE_DEFAULT) {
-        StringView* str = new StringView(this, from, to);
+        StringView* str = StringView::create(this, from, to);
         return str;
     }
     auto bad = bufferAccessDataForRange(from, len);
@@ -1449,20 +1449,6 @@ String* String::trim(String::StringTrimWhere where, Optional<ExecutionState*> st
         return this;
     }
     return substring(s, e + 1, state);
-}
-
-
-void* UTF16String::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16String));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 String* String::getSubstitution(ExecutionState& state, String* matched, String* str, size_t position, StringVector& captures, Value namedCapture, String* replacement)

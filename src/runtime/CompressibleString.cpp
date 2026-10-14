@@ -28,27 +28,19 @@
 
 namespace Escargot {
 
-void* CompressibleString::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CompressibleString));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 CompressibleString::CompressibleString(VMInstance* instance)
     : String()
     , m_isOwnerMayFreed(false)
     , m_isCompressed(false)
     , m_isPartiallyDecompressed(false)
     , m_bufferIsOSAllocated(false)
-    , m_refCount(0)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_vmInstance(instance)
+#endif
+    , m_refCount(0)
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_vmInstance(instance)
+#endif
     , m_lastUsedTickcount(fastTickCount())
     , m_isChunkDecompressed()
     , m_chunkLastUsedTicks()
@@ -393,7 +385,6 @@ bool CompressibleString::compressWorker(int acceleration)
 
     return true;
 }
-
 
 template <typename StringType>
 void CompressibleString::decompressWorker()

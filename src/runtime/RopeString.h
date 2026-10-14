@@ -28,14 +28,23 @@ namespace Escargot {
 class ExecutionState;
 
 class RopeString : public String {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    friend int getValidValueInRopeString(void*, GC_mark_pair*);
+#endif
     RopeString()
         : String()
     {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        setChildren(String::emptyString(), nullptr);
+#else
         m_left = String::emptyString();
+#endif
         m_bufferData.has8BitContent = true;
         m_bufferData.hasSpecialImpl = true;
         m_bufferData.length = 0;
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
         m_bufferData.buffer = nullptr;
+#endif
     }
 
 public:
@@ -59,17 +68,8 @@ public:
         return !m_bufferData.hasSpecialImpl;
     }
 
-    String* left() const
-    {
-        ASSERT(!wasFlattened());
-        return m_left;
-    }
-
-    String* right() const
-    {
-        ASSERT(!wasFlattened());
-        return (String*)m_bufferData.buffer;
-    }
+    ALWAYS_INLINE String* left() const;
+    ALWAYS_INLINE String* right() const;
 
     virtual char16_t charAt(const size_t idx) const override;
 
@@ -91,9 +91,52 @@ protected:
     void flattenRopeString();
 
 private:
+    void setChildren(String* left, String* right)
+    {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ASSERT(!left || reinterpret_cast<uintptr_t>(left) - ThreadLocal::cageBase() <= UINT32_MAX);
+        ASSERT(!right || reinterpret_cast<uintptr_t>(right) - ThreadLocal::cageBase() <= UINT32_MAX);
+        m_bufferData.compressedStringData[0] = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(left));
+        m_bufferData.compressedStringData[1] = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(right));
+#else
+        m_left = left;
+        m_bufferData.buffer = right;
+#endif
+    }
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static String* decodeChild(uint32_t offset)
+    {
+        return offset ? reinterpret_cast<String*>(ThreadLocal::cageBase() + offset) : nullptr;
+    }
+#else
     String* m_left;
+#endif
     // String* m_right; // Right String is stored in m_bufferAccessData.buffer if string is not flattened
 };
+
+ALWAYS_INLINE String* RopeString::left() const
+{
+    ASSERT(!wasFlattened());
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return decodeChild(m_bufferData.compressedStringData[0]);
+#else
+    return m_left;
+#endif
+}
+
+ALWAYS_INLINE String* RopeString::right() const
+{
+    ASSERT(!wasFlattened());
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return decodeChild(m_bufferData.compressedStringData[1]);
+#else
+    return (String*)m_bufferData.buffer;
+#endif
+}
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(RopeString) == sizeof(String), "Rope children must fit in the buffer slot");
+#endif
 } // namespace Escargot
 
 #endif

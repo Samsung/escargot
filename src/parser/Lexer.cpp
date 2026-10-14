@@ -524,7 +524,7 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
     // 2 and the view only gets worse from there
     const size_t maxSourceToLiteralRatioForView = 2;
     if (UNLIKELY(!scannerInstance->isStreamingUTF8() && LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE < length && scannerInstance->source.length() <= length * maxSourceToLiteralRatioForView)) {
-        return new StringView(scannerInstance->sourceAsNormalView, start, end);
+        return StringView::create(scannerInstance->sourceAsNormalView, start, end);
     }
 
     constructStringLiteral(scannerInstance);
@@ -816,7 +816,7 @@ String* Scanner::sourceSliceAsString(size_t start, size_t end) const
     if (streamingSource) {
         return streamingSource->substring(streamingSourceStart + start, streamingSourceStart + end);
     }
-    return new StringView(sourceAsNormalView, start, end);
+    return StringView::create(sourceAsNormalView, start, end);
 }
 
 ClassSourceText* Scanner::sourceSliceAsClassSourceText(size_t start, size_t end) const
@@ -825,7 +825,7 @@ ClassSourceText* Scanner::sourceSliceAsClassSourceText(size_t start, size_t end)
     if (streamingSource) {
         return new ClassSourceText(streamingSource->range(streamingSourceStart + start, streamingSourceStart + end));
     }
-    return new ClassSourceText(new StringView(sourceAsNormalView, start, end));
+    return new ClassSourceText(StringView::create(sourceAsNormalView, start, end));
 }
 
 void Scanner::resetSource(StringView code)
