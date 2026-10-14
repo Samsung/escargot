@@ -598,7 +598,7 @@ private:
                     : static_cast<String*>(new UTF16String(UTF16StringData::adoptBuffer(reinterpret_cast<char16_t*>(m_external.value()), m_capacity)));
             }
             const size_t offset = m_data - m_external.value();
-            auto* string = new StringView(m_owner.value(), offset, offset + length);
+            auto* string = StringView::create(m_owner.value(), offset, offset + length);
             // Published slices are immutable. Decode the next token only into
             // the unused tail; the owner keeps the allocation base GC-visible.
             if (length < m_capacity) {

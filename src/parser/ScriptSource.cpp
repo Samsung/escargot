@@ -299,7 +299,7 @@ String* ScriptSource::substring(size_t start, size_t end) const
         if (start == 0 && end == m_length) {
             return m_string.unwrap();
         }
-        return new StringView(m_string.unwrap(), start, end);
+        return StringView::create(m_string.unwrap(), start, end);
     }
     if (start == 0 && end == m_length) {
         return string();

@@ -830,7 +830,7 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
         if (!status.isValid()) {                                                                                                            \
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);                 \
         }                                                                                                                                   \
-        return new StringView(status.name);                                                                                                 \
+        return StringView::create(status.name);                                                                                             \
     }
 
 #define DEFINE_LEGACY_DOLLAR_NUMBER_FEATURE_GETTER(number)                                                                                          \
@@ -843,7 +843,7 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
         if (!status.isValid()) {                                                                                                                    \
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);                         \
         }                                                                                                                                           \
-        return (status.dollarCount < number) ? String::emptyString() : new StringView(status.dollars[number - 1]);                                  \
+        return (status.dollarCount < number) ? String::emptyString() : StringView::create(status.dollars[number - 1]);                              \
     }
 
 REGEXP_LEGACY_FEATURES(DEFINE_LEGACY_FEATURE_GETTER);

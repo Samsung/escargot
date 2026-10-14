@@ -23,6 +23,7 @@
 #if defined(ENABLE_COMPRESSIBLE_STRING)
 
 #include "runtime/String.h"
+#include "runtime/CompressibleHeapPointer.h"
 
 namespace Escargot {
 
@@ -113,8 +114,13 @@ private:
     bool m_isCompressed;
     bool m_isPartiallyDecompressed;
     bool m_bufferIsOSAllocated;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<VMInstance> m_vmInstance;
+#endif
     size_t m_refCount; // reference count representing the usage of this CompressibleString
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     VMInstance* m_vmInstance;
+#endif
     uint64_t m_lastUsedTickcount;
     typedef std::vector<std::vector<char>> CompressedDataVector;
     CompressedDataVector m_compressedData;

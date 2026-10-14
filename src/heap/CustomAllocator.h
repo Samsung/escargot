@@ -57,6 +57,10 @@ enum HeapObjectKind : unsigned {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     EncodedSmallValueVectorKind,
     FunctionEnvironmentRecordKind,
+    RopeStringKind,
+#if defined(ENABLE_RELOADABLE_STRING)
+    ReloadableStringKind,
+#endif
 #endif
     ArrayObjectKind,
     InterpretedCodeBlockKind,
@@ -70,6 +74,10 @@ void setInterpretedCodeBlockDescriptorToTyped();
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void* allocateFunctionEnvironmentRecord(size_t size);
+void* allocateRopeString(size_t size);
+#if defined(ENABLE_RELOADABLE_STRING)
+void* allocateReloadableString(size_t size);
+#endif
 void* allocateCompressedPointerBuffer(size_t size);
 #endif
 

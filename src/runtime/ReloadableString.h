@@ -23,6 +23,7 @@
 #if defined(ENABLE_RELOADABLE_STRING)
 
 #include "runtime/String.h"
+#include "runtime/CompressibleHeapPointer.h"
 
 namespace Escargot {
 
@@ -30,6 +31,9 @@ class VMInstance;
 
 class ReloadableString : public String {
     friend class VMInstance;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    friend int getValidValueInReloadableString(void*, GC_mark_pair*);
+#endif
 
 public:
     ReloadableString(VMInstance* instance, bool is8Bit, size_t stringLength, void* callbackData, void* (*loadCallback)(void* callbackData), void (*unloadCallback)(void* memoryPtr, void* callbackData));
@@ -85,8 +89,13 @@ private:
 
     bool m_isOwnerMayFreed;
     bool m_isUnloaded;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleHeapPointer<VMInstance> m_vmInstance;
+#endif
     size_t m_refCount; // reference count representing the usage of this ReloadableString
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     VMInstance* m_vmInstance;
+#endif
     void* m_callbackData;
     void* (*m_stringLoadCallback)(void* callbackData);
     void (*m_stringUnloadCallback)(void* memoryPtr, void* callbackData);

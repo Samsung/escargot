@@ -25,27 +25,17 @@
 
 namespace Escargot {
 
-void* ReloadableString::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ReloadableString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_vmInstance));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_callbackData));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ReloadableString, m_bufferData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ReloadableString));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 ReloadableString::ReloadableString(VMInstance* instance, bool is8Bit, size_t stringLength, void* callbackData, void* (*loadCallback)(void* callbackData), void (*unloadCallback)(void* memoryPtr, void* callbackData))
     : String()
     , m_isOwnerMayFreed(false)
     , m_isUnloaded(true)
-    , m_refCount(0)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_vmInstance(instance)
+#endif
+    , m_refCount(0)
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_vmInstance(instance)
+#endif
     , m_callbackData(callbackData)
     , m_stringLoadCallback(loadCallback)
     , m_stringUnloadCallback(unloadCallback)

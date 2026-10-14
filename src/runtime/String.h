@@ -108,6 +108,7 @@ class StringView;
 class VMInstance;
 class Context;
 
+
 class StringWriteOption {
 public:
     enum {
@@ -328,6 +329,10 @@ protected:
             const char* bufferAs8Bit;
             const char16_t* bufferAs16Bit;
             String* bufferAsString;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            // Rope children, or StringView parent and start offset.
+            uint32_t compressedStringData[2];
+#endif
             LChar bufferPointerAsArray[bufferPointerAsArraySize];
             char16_t bufferPointerAs16BitArray[bufferPointerAsArraySize / 2];
         };
@@ -518,9 +523,9 @@ public:
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
         uintptr_t upper = reinterpret_cast<uintptr_t>(this) & ~uintptr_t(UINT32_MAX);
         if (const_cast<String*>(this)->isStringView()) {
-            upper = m_bufferData.hasSpecialImpl
-                ? reinterpret_cast<uintptr_t>(m_bufferData.bufferAsString) & ~uintptr_t(UINT32_MAX)
-                : ThreadLocal::cageBase();
+            // Views may live outside the cage, and their buffer slot contains
+            // a packed parent offset and start index rather than a native pointer.
+            upper = ThreadLocal::cageBase();
         }
         return reinterpret_cast<String*>(upper | (m_bufferData.typeTag & ~POINTER_VALUE_STRING_TAG_IN_DATA));
 #else
@@ -1093,6 +1098,10 @@ public:
 
 class UTF16StringFromExternalMemory : public UTF16String {
 public:
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    // This buffer can be outside the cage, so retain native-pointer scanning.
+    void* operator new(size_t size) { return GC_MALLOC(size); }
+#endif
     UTF16StringFromExternalMemory(const char16_t* str, size_t len)
         : UTF16String()
     {

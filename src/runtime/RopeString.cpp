@@ -24,20 +24,6 @@
 
 namespace Escargot {
 
-void* RopeString::operator new(size_t size, bool is8Bit)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(RopeString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_left));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RopeString, m_bufferData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RopeString));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
 String* RopeString::createRopeString(String* lstr, String* rstr, Optional<ExecutionState*> state)
 {
     size_t llen = lstr->length();
@@ -75,9 +61,8 @@ String* RopeString::createRopeString(String* lstr, String* rstr, Optional<Execut
     bool r8bit = rstr->has8BitContent();
     bool result8Bit = l8bit & r8bit;
     RopeString* rope = new (result8Bit) RopeString();
+    rope->setChildren(lstr, rstr);
     rope->m_bufferData.length = llen + rlen;
-    rope->m_left = lstr;
-    rope->m_bufferData.buffer = rstr;
     rope->m_bufferData.has8BitContent = result8Bit;
     return rope;
 }
@@ -123,12 +108,14 @@ void RopeString::flattenRopeStringWorker()
     m_bufferData.hasSpecialImpl = false;
     m_bufferData.buffer = result;
 
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
     m_left = nullptr;
+#endif
 }
 
 void RopeString::flattenRopeString()
 {
-    ASSERT(m_left);
+    ASSERT(left());
     if (m_bufferData.has8BitContent) {
         flattenRopeStringWorker<LChar>();
     } else {
