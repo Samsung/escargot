@@ -1060,7 +1060,7 @@ public:
     virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName);
 
     typedef VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> OwnPropertyKeyVector;
-    typedef VectorWithInlineStorage<32, std::pair<Value, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Value, ObjectStructurePropertyDescriptor>>> OwnPropertyKeyAndDescVector;
+    typedef VectorWithInlineStorage<32, std::pair<Value, ObjectStructurePropertyDescriptor>, CompressiblePointerAllocator<std::pair<Value, ObjectStructurePropertyDescriptor>>> OwnPropertyKeyAndDescVector;
     virtual OwnPropertyKeyVector ownPropertyKeys(ExecutionState& state);
     virtual bool canUseOwnPropertyKeysFastPath()
     {

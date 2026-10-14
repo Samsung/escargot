@@ -1115,7 +1115,13 @@ public:
         bool m_canStoreStructureOnCode : 1;
         bool m_needsToUsePropertyFilterOnInterpreter : 1;
         bool m_needsToUseBigPropertyFilterOnInterpreter : 1;
-        VectorWithInlineStorage<6, ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        // Registers and async literal records are scanned as native words.
+        // Keep packed keys in a separately traced buffer rather than inline.
+        Vector<ObjectStructureItem, CompressiblePointerAllocator<ObjectStructureItem>> m_properties;
+#else
+        VectorWithInlineStorage<6, ObjectStructureItem, CompressiblePointerAllocator<ObjectStructureItem>> m_properties;
+#endif
         EncodedValueVector m_values;
         Object* m_target;
         CreateObjectPrepare* m_initCode;
@@ -1559,7 +1565,7 @@ struct GetObjectInlineCacheData {
     uint32_t m_cachedIndex : 16;
 };
 
-typedef Vector<GetObjectInlineCacheData, CompressedPointerAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
+typedef Vector<GetObjectInlineCacheData, CompressiblePointerAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCacheComplexCaseData {
     void clear()

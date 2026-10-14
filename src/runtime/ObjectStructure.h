@@ -31,6 +31,12 @@ namespace Escargot {
 
 class ObjectStructure;
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+using ObjectStructurePropertyNameResult = ObjectStructurePropertyName;
+#else
+using ObjectStructurePropertyNameResult = const ObjectStructurePropertyName&;
+#endif
+
 using ObjectStructureFindResult = std::pair<size_t, Optional<const ObjectStructurePropertyDescriptor*>>;
 
 class CompressibleObjectStructurePropertyName {
@@ -60,6 +66,18 @@ public:
 #endif
     }
     operator ObjectStructurePropertyName() const { return get(); }
+    bool hasAtomicString() const { return m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS; }
+    bool hasNonAtomicString() const { return get().hasNonAtomicString(); }
+    bool isSymbol() const { return get().isSymbol(); }
+    bool isPlainString() const { return get().isPlainString(); }
+    bool isIndexString() const { return get().isIndexString(); }
+    String* plainString() const { return get().plainString(); }
+    Symbol* symbol() const { return get().symbol(); }
+    AtomicString asAtomicString() const { return get().asAtomicString(); }
+    Value toValue() const { return get().toValue(); }
+    uint32_t tryToUseAsIndexProperty() const { return get().tryToUseAsIndexProperty(); }
+    size_t rawValue() const { return get().rawValue(); }
+
     size_t hashValue() const
     {
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -79,6 +97,7 @@ public:
         }
         return get() == other.get();
     }
+    bool operator==(const AtomicString& other) const { return get() == other; }
     bool operator==(const ObjectStructurePropertyName& other) const
     {
         if (LIKELY((m_data & OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS) && other.hasAtomicString())) {
@@ -147,15 +166,33 @@ private:
 };
 
 struct ObjectStructureItem : public gc {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    void* operator new(size_t size) { return allocateObjectStructureItemBuffer(size); }
+    void* operator new(size_t, void* pointer) { return pointer; }
+#endif
     ObjectStructureItem(const ObjectStructurePropertyName& as, const ObjectStructurePropertyDescriptor& desc)
         : m_propertyName(as)
         , m_descriptor(desc)
     {
     }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    CompressibleObjectStructurePropertyName m_propertyName;
+#else
     ObjectStructurePropertyName m_propertyName;
+#endif
     ObjectStructurePropertyDescriptor m_descriptor;
 };
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+// Names use bit 0 as an atomic-string pointer tag; descriptors use it as
+// an inline-attributes tag. The two slots require different marking rules.
+template <>
+inline ObjectStructureItem* CompressiblePointerAllocator<ObjectStructureItem>::allocate(size_t count, const void*)
+{
+    return static_cast<ObjectStructureItem*>(allocateObjectStructureItemBuffer(sizeof(ObjectStructureItem) * count));
+}
+#endif
 
 struct ObjectStructureTransitionVectorItem : public gc {
     CompressibleObjectStructurePropertyName m_propertyName;
@@ -189,14 +226,19 @@ struct ObjectStructureTransitionMapItem : public gc {
 };
 
 typedef HashMap<ObjectStructureTransitionMapItem, CompressiblePointer<ObjectStructure>, std::hash<ObjectStructureTransitionMapItem>,
-                std::equal_to<ObjectStructureTransitionMapItem>, CompressedPointerAllocator<std::pair<ObjectStructureTransitionMapItem const, CompressiblePointer<ObjectStructure>>>>
+                std::equal_to<ObjectStructureTransitionMapItem>, CompressiblePointerAllocator<std::pair<ObjectStructureTransitionMapItem const, CompressiblePointer<ObjectStructure>>>>
     ObjectStructureTransitionTableMap;
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 static_assert(sizeof(ObjectStructureTransitionVectorItem) == 12, "Transition entries must use four-byte slots");
 #endif
 
-typedef TightVector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemTightVector;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static_assert(sizeof(ObjectStructureItem) == 8, "Property entries must use two four-byte slots");
+static_assert(sizeof(ObjectStructurePropertyDescriptor) == 4, "Property descriptors must use four-byte slots");
+#endif
+
+typedef TightVector<ObjectStructureItem, CompressiblePointerAllocator<ObjectStructureItem>> ObjectStructureItemTightVector;
 
 class PropertyNameMapWithCache;
 
@@ -275,8 +317,8 @@ static_assert(sizeof(ObjectStructureTransitionPropertyVector) == 8, "Transition 
 COMPILE_ASSERT(sizeof(ObjectStructureTransitionPropertyVector) == sizeof(ObjectStructureItemTightVector), "");
 #endif
 
-class ObjectStructureItemVector : public Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> {
-    typedef Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> ObjectStructureItemVectorType;
+class ObjectStructureItemVector : public Vector<ObjectStructureItem, CompressiblePointerAllocator<ObjectStructureItem>> {
+    typedef Vector<ObjectStructureItem, CompressiblePointerAllocator<ObjectStructureItem>> ObjectStructureItemVectorType;
 
 public:
     ObjectStructureItemVector()
@@ -332,8 +374,8 @@ public:
     void* operator new[](size_t size) = delete;
 };
 
-class ObjectStructureIndexDescriptorVector : public Vector<ObjectStructurePropertyDescriptor, GCUtil::gc_malloc_allocator<ObjectStructurePropertyDescriptor>> {
-    using Base = Vector<ObjectStructurePropertyDescriptor, GCUtil::gc_malloc_allocator<ObjectStructurePropertyDescriptor>>;
+class ObjectStructureIndexDescriptorVector : public Vector<ObjectStructurePropertyDescriptor, CompressiblePointerAllocator<ObjectStructurePropertyDescriptor>> {
+    using Base = Vector<ObjectStructurePropertyDescriptor, CompressiblePointerAllocator<ObjectStructurePropertyDescriptor>>;
 
 public:
     ObjectStructureIndexDescriptorVector() = default;
@@ -417,7 +459,7 @@ public:
     virtual uint32_t indexPropertyName(size_t valueIndex) const = 0;
     // Value indexes span the string and symbol buffers; array indexes have a
     // separate accessor. Each data accessor returns only its own key domain.
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const = 0;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const = 0;
     virtual Optional<const ObjectStructureItem*> stringPropertiesData() const
     {
         return nullptr;
@@ -617,7 +659,7 @@ public:
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override;
     virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
@@ -674,7 +716,7 @@ public:
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override;
     virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
@@ -742,7 +784,7 @@ public:
 
     virtual ObjectStructureFindResult findProperty(const ObjectStructurePropertyName& s) override;
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override;
     virtual Optional<const ObjectStructureItem*> symbolPropertiesData() const override
     {
         return m_symbolProperties.data();
@@ -903,7 +945,7 @@ public:
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override;
     virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override;
     virtual size_t propertyCount() const override;
     virtual size_t namedPropertyCount() const override;
@@ -1073,7 +1115,7 @@ public:
     virtual const ObjectStructurePropertyDescriptor& propertyDescriptor(size_t valueIndex) const override;
     virtual bool isIndexProperty(size_t valueIndex) const override;
     virtual uint32_t indexPropertyName(size_t valueIndex) const override;
-    virtual const ObjectStructurePropertyName& nonIndexPropertyName(size_t valueIndex) const override;
+    virtual ObjectStructurePropertyNameResult nonIndexPropertyName(size_t valueIndex) const override;
     virtual Optional<const ObjectStructureItem*> stringPropertiesData() const override
     {
         return m_namedProperties->data();
