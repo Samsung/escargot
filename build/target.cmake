@@ -420,6 +420,10 @@ ENDIF()
 
 OPTION (ESCARGOT_FORCE_TLS_DIALECT_GNU2 "Force enable gnu2 tls dialect" ON)
 
+IF (ESCARGOT_HOST STREQUAL "tizen")
+    SET (ESCARGOT_FORCE_TLS_DIALECT_GNU2 OFF CACHE BOOL "Force enable gnu2 tls dialect" FORCE)
+ENDIF ()
+
 INCLUDE (CheckCXXCompilerFlag)
 INCLUDE (CheckCCompilerFlag)
 
