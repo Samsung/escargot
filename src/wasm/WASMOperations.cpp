@@ -49,6 +49,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     // Let realm be func's associated Realm.
     // Let relevant settings be realm?s settings object.
     ExecutionState state(funcEnv->realm);
+    state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
 
     // Let [parameters] ? [results] be functype.
     wasm_functype_t* functype = funcEnv->functype;
@@ -169,6 +170,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
     own wasm_trap_t* trap = nullptr;
     own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
+    state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
 
     if (!instance) {
         own wasm_name_t message;
@@ -547,6 +549,7 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
     own wasm_trap_t* trap = nullptr;
     own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
+    state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
 
     if (!instance) {
         own wasm_name_t message;

@@ -111,6 +111,7 @@ public:
     void* operator new[](size_t size) = delete;
 
     static WASMMemoryObject* createMemoryObject(ExecutionState& state, wasm_memory_t* memaddr);
+    static ArrayBuffer* createFixedLengthMemoryBuffer(ExecutionState& state, wasm_memory_t* memaddr, bool isShared);
 
     wasm_memory_t* memory() const
     {
@@ -120,6 +121,7 @@ public:
 
     ArrayBuffer* buffer() const;
     void setBuffer(ArrayBuffer* buffer);
+    void refreshBuffer(ExecutionState& state);
 
 private:
     wasm_memory_t* m_memory;
@@ -214,6 +216,8 @@ public:
     Value findValueByRef(wasm_ref_t* ref);
 
     static bool isOtherExternAddr(wasm_ref_t* ref);
+
+    void refreshGrownMemoryBuffers(ExecutionState& state);
 
 private:
     wasm_ref_t* getOtherExternAddr();

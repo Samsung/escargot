@@ -115,6 +115,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
 
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
     own wasm_trap_t* trap = wasm_func_call(funcaddr, &args, &ret);
+    state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
 
     // If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless otherwise indicated by the WebAssembly error mapping.
     if (trap) {
