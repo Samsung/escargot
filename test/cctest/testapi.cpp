@@ -701,6 +701,36 @@ TEST(AtomicsWaitAsync, NotifyDuringGlobalFinalize)
 #endif
 #endif
 
+TEST(JSON, DeepNestingIsControlled)
+{
+    const char source[] = R"JS(
+        (() => {
+            for (const objects of [false, true]) {
+                for (const reviver of [undefined, (key, value) => value]) {
+                    for (const leaf of ['0', '"\uD55C"']) {
+                        const open = objects ? '{"x":' : '[';
+                        const close = objects ? '}' : ']';
+                        for (const depth of [32, 32768]) {
+                            const text = open.repeat(depth) + leaf + close.repeat(depth);
+                            let parsed;
+                            try {
+                                parsed = JSON.parse(text, reviver);
+                            } catch (error) {
+                                if (depth === 32 || !(error instanceof RangeError)) throw error;
+                                continue;
+                            }
+                            for (let i = 0; i < depth; ++i) parsed = objects ? parsed.x : parsed[0];
+                            if (parsed !== (leaf === '0' ? 0 : '한')) throw new Error('Wrong JSON leaf');
+                        }
+                    }
+                }
+            }
+            return true;
+        })()
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromUTF8(source, sizeof(source) - 1), StringRef::createFromASCII("json-deep-nesting.js"), false), "true");
+}
+
 TEST(EvalScript, Run)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);
