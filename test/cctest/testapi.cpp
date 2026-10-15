@@ -562,6 +562,45 @@ TEST(Evaluator, Basic)
     EXPECT_TRUE(result4.stackTrace[0].srcName->equalsWithASCIIString("test_name", 9));
 }
 
+#if defined(ENABLE_TEMPORAL)
+TEST(Temporal, TruncatedMonthDayStrings)
+{
+    const char source[] = R"JS(
+        (() => {
+            const truncated = ['', '-', '--', '0', '1', '--0', '--1'];
+            for (let month = 1; month <= 12; ++month) {
+                const digits = String(month).padStart(2, '0');
+                for (const prefix of ['', '--']) {
+                    for (const suffix of ['', '-', '0', '-0']) {
+                        truncated.push(prefix + digits + suffix);
+                    }
+                }
+            }
+            for (const input of truncated) {
+                let rejected = false;
+                try {
+                    Temporal.PlainMonthDay.from(input);
+                } catch (error) {
+                    if (!(error instanceof RangeError)) throw error;
+                    rejected = true;
+                }
+                if (!rejected) throw new Error('Accepted truncated month-day: ' + input);
+            }
+            for (const input of ['12-25', '1225', '--12-25', '--1225', '1972-12-25']) {
+                if (Temporal.PlainMonthDay.from(input).toString() !== '12-25')
+                    throw new Error('Invalid month-day result: ' + input);
+            }
+            for (const input of ['2024-12', '202412']) {
+                if (Temporal.PlainYearMonth.from(input).toString() !== '2024-12')
+                    throw new Error('Invalid year-month result: ' + input);
+            }
+            return true;
+        })()
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("temporal-monthday-eof.js"), false), "true");
+}
+#endif
+
 TEST(EvalScript, Run)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);

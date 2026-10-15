@@ -1357,6 +1357,8 @@ static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true
             return NullOption;
 
         if (!parseYear) {
+            if (buffer.atEnd())
+                return NullOption;
             if (*buffer == '-') {
                 splitByHyphen = true;
             }
