@@ -380,12 +380,16 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     wasm_global_t* globaladdr = global();
 
     // Let value be global_read(store, globaladdr).
-    // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
     own wasm_val_t value;
     wasm_global_get(globaladdr, &value);
 
     // Return ToJSValue(value).
-    return WASMValueConverter::toJSValue(state, value);
+    Value result = WASMValueConverter::toJSValue(state, value);
+    // ToJSValue() copies a funcref, so release the one global_read returned.
+    if (value.kind == WASM_FUNCREF && value.of.ref) {
+        wasm_ref_delete(value.of.ref);
+    }
+    return result;
 }
 
 void WASMCacheMap::appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj)

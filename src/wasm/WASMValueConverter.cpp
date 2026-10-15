@@ -137,8 +137,14 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
         if (!value.of.ref) {
             result = Value(Value::Null);
         } else {
-            // FIXME set parameter index as 0, need to be fixed
-            result = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(value.of.ref), 0);
+            // The caller still owns value.of.ref (e.g. Table.get deletes it),
+            // so a new Exported Function must own a copy of it.
+            ExportedFunctionObject* func = state.context()->wasmCache()->findFunction(value.of.ref);
+            if (!func) {
+                // FIXME set parameter index as 0, need to be fixed
+                func = ExportedFunctionObject::createExportedFunction(state, wasm_func_copy(wasm_ref_as_func(value.of.ref)), 0);
+            }
+            result = func;
         }
         break;
     }
