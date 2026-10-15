@@ -740,6 +740,9 @@ void CodeCacheReader::CacheBuffer::resize(size_t size)
     ASSERT(!m_buffer && m_capacity == 0 && m_index == 0);
 
     m_buffer = static_cast<char*>(malloc(size));
+    if (size && !m_buffer) {
+        throw CodeCacheReader::Error("cannot allocate cache buffer");
+    }
     m_capacity = size;
 }
 
@@ -790,6 +793,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     size = m_buffer.get<size_t>();
     if (size) {
         size_t vectorSize = size;
+        m_buffer.requireData(vectorSize, sizeof(size_t));
         InterpretedCodeBlockVector* codeBlockVector = new InterpretedCodeBlockVector();
         codeBlockVector->resizeWithUninitializedValues(vectorSize);
         for (size_t i = 0; i < vectorSize; i++) {
@@ -802,6 +806,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     // InterpretedCodeBlock::m_parameterNames
     auto& atomicStringVector = codeBlock->m_parameterNames;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, sizeof(size_t));
     atomicStringVector.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         size_t stringIndex = m_buffer.get<size_t>();
@@ -811,6 +816,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     // InterpretedCodeBlock::m_identifierInfos
     InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, 5 * sizeof(bool) + 2 * sizeof(size_t));
     identifierVector.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         InterpretedCodeBlock::IdentifierInfo info;
@@ -829,6 +835,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     }
 
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, 3 * sizeof(bool) + 2 * sizeof(uint16_t) + sizeof(size_t));
     Optional<InterpretedCodeBlock::BlockInfo**> blockInfoVector = size ? (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * size) : nullptr;
     codeBlock->m_blockInfos = blockInfoVector;
     codeBlock->m_blockInfosLength = size;
@@ -839,6 +846,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         LexicalBlockIndex parentBlockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
         LexicalBlockIndex blockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
         size_t vectorSize = m_buffer.get<size_t>();
+        m_buffer.requireData(vectorSize, 3 * sizeof(bool) + 2 * sizeof(size_t));
 
         InterpretedCodeBlock::BlockInfo* info = InterpretedCodeBlock::BlockInfo::create(
             canAllocateEnvironmentOnStack,
@@ -937,6 +945,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         ASSERT(!codeBlock->identifierInfoMap());
 
         if (size_t mapSize = m_buffer.get<size_t>()) {
+            m_buffer.requireData(mapSize, 2 * sizeof(size_t));
             FunctionContextVarMap* varMap = new (GC) FunctionContextVarMap();
             for (size_t i = 0; i < mapSize; i++) {
                 size_t stringIndex = m_buffer.get<size_t>();
@@ -947,6 +956,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         }
 
         if (size_t privateNameSize = m_buffer.get<size_t>()) {
+            m_buffer.requireData(privateNameSize, sizeof(size_t));
             AtomicStringTightVector* nameVector = new AtomicStringTightVector();
             nameVector->resizeWithUninitializedValues(privateNameSize);
             for (size_t i = 0; i < privateNameSize; i++) {
@@ -978,18 +988,21 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     // ByteCodeBlock::m_numeralLiteralData
     ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, sizeof(numeralLiteralData[0]));
     numeralLiteralData.resizeFitWithUninitializedValues(size);
     m_buffer.getData(numeralLiteralData.data(), size);
 
     // ByteCodeBlock::m_jumpFlowRecordData
     ByteCodeJumpFlowRecordData& jumpFlowRecordData = block->m_jumpFlowRecordData;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, sizeof(jumpFlowRecordData[0]));
     jumpFlowRecordData.resizeFitWithUninitializedValues(size);
     m_buffer.getData(jumpFlowRecordData.data(), size);
 
     // ByteCodeBlock::m_stringLiteralData
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, sizeof(bool) + sizeof(size_t));
     stringLiteralData.resizeFitWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         stringLiteralData[i] = m_buffer.getString();
@@ -999,6 +1012,7 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     // Note) only BigInt exists
     ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
     size = m_buffer.get<size_t>();
+    m_buffer.requireData(size, sizeof(int) + sizeof(slimb_t) + sizeof(limb_t));
     bigIntData.resizeFitWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         bigIntData[i] = new BigInt(m_buffer.getBF(ThreadLocal::bfContext()));
@@ -1025,28 +1039,30 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
         throw CodeCacheReader::Error("invalid maxLength");
     }
 
+    m_buffer.requireData(tableSize, sizeof(size_t) + (has16BitString ? sizeof(bool) : 0));
+    m_buffer.requireData(maxLength);
+
     if (LIKELY(!has16BitString)) {
-        LChar* buffer = new LChar[maxLength + 1];
+        std::unique_ptr<LChar[]> buffer(new LChar[maxLength + 1]);
         for (size_t i = 0; i < tableSize; i++) {
             size_t length = m_buffer.get<size_t>();
             if (maxLength < length) {
                 throw CodeCacheReader::Error("invalid maxLength");
             }
-            m_buffer.getData(buffer, length);
+            m_buffer.getData(buffer.get(), length);
             buffer[length] = '\0';
 
             if (UNLIKELY(length == 0)) {
                 table->initAdd(AtomicString());
             } else {
-                table->initAdd(AtomicString(context, buffer, length));
+                table->initAdd(AtomicString(context, buffer.get(), length));
             }
         }
 
-        delete[] buffer;
 
     } else {
-        LChar* lBuffer = new LChar[maxLength + 1];
-        UChar* uBuffer = new UChar[maxLength + 1];
+        std::unique_ptr<LChar[]> lBuffer(new LChar[maxLength + 1]);
+        std::unique_ptr<UChar[]> uBuffer(new UChar[maxLength + 1]);
         for (size_t i = 0; i < tableSize; i++) {
             bool is8Bit = m_buffer.get<bool>();
             size_t length = m_buffer.get<size_t>();
@@ -1055,25 +1071,22 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
             }
 
             if (is8Bit) {
-                m_buffer.getData(lBuffer, length);
+                m_buffer.getData(lBuffer.get(), length);
                 lBuffer[length] = '\0';
 
                 if (UNLIKELY(length == 0)) {
                     table->initAdd(AtomicString());
                 } else {
-                    table->initAdd(AtomicString(context, lBuffer, length));
+                    table->initAdd(AtomicString(context, lBuffer.get(), length));
                 }
             } else {
                 ASSERT(length > 0);
-                m_buffer.getData(uBuffer, length);
+                m_buffer.getData(uBuffer.get(), length);
                 uBuffer[length] = '\0';
 
-                table->initAdd(AtomicString(context, uBuffer, length));
+                table->initAdd(AtomicString(context, uBuffer.get(), length));
             }
         }
-
-        delete[] lBuffer;
-        delete[] uBuffer;
     }
 
     ASSERT(table->table().size() == tableSize);
@@ -1092,6 +1105,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
     // load ByteCode stream
     {
         size_t codeSize = m_buffer.get<size_t>();
+        m_buffer.requireData(codeSize);
         byteCodeStream.resizeWithUninitializedValues(codeSize);
         m_buffer.getData(byteCodeStream.data(), codeSize);
     }
@@ -1103,6 +1117,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
     // load relocInfoVector
     {
         size_t relocSize = m_buffer.get<size_t>();
+        m_buffer.requireData(relocSize, sizeof(ByteCodeRelocInfo));
         relocInfoVector.resizeWithUninitializedValues(relocSize);
         m_buffer.getData(relocInfoVector.data(), relocSize);
     }
