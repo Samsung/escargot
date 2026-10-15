@@ -71,7 +71,7 @@ SpinLock Global::g_atomicsLock;
 #endif
 #if defined(ENABLE_THREADING)
 std::mutex Global::g_waiterMutex;
-std::vector<Global::Waiter*> Global::g_waiter;
+std::vector<std::shared_ptr<Global::Waiter>> Global::g_waiter;
 #endif
 
 void Global::initialize(Platform* platform)
@@ -113,18 +113,16 @@ void Global::finalize()
 {
     RELEASE_ASSERT(inited);
 
-#if defined(ENABLE_THREADING)
-    for (size_t i = 0; i < g_waiter.size(); i++) {
-        for (auto& waiterItem : g_waiter[i]->m_waiterList) {
-            waiterItem->m_notified = true;
-            waiterItem->m_conditionVariable.notify_one();
-        }
-        delete g_waiter[i];
-    }
-    std::vector<Waiter*>().swap(g_waiter);
-#endif
-
     Global::finalizeGC();
+
+#if defined(ENABLE_THREADING)
+    // ThreadLocal::finalize has cancelled and joined asynchronous workers.
+    std::lock_guard<std::mutex> guard(g_waiterMutex);
+    for (auto& waiter : g_waiter) {
+        ASSERT(waiter->m_waiterList.empty());
+    }
+    std::vector<std::shared_ptr<Waiter>>().swap(g_waiter);
+#endif
 
     delete g_platform;
     g_platform = nullptr;
@@ -139,7 +137,7 @@ Platform* Global::platform()
 }
 
 #if defined(ENABLE_THREADING)
-Global::Waiter* Global::waiter(void* blockAddress)
+std::shared_ptr<Global::Waiter> Global::waiter(void* blockAddress)
 {
     std::lock_guard<std::mutex> guard(g_waiterMutex);
     for (size_t i = 0; i < g_waiter.size(); i++) {
@@ -148,7 +146,7 @@ Global::Waiter* Global::waiter(void* blockAddress)
         }
     }
 
-    Waiter* w = new Waiter();
+    auto w = std::make_shared<Waiter>();
     w->m_blockAddress = blockAddress;
     g_waiter.push_back(w);
 

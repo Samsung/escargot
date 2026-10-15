@@ -402,7 +402,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
     // Let indexedPosition be (i × 4) + offset.
     void* indexedPosition = reinterpret_cast<int32_t*>(buffer->data()) + i;
     // Let WL be GetWaiterList(block, indexedPosition).
-    Global::Waiter* WL = Global::waiter(indexedPosition);
+    auto WL = Global::waiter(indexedPosition);
 
     // Let promiseCapability be undefined.
     PromiseReaction::Capability promiseCapability;
@@ -466,24 +466,30 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL, promiseCapability.m_promise));
         WL->m_waiterList.push_back(waiterItem);
         {
-            auto worker = [](double t, Global::Waiter* WL, std::shared_ptr<Global::WaiterItem> waiterItem, Context* context) {
+            auto worker = [](double t, std::shared_ptr<Global::Waiter> WL, std::shared_ptr<Global::WaiterItem> waiterItem, Context* context) {
                 bool notified = true;
                 {
                     std::unique_lock<std::mutex> ul(WL->m_mutex);
                     if (t == std::numeric_limits<double>::infinity()) {
-                        waiterItem->m_conditionVariable.wait(ul, [&] { return waiterItem->m_notified; });
+                        waiterItem->m_conditionVariable.wait(ul, [&] { return waiterItem->m_notified || waiterItem->m_cancelled; });
                     } else {
-                        notified = waiterItem->m_conditionVariable.wait_for(ul, std::chrono::milliseconds((int64_t)t), [&] { return waiterItem->m_notified; });
+                        notified = waiterItem->m_conditionVariable.wait_for(ul, std::chrono::milliseconds((int64_t)t), [&] { return waiterItem->m_notified || waiterItem->m_cancelled; });
                     }
                     WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
+                    if (waiterItem->m_cancelled) {
+                        return;
+                    }
                 }
 
                 {
                     std::unique_lock<std::mutex> ul(context->vmInstance()->asyncWaiterDataMutex());
+                    if (context->vmInstance()->asyncWaitersStopping()) {
+                        return;
+                    }
                     auto& v = context->vmInstance()->asyncWaiterData();
                     for (auto& item : v) {
-                        if (std::get<2>(item) == waiterItem.get()) {
-                            std::get<2>(item) = nullptr;
+                        if (std::get<2>(item) == waiterItem) {
+                            std::get<5>(item) = true;
                             std::get<3>(item) = notified;
                             context->vmInstance()->pendingAsyncWaiterCount()++;
                             context->vmInstance()->waitEventFromAnotherThreadConditionVariable().notify_all();
@@ -494,8 +500,8 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                 Global::platform()->markJSJobFromAnotherThreadExists(context);
             };
             std::unique_lock<std::mutex> ul(state.context()->vmInstance()->asyncWaiterDataMutex());
-            state.context()->vmInstance()->asyncWaiterData().pushBack(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem.get(), false,
-                                                                                      std::shared_ptr<std::thread>(new std::thread(worker, t, WL, waiterItem, state.context()))));
+            state.context()->vmInstance()->asyncWaiterData().pushBack(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem, false,
+                                                                                      std::shared_ptr<std::thread>(new std::thread(worker, t, WL, waiterItem, state.context())), false));
         }
         WL->m_mutex.unlock();
 
@@ -558,7 +564,7 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
         return Value(0);
     }
     // 8. Let WL be GetWaiterList(block, indexedPosition).
-    Global::Waiter* WL = Global::waiter(blockAddress);
+    auto WL = Global::waiter(blockAddress);
     // 9. Let n be 0.
     double n = 0;
     // 10. Perform EnterCriticalSection(WL).
