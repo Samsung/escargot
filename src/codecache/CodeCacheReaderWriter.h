@@ -257,12 +257,17 @@ public:
         void resize(size_t size);
         void reset();
 
+        void requireData(size_t count, size_t elementSize = 1) const
+        {
+            if (m_index > m_capacity || !elementSize || count > (m_capacity - m_index) / elementSize) {
+                throw Error("out of range");
+            }
+        }
+
         template <typename IntegralType>
         IntegralType get()
         {
-            if (m_index + sizeof(IntegralType) > m_capacity) {
-                throw Error("out of range");
-            }
+            requireData(1, sizeof(IntegralType));
             IntegralType value;
             memcpy(&value, m_buffer + m_index, sizeof(IntegralType));
             m_index += sizeof(IntegralType);
@@ -272,10 +277,8 @@ public:
         template <typename IntegralType>
         void getData(IntegralType* data, size_t size)
         {
+            requireData(size, sizeof(IntegralType));
             size_t dataSize = size * sizeof(IntegralType);
-            if (m_index + dataSize > m_capacity) {
-                throw Error("out of range");
-            }
             if (UNLIKELY(!size)) {
                 return;
             }
@@ -292,7 +295,7 @@ public:
             if (length > STRING_MAXIMUM_LENGTH) {
                 throw Error("out of range");
             }
-            ASSERT(length);
+            requireData(length, is8Bit ? sizeof(LChar) : sizeof(UChar));
             if (LIKELY(is8Bit)) {
                 LChar* buffer = ALLOCA_ATOMIC(sizeof(LChar) * (length + 1), LChar);
                 getData(buffer, length);
@@ -315,6 +318,7 @@ public:
             bf.expn = get<slimb_t>();
 
             limb_t len = get<limb_t>();
+            requireData(len, sizeof(limb_t));
             bf_resize(&bf, len);
             getData(bf.tab, len);
             return bf;
