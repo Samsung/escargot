@@ -21,6 +21,7 @@
 #include "runtime/ThreadLocal.h"
 #include "heap/Heap.h"
 #include "runtime/Global.h"
+#include "runtime/VMInstance.h"
 #include "runtime/Platform.h"
 #include "runtime/String.h"
 #include "runtime/Value.h"
@@ -114,6 +115,9 @@ MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
 MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
 #endif
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
+#if defined(ENABLE_THREADING)
+MAY_THREAD_LOCAL std::vector<VMInstance*>* ThreadLocal::g_asyncWaiterVMInstances;
+#endif
 MAY_THREAD_LOCAL int ThreadLocal::g_pruningCompiledByteCodesVMCount = 0;
 MAY_THREAD_LOCAL size_t ThreadLocal::g_gcEpoch = 0;
 
@@ -742,6 +746,9 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 #endif
 
     // g_customData
+#if defined(ENABLE_THREADING)
+    g_asyncWaiterVMInstances = new std::vector<VMInstance*>();
+#endif
     g_customData = Global::platform()->allocateThreadLocalCustomData();
 
     // g_gcEpoch
@@ -753,6 +760,13 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 void ThreadLocal::finalize()
 {
     ESCARGOT_RELEASE_ASSERT(inited);
+
+#if defined(ENABLE_THREADING)
+    // Finish workers before contexts, platform data and GC memory are destroyed.
+    for (auto* instance : *g_asyncWaiterVMInstances) {
+        instance->cancelAsyncWaiters();
+    }
+#endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     delete ThreadLocal::g_emptyStringInstance;
@@ -772,6 +786,11 @@ void ThreadLocal::finalize()
     // full gc(Heap::finalize) should be invoked after g_customData deallocation
     // because g_customData might contain GC-object
     Heap::finalize();
+
+#if defined(ENABLE_THREADING)
+    delete g_asyncWaiterVMInstances;
+    g_asyncWaiterVMInstances = nullptr;
+#endif
 
     // g_randEngine does not need finalization
     delete g_randEngine;

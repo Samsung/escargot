@@ -21,6 +21,7 @@
 #define __EscargotVMInstance__
 
 #include "runtime/SandBox.h"
+#include "runtime/Global.h"
 #include "runtime/AtomicString.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
@@ -511,7 +512,9 @@ public:
 #endif
 
 #if defined(ENABLE_THREADING)
-    typedef std::tuple<Context*, Object* /* Promise */, void* /* Global::WaiterListItem */, bool /* notified */, std::shared_ptr<std::thread>> AsyncWaiterDataItem;
+    void cancelAsyncWaiters();
+    bool asyncWaitersStopping() const { return m_asyncWaitersStopping; } // Requires asyncWaiterDataMutex().
+    typedef std::tuple<Context*, Object* /* Promise */, std::shared_ptr<Global::WaiterItem>, bool /* notified */, std::shared_ptr<std::thread>, bool /* completed */> AsyncWaiterDataItem;
     Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>>& asyncWaiterData()
     {
         return m_asyncWaiterData;
@@ -665,6 +668,7 @@ private:
     Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> m_asyncWaiterData;
     std::mutex m_asyncWaiterDataMutex;
     std::atomic_size_t m_pendingAsyncWaiterCount;
+    bool m_asyncWaitersStopping;
 
     std::condition_variable m_waitEventFromAnotherThreadConditionVariable;
 #endif

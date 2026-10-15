@@ -72,19 +72,21 @@ public:
 #if defined(ENABLE_THREADING)
     struct Waiter;
     struct WaiterItem {
-        WaiterItem(Context* context, Waiter* waiter, Optional<Object*> promise = nullptr)
+        WaiterItem(Context* context, std::shared_ptr<Waiter> waiter, Optional<Object*> promise = nullptr)
             : m_context(context)
             , m_waiter(waiter)
             , m_promise(promise)
             , m_notified(false)
+            , m_cancelled(false)
         {
         }
 
         Context* m_context;
-        Waiter* m_waiter;
+        std::shared_ptr<Waiter> m_waiter;
         Optional<Object*> m_promise;
         std::condition_variable m_conditionVariable;
         bool m_notified;
+        bool m_cancelled; // Protected by m_waiter->m_mutex.
     };
 
     struct Waiter {
@@ -94,8 +96,8 @@ public:
     };
 
     static std::mutex g_waiterMutex;
-    static std::vector<Waiter*> g_waiter;
-    static Waiter* waiter(void* blockAddress);
+    static std::vector<std::shared_ptr<Waiter>> g_waiter;
+    static std::shared_ptr<Waiter> waiter(void* blockAddress);
 #endif
 };
 

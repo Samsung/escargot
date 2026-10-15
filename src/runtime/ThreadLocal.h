@@ -38,6 +38,7 @@ struct GC_ms_entry;
 namespace Escargot {
 
 class ASTAllocator;
+class VMInstance;
 class String;
 class Value;
 
@@ -178,6 +179,10 @@ class ThreadLocal {
 #endif
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
+#if defined(ENABLE_THREADING)
+    // Native storage intentionally does not root VMs in the GC heap.
+    static MAY_THREAD_LOCAL std::vector<VMInstance*>* g_asyncWaiterVMInstances;
+#endif
     static MAY_THREAD_LOCAL int g_pruningCompiledByteCodesVMCount;
     static MAY_THREAD_LOCAL size_t g_gcEpoch;
 
@@ -274,6 +279,13 @@ public:
 #else
         return g_cageBase;
 #endif
+    }
+#endif
+#if defined(ENABLE_THREADING)
+    static std::vector<VMInstance*>& asyncWaiterVMInstances()
+    {
+        ASSERT(inited);
+        return *g_asyncWaiterVMInstances;
     }
 #endif
     static void initialize(uint32_t optionFromGlobal = 0);

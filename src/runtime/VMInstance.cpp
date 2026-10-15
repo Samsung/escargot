@@ -365,6 +365,13 @@ ObjectStructure* VMInstance::regExpResultStructure(bool hasIndices)
 #endif
 VMInstance::~VMInstance()
 {
+#if defined(ENABLE_THREADING)
+    cancelAsyncWaiters();
+    if (ThreadLocal::isInited()) {
+        auto& instances = ThreadLocal::asyncWaiterVMInstances();
+        instances.erase(std::remove(instances.begin(), instances.end(), this), instances.end());
+    }
+#endif
     // set this first; the ByteCodeBlock disclaim callback reads it (through
     // CodeBlocks which outlive this VMInstance) to skip touching dead owners
     m_isFinalized = true;
@@ -485,6 +492,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #if defined(ENABLE_CODE_CACHE)
     , m_codeCache(nullptr)
 #endif
+#if defined(ENABLE_THREADING)
+    , m_pendingAsyncWaiterCount(0)
+    , m_asyncWaitersStopping(false)
+#endif
     , m_int32StringCacheObjects(nullptr)
     , m_int32StringCacheKeys(nullptr)
     , m_doubleStringCacheObjects(nullptr)
@@ -494,6 +505,9 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
         VMInstance* self = (VMInstance*)obj;
         self->~VMInstance(); }, nullptr, nullptr, nullptr);
 
+#if defined(ENABLE_THREADING)
+    ThreadLocal::asyncWaiterVMInstances().push_back(this);
+#endif
     m_staticStrings.initStaticStrings();
 
     m_toStringRecursionPreventer = new ToStringRecursionPreventer();
@@ -1118,31 +1132,65 @@ bool VMInstance::waitEventFromAnotherThread(unsigned timeoutInMillisecond)
 #endif
 }
 
+#if defined(ENABLE_THREADING)
+void VMInstance::cancelAsyncWaiters()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_asyncWaiterDataMutex);
+        m_asyncWaitersStopping = true;
+    }
+    // Only the owning JS thread modifies the vector. Workers update completion
+    // fields under m_asyncWaiterDataMutex, and never erase entries.
+    for (auto& item : m_asyncWaiterData) {
+        auto waiterItem = std::get<2>(item);
+        std::lock_guard<std::mutex> lock(waiterItem->m_waiter->m_mutex);
+        waiterItem->m_cancelled = true;
+        waiterItem->m_conditionVariable.notify_one();
+    }
+    // A worker may be publishing completion: join without either mutex held.
+    for (auto& item : m_asyncWaiterData) {
+        if (std::get<4>(item)->joinable()) {
+            std::get<4>(item)->join();
+        }
+    }
+    std::lock_guard<std::mutex> lock(m_asyncWaiterDataMutex);
+    m_asyncWaiterData.clear();
+    m_pendingAsyncWaiterCount = 0;
+}
+#endif
+
 void VMInstance::executePendingJobFromAnotherThread()
 {
 #if defined(ENABLE_THREADING)
-    std::unique_lock<std::mutex> ul(m_asyncWaiterDataMutex);
-    for (size_t i = 0; i < m_asyncWaiterData.size(); i++) {
-        if (std::get<2>(m_asyncWaiterData[i]) == nullptr) {
-            Context* context = std::get<0>(m_asyncWaiterData[i]);
-            SandBox sb(context);
-            sb.run([](ExecutionState& state, void* d) -> Value {
-                AsyncWaiterDataItem* data = reinterpret_cast<AsyncWaiterDataItem*>(d);
-                PromiseObject* promise = std::get<1>(*data)->asPromiseObject();
-                if (std::get<3>(*data)) {
-                    promise->fulfill(state, state.context()->staticStrings().lazyOk().string());
-                } else {
-                    promise->fulfill(state, state.context()->staticStrings().lazyTimedOut().string());
-                }
-                return promise;
-            },
-                   &m_asyncWaiterData[i]);
-            std::get<4>(m_asyncWaiterData[i])->join();
-            m_asyncWaiterData.erase(i);
-            i--;
+    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> completed;
+    {
+        std::lock_guard<std::mutex> lock(m_asyncWaiterDataMutex);
+        for (size_t i = 0; i < m_asyncWaiterData.size(); i++) {
+            if (std::get<5>(m_asyncWaiterData[i])) {
+                completed.pushBack(m_asyncWaiterData[i]);
+                m_asyncWaiterData.erase(i--);
+            }
         }
+        m_pendingAsyncWaiterCount = 0;
     }
-    m_pendingAsyncWaiterCount = 0;
+    for (auto& item : completed) {
+        // A platform notification can query the VM. Join outside its mutex,
+        // keeping context and promise rooted until the worker exits.
+        std::get<4>(item)->join();
+        Context* context = std::get<0>(item);
+        SandBox sb(context);
+        sb.run([](ExecutionState& state, void* d) -> Value {
+            AsyncWaiterDataItem* data = reinterpret_cast<AsyncWaiterDataItem*>(d);
+            PromiseObject* promise = std::get<1>(*data)->asPromiseObject();
+            if (std::get<3>(*data)) {
+                promise->fulfill(state, state.context()->staticStrings().lazyOk().string());
+            } else {
+                promise->fulfill(state, state.context()->staticStrings().lazyTimedOut().string());
+            }
+            return promise;
+        },
+               &item);
+    }
 #endif
 }
 

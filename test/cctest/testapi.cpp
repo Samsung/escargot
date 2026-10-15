@@ -27,6 +27,10 @@ using namespace Escargot;
 
 #include <algorithm>
 #include <vector>
+#if defined(ENABLE_THREADING)
+#include <chrono>
+#include <thread>
+#endif
 #if defined(__linux__)
 #include <sys/resource.h>
 #endif
@@ -232,6 +236,9 @@ public:
 
     virtual void markJSJobFromAnotherThreadExists(ContextRef* relatedContext) override
     {
+        // Embedders can query completion from this callback. Joining a worker
+        // while holding the VM completion mutex would deadlock here.
+        relatedContext->vmInstance()->hasCompletedJobFromAnotherThread();
     }
 
     static std::string dirnameOf(const std::string& fname)
@@ -599,6 +606,99 @@ TEST(Temporal, TruncatedMonthDayStrings)
     )JS";
     EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("temporal-monthday-eof.js"), false), "true");
 }
+#endif
+
+#if defined(ENABLE_THREADING)
+TEST(AtomicsWaitAsync, CompletedWaitsSettle)
+{
+    auto instance = VMInstanceRef::create();
+    auto context = createEscargotContext(instance.get());
+    const char source[] = R"JS(
+        var waitAsyncResults = [];
+        var waitAsyncArray = new Int32Array(new SharedArrayBuffer(4));
+        Atomics.waitAsync(waitAsyncArray, 0, 0).value.then(v => waitAsyncResults.push(v));
+        Atomics.waitAsync(waitAsyncArray, 0, 0, 10).value.then(v => waitAsyncResults.push(v));
+        Atomics.notify(waitAsyncArray, 0, 1);
+    )JS";
+    evalScript(context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("waitasync.js"), false);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (instance->hasPendingJobFromAnotherThread() && std::chrono::steady_clock::now() < deadline) {
+        instance->waitEventFromAnotherThread(100);
+        instance->executePendingJobFromAnotherThread();
+    }
+    EXPECT_FALSE(instance->hasPendingJobFromAnotherThread());
+    while (instance->hasPendingJob()) {
+        EXPECT_TRUE(instance->executePendingJob().isSuccessful());
+    }
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("waitAsyncResults.sort().join(',')"), StringRef::createFromASCII("waitasync-result.js"), false), "ok,timed-out");
+}
+
+TEST(AtomicsWaitAsync, PendingWaitsAtThreadFinalize)
+{
+    std::thread owner([] {
+        for (size_t round = 0; round < 8; ++round) {
+            Globals::initializeThread();
+            auto instance = VMInstanceRef::create();
+            auto context = createEscargotContext(instance.get());
+            const char source[] = R"JS(
+                var array = new Int32Array(new SharedArrayBuffer(4));
+                for (let i = 0; i < 8; ++i) {
+                    Atomics.waitAsync(array, 0, 0);
+                    Atomics.waitAsync(array, 0, 0, NaN);
+                    Atomics.waitAsync(array, 0, 0, 1000000);
+                }
+                'started';
+            )JS";
+            EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("waitasync-thread.js"), false), "started");
+            EXPECT_TRUE(instance->hasPendingJobFromAnotherThread());
+            context.release();
+            instance.release();
+            Globals::finalizeThread();
+        }
+    });
+    owner.join();
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST(AtomicsWaitAsync, PendingWaitsAtGlobalFinalize)
+{
+    EXPECT_EXIT({
+        const char source[] = R"JS(
+            var array = new Int32Array(new SharedArrayBuffer(4));
+            for (let i = 0; i < 16; ++i) {
+                Atomics.waitAsync(array, 0, 0);
+                Atomics.waitAsync(array, 0, 0, NaN);
+                Atomics.waitAsync(array, 0, 0, 1000000);
+            }
+            'started';
+        )JS";
+        if (evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("waitasync-finalize.js"), false) != "started") {
+            std::_Exit(1);
+        }
+        g_context.release();
+        g_instance.release();
+        Globals::finalize();
+        std::_Exit(0); }, testing::ExitedWithCode(0), "");
+}
+
+TEST(AtomicsWaitAsync, NotifyDuringGlobalFinalize)
+{
+    EXPECT_EXIT({
+        const char source[] = R"JS(
+            var array = new Int32Array(new SharedArrayBuffer(4));
+            for (let i = 0; i < 64; ++i) Atomics.waitAsync(array, 0, 0);
+            Atomics.notify(array, 0, 32);
+            'started';
+        )JS";
+        if (evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("waitasync-notify-finalize.js"), false) != "started") {
+            std::_Exit(1);
+        }
+        g_context.release();
+        g_instance.release();
+        Globals::finalize();
+        std::_Exit(0); }, testing::ExitedWithCode(0), "");
+}
+#endif
 #endif
 
 TEST(EvalScript, Run)
