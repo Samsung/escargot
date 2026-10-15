@@ -16,8 +16,32 @@ permissions:
   contents: write
 
 jobs:
+  detect-changes:
+    if: github.repository == 'Samsung/escargot' && github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      engine: ${{ steps.changes.outputs.engine }}
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+        fetch-depth: 2
+    - name: Check engine changes in the merged commit
+      id: changes
+      shell: bash
+      run: |
+        # The first parent is master before the merge (also works for squash merges).
+        if git diff --quiet HEAD^ HEAD -- src/ third_party/; then
+          echo "engine=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "engine=true" >> "$GITHUB_OUTPUT"
+        fi
+
   benchmark-arm64:
-    if: github.repository == 'Samsung/escargot' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    needs: detect-changes
+    if: ${{ !cancelled() && github.repository == 'Samsung/escargot' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.engine == 'true') }}
     runs-on: [self-hosted, linux, arm64, test]
     timeout-minutes: 180
     env:

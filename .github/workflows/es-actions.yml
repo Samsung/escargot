@@ -956,9 +956,6 @@ jobs:
           out/walrus.dll
           out/gc-lib.dll
           out/icu*.dll
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   build-on-windows-x64:
     runs-on: windows-2022
@@ -1045,9 +1042,6 @@ jobs:
           out/Release/walrus.dll
           out/Release/gc-lib.dll
           out/Release/icu*.dll
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   # windows-11-arm is a native arm64 host (GitHub-hosted, free for public
   # repos), so this leg builds natively -- no cross-compiler arch juggling
@@ -1139,8 +1133,6 @@ jobs:
           out/escargot.dll
           out/gc-lib.dll
           out/icu*.dll
-    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
-    # to install tmate through (ENOENT), so no debug-shell step on this leg.
 
   # test262.py runs each applicable test in BOTH strict and non-strict mode by
   # default (roughly doubling the test count), so splitting strict/non-strict
@@ -1216,9 +1208,6 @@ jobs:
         pip install chardet
         python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   test262-on-windows-x64:
     needs: build-on-windows-x64
@@ -1274,9 +1263,6 @@ jobs:
         pip install chardet
         python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   test262-on-windows-arm64:
     needs: build-on-windows-arm64
@@ -1332,8 +1318,6 @@ jobs:
         pip install chardet
         python tools\run-tests.py --engine=%cd%\out\escargot.exe test262-${{ matrix.mode }} --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm --skip property-escapes --skip property-of-strings --skip rgi-emoji --skip identifiers\part-unicode- --skip identifiers\start-unicode-"
       shell: cmd
-    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
-    # to install tmate through (ENOENT), so no debug-shell step on this leg.
 
   # One job per arch, same reasoning as test262-on-windows-* above.
   octane-on-windows-x86:
@@ -1376,9 +1360,6 @@ jobs:
         copy test\octane\*.js
         dir
         .\out\escargot.exe run.js
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   octane-on-windows-x64:
     needs: build-on-windows-x64
@@ -1419,9 +1400,6 @@ jobs:
         copy test\octane\*.js
         dir
         .\out\escargot.exe run.js
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   octane-on-windows-arm64:
     needs: build-on-windows-arm64
@@ -1462,8 +1440,6 @@ jobs:
         copy test\octane\*.js
         dir
         .\out\escargot.exe run.js
-    # windows-11-arm doesn't ship the msys64/bash.exe this action shells out
-    # to install tmate through (ENOENT), so no debug-shell step on this leg.
 
   # Was one job whose 5-way `tc` matrix each independently reran the exact
   # same x86 release configure+build just to test a different suite subset --
@@ -1593,9 +1569,6 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   # Prototype for ESCARGOT_LIBICU_SUPPORT_VENDORED (build/VendoredICU.cmake):
   # builds ICU from the vendored third_party/icu submodule (pinned to tag
@@ -1675,9 +1648,6 @@ jobs:
       run: |
         out/vendored-icu/cctest --gtest_output=xml:/tmp/escargot-compressed-cctest.xml
         python3 -c "import xml.etree.ElementTree as ET; r = ET.parse('/tmp/escargot-compressed-cctest.xml').getroot(); assert int(r.get('tests', '0')) > 0 and int(r.get('failures', '0')) == 0 and int(r.get('errors', '0')) == 0"
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   # Was one job whose (tc x build_opt) matrix rebuilt x64 from scratch per tc
   # leg sharing the same build_opt -- 3 distinct builds actually needed, 5
@@ -1831,9 +1801,6 @@ jobs:
         "$GITHUB_WORKSPACE/out/release/x64/escargot" --gc-incremental dist/cli.js | tee "$RUNNER_TEMP/web-tooling-incremental.log"
         # The benchmark can abort on a JS error without a nonzero exit code.
         grep -q '^Geometric mean:' "$RUNNER_TEMP/web-tooling-incremental.log"
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-24.04
@@ -2325,9 +2292,6 @@ jobs:
         export LANG=en_US.UTF-8
         GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
         $RUNNER --arch=aarch64 --engine="${{ github.workspace }}/out/escargot" octane octane-memory
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   build-test-on-riscv64-release:
     runs-on: ubuntu-latest
@@ -2581,9 +2545,6 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         rm $HOME/Escargot-cache/cache_list
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
 
   build-test-wasmjs:
     runs-on: ubuntu-latest
@@ -2657,8 +2618,6 @@ jobs:
       run: |
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
 
   # These two RTOS/QEMU jobs used to be gated behind a `detect-changes-for-rtos`
   # paths-filter job (skip when nothing under src/**, samples/rtos/**, etc.
