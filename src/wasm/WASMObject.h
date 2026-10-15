@@ -219,9 +219,25 @@ public:
 
     void refreshGrownMemoryBuffers(ExecutionState& state);
 
+    Optional<Value> pendingHostFunctionError() const
+    {
+        return m_pendingHostFunctionError;
+    }
+
+    void setPendingHostFunctionError(const Value& error)
+    {
+        m_pendingHostFunctionError = error;
+    }
+
+    void clearPendingHostFunctionError()
+    {
+        m_pendingHostFunctionError = NullOption;
+    }
+
 private:
     wasm_ref_t* getOtherExternAddr();
 
+    Optional<Value> m_pendingHostFunctionError;
     WASMMemoryMap m_memoryMap;
     WASMTableMap m_tableMap;
     WASMGlobalMap m_globalMap;

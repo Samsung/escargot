@@ -113,6 +113,8 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
 
     wasm_functype_delete(functype);
 
+    state.context()->wasmCache()->clearPendingHostFunctionError();
+
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
     own wasm_trap_t* trap = wasm_func_call(funcaddr, &args, &ret);
     state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
@@ -124,6 +126,14 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
+
+        if (state.context()->wasmCache()->pendingHostFunctionError().hasValue()) {
+            Value hostError = state.context()->wasmCache()->pendingHostFunctionError().value();
+            state.context()->wasmCache()->clearPendingHostFunctionError();
+            state.context()->throwException(state, hostError);
+            return Value();
+        }
+
         ErrorObject::throwBuiltinError(state, ErrorCode::WASMRuntimeError, ErrorObject::Messages::WASM_FuncCallError);
         return Value();
     }

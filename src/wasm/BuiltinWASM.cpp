@@ -343,6 +343,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
+    state.context()->wasmCache()->clearPendingHostFunctionError();
     own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
     state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
@@ -353,6 +354,14 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
+
+        if (state.context()->wasmCache()->pendingHostFunctionError().hasValue()) {
+            Value hostError = state.context()->wasmCache()->pendingHostFunctionError().value();
+            state.context()->wasmCache()->clearPendingHostFunctionError();
+            state.context()->throwException(state, hostError);
+            return Value();
+        }
+
         ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 

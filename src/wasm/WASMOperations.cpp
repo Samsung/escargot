@@ -73,14 +73,42 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
         Object* func;
         size_t argSize;
         Value* arguments;
+        wasm_val_vec_t* results;
+        const wasm_valtype_vec_t* res;
     } callBackData;
     callBackData.func = func;
     callBackData.argSize = argSize;
     callBackData.arguments = jsArguments;
+    callBackData.results = results;
+    callBackData.res = res;
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         CallBackData* callBackData = (CallBackData*)data;
-        return Object::call(state, callBackData->func, Value(), callBackData->argSize, callBackData->arguments);
+        Value ret = Object::call(state, callBackData->func, Value(), callBackData->argSize, callBackData->arguments);
+
+        size_t resultsSize = callBackData->res->size;
+        if (resultsSize == 0) {
+            return Value();
+        }
+
+        if (resultsSize == 1) {
+            callBackData->results->data[0] = WASMValueConverter::toWebAssemblyValue(state, ret, wasm_valtype_kind(callBackData->res->data[0]));
+        } else {
+            Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+            if (method.isUndefined()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+            }
+
+            ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
+            if (values.size() != resultsSize) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+            }
+
+            for (size_t i = 0; i < resultsSize; i++) {
+                callBackData->results->data[i] = WASMValueConverter::toWebAssemblyValue(state, values[i], wasm_valtype_kind(callBackData->res->data[i]));
+            }
+        }
+        return Value();
     },
                          &callBackData);
 
@@ -88,45 +116,12 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
     // Otherwise, return result.[[Value]].
     if (UNLIKELY(!result.error.isEmpty())) {
+        state.context()->wasmCache()->setPendingHostFunctionError(result.error);
         std::string errMessage = result.error.toStringWithoutException(state)->toNonGCUTF8StringData();
         // throw a WASM exception
         wasm_trap_trigger(errMessage.data(), errMessage.length());
         ASSERT_NOT_REACHED();
         return nullptr;
-    }
-
-    // Let resultsSize be results?s size.
-    size_t resultsSize = res->size;
-    if (resultsSize == 0) {
-        // If resultsSize is 0, return << >>
-        return nullptr;
-    }
-
-    Value ret = result.result;
-    if (resultsSize == 1) {
-        // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
-        results->data[0] = WASMValueConverter::toWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
-    } else {
-        // Otherwise,
-        // Let method be ? GetMethod(ret, @@iterator).
-        Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
-        // If method is undefined, throw a TypeError.
-        if (method.isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
-        }
-
-        // Let values be ? IterableToList(ret, method).
-        ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
-        // If values's size is not resultsSize, throw a TypeError exception.
-        if (values.size() != resultsSize) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
-        }
-
-        // For each value and resultType in values and results, paired linearly,
-        // Append ToWebAssemblyValue(value, resultType) to wasmValues.
-        for (size_t i = 0; i < resultsSize; i++) {
-            results->data[i] = WASMValueConverter::toWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
-        }
     }
 
     return nullptr;
@@ -168,6 +163,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
+    state.context()->wasmCache()->clearPendingHostFunctionError();
     own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
     state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
@@ -178,6 +174,14 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
+
+        if (state.context()->wasmCache()->pendingHostFunctionError().hasValue()) {
+            Value hostError = state.context()->wasmCache()->pendingHostFunctionError().value();
+            state.context()->wasmCache()->clearPendingHostFunctionError();
+            state.context()->throwException(state, hostError);
+            return Value();
+        }
+
         ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
@@ -547,6 +551,7 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
+    state.context()->wasmCache()->clearPendingHostFunctionError();
     own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
     state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
@@ -557,6 +562,14 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
+
+        if (state.context()->wasmCache()->pendingHostFunctionError().hasValue()) {
+            Value hostError = state.context()->wasmCache()->pendingHostFunctionError().value();
+            state.context()->wasmCache()->clearPendingHostFunctionError();
+            state.context()->throwException(state, hostError);
+            return Value();
+        }
+
         ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
