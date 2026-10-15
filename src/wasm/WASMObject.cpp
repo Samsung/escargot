@@ -236,14 +236,58 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
 
 ArrayBuffer* WASMMemoryObject::buffer() const
 {
-    ASSERT(!!m_buffer && !m_buffer->isDetachedBuffer());
     return m_buffer;
+}
+
+ArrayBuffer* WASMMemoryObject::createFixedLengthMemoryBuffer(ExecutionState& state, wasm_memory_t* memaddr, bool isShared)
+{
+    ASSERT(!!memaddr);
+
+    // Note) wasm_memory_data with zero size returns null pointer
+    // predefined temporal address is allocated for this case
+    void* dataBlock = wasm_memory_size(memaddr) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
+
+    ArrayBuffer* buffer = nullptr;
+    if (isShared) {
+        ASSERT(wasm_memory_is_shared(memaddr));
+        // Let block be a Shared Data Block which is identified with the underlying memory of memaddr.
+        // Let buffer be a new SharedArrayBuffer with the internal slots [[ArrayBufferData]] and [[ArrayBufferByteLength]].
+        buffer = SharedArrayBufferObject::allocateExternalSharedArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+
+        // Perform ! SetIntegrityLevel(buffer, "frozen").
+        if (UNLIKELY(!Object::setIntegrityLevel(state, buffer, false))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
+    } else {
+        // Let block be a Data Block which is identified with the underlying memory of memaddr.
+        // Let buffer be a new ArrayBuffer with the internal slots [[ArrayBufferData]], [[ArrayBufferByteLength]], and [[ArrayBufferDetachKey]].
+        buffer = ArrayBufferObject::allocateExternalArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+    }
+
+    // Return buffer.
+    return buffer;
 }
 
 void WASMMemoryObject::setBuffer(ArrayBuffer* buffer)
 {
     ASSERT(!!buffer && !buffer->isDetachedBuffer());
     m_buffer = buffer;
+}
+
+// Refresh the memory buffer
+void WASMMemoryObject::refreshBuffer(ExecutionState& state)
+{
+    // Let buffer be memory.[[BufferObject]].
+    // If IsSharedArrayBuffer(buffer) is false,
+    // Perform ! DetachArrayBuffer(buffer, "WebAssembly.Memory").
+    bool isShared = m_buffer->isSharedArrayBufferObject();
+    if (!isShared) {
+        m_buffer->asArrayBufferObject()->detachArrayBuffer();
+    }
+
+    // Let newBuffer be the result of creating a fixed length memory buffer from memaddr.
+    // Set memory.[[BufferObject]] to newBuffer.
+    setBuffer(createFixedLengthMemoryBuffer(state, m_memory, isShared));
 }
 
 WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table)
@@ -459,6 +503,19 @@ wasm_ref_t* WASMCacheMap::insertRefByValue(const Value& value)
     appendOther(result, value);
 
     return result;
+}
+
+// memory.grow executed inside wasm must refresh the buffer too (WebAssembly JS API, "grow the memory buffer").
+// Walrus relocates the memory on growth, so the old buffer would point at freed memory.
+// Script can only observe the buffer once control returns to it, so callers refresh at those boundaries.
+void WASMCacheMap::refreshGrownMemoryBuffers(ExecutionState& state)
+{
+    for (size_t i = 0; i < m_memoryMap.size(); i++) {
+        WASMMemoryObject* memoryObj = m_memoryMap[i].second;
+        if (memoryObj->buffer()->byteLength() != wasm_memory_data_size(memoryObj->memory())) {
+            memoryObj->refreshBuffer(state);
+        }
+    }
 }
 
 WASMMemoryObject* WASMCacheMap::findMemory(wasm_ref_t* ref)
