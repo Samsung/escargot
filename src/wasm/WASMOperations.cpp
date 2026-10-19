@@ -60,12 +60,6 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     // Let jsArguments be << >>
     Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value);
 
-    // For each arg of arguments,
-    for (size_t i = 0; i < argSize; i++) {
-        // Append ! ToJSValue(arg) to jsArguments.
-        jsArguments[i] = WASMValueConverter::toJSValue(state, args->data[i]);
-    }
-
     // Let ret be ? Call(func, undefined, jsArguments).
     SandBox sb(funcEnv->realm);
 
@@ -75,15 +69,31 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
         Value* arguments;
         wasm_val_vec_t* results;
         const wasm_valtype_vec_t* res;
+        const wasm_valtype_vec_t* params;
+        const wasm_val_vec_t* wasmArguments;
     } callBackData;
     callBackData.func = func;
     callBackData.argSize = argSize;
     callBackData.arguments = jsArguments;
     callBackData.results = results;
     callBackData.res = res;
+    callBackData.params = params;
+    callBackData.wasmArguments = args;
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         CallBackData* callBackData = (CallBackData*)data;
+        // Keep type checks and conversions inside the sandbox so a TypeError
+        // follows the normal host-exception propagation path back through wasm.
+        for (const wasm_valtype_vec_t* types : { callBackData->params, callBackData->res }) {
+            for (size_t i = 0; i < types->size; i++) {
+                if (wasm_valtype_kind(types->data[i]) == WASM_V128) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+                }
+            }
+        }
+        for (size_t i = 0; i < callBackData->argSize; i++) {
+            callBackData->arguments[i] = WASMValueConverter::toJSValue(state, callBackData->wasmArguments->data[i]);
+        }
         Value ret = Object::call(state, callBackData->func, Value(), callBackData->argSize, callBackData->arguments);
 
         size_t resultsSize = callBackData->res->size;
