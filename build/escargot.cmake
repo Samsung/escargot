@@ -131,19 +131,6 @@ SET (ESCARGOT_CORE_SRC_LIST
 # Keep shared Escargot builds self-contained by default. Embedders that need
 # GCutil across a shared-library boundary must opt in explicitly.
 SET (GCUTIL_BUILD_SHARED_LIBS ${ESCARGOT_BUILD_GC_SHARED_LIBS})
-# ...with one exception: gc-lib is linked PUBLIC into ${ESCARGOT_TARGET} (see
-# ESCARGOT_LIBRARIES below), so with a shared Escargot and a static collector
-# every consumer of libescargot links its own copy of gc-lib on top of the one
-# already inside libescargot. GCutil is built with GC_THREAD_ISOLATE, where the
-# heap and every GC global (GC_arrays, GC_obj_kinds, the free lists) are
-# thread-local *per module*, so the two copies never see each other's GC_init():
-# one module ends up marking against an all-zero GC_obj_kinds on the very thread
-# that just initialized the other. There must be exactly one collector in a
-# process, so a shared Escargot implies a shared collector.
-IF (ESCARGOT_BUILD_SHARED_LIBS AND NOT GCUTIL_BUILD_SHARED_LIBS)
-    MESSAGE (STATUS "Escargot is built as a shared library: building GCutil as a shared library too (a static collector would be duplicated into every consumer)")
-    SET (GCUTIL_BUILD_SHARED_LIBS ON)
-ENDIF()
 SET (GCUTIL_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} ${PROFILER_FLAGS})
 # Append, don't overwrite: a bare-metal port may have already pre-set this as
 # a CACHE variable before add_subdirectory()ing this whole project (e.g.
@@ -188,7 +175,9 @@ ENDIF()
 # Safely pass naturally inherited external flags to GCutil sub-component
 SET (GCUTIL_CFLAGS_FROM_EXTERNAL ${GCUTIL_CFLAGS_FROM_EXTERNAL} ${ESCARGOT_CFLAGS_FROM_EXTERNAL} ${ESCARGOT_THIRDPARTY_CFLAGS})
 ADD_SUBDIRECTORY (third_party/GCutil)
-SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} gc-lib)
+IF (NOT ESCARGOT_BUILD_SHARED_LIBS OR GCUTIL_BUILD_SHARED_LIBS)
+    SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} gc-lib)
+ENDIF()
 
 #######################################################
 # SIMDUTF
@@ -365,6 +354,10 @@ ELSE()
 ENDIF()
 
 TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_LIBRARIES} ${ESCARGOT_LDFLAGS} ${ESCARGOT_CONFIG_LDFLAGS} ${LDFLAGS_FROM_ENV})
+IF (ESCARGOT_BUILD_SHARED_LIBS AND NOT GCUTIL_BUILD_SHARED_LIBS)
+    # Embed one private collector; consumers must not link another static copy.
+    TARGET_LINK_LIBRARIES (${ESCARGOT_TARGET} PRIVATE gc-lib)
+ENDIF()
 TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PRIVATE ${ESCARGOT_INCDIRS})
 TARGET_INCLUDE_DIRECTORIES (${ESCARGOT_TARGET} PUBLIC ${ESCARGOT_ROOT}/src/api)
 TARGET_COMPILE_DEFINITIONS (${ESCARGOT_TARGET} PRIVATE ${ESCARGOT_DEFINITIONS} ${ESCARGOT_CONFIG_DEFINITIONS})
