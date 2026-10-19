@@ -69,6 +69,10 @@ namespace Escargot {
 
 wasm_val_t WASMValueConverter::defaultValue(ExecutionState& state, wasm_valkind_t type)
 {
+    if (type == WASM_V128) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
+
     WASM_INIT_VAL(result);
     switch (type) {
     case WASM_I32: {
@@ -107,6 +111,10 @@ wasm_val_t WASMValueConverter::defaultValue(ExecutionState& state, wasm_valkind_
 
 Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& value)
 {
+    if (value.kind == WASM_V128) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
+
     Value result;
     switch (value.kind) {
     case WASM_I32: {
@@ -187,6 +195,10 @@ wasm_valkind_t WASMValueConverter::toValueType(ExecutionState& state, const Valu
 
 wasm_val_t WASMValueConverter::toWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
 {
+    if (type == WASM_V128) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
+
     WASM_INIT_VAL(result);
     switch (type) {
     case WASM_I32: {

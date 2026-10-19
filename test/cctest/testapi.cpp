@@ -3410,6 +3410,51 @@ TEST(Object, DeepPrototypeStackOverflow)
 }
 
 #if defined(ENABLE_WASM)
+TEST(WebAssembly, V128JavaScriptBoundary)
+{
+    const char source[] = R"JS(
+(function () {
+    function section(id, bytes) { return [id, bytes.length].concat(bytes); }
+    function signature(params, results) { return [96, params.length].concat(params, [results.length], results); }
+    function module(parts, imports) {
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(
+            [0,97,115,109,1,0,0,0].concat(...parts))), imports).exports;
+    }
+    function throws(f) {
+        try { f(); } catch (error) { if (error instanceof TypeError) return; throw error; }
+        throw new Error("Missing TypeError");
+    }
+    var constant = [253,12].concat(Array(16).fill(0));
+    for (var returnsVector of [false, true]) {
+        var sig = returnsVector ? signature([], [123]) : signature([127,123], []);
+        var body = [0].concat(returnsVector ? constant : [], [11]);
+        var f = module([
+            section(1, [1].concat(sig)), section(3, [1,0]),
+            section(7, [1,1,102,0,0]), section(10, [1,body.length].concat(body))
+        ]).f;
+        var converted = false;
+        throws(() => f({valueOf() { converted = true; return 0; }}, 0));
+        if (converted) throw new Error("Converted an argument before rejecting v128");
+        // The same restriction applies before invoking a JS import callback.
+        var hostSig = returnsVector ? signature([], [123]) : signature([123], []);
+        var wrapper = [0].concat(returnsVector ? [] : constant, [16,0], returnsVector ? [26] : [], [11]);
+        var called = false;
+        var wrapperFunction = module([
+            section(1, [2].concat(hostSig, signature([], []))),
+            section(2, [1,1,109,1,102,0,0]), section(3, [1,1]),
+            section(7, [1,1,102,0,1]), section(10, [1,wrapper.length].concat(wrapper))
+        ], {m: {f() { called = true; }}}).f;
+        throws(() => wrapperFunction());
+        if (called) throw new Error("Called a JS callback with a v128 signature");
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-v128-boundary.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, ReferenceValues)
 {
     const char source[] = R"JS(
