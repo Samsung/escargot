@@ -725,7 +725,7 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
         resultVal.of.ref = result;
     }
     Value resultValue = WASMValueConverter::toJSValue(state, resultVal);
-    if (result && !WASMCacheMap::isOtherExternAddr(result)) {
+    if (result) {
         // result could be nullptr (ref.null)
         wasm_ref_delete(result);
     }

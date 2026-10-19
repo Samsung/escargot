@@ -3409,6 +3409,104 @@ TEST(Object, DeepPrototypeStackOverflow)
               "true");
 }
 
+#if defined(ENABLE_WASM)
+TEST(WebAssembly, ReferenceValues)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(actual, expected) {
+        if (!Object.is(actual, expected)) throw new Error("Reference round trip failed");
+    }
+    function module(type, host, pair) {
+        var bytes = [0,97,115,109,1,0,0,0];
+        bytes = bytes.concat(pair ? [1,7,1,96,1,type,2,type,type] : [1,6,1,96,1,type,1,type]);
+        if (host) {
+            bytes = bytes.concat([2,7,1,1,109,1,102,0,0]); // import m.f
+        } else {
+            bytes = bytes.concat([3,2,1,0]);
+        }
+        bytes = bytes.concat([7,5,1,1,102,0,0]); // export f
+        if (!host) bytes = bytes.concat([10,6,1,4,0,32,0,11]); // local.get 0
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(bytes)),
+            host ? { m: { f: host } } : {}).exports.f;
+    }
+    function nullResult(type) {
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([
+            0,97,115,109,1,0,0,0,1,5,1,96,0,1,type,3,2,1,0,
+            7,5,1,1,102,0,0,10,6,1,4,0,208,type,11
+        ]))).exports.f();
+    }
+    var identity = module(111);
+    var callback = module(111, function (value) { return value; });
+    var pair = module(111, function (value) { return [value, value]; }, true);
+    var object = {};
+    var values = [undefined, null, object, function () {}, Symbol("ref"),
+        "text", 42, -0, NaN, true, 123n, identity,
+        new WebAssembly.Memory({initial: 0}),
+        new WebAssembly.Table({element: "externref", initial: 0})];
+    var global = new WebAssembly.Global({value: "externref", mutable: true});
+    var table = new WebAssembly.Table({element: "externref", initial: 1});
+    check(global.value, undefined);
+    check(nullResult(111), null);
+    check(nullResult(112), null);
+    for (var value of values) {
+        for (var repeat = 0; repeat < 3; repeat++) {
+            check(identity(value), value);
+            check(callback(value), value);
+            var results = pair(value);
+            check(results[0], value);
+            check(results[1], value);
+            check(new WebAssembly.Global({value: "externref"}, value).value, value);
+            global.value = value;
+            check(global.value, value);
+            table.set(0, value);
+            check(table.get(0), value);
+        }
+        var filled = new WebAssembly.Table({element: "externref", initial: 1}, value);
+        check(filled.get(0), value);
+        filled.grow(1, value);
+        check(filled.get(1), value);
+    }
+    var functionIdentity = module(112);
+    var functionCallback = module(112, function (value) { return value; });
+    for (var value of [null, identity]) {
+        for (var repeat = 0; repeat < 3; repeat++) {
+            check(functionIdentity(value), value);
+            check(functionCallback(value), value);
+        }
+    }
+    check(new WebAssembly.Global({value: "anyfunc"}).value, null);
+    var rejected = false;
+    try { functionIdentity({}); } catch (error) { rejected = error instanceof TypeError; }
+    check(rejected, true);
+    global.value = object;
+    table.set(0, object);
+    // Retain references across a full collection between script evaluations.
+    globalThis.wasmReferenceRegressionState = {object, global, table, identity, callback};
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-reference-values.js"), false),
+              "true");
+    g_context->vmInstance()->enterIdleMode();
+    const char afterGC[] = R"JS(
+(function () {
+    var state = globalThis.wasmReferenceRegressionState;
+    var result = state.global.value === state.object
+        && state.table.get(0) === state.object
+        && state.identity(state.object) === state.object
+        && state.callback(state.object) === state.object;
+    delete globalThis.wasmReferenceRegressionState;
+    return result;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(afterGC),
+                         StringRef::createFromASCII("wasm-reference-values-after-gc.js"), false),
+              "true");
+}
+#endif
+
 // records the native stack address seen at the bottom of the calibration/real
 // recursion below, so DisabledStackOverflow.Basic can measure real stack cost
 // per recursion level instead of relying on a guessed depth constant

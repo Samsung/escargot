@@ -108,6 +108,15 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
                 callBackData->results->data[i] = WASMValueConverter::toWebAssemblyValue(state, values[i], wasm_valtype_kind(callBackData->res->data[i]));
             }
         }
+        // Walrus deletes callback results. Conversion above returns borrowed
+        // cache/function references, so hand it independent owning wrappers.
+        // Copy only after all conversions succeed, which may throw.
+        for (size_t i = 0; i < resultsSize; i++) {
+            wasm_val_t& value = callBackData->results->data[i];
+            if ((value.kind == WASM_FUNCREF || value.kind == WASM_ANYREF) && value.of.ref) {
+                value.of.ref = wasm_ref_copy(value.of.ref);
+            }
+        }
         return Value();
     },
                          &callBackData);

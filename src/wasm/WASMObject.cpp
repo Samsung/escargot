@@ -23,6 +23,7 @@
 #include "wasm.h"
 #include "heap/Heap.h"
 #include "runtime/Context.h"
+#include "runtime/ThreadLocal.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/SharedArrayBufferObject.h"
@@ -429,11 +430,21 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
 
     // Return ToJSValue(value).
     Value result = WASMValueConverter::toJSValue(state, value);
-    // ToJSValue() copies a funcref, so release the one global_read returned.
-    if (value.kind == WASM_FUNCREF && value.of.ref) {
+    // ToJSValue() resolves references without taking ownership of the wrapper.
+    if ((value.kind == WASM_FUNCREF || value.kind == WASM_ANYREF) && value.of.ref) {
         wasm_ref_delete(value.of.ref);
     }
     return result;
+}
+
+WASMCacheMap::WASMCacheMap()
+{
+    // The cache roots the JS values; it also owns their C API foreign references.
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        WASMCacheMap* self = static_cast<WASMCacheMap*>(obj);
+        for (auto& entry : self->m_otherMap) {
+            wasm_ref_delete(entry.first);
+        } }, nullptr, nullptr, nullptr);
 }
 
 void WASMCacheMap::appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj)
@@ -466,7 +477,7 @@ void WASMCacheMap::appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcO
 
 void WASMCacheMap::appendOther(wasm_ref_t* ref, const Value& value)
 {
-    ASSERT(!!ref && isOtherExternAddr(ref));
+    ASSERT(!!ref);
     ASSERT(!findOther(ref).first);
     m_otherMap.pushBack(std::make_pair(ref, value));
 }
@@ -498,8 +509,8 @@ wasm_ref_t* WASMCacheMap::insertRefByValue(const Value& value)
 
     // Let extern address externaddr be the smallest address such that map[externaddr] exists is false.
     // Set map[externaddr] to v.
-    result = getOtherExternAddr();
-    ASSERT(isOtherExternAddr(result));
+    // A wasm_ref_t is an owning wrapper, not an arbitrary tagged address.
+    result = wasm_foreign_as_ref(wasm_foreign_new(ThreadLocal::wasmStore()));
     appendOther(result, value);
 
     return result;
@@ -560,9 +571,8 @@ ExportedFunctionObject* WASMCacheMap::findFunction(wasm_ref_t* ref)
 
 std::pair<bool, Value> WASMCacheMap::findOther(wasm_ref_t* ref)
 {
-    ASSERT(isOtherExternAddr(ref));
     for (auto iter = m_otherMap.begin(); iter != m_otherMap.end(); iter++) {
-        if (iter->first == ref) {
+        if (wasm_ref_same(iter->first, ref)) {
             return std::make_pair(true, iter->second);
         }
     }
@@ -626,46 +636,28 @@ Value WASMCacheMap::findValueByRef(wasm_ref_t* ref)
     // should find a value in WASMCacheMap
     ASSERT(!!ref);
 
-    if (UNLIKELY(isOtherExternAddr(ref))) {
-        auto result = findOther(ref);
-        ASSERT(result.first);
-        return result.second;
-    } else {
-        Object* result = nullptr;
-        if ((result = findFunction(ref))) {
-            return result;
-        }
+    auto other = findOther(ref);
+    if (other.first) {
+        return other.second;
+    }
 
-        if ((result = findGlobal(ref))) {
-            return result;
-        }
-
-        if ((result = findMemory(ref))) {
-            return result;
-        }
-
-        if ((result = findTable(ref))) {
-            return result;
-        }
+    Object* result = nullptr;
+    if ((result = findFunction(ref))) {
+        return result;
+    }
+    if ((result = findGlobal(ref))) {
+        return result;
+    }
+    if ((result = findMemory(ref))) {
+        return result;
+    }
+    if ((result = findTable(ref))) {
+        return result;
     }
 
     // Assert: map[externaddr] exists.
     ASSERT_NOT_REACHED();
     return Value();
-}
-
-bool WASMCacheMap::isOtherExternAddr(wasm_ref_t* ref)
-{
-    return ((size_t)ref & OTHER_EXTERN_REF_TAG);
-}
-
-wasm_ref_t* WASMCacheMap::getOtherExternAddr()
-{
-    ASSERT((m_otherExternAddrIndex << OTHER_EXTERN_REF_TAG) < std::numeric_limits<size_t>::max());
-
-    wasm_ref_t* result = reinterpret_cast<wasm_ref_t*>((m_otherExternAddrIndex << OTHER_EXTERN_REF_TAG) | OTHER_EXTERN_REF_TAG);
-    m_otherExternAddrIndex++;
-    return result;
 }
 
 } // namespace Escargot
