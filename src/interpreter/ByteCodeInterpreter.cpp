@@ -4695,6 +4695,29 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     StackTraceDataOnStackVector stackTraceDataVector;
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
+        auto interpretCatch = [&]() -> bool {
+            try {
+#if defined(ENABLE_EXTENDED_API)
+                ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+                    state.m_onCatch = in;
+                });
+#endif
+#ifdef ESCARGOT_DEBUGGER
+                newState->context()->setStoppingOnExceptionInProgress(false);
+#endif /* ESCARGOT_DEBUGGER */
+                Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
+                if (newState->inExecutionStopState()) {
+                    return true;
+                }
+            } catch (const Value& val) {
+                stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
+                newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
+            }
+            return false;
+        };
+#ifdef ASAN_ENABLED
+        bool shouldInterpretCatch = false;
+#endif
         try {
 #if defined(ENABLE_EXTENDED_API)
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
@@ -4751,25 +4774,22 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             } else {
                 stackTraceDataVector.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
-                try {
-#if defined(ENABLE_EXTENDED_API)
-                    ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
-                        state.m_onCatch = in;
-                    });
-#endif
-#ifdef ESCARGOT_DEBUGGER
-                    newState->context()->setStoppingOnExceptionInProgress(false);
-#endif /* ESCARGOT_DEBUGGER */
-                    Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
-                    if (newState->inExecutionStopState()) {
+#ifdef ASAN_ENABLED
+                shouldInterpretCatch = true;
+#else
+                    if (interpretCatch()) {
                         return Value();
                     }
-                } catch (const Value& val) {
-                    stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
-                    newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
-                }
+#endif
             }
         }
+#ifdef ASAN_ENABLED
+        // The caught value is rooted in registerFile. Leave the C++ handler
+        // and release its GC pause before executing arbitrary JS catch code.
+        if (shouldInterpretCatch && interpretCatch()) {
+            return Value();
+        }
+#endif
     } else if (code->m_isCatchResumeProcess) {
         try {
 #if defined(ENABLE_EXTENDED_API)

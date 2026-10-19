@@ -822,12 +822,20 @@ void InterpretedCodeBlock::computeVariables()
 
 bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
 {
+    // Class field initializers and static blocks are represented as virtual
+    // arrows, but bind their own this instead of inheriting the constructor's.
+    if (isOneExpressionOnlyVirtualArrowFunctionExpression() || isFunctionBodyOnlyVirtualArrowFunctionExpression()) {
+        return false;
+    }
     if (isClassConstructor()) {
         return true;
     }
     if (isArrowFunctionExpression()) {
         InterpretedCodeBlock* cb = m_parent;
         while (cb) {
+            if (cb->isOneExpressionOnlyVirtualArrowFunctionExpression() || cb->isFunctionBodyOnlyVirtualArrowFunctionExpression()) {
+                break;
+            }
             if (cb->isArrowFunctionExpression() || cb->isEvalCode()) {
                 // pass through
             } else if (cb->isClassConstructor()) {

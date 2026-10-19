@@ -32,6 +32,7 @@
 #include "runtime/BackingStore.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
+#include "runtime/IteratorObject.h"
 #include "wasm/WASMObject.h"
 #include "wasm/ExportedFunctionObject.h"
 #include "wasm/WASMValueConverter.h"
@@ -101,6 +102,9 @@ static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkin
         break;
     case WASM_EXTERN_GLOBAL:
         result = strings->global.string();
+        break;
+    case WASM_EXTERN_TAG:
+        result = strings->tag.string();
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -798,6 +802,45 @@ static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue
     return Value(wasm_table_size(tableaddr));
 }
 
+// WebAssembly.Tag
+static Value builtinWASMTagConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Tag.string(), ErrorObject::Messages::Not_Invoked_With_New);
+    }
+    if (!argc || !argv[0].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+    Value parameters = argv[0].asObject()->get(state, strings->parameters).value(state, argv[0]);
+    if (!parameters.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+    auto values = IteratorObject::iterableToList(state, parameters);
+    std::vector<wasm_valkind_t> kinds;
+    for (const Value& value : values) {
+        kinds.push_back(WASMValueConverter::toValueType(state, Value(value.toString(state))));
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->wasmTagPrototype();
+    });
+    wasm_valtype_vec_t params, results;
+    wasm_valtype_vec_new_uninitialized(&params, kinds.size());
+    for (size_t i = 0; i < kinds.size(); i++) {
+        params.data[i] = wasm_valtype_new(kinds[i]);
+    }
+    wasm_valtype_vec_new_empty(&results);
+    wasm_tagtype_t* type = wasm_tagtype_new(wasm_functype_new(&params, &results));
+    wasm_tag_t* tag = wasm_tag_new(ThreadLocal::wasmStore(), type);
+    wasm_tagtype_delete(type);
+    if (!tag) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
+    }
+    WASMTagObject* object = new WASMTagObject(state, proto, tag);
+    state.context()->wasmCache()->appendTag(wasm_tag_as_ref(tag), object);
+    return object;
+}
+
 // WebAssembly.Global
 static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1106,6 +1149,19 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Global),
                             ObjectPropertyDescriptor(wasmGlobal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+
+    // WebAssembly.Tag
+    FunctionObject* wasmTag = new NativeFunctionObject(state, NativeFunctionInfo(strings->Tag, builtinWASMTagConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    wasmTag->setGlobalIntrinsicObject(state);
+    m_wasmTagPrototype = new Object(state);
+    m_wasmTagPrototype->setGlobalIntrinsicObject(state, true);
+    m_wasmTagPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor),
+                                          ObjectPropertyDescriptor(wasmTag, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_wasmTagPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                          ObjectPropertyDescriptor(strings->WebAssemblyDotTag.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+    wasmTag->setFunctionPrototype(state, m_wasmTagPrototype);
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Tag),
+                            ObjectPropertyDescriptor(wasmTag, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 // WebAssembly.Error
 #define DEFINE_ERROR(errorname, errorName, bname)                                                                                                                                                                                                                                                                                       \

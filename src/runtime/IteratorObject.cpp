@@ -400,7 +400,7 @@ Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, Iterato
         // If value is a throw completion, then
         // Set iteratorRecord.[[Done]] to true.
         iteratorRecord->m_done = true;
-        throw e;
+        throw;
     }
     // Return ? value.
     return value;
