@@ -3302,6 +3302,71 @@ TEST(ReloadableString, StringBufferAccessDataHoldsBuffer)
     EXPECT_FALSE(d.loaded);
 }
 
+TEST(ByteCode, TypedArrayLengthAfterInlineCache)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(actual, expected) {
+        if (actual !== expected) throw new Error("Expected length " + expected + ", got " + actual);
+    }
+    // Each function needs a fresh bytecode site. Cover no cache, simple own
+    // property caches, and complex missing/accessor/deep-prototype caches.
+    var inherited = Object.create(Object.create({length: 23}));
+    var warmups = [null, {}, {length: 23}, {get length() { return 23; }}, inherited];
+    for (var warmup of warmups) {
+        for (var intrinsicFirst of [false, true]) {
+            var read = new Function("object", "return object.length;");
+            if (warmup !== null) {
+                for (var i = 0; i < 8; i++) check(read(warmup), warmup.length);
+            }
+            if (intrinsicFirst) {
+                // Retag to the Length opcode while preserving the installed cache.
+                check(read(new Uint8Array(3)), 3);
+                check(read(new Int8Array(4)), 4);
+            }
+            var array = new Uint8Array(1);
+            Object.defineProperty(array, "length", {value: 7, configurable: true});
+            check(read(array), 7);
+            check(read(array), 7);
+            delete array.length;
+            check(read(array), 1);
+            var calls = 0;
+            Object.defineProperty(array, "length", {
+                configurable: true,
+                get: function () {
+                    if (this !== array) throw new Error("Wrong accessor receiver");
+                    calls++;
+                    return 9;
+                }
+            });
+            check(read(array), 9);
+            check(read(array), 9);
+            check(calls, 2);
+            delete array.length;
+            var proto = Object.create(Uint8Array.prototype);
+            Object.defineProperty(proto, "length", {value: 11, configurable: true});
+            Object.setPrototypeOf(array, proto);
+            check(read(array), 11);
+            check(read(array), 11);
+            delete proto.length;
+            check(read(array), 1);
+            check(read(new Uint8Array(0)), 0);
+            check(read([1, 2]), 2);
+            check(read("abc"), 3);
+            if (warmup !== null) check(read(warmup), warmup.length);
+        }
+    }
+    // Original crash reproducer: the second TypedArray hit used a cached
+    // pointer as a property name stored by the first hit.
+    for (var i = 0; i < 9; i++) (i < 4 ? {} : new Int8Array()).length;
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("typed-array-length-inline-cache.js"), false),
+              "true");
+}
+
 TEST(Object, DeepPrototypeStackOverflow)
 {
     const char source[] = R"JS(

@@ -371,7 +371,7 @@ public:
 
     static void getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
-    static bool typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj, const ObjectStructurePropertyName& propertyName);
+    static bool typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj);
 
     static Object* fastToObject(ExecutionState& state, const Value& obj);
 
@@ -518,8 +518,11 @@ ALWAYS_INLINE bool InterpreterSlowPath::tryInstanceOfInlineCache(ExecutionState&
 // anything found at either spot routes back to the general property lookup instead.
 // A member of InterpreterSlowPath (rather than a free function) solely to reuse its existing
 // friendship with Object -- structure() is protected.
-ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj, const ObjectStructurePropertyName& propertyName)
+ALWAYS_INLINE bool InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj)
 {
+    // The bytecode's property-name slot holds a cache pointer once an inline
+    // cache is installed. This check always concerns the static "length" name.
+    const ObjectStructurePropertyName propertyName(state.context()->staticStrings().length);
     if (UNLIKELY(obj->structure()->findProperty(propertyName).first != SIZE_MAX)) {
         return false;
     }
@@ -1128,7 +1131,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(*state));
                     ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
                     NEXT_INSTRUCTION();
-                } else if (obj->isTypedArrayObject() && LIKELY(InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(*state, obj, code->m_propertyName))) {
+                } else if (obj->isTypedArrayObject() && LIKELY(InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(*state, obj))) {
                     TypedArrayObject* ta = obj->asTypedArrayObject();
                     registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
                     ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
@@ -3636,7 +3639,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
             registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(state));
             code->changeOpcode(Opcode::GetObjectPreComputedCaseLengthOpcode);
             return;
-        } else if (obj->isTypedArrayObject() && InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(state, obj, code->m_propertyName)) {
+        } else if (obj->isTypedArrayObject() && InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(state, obj)) {
             // keep this in sync with the main-loop GetObjectPreComputedCaseLengthOpcode handler's
             // check -- both must agree on what counts as "fast", or retagging here would promise
             // a fast path the dedicated opcode then never actually takes. A false result here
