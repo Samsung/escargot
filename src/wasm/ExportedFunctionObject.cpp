@@ -72,11 +72,11 @@ void* ExportedFunctionObject::operator new(size_t size)
 #endif
 }
 
-// ToJSValue() copies funcrefs, so release the ones func_call returned.
-static void releaseFuncRefs(wasm_val_vec_t& vals)
+// ToJSValue() does not take ownership of the references func_call returned.
+static void releaseResultRefs(wasm_val_vec_t& vals)
 {
     for (size_t i = 0; i < vals.size; i++) {
-        if (vals.data[i].kind == WASM_FUNCREF && vals.data[i].of.ref) {
+        if ((vals.data[i].kind == WASM_FUNCREF || vals.data[i].kind == WASM_ANYREF) && vals.data[i].of.ref) {
             wasm_ref_delete(vals.data[i].of.ref);
         }
     }
@@ -146,7 +146,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     } else if (outArity == 1) {
         // Otherwise, if outArity is 1, return ToJSValue(ret[0]).
         Value result = WASMValueConverter::toJSValue(state, ret.data[0]);
-        releaseFuncRefs(ret);
+        releaseResultRefs(ret);
         return result;
     }
 
@@ -160,7 +160,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     for (size_t i = 0; i < ret.size; i++) {
         values[i] = WASMValueConverter::toJSValue(state, ret.data[i]);
     }
-    releaseFuncRefs(ret);
+    releaseResultRefs(ret);
 
     // Return CreateArrayFromList(values).
     return Object::createArrayFromList(state, values);

@@ -191,12 +191,7 @@ typedef Vector<std::pair<wasm_ref_t*, ExportedFunctionObject*>, GCUtil::gc_mallo
 
 class WASMCacheMap : public gc {
 public:
-    static const size_t OTHER_EXTERN_REF_TAG = 1;
-
-    WASMCacheMap()
-        : m_otherExternAddrIndex(0)
-    {
-    }
+    WASMCacheMap();
 
     void appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj);
     void appendTable(wasm_ref_t* ref, WASMTableObject* tableObj);
@@ -214,8 +209,6 @@ public:
 
     wasm_ref_t* findRefByValue(const Value& value);
     Value findValueByRef(wasm_ref_t* ref);
-
-    static bool isOtherExternAddr(wasm_ref_t* ref);
 
     void refreshGrownMemoryBuffers(ExecutionState& state);
 
@@ -235,16 +228,12 @@ public:
     }
 
 private:
-    wasm_ref_t* getOtherExternAddr();
-
     Optional<Value> m_pendingHostFunctionError;
     WASMMemoryMap m_memoryMap;
     WASMTableMap m_tableMap;
     WASMGlobalMap m_globalMap;
     WASMFunctionMap m_functionMap;
     WASMOtherMap m_otherMap;
-
-    size_t m_otherExternAddrIndex; // used as a arbitrary extern address for WASMOtherMap
 };
 } // namespace Escargot
 #endif // __EscargotWASMObject__
