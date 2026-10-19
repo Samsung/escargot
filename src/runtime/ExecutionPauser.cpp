@@ -267,10 +267,10 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         if (from == StartFrom::Generator) {
             ASSERT(from == StartFrom::Generator);
             source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
-            throw thrownValue;
+            throw;
         } else if (from == StartFrom::AsyncGenerator) {
             if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
-                throw thrownValue;
+                throw;
             } else {
                 source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
                 result = AsyncGeneratorObject::asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);

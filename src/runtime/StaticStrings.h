@@ -520,6 +520,9 @@ namespace Escargot {
 
 #if defined(ENABLE_WASM)
 #define FOR_EACH_STATIC_WASM_STRING(F) \
+    F(Tag)                             \
+    F(tag)                             \
+    F(parameters)                      \
     F(CompileError)                    \
     F(Global)                          \
     F(Instance)                        \
@@ -1189,6 +1192,7 @@ public:
     AtomicString getValue;
     AtomicString setValue;
     AtomicString WebAssemblyDotGlobal;
+    AtomicString WebAssemblyDotTag;
     AtomicString WebAssemblyDotInstance;
     AtomicString WebAssemblyDotMemory;
     AtomicString WebAssemblyDotModule;

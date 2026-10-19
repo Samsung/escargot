@@ -38,9 +38,23 @@
 
 #include "api/EscargotPublic.h"
 
-#if defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER)
+#if defined(__clang__)
+#if __has_feature(address_sanitizer)
+#define ESCARGOT_SHELL_ASAN_ENABLED
+#endif
+#elif defined(__SANITIZE_ADDRESS__)
+#define ESCARGOT_SHELL_ASAN_ENABLED
+#endif
+
+#ifdef ESCARGOT_SHELL_ASAN_ENABLED
 extern "C" {
-const char* __asan_default_options()
+#if defined(_WIN32)
+__declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+const char*
+__asan_default_options()
 {
     return "detect_stack_use_after_return=0";
 }
@@ -196,6 +210,7 @@ void btSighandler(int sig, struct sigcontext ctx)
 }
 #endif
 
+#if !defined(_WIN32)
 #include "GCUtil.h"
 
 void doFullGCWithoutSeeingStack()
@@ -236,6 +251,7 @@ void printEveryReachableGCObjects()
     GC_enable();
     printf("<-- end of print reachable pointers %fKB\n", totalRemainSize / 1024.f);
 }
+#endif
 
 // <---- these header & function above are used for Escargot internal development
 #endif

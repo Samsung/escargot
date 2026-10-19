@@ -437,6 +437,69 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     return result;
 }
 
+WASMTagObject::WASMTagObject(ExecutionState& state, Object* proto, wasm_tag_t* tag)
+    : DerivedObject(state, proto)
+    , m_tag(tag)
+{
+    ASSERT(m_tag);
+    addFinalizer([](PointerValue* obj, void*) {
+        wasm_tag_delete(static_cast<WASMTagObject*>(obj)->tag());
+    },
+                 nullptr);
+}
+
+void* WASMTagObject::operator new(size_t size)
+{
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    if (UNLIKELY(!Heap::isCompressedTypeInitialized(Heap::CompressedType::WASMTagObject))) {
+        GC_word bitmap[(sizeof(WASMTagObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
+        Object::fillCompressedGCDescriptor(bitmap);
+        Heap::initializeCompressedType(Heap::CompressedType::WASMTagObject, size, bitmap, sizeof(WASMTagObject) / 4);
+    }
+    return Heap::mallocCompressed(Heap::CompressedType::WASMTagObject, size);
+#else
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(WASMTagObject)] = { 0 };
+        Object::fillGCDescriptor(obj_bitmap);
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMTagObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#endif
+}
+
+WASMTagObject* WASMTagObject::createTagObject(ExecutionState& state, wasm_tag_t* tag)
+{
+    wasm_ref_t* ref = wasm_tag_as_ref(tag);
+    WASMTagObject* cached = state.context()->wasmCache()->findTag(ref);
+    if (cached) {
+        // Exports supply an owning wrapper even when the tag is already cached.
+        wasm_tag_delete(tag);
+        return cached;
+    }
+    WASMTagObject* object = new WASMTagObject(state, state.context()->globalObject()->wasmTagPrototype(), tag);
+    state.context()->wasmCache()->appendTag(ref, object);
+    return object;
+}
+
+void WASMCacheMap::appendTag(wasm_ref_t* ref, WASMTagObject* tagObj)
+{
+    ASSERT(ref && !findTag(ref));
+    m_tagMap.pushBack(std::make_pair(ref, tagObj));
+}
+
+WASMTagObject* WASMCacheMap::findTag(wasm_ref_t* ref)
+{
+    for (auto& entry : m_tagMap) {
+        if (wasm_ref_same(entry.first, ref)) {
+            return entry.second;
+        }
+    }
+    return nullptr;
+}
+
 WASMCacheMap::WASMCacheMap()
 {
     // The cache roots the JS values; it also owns their C API foreign references.

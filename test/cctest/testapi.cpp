@@ -1212,6 +1212,89 @@ TEST(EvalScript, ArrayPrototypeDoesNotHaveFromAsync)
     EXPECT_EQ(result, "false");
 }
 
+TEST(EvalScript, ClassInitializerThisBinding)
+{
+    const char source[] = R"JS(
+        (() => {
+            function check(value) { if (!value) throw new Error('initializer this'); }
+            class Base {
+                static get self() { return this; }
+                get self() { return this; }
+            }
+            function make() {
+                class D extends Base {
+                    static direct = this;
+                    static inherited = super.self;
+                    static computed = super['self'];
+                    static arrow = () => this;
+                    static superArrow = () => super.self;
+                    static evaluated = eval('this');
+                    static {
+                        check(this === D);
+                        check(super.self === D);
+                        check((() => (() => this)())() === D);
+                        check((() => super['self'])() === D);
+                        check(eval('this') === D);
+                        this.blockArrow = () => this;
+                    }
+                    direct = this;
+                    inherited = super.self;
+                    arrow = () => this;
+                    superArrow = () => super.self;
+                    evaluated = eval('this');
+                }
+                check(D.direct === D && D.inherited === D && D.computed === D);
+                check(D.arrow() === D && D.superArrow() === D);
+                check(D.evaluated === D && D.blockArrow() === D);
+                const instance = new D;
+                check(instance.direct === instance && instance.inherited === instance);
+                check(instance.arrow() === instance && instance.superArrow() === instance);
+                check(instance.evaluated === instance);
+            }
+            // Keep the initializer's syntactic parent a class constructor.
+            const body = make.toString().slice(make.toString().indexOf('{') + 1, -1);
+            const Outer = eval('(class { constructor() {' + body + '} })');
+            new Outer;
+            const Derived = eval('(class extends Base { constructor() {' + body + '; super();} })');
+            new Derived;
+            new class { constructor() { class D { static { this; } } } };
+            new class { constructor() { class D { static x = this; } } };
+            return true;
+        })();
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("class-initializer-this.js"), false),
+              "true");
+}
+
+TEST(EvalScript, ClassInitializerPreservesConstructorThisTDZ)
+{
+    const char source[] = R"JS(
+        (() => {
+            let checks = 0;
+            class C extends Object {
+                constructor() {
+                    const read = () => (() => this)();
+                    try { read(); } catch (e) {
+                        if (!(e instanceof ReferenceError)) throw e;
+                        ++checks;
+                    }
+                    class D { static self = (() => this)(); }
+                    if (D.self !== D) throw new Error('static this before super');
+                    super();
+                    if (read() !== this) throw new Error('constructor arrow this');
+                    ++checks;
+                }
+            }
+            new C;
+            return checks === 2;
+        })();
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("class-initializer-this-tdz.js"), false),
+              "true");
+}
+
 TEST(EvalScript, ParseError)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("."), StringRef::createFromASCII("test.js"), false);
@@ -3410,6 +3493,59 @@ TEST(Object, DeepPrototypeStackOverflow)
 }
 
 #if defined(ENABLE_WASM)
+TEST(WebAssembly, TagImportsAndExports)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(value) { if (!value) throw new Error("Tag check failed"); }
+    function throws(type, f) {
+        try { f(); } catch (error) { check(error instanceof type); return; }
+        throw new Error("Missing " + type.name);
+    }
+    var header = [0,97,115,109,1,0,0,0,1,4,1,96,0,0];
+    var exported = new WebAssembly.Module(new Uint8Array(header.concat([
+        13,3,1,0,0,7,9,2,1,116,4,0,1,117,4,0
+    ])));
+    check(WebAssembly.Module.exports(exported).every(e => e.kind === "tag"));
+    var exports = new WebAssembly.Instance(exported).exports;
+    check(exports.t instanceof WebAssembly.Tag);
+    check(exports.t === exports.u);
+    check(Object.prototype.toString.call(exports.t) === "[object WebAssembly.Tag]");
+    var imported = new WebAssembly.Module(new Uint8Array(header.concat([
+        2,8,1,1,109,1,116,4,0,0,7,5,1,1,116,4,0
+    ])));
+    check(JSON.stringify(WebAssembly.Module.imports(imported)) === '[{"module":"m","name":"t","kind":"tag"}]');
+    for (var tag of [exports.t, new WebAssembly.Tag({parameters: []})]) {
+        for (var i = 0; i < 3; i++) {
+            check(new WebAssembly.Instance(imported, {m: {t: tag}}).exports.t === tag);
+        }
+    }
+    throws(TypeError, () => new WebAssembly.Instance(imported));
+    throws(TypeError, () => new WebAssembly.Instance(imported, {}));
+    throws(WebAssembly.LinkError, () => new WebAssembly.Instance(imported, {m: {t: {}}}));
+    throws(WebAssembly.LinkError, () => new WebAssembly.Instance(imported,
+        {m: {t: new WebAssembly.Tag({parameters: ["i32"]})}}));
+    throws(TypeError, () => WebAssembly.Tag({parameters: []}));
+    for (var desc of [undefined, null, {}, {parameters: "i32"}, {parameters: ["bad"]}]) {
+        throws(TypeError, () => new WebAssembly.Tag(desc));
+    }
+    class Derived extends WebAssembly.Tag {}
+    check(new Derived({parameters: []}) instanceof Derived);
+    check(new WebAssembly.Tag({parameters: new Set(["i32", "externref"])}) instanceof WebAssembly.Tag);
+    check(new WebAssembly.Tag({parameters: [{toString() { return "i32"; }}]}) instanceof WebAssembly.Tag);
+    globalThis.wasmTagRegression = {tag: exports.t, module: imported};
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-tags.js"), false),
+              "true");
+    g_context->vmInstance()->enterIdleMode();
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("(() => { const s = wasmTagRegression; delete globalThis.wasmTagRegression; return new WebAssembly.Instance(s.module, {m: {t: s.tag}}).exports.t === s.tag; })()"),
+                         StringRef::createFromASCII("wasm-tags-after-gc.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, V128JavaScriptBoundary)
 {
     const char source[] = R"JS(

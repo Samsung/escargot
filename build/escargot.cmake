@@ -57,7 +57,8 @@ SET (ESCARGOT_CONFIG_DEFINITIONS
 option(ESCARGOT_ASAN "Build with AddressSanitizer" OFF)
 IF (ESCARGOT_ASAN)
     SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fsanitize=address)
-    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -lasan)
+    # Let the compiler select and order its matching sanitizer runtime.
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -fsanitize=address)
 ENDIF()
 
 # -fno-sanitize-recover=undefined: abort on the first UB hit instead of
@@ -396,6 +397,11 @@ IF(ESCARGOT_ENABLE_SHELL)
     TARGET_COMPILE_OPTIONS (escargot_shell PRIVATE ${ESCARGOT_CXXFLAGS_SHELL} ${ESCARGOT_CONFIG_CXXFLAGS} ${ESCARGOT_CXXFLAGS} ${CXXFLAGS_FROM_ENV})
     TARGET_INCLUDE_DIRECTORIES (escargot_shell PRIVATE ${ESCARGOT_INCDIRS})
     TARGET_COMPILE_DEFINITIONS (escargot_shell PRIVATE ${ESCARGOT_DEFINITIONS} ${ESCARGOT_CONFIG_DEFINITIONS})
+    IF (ESCARGOT_TEST AND NOT WIN32)
+        # Test-shell GC diagnostics need headers even when the collector is
+        # linked privately into a shared libescargot.
+        TARGET_INCLUDE_DIRECTORIES (escargot_shell PRIVATE ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil/include)
+    ENDIF()
 ENDIF()
 
 # 3. Build the C++ tests if enabled

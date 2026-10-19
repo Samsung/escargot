@@ -789,8 +789,10 @@ jobs:
           echo "submodule update failed (attempt $i/3), retrying in 10s..." >&2
           sleep 10
         done
+    # The /tools/latest-release symlinks broke after the server moved tools
+    # under /archive. Pin the physical repository for the same GBS 2.1.0.
     - name: prepare deb sources for GBS
-      run: echo "deb [trusted=yes] http://download.tizen.org/tools/latest-release/Ubuntu_24.04/ /" | sudo tee /etc/apt/sources.list.d/tizen.list
+      run: echo "deb [trusted=yes] https://download.tizen.org/archive/tools/releases/daily/tools-devbase-tools_20260814.085635/repos/Ubuntu_24.04/ /" | sudo tee /etc/apt/sources.list.d/tizen.list
     - name: install GBS
       run: sudo apt-get update && sudo apt-get install -y gbs
     # `build`'s --incremental flag asks gbs to reuse an existing buildroot
@@ -2420,6 +2422,41 @@ jobs:
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/cctest/x86/cctest" cctest
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/x64/cctest" cctest
+
+  build-test-asan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: gcc
+            cxx: g++
+          - cc: clang
+            cxx: clang++
+    steps:
+    - uses: Wandalen/wretry.action@v3
+      with:
+        action: actions/checkout@v5
+        attempt_limit: 3
+        attempt_delay: 10000
+    - name: Init required submodules
+      run: |
+        for i in 1 2 3; do
+          git submodule update --init -- third_party/GCutil third_party/googletest && break
+          sleep 10
+        done
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build clang libclang-rt-dev
+    - name: Build ASAN exception regression tests
+      run: |
+        cmake -S . -B out/asan -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_FLAGS=-fno-elide-constructors -DESCARGOT_ASAN=ON -DESCARGOT_BUILD_CCTEST=ON -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_ENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON
+        cmake --build out/asan --parallel 2
+    - name: Run ASAN exception regression tests
+      run: |
+        out/asan/cctest --gtest_filter=AsanExceptionGC.*:EvalScript.ClassInitializer*
+        out/asan/escargot -e 'var marker = { payload: 42 }; try { try { throw marker; } catch (e) { gc(); throw e; } finally { gc(); } } catch (e) { gc(); if (e !== marker) throw new Error("lost exception"); }'
 
   # Separate from build-test-api: N-API support is an early PoC
   # gated behind ESCARGOT_NAPI, and test/napi-tc is a sparse checkout of the

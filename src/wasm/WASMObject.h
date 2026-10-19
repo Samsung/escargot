@@ -27,6 +27,7 @@ struct wasm_instance_t;
 struct wasm_memory_t;
 struct wasm_table_t;
 struct wasm_global_t;
+struct wasm_tag_t;
 struct wasm_functype_t;
 struct wasm_ref_t;
 
@@ -180,10 +181,27 @@ private:
     wasm_global_t* m_global;
 };
 
+class WASMTagObject : public DerivedObject {
+public:
+    explicit WASMTagObject(ExecutionState& state, Object* proto, wasm_tag_t* tag);
+
+    virtual bool isWASMTagObject() const override { return true; }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    static WASMTagObject* createTagObject(ExecutionState& state, wasm_tag_t* tag);
+    wasm_tag_t* tag() const { return m_tag; }
+
+private:
+    wasm_tag_t* m_tag;
+};
+
 // FIXME change vector structure to hash map (it requires hash value for each wasm_ref_t pointer)
 typedef Vector<std::pair<wasm_ref_t*, WASMMemoryObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMMemoryObject*>>> WASMMemoryMap;
 typedef Vector<std::pair<wasm_ref_t*, WASMTableObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMTableObject*>>> WASMTableMap;
 typedef Vector<std::pair<wasm_ref_t*, WASMGlobalObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMGlobalObject*>>> WASMGlobalMap;
+typedef Vector<std::pair<wasm_ref_t*, WASMTagObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMTagObject*>>> WASMTagMap;
 typedef Vector<std::pair<wasm_ref_t*, Value>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, Value>>> WASMOtherMap;
 
 class ExportedFunctionObject;
@@ -195,6 +213,7 @@ public:
 
     void appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj);
     void appendTable(wasm_ref_t* ref, WASMTableObject* tableObj);
+    void appendTag(wasm_ref_t* ref, WASMTagObject* tagObj);
     void appendGlobal(wasm_ref_t* ref, WASMGlobalObject* globalObj);
     void appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcObj);
     void appendOther(wasm_ref_t* ref, const Value& value);
@@ -203,6 +222,7 @@ public:
 
     WASMMemoryObject* findMemory(wasm_ref_t* ref);
     WASMTableObject* findTable(wasm_ref_t* ref);
+    WASMTagObject* findTag(wasm_ref_t* ref);
     WASMGlobalObject* findGlobal(wasm_ref_t* ref);
     ExportedFunctionObject* findFunction(wasm_ref_t* ref);
     std::pair<bool, Value> findOther(wasm_ref_t* ref);
@@ -232,6 +252,7 @@ private:
     WASMMemoryMap m_memoryMap;
     WASMTableMap m_tableMap;
     WASMGlobalMap m_globalMap;
+    WASMTagMap m_tagMap;
     WASMFunctionMap m_functionMap;
     WASMOtherMap m_otherMap;
 };

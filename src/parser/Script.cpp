@@ -36,6 +36,10 @@
 #include "runtime/ModuleNamespaceObject.h"
 #include "parser/ast/AST.h"
 
+#ifdef ASAN_ENABLED
+#include "runtime/ASANException.h"
+#endif
+
 namespace Escargot {
 
 void* Script::operator new(size_t size)
@@ -118,7 +122,11 @@ Value Script::moduleInstantiate(ExecutionState& state)
 
     auto result = moduleLinking(state);
     if (result.gotException) {
+#ifdef ASAN_ENABLED
+        throw ASANExceptionValue(result.value);
+#else
         throw result.value;
+#endif
     }
     return result.value;
 }
@@ -129,7 +137,11 @@ Value Script::moduleEvaluate(ExecutionState& state)
 
     auto result = moduleEvaluation(state);
     if (result.gotException) {
+#ifdef ASAN_ENABLED
+        throw ASANExceptionValue(result.value);
+#else
         throw result.value;
+#endif
     }
     return result.value;
 }
@@ -363,11 +375,19 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         // https://www.ecma-international.org/ecma-262/#sec-toplevelmoduleevaluationjob
         auto result = moduleLinking(state);
         if (result.gotException) {
+#ifdef ASAN_ENABLED
+            throw ASANExceptionValue(result.value);
+#else
             throw result.value;
+#endif
         }
         result = moduleEvaluation(state);
         if (result.gotException) {
+#ifdef ASAN_ENABLED
+            throw ASANExceptionValue(result.value);
+#else
             throw result.value;
+#endif
         }
         return result.value;
     }

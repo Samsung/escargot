@@ -131,6 +131,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getValue, "get value");
     INIT_STATIC_STRING(setValue, "set value");
     INIT_STATIC_STRING(WebAssemblyDotGlobal, "WebAssembly.Global");
+    INIT_STATIC_STRING(WebAssemblyDotTag, "WebAssembly.Tag");
     INIT_STATIC_STRING(WebAssemblyDotInstance, "WebAssembly.Instance");
     INIT_STATIC_STRING(WebAssemblyDotMemory, "WebAssembly.Memory");
     INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");

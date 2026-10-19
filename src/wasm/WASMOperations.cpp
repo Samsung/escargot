@@ -361,6 +361,10 @@ Object* WASMOperations::createExportsObject(ExecutionState& state, wasm_module_t
             value = Value(table);
             break;
         }
+        case WASM_EXTERN_TAG: {
+            value = WASMTagObject::createTagObject(state, wasm_extern_as_tag(externval));
+            break;
+        }
         default: {
             ASSERT_NOT_REACHED();
             break;
@@ -532,6 +536,14 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
             // Note) copy table reference because WASMTableObject has the origin wasm_table_t reference
             wasm_table_t* tableaddr = wasm_table_copy(v.asObject()->asWASMTableObject()->table());
             imports->data[i] = wasm_table_as_extern(tableaddr);
+            break;
+        }
+        case WASM_EXTERN_TAG: {
+            if (!v.isObject() || !v.asObject()->isWASMTagObject()) {
+                throwLinkError = true;
+                break;
+            }
+            imports->data[i] = wasm_tag_as_extern(wasm_tag_copy(v.asObject()->asWASMTagObject()->tag()));
             break;
         }
         default: {

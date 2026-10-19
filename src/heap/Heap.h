@@ -121,6 +121,7 @@ public:
         WASMMemoryObject,
         WASMTableObject,
         WASMGlobalObject,
+        WASMTagObject,
         ExportedFunctionObject,
         Count
     };

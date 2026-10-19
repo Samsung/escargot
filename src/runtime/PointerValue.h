@@ -111,6 +111,7 @@ class WASMInstanceObject;
 class WASMMemoryObject;
 class WASMTableObject;
 class WASMGlobalObject;
+class WASMTagObject;
 class ExportedFunctionObject;
 #endif
 
@@ -669,6 +670,11 @@ public:
         return false;
     }
 
+    virtual bool isWASMTagObject() const
+    {
+        return false;
+    }
+
     virtual bool isWASMGlobalObject() const
     {
         return false;
@@ -1185,6 +1191,12 @@ public:
     {
         ASSERT(isWASMTableObject());
         return (WASMTableObject*)this;
+    }
+
+    WASMTagObject* asWASMTagObject()
+    {
+        ASSERT(isWASMTagObject());
+        return (WASMTagObject*)this;
     }
 
     WASMGlobalObject* asWASMGlobalObject()

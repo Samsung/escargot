@@ -329,6 +329,7 @@ enum class TypedArrayType : unsigned;
     F(wasmInstancePrototype, Object, objName)     \
     F(wasmMemoryPrototype, Object, objName)       \
     F(wasmTablePrototype, Object, objName)        \
+    F(wasmTagPrototype, Object, objName)          \
     F(wasmGlobalPrototype, Object, objName)       \
     F(wasmCompileErrorPrototype, Object, objName) \
     F(wasmLinkErrorPrototype, Object, objName)    \
