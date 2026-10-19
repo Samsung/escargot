@@ -449,6 +449,9 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
         memaddr = wasm_memory_new(ThreadLocal::wasmStore(), memtype);
     }
     wasm_memorytype_delete(memtype);
+    if (!memaddr) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
 
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] doesn’t exist.
