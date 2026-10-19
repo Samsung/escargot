@@ -1170,6 +1170,8 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
 
 ObjectHasPropertyResult Object::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-hasproperty-p
     // 1. Assert: IsPropertyKey(P) is true.
     // 2. Let hasOwn be OrdinaryGetOwnProperty(O, P).
@@ -1360,6 +1362,8 @@ ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& pro
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     // 2. Let ownDesc be O.[[GetOwnProperty]](P).
     auto ownDesc = this->getOwnProperty(state, propertyName);
     // 4. If ownDesc is undefined, then

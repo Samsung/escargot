@@ -3302,6 +3302,48 @@ TEST(ReloadableString, StringBufferAccessDataHoldsBuffer)
     EXPECT_FALSE(d.loaded);
 }
 
+TEST(Object, DeepPrototypeStackOverflow)
+{
+    const char source[] = R"JS(
+(function () {
+    function C() {}
+    var object = {};
+    for (var i = 0; i < 100000; i++) {
+        C.prototype = object;
+        object = new C();
+    }
+    var operations = [
+        function () { object.x = 1; },
+        function () { object[5] = 1; },
+        function () { Reflect.set(object, "y", 1); },
+        function () { return "missing" in object; }
+    ];
+    for (var operation of operations) {
+        try {
+            operation();
+        } catch (error) {
+            if (!(error instanceof RangeError)) throw error;
+        }
+    }
+    // Exercise a prototype walk when JavaScript has already exhausted its stack.
+    function F() {
+        F.prototype = this;
+        try { new F(); } catch (error) {
+            if (!(error instanceof RangeError)) throw error;
+        }
+        this[42] = 1;
+    }
+    try { new F(); } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("deep-prototype-stack.js"), false),
+              "true");
+}
+
 // records the native stack address seen at the bottom of the calibration/real
 // recursion below, so DisabledStackOverflow.Basic can measure real stack cost
 // per recursion level instead of relying on a guessed depth constant
