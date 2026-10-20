@@ -167,6 +167,13 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorstart
 
     const size_t programStart = reinterpret_cast<size_t>(self->m_byteCodeBlock->m_code.data());
+    Object* asyncGeneratorRequest = nullptr;
+    if (from == StartFrom::AsyncGenerator) {
+        auto& queue = source->asAsyncGeneratorObject()->m_asyncGeneratorQueue;
+        if (queue.size()) {
+            asyncGeneratorRequest = queue[0].m_capability.m_promise;
+        }
+    }
     Value result;
     try {
         ExecutionState* es;
@@ -274,6 +281,12 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
                 throw;
             } else {
+                auto& queue = source->asAsyncGeneratorObject()->m_asyncGeneratorQueue;
+                // Resolution can throw after dequeuing this request or resuming
+                // another one. Only reject the request that this start resumed.
+                if (!queue.size() || queue[0].m_capability.m_promise != asyncGeneratorRequest) {
+                    throw;
+                }
                 source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
                 result = AsyncGeneratorObject::asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
             }
