@@ -3492,6 +3492,88 @@ TEST(Object, DeepPrototypeIteration)
               "true");
 }
 
+TEST(Object, DeepProxyTargetStackOverflow)
+{
+    const char source[] = R"JS(
+(function () {
+    var proxy = { x: 1 };
+    for (var i = 0; i < 100000; ++i) proxy = new Proxy(proxy, {});
+    var operations = [
+        () => Object.getOwnPropertyDescriptor(proxy, "x"),
+        () => Object.defineProperty(proxy, "x", { value: 2 }),
+        () => Reflect.deleteProperty(proxy, "x"),
+        () => Object.preventExtensions(proxy),
+        () => new Proxy(proxy, { get() { return 1; } }).x
+    ];
+    for (var operation of operations) {
+        try { operation(); } catch (error) {
+            if (error instanceof RangeError) continue;
+            throw error;
+        }
+        throw new Error("Missing stack overflow exception");
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("deep-proxy-target-stack.js"), false),
+              "true");
+}
+
+TEST(AsyncGenerator, StackOverflowDuringCompletion)
+{
+    const char source[] = R"JS(
+(function () {
+    function F() {
+        try { new F(); } catch (error) {}
+        async function* g() {}
+        g().next();
+    }
+    new F();
+    new F();
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("async-generator-stack.js"), false),
+              "true");
+}
+
+TEST(AsyncGenerator, CompletionExceptionPreservesNextRequest)
+{
+    eval(g_context.get(), StringRef::createFromASCII(R"JS(
+        var release1734;
+        var gate1734 = new Promise(resolve => { release1734 = resolve; });
+        var generator1734 = (async function* () { await gate1734; return 1; })();
+        var first1734 = generator1734.next();
+        var second1734 = generator1734.next();
+    )JS"));
+    g_instance.get()->registerPromiseHook([](ExecutionStateRef* state, VMInstanceRef::PromiseHookType type, PromiseObjectRef* promise, ValueRef* parent) {
+        if (type == VMInstanceRef::PromiseHookType::Resolve
+            && promise == state->context()->globalObject()->get(state, StringRef::createFromASCII("first1734"))) {
+            // Fail after the first request is dequeued, with another still pending.
+            g_instance.get()->unregisterPromiseHook();
+            state->throwException(RangeErrorObjectRef::create(state, StringRef::createFromASCII("completion failure")));
+        }
+    });
+    eval(g_context.get(), StringRef::createFromASCII("release1734()"));
+    bool sawException = false;
+    while (g_instance.get()->hasPendingJob()) {
+        auto result = g_instance.get()->executePendingJob();
+        if (!result.isSuccessful()) {
+            sawException = true;
+            EXPECT_EQ(result.resultOrErrorToString(g_context.get())->toStdUTF8String(), "RangeError: completion failure");
+        }
+    }
+    g_instance.get()->unregisterPromiseHook();
+    EXPECT_TRUE(sawException);
+    EXPECT_EQ(eval(g_context.get(), StringRef::createFromASCII("second1734"))->asPromiseObject()->state(), PromiseObjectRef::Pending);
+    // The remaining request can still complete normally on the next enqueue.
+    eval(g_context.get(), StringRef::createFromASCII("generator1734.next()"));
+    EXPECT_EQ(eval(g_context.get(), StringRef::createFromASCII("second1734"))->asPromiseObject()->state(), PromiseObjectRef::FulFilled);
+    eval(g_context.get(), StringRef::createFromASCII("delete globalThis.release1734; delete globalThis.gate1734; delete globalThis.generator1734; delete globalThis.first1734; delete globalThis.second1734;"));
+}
+
 TEST(Object, PrototypeIterationPreservesExoticDispatch)
 {
     const char source[] = R"JS(

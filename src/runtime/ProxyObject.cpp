@@ -115,6 +115,8 @@ ProxyObject* ProxyObject::createProxy(ExecutionState& state, const Value& target
 
 bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
@@ -197,6 +199,8 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
 
 bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
@@ -257,6 +261,8 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
 
 ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
@@ -355,6 +361,8 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
 
 bool ProxyObject::preventExtensions(ExecutionState& state)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
