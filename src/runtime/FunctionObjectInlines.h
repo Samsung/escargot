@@ -202,7 +202,13 @@ public:
         ExecutionState* newState;
 
         if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
-            newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict);
+            // The caller's argument buffer can disappear while awaiting. Keep
+            // indexed arguments alive even before an ArgumentsObject is made.
+            Value* arguments = CustomAllocator<Value>().allocate(argc);
+            if (argc) {
+                memcpy(arguments, argv, sizeof(Value) * argc);
+            }
+            newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict);
             newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
             newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
         } else if (blk->needsExtendedExecutionState()) {

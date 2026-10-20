@@ -196,7 +196,9 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 #endif
                 );
             }
-            es = new ExtendedExecutionState(&state, env, false);
+            // Resume with the paused call's arguments, not the promise reaction
+            // or generator-next callback's arguments.
+            es = new ExtendedExecutionState(originalState->context(), &state, env, originalState->argc(), originalState->argv(), false);
         }
 
 #ifdef ESCARGOT_DEBUGGER
