@@ -202,7 +202,11 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_caseMappingAvailableLocales));
 #endif
 #if defined(ENABLE_THREADING)
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_asyncWaiterData));
+        // Trace all std::vector bookkeeping words without assuming the STL's
+        // layout. Its elements must be constructed/destructed for shared_ptr.
+        for (size_t i = 0; i < sizeof(AsyncWaiterData) / sizeof(GC_word); ++i) {
+            GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_asyncWaiterData) + i);
+        }
 #endif
 
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_smallStringCache.m_objects));
@@ -1162,13 +1166,13 @@ void VMInstance::cancelAsyncWaiters()
 void VMInstance::executePendingJobFromAnotherThread()
 {
 #if defined(ENABLE_THREADING)
-    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> completed;
+    AsyncWaiterData completed;
     {
         std::lock_guard<std::mutex> lock(m_asyncWaiterDataMutex);
         for (size_t i = 0; i < m_asyncWaiterData.size(); i++) {
             if (std::get<5>(m_asyncWaiterData[i])) {
-                completed.pushBack(m_asyncWaiterData[i]);
-                m_asyncWaiterData.erase(i--);
+                completed.push_back(std::move(m_asyncWaiterData[i]));
+                m_asyncWaiterData.erase(m_asyncWaiterData.begin() + i--);
             }
         }
         m_pendingAsyncWaiterCount = 0;

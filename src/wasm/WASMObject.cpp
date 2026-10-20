@@ -160,10 +160,7 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 
     addFinalizer([](PointerValue* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
-        if (!Globals::isInitialized()) {
-            return;
-        }
-        if (!wasm_memory_is_shared(self->memory())) {
+        if (Globals::isInitialized() && !wasm_memory_is_shared(self->memory())) {
             self->buffer()->asArrayBufferObject()->detachArrayBuffer();
         }
         wasm_memory_delete(self->memory());
@@ -204,6 +201,7 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     // Let map be the surrounding agent's associated Memory object cache.
     WASMMemoryObject* memory = state.context()->wasmCache()->findMemory(memref);
     if (memory) {
+        wasm_memory_delete(memaddr);
         return memory;
     }
 
@@ -341,6 +339,7 @@ WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_
     // If map[tableaddr] exists,
     WASMTableObject* table = state.context()->wasmCache()->findTable(tableref);
     if (table) {
+        wasm_table_delete(tableaddr);
         return table;
     }
 
@@ -405,6 +404,7 @@ WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wa
     // If map[globaladdr] exists,
     WASMGlobalObject* global = state.context()->wasmCache()->findGlobal(globalref);
     if (global) {
+        wasm_global_delete(globaladdr);
         return global;
     }
 

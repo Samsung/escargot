@@ -88,18 +88,17 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     wasm_func_t* funcaddr = callee->function();
 
     // Let functype be func_type(store, funcaddr).
-    own wasm_functype_t* functype = wasm_func_type(funcaddr);
+    std::unique_ptr<wasm_functype_t, decltype(&wasm_functype_delete)> functype(wasm_func_type(funcaddr), wasm_functype_delete);
 
     // Let [parameters] ? [results] be functype.
-    const wasm_valtype_vec_t* parameters = wasm_functype_params(functype);
-    const wasm_valtype_vec_t* results = wasm_functype_results(functype);
+    const wasm_valtype_vec_t* parameters = wasm_functype_params(functype.get());
+    const wasm_valtype_vec_t* results = wasm_functype_results(functype.get());
 
     // Reject JS-inexpressible signatures before converting any arguments or
     // executing wasm, including when only a result is v128.
     for (const wasm_valtype_vec_t* types : { parameters, results }) {
         for (size_t i = 0; i < types->size; i++) {
             if (wasm_valtype_kind(types->data[i]) == WASM_V128) {
-                wasm_functype_delete(functype);
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
             }
         }
@@ -122,7 +121,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     wasm_val_t* retBuffer = ALLOCA(results->size * sizeof(wasm_val_t), wasm_val_t);
     wasm_val_vec_t ret = { results->size, retBuffer };
 
-    wasm_functype_delete(functype);
+    functype.reset();
 
     state.context()->wasmCache()->clearPendingHostFunctionError();
 
@@ -187,6 +186,7 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
     // If map[funcaddr] exists, Return map[funcaddr].
     ExportedFunctionObject* function = state.context()->wasmCache()->findFunction(funcref);
     if (function) {
+        wasm_func_delete(funcaddr);
         return function;
     }
 

@@ -515,7 +515,8 @@ public:
     void cancelAsyncWaiters();
     bool asyncWaitersStopping() const { return m_asyncWaitersStopping; } // Requires asyncWaiterDataMutex().
     typedef std::tuple<Context*, Object* /* Promise */, std::shared_ptr<Global::WaiterItem>, bool /* notified */, std::shared_ptr<std::thread>, bool /* completed */> AsyncWaiterDataItem;
-    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>>& asyncWaiterData()
+    using AsyncWaiterData = std::vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>>;
+    AsyncWaiterData& asyncWaiterData()
     {
         return m_asyncWaiterData;
     }
@@ -665,7 +666,7 @@ private:
 #endif
 
 #if defined(ENABLE_THREADING)
-    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> m_asyncWaiterData;
+    AsyncWaiterData m_asyncWaiterData;
     std::mutex m_asyncWaiterDataMutex;
     std::atomic_size_t m_pendingAsyncWaiterCount;
     bool m_asyncWaitersStopping;

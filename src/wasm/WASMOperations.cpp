@@ -101,8 +101,18 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
             return Value();
         }
 
+        // Each populated result must own its reference even if a later result
+        // conversion throws: Walrus releases partially filled vectors too.
+        auto convertResult = [&](const Value& value, wasm_valkind_t kind) {
+            wasm_val_t result = WASMValueConverter::toWebAssemblyValue(state, value, kind);
+            if ((result.kind == WASM_FUNCREF || result.kind == WASM_ANYREF) && result.of.ref) {
+                result.of.ref = wasm_ref_copy(result.of.ref);
+            }
+            return result;
+        };
+
         if (resultsSize == 1) {
-            callBackData->results->data[0] = WASMValueConverter::toWebAssemblyValue(state, ret, wasm_valtype_kind(callBackData->res->data[0]));
+            callBackData->results->data[0] = convertResult(ret, wasm_valtype_kind(callBackData->res->data[0]));
         } else {
             Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
             if (method.isUndefined()) {
@@ -115,16 +125,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
             }
 
             for (size_t i = 0; i < resultsSize; i++) {
-                callBackData->results->data[i] = WASMValueConverter::toWebAssemblyValue(state, values[i], wasm_valtype_kind(callBackData->res->data[i]));
-            }
-        }
-        // Walrus deletes callback results. Conversion above returns borrowed
-        // cache/function references, so hand it independent owning wrappers.
-        // Copy only after all conversions succeed, which may throw.
-        for (size_t i = 0; i < resultsSize; i++) {
-            wasm_val_t& value = callBackData->results->data[i];
-            if ((value.kind == WASM_FUNCREF || value.kind == WASM_ANYREF) && value.of.ref) {
-                value.of.ref = wasm_ref_copy(value.of.ref);
+                callBackData->results->data[i] = convertResult(values[i], wasm_valtype_kind(callBackData->res->data[i]));
             }
         }
         return Value();
@@ -296,9 +297,11 @@ Object* WASMOperations::createExportsObject(ExecutionState& state, wasm_module_t
 
     own wasm_exporttype_vec_t export_types;
     wasm_module_exports(module, &export_types);
+    std::unique_ptr<wasm_exporttype_vec_t, decltype(&wasm_exporttype_vec_delete)> exportTypesOwner(&export_types, wasm_exporttype_vec_delete);
 
     own wasm_extern_vec_t exports;
     wasm_instance_exports(instance, &exports);
+    std::unique_ptr<wasm_extern_vec_t, decltype(&wasm_extern_vec_delete)> exportsOwner(&exports, wasm_extern_vec_delete);
     ASSERT(export_types.size == exports.size);
 
     for (size_t i = 0; i < export_types.size; i++) {
@@ -371,13 +374,15 @@ Object* WASMOperations::createExportsObject(ExecutionState& state, wasm_module_t
         }
         }
 
+        // The wrapper factory consumed this owning C API handle, including on
+        // cache hits. The vector still owns its backing storage and leftovers.
+        exports.data[i] = nullptr;
+
         // Let status be ! CreateDataProperty(exportsObject, name, value).
         exportsObject->defineOwnProperty(state, ObjectPropertyName(state, nameValue), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
     }
     // Perform ! SetIntegrityLevel(exportsObject, "frozen").
     Object::setIntegrityLevel(state, exportsObject, false);
-
-    wasm_exporttype_vec_delete(&export_types);
 
     // Return exportsObject.
     return exportsObject;
