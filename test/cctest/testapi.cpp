@@ -3450,29 +3450,29 @@ TEST(ByteCode, TypedArrayLengthAfterInlineCache)
               "true");
 }
 
-TEST(Object, DeepPrototypeStackOverflow)
+TEST(Object, DeepPrototypeIteration)
 {
     const char source[] = R"JS(
 (function () {
     function C() {}
-    var object = {};
+    var root = { inherited: 17 };
+    var object = root;
     for (var i = 0; i < 100000; i++) {
         C.prototype = object;
         object = new C();
     }
-    var operations = [
-        function () { object.x = 1; },
-        function () { object[5] = 1; },
-        function () { Reflect.set(object, "y", 1); },
-        function () { return "missing" in object; }
-    ];
-    for (var operation of operations) {
-        try {
-            operation();
-        } catch (error) {
-            if (!(error instanceof RangeError)) throw error;
-        }
-    }
+    object.x = 1;
+    object[5] = 2;
+    if (!Reflect.set(object, "y", 3)) throw new Error('set failed');
+    if (object.x !== 1 || object[5] !== 2 || object.y !== 3) throw new Error('lost write');
+    if (!("inherited" in object) || "missing" in object) throw new Error('has failed');
+    if (!Reflect.set(object, "inherited", 42) || root.inherited !== 17 || object.inherited !== 42) throw new Error('receiver changed');
+    var setterReceiver;
+    Object.defineProperty(root, "setter", { set(value) { setterReceiver = this; this.value = value; } });
+    object.setter = 19;
+    if (setterReceiver !== object || object.value !== 19) throw new Error('setter receiver changed');
+    Object.defineProperty(root, "readonly", { value: 1 });
+    if (Reflect.set(object, "readonly", 2)) throw new Error('readonly write accepted');
     // Exercise a prototype walk when JavaScript has already exhausted its stack.
     function F() {
         F.prototype = this;
@@ -3489,6 +3489,38 @@ TEST(Object, DeepPrototypeStackOverflow)
 )JS";
     EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
                          StringRef::createFromASCII("deep-prototype-stack.js"), false),
+              "true");
+}
+
+TEST(Object, PrototypeIterationPreservesExoticDispatch)
+{
+    const char source[] = R"JS(
+        (() => {
+            let receiver, sets = 0, has = 0;
+            const proxy = new Proxy({}, {
+                has(target, name) { ++has; return name === 'virtual'; },
+                set(target, name, value, actualReceiver) { ++sets; receiver = actualReceiver; return name === 'virtual' && value === 42; }
+            });
+            let object = Object.create(proxy);
+            for (let i = 0; i < 100; ++i) object = Object.create(object);
+            if (!('virtual' in object) || 'missing' in object || has !== 2) throw new Error('has trap bypassed');
+            if (!Reflect.set(object, 'virtual', 42) || receiver !== object || sets !== 1) throw new Error('set trap bypassed');
+            if (Reflect.set(object, 'missing', 0)) throw new Error('set trap result ignored');
+
+            const typed = new Uint8Array(1);
+            const parent = Object.create(Uint8Array.prototype);
+            parent[9] = 99;
+            Object.setPrototypeOf(typed, parent);
+            object = Object.create(typed);
+            for (let i = 0; i < 100; ++i) object = Object.create(object);
+            if ('9' in object) throw new Error('integer-indexed has bypassed');
+            if (!Reflect.set(object, '9', 42) || Object.hasOwn(object, '9')) throw new Error('integer-indexed set bypassed');
+            if (!Reflect.set(object, '0', 7) || object[0] !== 7 || typed[0] !== 0) throw new Error('typed-array receiver changed');
+            return true;
+        })();
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("prototype-exotic-dispatch.js"), false),
               "true");
 }
 
