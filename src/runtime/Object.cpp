@@ -1170,26 +1170,24 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
 
 ObjectHasPropertyResult Object::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-    CHECK_STACK_OVERFLOW(state);
-
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-hasproperty-p
-    // 1. Assert: IsPropertyKey(P) is true.
-    // 2. Let hasOwn be OrdinaryGetOwnProperty(O, P).
-    auto hasOwn = getOwnProperty(state, propertyName);
-    // 3. If hasOwn is not undefined, return true.
-    if (hasOwn.hasValue()) {
-        return ObjectHasPropertyResult(hasOwn);
+    Object* current = this;
+    while (true) {
+        auto hasOwn = current->getOwnProperty(state, propertyName);
+        if (hasOwn.hasValue()) {
+            return ObjectHasPropertyResult(hasOwn);
+        }
+        Object* parent = current->getPrototypeObject(state);
+        if (!parent) {
+            return ObjectHasPropertyResult();
+        }
+        // Only bypass virtual dispatch for ordinary Object vtables. Proxies,
+        // typed arrays and embedding handlers can have different [[HasProperty]].
+        if (UNLIKELY(!parent->hasVTag(g_objectTag) && !parent->hasVTag(g_prototypeObjectTag))) {
+            CHECK_STACK_OVERFLOW(state);
+            return parent->hasProperty(state, propertyName);
+        }
+        current = parent;
     }
-    // 4. Let parent be O.[[GetPrototypeOf]]().
-    // 5. ReturnIfAbrupt(parent).
-    auto parent = getPrototypeObject(state);
-    // 6. If parent is not null, then
-    if (parent) {
-        // a. Return parent.[[HasProperty]](P).
-        return parent->hasProperty(state, propertyName);
-    }
-    // 7. Return false.
-    return ObjectHasPropertyResult();
 }
 
 ObjectHasPropertyResult Object::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
@@ -1362,24 +1360,28 @@ ObjectGetResult Object::get(ExecutionState& state, const ObjectPropertyName& pro
 // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
-    CHECK_STACK_OVERFLOW(state);
-
-    // 2. Let ownDesc be O.[[GetOwnProperty]](P).
-    auto ownDesc = this->getOwnProperty(state, propertyName);
-    // 4. If ownDesc is undefined, then
-    bool hasValue = ownDesc.hasValue();
-    if (!hasValue) {
-        // FIXME need to optimize prototype iteration
-        // 4.a. Let parent be O.[[GetPrototypeOf]]().
-        Value parent = this->getPrototype(state);
-        // 4.c. If parent is not null, then
-        if (parent.isObject()) {
-            // 4.c.i. Return parent.[[Set]](P, V, Receiver).
-            return parent.asObject()->set(state, propertyName, v, receiver);
-        } else {
-            // 4.d.i. Let ownDesc be the PropertyDescriptor{[[Value]]: undefined, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}.
-            ownDesc = ObjectGetResult(Value(), true, true, true);
+    Object* current = this;
+    ObjectGetResult ownDesc;
+    bool hasValue;
+    while (true) {
+        ownDesc = current->getOwnProperty(state, propertyName);
+        hasValue = ownDesc.hasValue();
+        if (hasValue) {
+            break;
         }
+        Value parent = current->getPrototype(state);
+        if (!parent.isObject()) {
+            ownDesc = ObjectGetResult(Value(), true, true, true);
+            break;
+        }
+        Object* parentObject = parent.asObject();
+        // Preserve exotic [[Set]] behavior and the original receiver. Ordinary
+        // prototype hops do not need another native call frame.
+        if (UNLIKELY(!parentObject->hasVTag(g_objectTag) && !parentObject->hasVTag(g_prototypeObjectTag))) {
+            CHECK_STACK_OVERFLOW(state);
+            return parentObject->set(state, propertyName, v, receiver);
+        }
+        current = parentObject;
     }
     // 5. If IsDataDescriptor(ownDesc) is true, then
     if (ownDesc.isDataProperty()) {
@@ -1393,19 +1395,19 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
         }
 
         if (UNLIKELY(ownDesc.isDataAccessorProperty() && ownDesc.nativeGetterSetterData()->m_actsLikeJSGetterSetter)) {
-            if (UNLIKELY(isEverSetAsPrototypeObject() && !isIndexedPropertyDirtyAsPrototype() && propertyName.isIndexString())) {
-                state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, this, true);
+            if (UNLIKELY(current->isEverSetAsPrototypeObject() && !current->isIndexedPropertyDirtyAsPrototype() && propertyName.isIndexString())) {
+                state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state, current, true);
             }
-            auto findResult = findPropertyInStructure(propertyName);
+            auto findResult = current->findPropertyInStructure(propertyName);
             ASSERT(findResult.first != SIZE_MAX);
-            return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *findResult.second.value(), v, receiver.asObject());
+            return current->setOwnDataPropertyUtilForObjectInner(state, findResult.first, *findResult.second.value(), v, receiver.asObject());
         }
 
         // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
         Object* receiverObj = receiver.asObject();
 
         ObjectGetResult existingDesc;
-        if (hasValue && LIKELY(this == receiverObj)) {
+        if (hasValue && LIKELY(current == receiverObj)) {
             existingDesc = ownDesc;
             ObjectPropertyDescriptor propertyDesc(v);
             // 5.e.iv. Return Receiver.[[DefineOwnProperty]](P, valueDesc).
