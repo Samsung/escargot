@@ -103,10 +103,11 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
     if (!m_finalizerData) {
         m_finalizerData = new SymbolFinalizerData();
 
-        // register finalizers
+        // Client data is a GC root. Keep callbacks reachable through the
+        // symbol so callback data referring back to it can still be collected.
 #define FINALIZER_CALLBACK()                                         \
     Symbol* self = (Symbol*)sym;                                     \
-    auto d = (SymbolFinalizerData*)data;                             \
+    auto d = self->finalizerData();                                  \
     for (size_t i = 0; i < d->m_finalizer.size(); i++) {             \
         if (LIKELY(!!d->m_finalizer[i].first)) {                     \
             d->m_finalizer[i].first(self, d->m_finalizer[i].second); \
@@ -118,18 +119,18 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
         GC_finalization_proc of = nullptr;
         void* od = nullptr;
         GC_REGISTER_FINALIZER_NO_ORDER(
-            this, [](void* sym, void* data) {
+            this, [](void* sym, void*) {
                 FINALIZER_CALLBACK()
             },
-            m_finalizerData.value(), &of, &od);
+            nullptr, &of, &od);
         ASSERT(!of);
         ASSERT(!od);
 #else
         GC_REGISTER_FINALIZER_NO_ORDER(
-            this, [](void* sym, void* data) {
+            this, [](void* sym, void*) {
                 FINALIZER_CALLBACK()
             },
-            m_finalizerData.value(), nullptr, nullptr);
+            nullptr, nullptr, nullptr);
 #endif
     }
 

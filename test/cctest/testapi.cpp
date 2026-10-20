@@ -3623,6 +3623,43 @@ TEST(WebAssembly, V128JavaScriptBoundary)
               "true");
 }
 
+TEST(WebAssembly, HostCallbackExceptionCleanup)
+{
+    const char source[] = R"JS(
+(function () {
+    var reference = {};
+    var sentinel = {};
+    var mode = 0;
+    var f = new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([
+        0,97,115,109,1,0,0,0,
+        1,6,1,96,0,2,111,127,
+        2,7,1,1,109,1,102,0,0,
+        3,2,1,0,
+        7,5,1,1,102,0,1,
+        10,6,1,4,0,16,0,11
+    ])), {m: {f() {
+        if (mode === 0) throw sentinel;
+        return [reference, mode === 1 ? Symbol() : 7];
+    }}}).exports.f;
+    for (var i = 0; i < 100; ++i) {
+        mode = 0;
+        try { f(); throw new Error('missing host exception'); }
+        catch (error) { if (error !== sentinel) throw error; }
+        mode = 1;
+        try { f(); throw new Error('missing conversion exception'); }
+        catch (error) { if (!(error instanceof TypeError)) throw error; }
+        mode = 2;
+        var result = f();
+        if (result[0] !== reference || result[1] !== 7) throw new Error('reference ownership changed');
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-host-callback-cleanup.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, ReferenceValues)
 {
     const char source[] = R"JS(
@@ -4381,7 +4418,7 @@ TEST(Finalizer, Basic)
 
     Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* target2) -> ValueRef* {
         *target2 = ObjectRef::create(state);
-        return target2->get(); }, &target2);
+        return ValueRef::createUndefined(); }, &target2);
 
     size_t counter = 0;
     EXPECT_FALSE(Memory::gcHasFinalizer(target.get()));
@@ -4415,6 +4452,7 @@ TEST(Finalizer, Basic)
     target.setWeak();
     target2.setWeak();
     target3.setWeak();
+    clearWeakTestStack();
     for (size_t i = 0; i < 100; i++) {
         PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
     }
@@ -4546,6 +4584,54 @@ TEST(GCLeak, ObjectFinalizersCollectExtraDataSelfCycles)
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
     size_t counter = 0;
     createObjectFinalizerCycles(context.get(), &counter);
+    clearWeakTestStack();
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter, 32u);
+    collectEverythingUnreachable();
+    EXPECT_EQ(counter, 32u);
+}
+
+struct SymbolFinalizerCycle {
+    SymbolRef* target;
+    size_t* counter;
+};
+
+static void symbolCycleFinalizer(void*, void* data)
+{
+    auto* cycle = static_cast<SymbolFinalizerCycle*>(data);
+    ++*cycle->counter;
+    cycle->target = nullptr;
+}
+
+#if defined(_MSC_VER)
+__declspec(noinline)
+#elif defined(__GNUC__)
+__attribute__((noinline))
+#endif
+static void
+createSymbolFinalizerCycles(ContextRef* context, size_t* counter)
+{
+    // Return an undefined value through the evaluator, not the last allocation
+    // left in a native return register. A stale cycle pointer would conservatively
+    // retain its Symbol even after this helper's stack has been cleared.
+    auto result = Evaluator::execute(context, [](ExecutionStateRef*, size_t* counter) -> ValueRef* {
+        for (size_t i = 0; i < 32; ++i) {
+            auto* target = SymbolRef::create(StringRef::createFromASCII("self-cycle"));
+            auto* cycle = static_cast<SymbolFinalizerCycle*>(Memory::gcMalloc(sizeof(SymbolFinalizerCycle)));
+            cycle->target = target;
+            cycle->counter = counter;
+            Memory::gcRegisterFinalizer(static_cast<ValueRef*>(target), symbolCycleFinalizer, cycle);
+        }
+        return ValueRef::createUndefined(); }, counter);
+    EXPECT_TRUE(result.isSuccessful());
+}
+
+TEST(GCLeak, SymbolFinalizersCollectCallbackDataSelfCycles)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    size_t counter = 0;
+    createSymbolFinalizerCycles(context.get(), &counter);
     clearWeakTestStack();
     collectEverythingUnreachable();
     EXPECT_EQ(counter, 32u);

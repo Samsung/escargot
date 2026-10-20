@@ -500,8 +500,8 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                 Global::platform()->markJSJobFromAnotherThreadExists(context);
             };
             std::unique_lock<std::mutex> ul(state.context()->vmInstance()->asyncWaiterDataMutex());
-            state.context()->vmInstance()->asyncWaiterData().pushBack(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem, false,
-                                                                                      std::shared_ptr<std::thread>(new std::thread(worker, t, WL, waiterItem, state.context())), false));
+            state.context()->vmInstance()->asyncWaiterData().push_back(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem, false,
+                                                                                       std::shared_ptr<std::thread>(new std::thread(worker, t, WL, waiterItem, state.context())), false));
         }
         WL->m_mutex.unlock();
 
