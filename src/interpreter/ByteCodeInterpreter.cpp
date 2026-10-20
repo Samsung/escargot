@@ -4012,6 +4012,12 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
 
         originalObject->setOwnPropertyThrowsExceptionWhenStrictMode(state, findResult.first, value, willBeObject);
 
+        // A setter can re-enter this site and discard its cache. Do not install
+        // a fast opcode using the stale cache retained by this invocation.
+        if (UNLIKELY(code->m_inlineCache != inlineCache)) {
+            return;
+        }
+
         if (UNLIKELY(!isPlainDataProperty && originalObject->structure() != beforeStructure)) {
             // Don't update the inline cache if the property was removed (or the receiver's shape
             // otherwise changed) by the setter's own side effects.
@@ -4080,17 +4086,23 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
         if (UNLIKELY(!originalObject->set(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject))) {
             // set a new property failed
             // giveup w/o set call
-            inlineCache->clear(code->m_inlineCacheProtoTraverseMaxIndex > 0);
-            code->m_inlineCache = nullptr;
-            code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
-            code->m_inlineCacheProtoTraverseMaxIndex = 0;
-            code->changeOpcode(Opcode::SetObjectPreComputedCaseOpcode);
+            if (code->m_inlineCache == inlineCache) {
+                inlineCache->clear(code->m_inlineCacheProtoTraverseMaxIndex > 0);
+                code->m_inlineCache = nullptr;
+                code->m_missCount = SetObjectInlineCacheData::MaxCacheMissCount + 1;
+                code->m_inlineCacheProtoTraverseMaxIndex = 0;
+                code->changeOpcode(Opcode::SetObjectPreComputedCaseOpcode);
+            }
             if (state.inStrictMode()) {
                 // throw exception
                 Object* tagObject = willBeObject.isObject() ? willBeObject.asObject() : originalObject;
                 bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, originalObject, ObjectPropertyName(state, code->m_propertyName));
                 Object::throwCannotWriteError(state, tagObject, code->m_propertyName, isGetterOnlyAccessor);
             }
+            return;
+        }
+
+        if (UNLIKELY(code->m_inlineCache != inlineCache)) {
             return;
         }
 

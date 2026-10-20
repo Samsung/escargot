@@ -2442,7 +2442,7 @@ jobs:
     - name: Init required submodules
       run: |
         for i in 1 2 3; do
-          git submodule update --init -- third_party/GCutil third_party/googletest && break
+          git submodule update --init -- third_party/GCutil third_party/googletest test/vendortest && break
           sleep 10
         done
     - name: Install Packages
@@ -2451,12 +2451,14 @@ jobs:
         sudo apt-get install -y ninja-build clang libclang-rt-dev
     - name: Build ASAN exception regression tests
       run: |
-        cmake -S . -B out/asan -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_FLAGS=-fno-elide-constructors -DESCARGOT_ASAN=ON -DESCARGOT_BUILD_CCTEST=ON -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_ENABLE_SHELL=ON -DESCARGOT_LIBICU_SUPPORT=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON
+        cmake -S . -B out/asan -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_FLAGS=-fno-elide-constructors -DESCARGOT_ASAN=ON -DESCARGOT_BUILD_CCTEST=ON -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_ENABLE_SHELL=ON -DESCARGOT_TEST=ON -DESCARGOT_LIBICU_SUPPORT=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_SHADOWREALM=ON
         cmake --build out/asan --parallel 2
     - name: Run ASAN exception regression tests
       run: |
         out/asan/cctest --gtest_filter=AsanExceptionGC.*:EvalScript.ClassInitializer*
         out/asan/escargot -e 'var marker = { payload: 42 }; try { try { throw marker; } catch (e) { gc(); throw e; } finally { gc(); } } catch (e) { gc(); if (e !== marker) throw new Error("lost exception"); }'
+        out/asan/escargot test/vendortest/Escargot/regression-tests/assert.js test/vendortest/Escargot/regression-tests/issue-1731.js
+        out/asan/escargot test/vendortest/Escargot/regression-tests/assert.js test/vendortest/Escargot/regression-tests/issue-1732.js
 
   # Separate from build-test-api: N-API support is an early PoC
   # gated behind ESCARGOT_NAPI, and test/napi-tc is a sparse checkout of the
@@ -2650,11 +2652,11 @@ jobs:
     - name: Run x86 test
       run: |
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu32/lib
-        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js regression-tests
     - name: Run x64 test
       run: |
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/icu64/lib
-        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js regression-tests
 
   # These two RTOS/QEMU jobs used to be gated behind a `detect-changes-for-rtos`
   # paths-filter job (skip when nothing under src/**, samples/rtos/**, etc.
