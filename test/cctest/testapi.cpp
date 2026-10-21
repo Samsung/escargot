@@ -3385,6 +3385,62 @@ TEST(ReloadableString, StringBufferAccessDataHoldsBuffer)
     EXPECT_FALSE(d.loaded);
 }
 
+TEST(Array, ShrinkAfterExactAllocation)
+{
+    const char source[] = R"JS(
+(function () {
+    for (var size of [32, 64, 86, 1024, 10000]) {
+        var array = [];
+        for (var i = 0; i < 17; ++i) array.push(i);
+        array.length = size;
+        array.splice(17);
+        if (array.length !== 17) throw new Error("Incorrect truncated length");
+        for (var i = 0; i < 17; ++i) {
+            if (array[i] !== i) throw new Error("Lost element during shrink");
+        }
+        array.push(17);
+        if (array.length !== 18 || array[17] !== 17) throw new Error("Invalid capacity after shrink");
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("array-exact-capacity-shrink.js"), false),
+              "true");
+}
+
+TEST(Array, SortComparatorResizesArray)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(value) { if (!value) throw new Error("Incorrect sort result"); }
+    for (var newLength of [0, 8, 10000]) {
+        var array = [];
+        for (var i = 0; i < 17; ++i) array.push(16 - i);
+        check(array.sort((a, b) => { array.length = newLength; return a - b; }) === array);
+        check(array.length === Math.max(17, newLength));
+        for (var i = 0; i < 17; ++i) check(array[i] === i);
+    }
+    // Restoring sorted elements must not restore holes removed by the comparator.
+    var sparse = [2, 1, , , ];
+    sparse.sort((a, b) => { sparse.length = 0; return a - b; });
+    check(sparse.length === 2 && sparse[0] === 1 && sparse[1] === 2);
+    var extended = [2, 1];
+    extended.sort((a, b) => { extended[100] = 42; return a - b; });
+    check(extended.length === 101 && extended[100] === 42 && extended[0] === 1 && extended[1] === 2);
+    var frozen = [2, 1];
+    var threw = false;
+    try { frozen.sort((a, b) => { Object.freeze(frozen); return a - b; }); }
+    catch (error) { check(error instanceof TypeError); threw = true; }
+    check(threw);
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("array-sort-comparator-resize.js"), false),
+              "true");
+}
+
 TEST(ByteCode, TypedArrayLengthAfterInlineCache)
 {
     const char source[] = R"JS(
@@ -3611,6 +3667,32 @@ TEST(Object, PrototypeIterationPreservesExoticDispatch)
 }
 
 #if defined(ENABLE_WASM)
+TEST(WebAssembly, GlobalCacheAfterArrayResize)
+{
+    const char source[] = R"JS(
+(function () {
+    var module = new WebAssembly.Module(Uint8Array.of(
+        0, 97, 115, 109, 1, 0, 0, 0, 6, 6, 1, 127, 1, 65, 0, 11, 7, 5, 1, 1, 97, 3, 0));
+    var array = [];
+    var globals = [];
+    for (var i = 0; i < 25; ++i) {
+        var global = new WebAssembly.Instance(module).exports.a;
+        global.value = i;
+        globals.push(global);
+        array.splice(0, i);
+        array.length = 86;
+    }
+    for (var i = 0; i < globals.length; ++i) {
+        if (globals[i].value !== i) throw new Error("Lost global value or identity");
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-global-cache-array-resize.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, TagImportsAndExports)
 {
     const char source[] = R"JS(
