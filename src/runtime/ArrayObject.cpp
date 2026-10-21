@@ -374,19 +374,19 @@ void ArrayObject::sort(ExecutionState& state, uint64_t length, const std::functi
                 return true;
             });
 
-            if (UNLIKELY(arrayLength(state) != length)) {
-                // array length could be changed due to the compare function executed in the previous merge sort
-                setArrayLength(state, length);
-            }
-
-            if (LIKELY(isFastModeArray())) {
+            // The comparator may resize the array or change its descriptors.
+            // Only write directly while fast storage covers the sorted range.
+            if (LIKELY(isFastModeArray() && arrayLength(state) >= length)) {
                 for (uint64_t i = 0; i < length; i++) {
                     m_fastModeData[i] = tempBuffer[i];
                 }
             } else {
-                // fast-mode could be changed due to the compare function executed in the previous merge sort
                 for (uint64_t i = 0; i < length; i++) {
-                    setIndexedPropertyThrowsException(state, Value(i), tempBuffer[i]);
+                    if (tempBuffer[i].isEmpty()) {
+                        deleteOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(i)));
+                    } else {
+                        setIndexedPropertyThrowsException(state, Value(i), tempBuffer[i]);
+                    }
                 }
             }
 
@@ -616,7 +616,11 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
 
                 const size_t minExpandCountForUsingLog2Function = 3;
                 bool hasRD = hasRareData();
-                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : oldLength;
+                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
+                // Zero means the backing store was fitted to the array length.
+                if (!oldCapacity) {
+                    oldCapacity = oldLength;
+                }
                 // push()/arr[arr.length]=v/defineProperty-at-end all funnel through here as
                 // a +1 length bump. That pattern means more growth is likely coming, so skip
                 // the conservative %130-for-a-few-times ramp (meant for one-off length jumps,
