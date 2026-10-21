@@ -47,6 +47,10 @@ class Global {
 public:
     static void initialize(Platform* platform);
     static void finalize();
+    static bool isInitialized()
+    {
+        return inited;
+    }
     static void finalizeGC()
     {
 #if defined(ESCARGOT_GOOGLE_PERF)

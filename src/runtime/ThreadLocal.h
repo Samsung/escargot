@@ -290,6 +290,7 @@ public:
 #endif
     static void initialize(uint32_t optionFromGlobal = 0);
     static void finalize();
+    static void destroyRuntimeForSharedLibraryUnload();
     static bool isInited()
     {
         return inited;

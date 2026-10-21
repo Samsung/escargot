@@ -121,7 +121,7 @@ MAY_THREAD_LOCAL std::vector<VMInstance*>* ThreadLocal::g_asyncWaiterVMInstances
 MAY_THREAD_LOCAL int ThreadLocal::g_pruningCompiledByteCodesVMCount = 0;
 MAY_THREAD_LOCAL size_t ThreadLocal::g_gcEpoch = 0;
 
-#if defined(ENABLE_THREADING)
+#if !defined(OS_BAREMETAL)
 class GlobalDeleteChecker {
 public:
     GlobalDeleteChecker();
@@ -132,14 +132,61 @@ public:
     std::pair<void*, size_t>* m_mappedMemories;
 };
 
-#if defined(OS_BAREMETAL)
-static std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
+#if defined(ENABLE_THREADING)
+// A C++ thread_local owner registers a destructor that can pin its DSO until
+// the host thread exits, even after reset(). Native thread keys let the final
+// unload operation retire that destructor while keeping the host thread alive.
+static MAY_THREAD_LOCAL GlobalDeleteChecker* g_globalDeleteChecker;
+static std::atomic<size_t> g_gcRuntimeCount{ 0 };
+static bool g_gcRuntimeKeyCreated;
+
+static void deleteThreadGCRuntime(void* data)
+{
+    delete static_cast<GlobalDeleteChecker*>(data);
+    g_globalDeleteChecker = nullptr;
+}
+
+#if defined(OS_WINDOWS)
+static DWORD g_gcRuntimeKey = FLS_OUT_OF_INDEXES;
+static std::once_flag g_gcRuntimeKeyOnce;
+
+static void NTAPI deleteFiberGCRuntime(void* data)
+{
+    deleteThreadGCRuntime(data);
+}
+
+static void registerThreadGCRuntime()
+{
+    std::call_once(g_gcRuntimeKeyOnce, [] {
+        g_gcRuntimeKey = FlsAlloc(deleteFiberGCRuntime);
+        ESCARGOT_RELEASE_ASSERT(g_gcRuntimeKey != FLS_OUT_OF_INDEXES);
+        g_gcRuntimeKeyCreated = true;
+    });
+    ESCARGOT_RELEASE_ASSERT(FlsSetValue(g_gcRuntimeKey, g_globalDeleteChecker));
+}
 #else
-thread_local std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
+static pthread_key_t g_gcRuntimeKey;
+static pthread_once_t g_gcRuntimeKeyOnce = PTHREAD_ONCE_INIT;
+
+static void registerThreadGCRuntime()
+{
+    ESCARGOT_RELEASE_ASSERT(pthread_once(&g_gcRuntimeKeyOnce, [] {
+                                ESCARGOT_RELEASE_ASSERT(pthread_key_create(&g_gcRuntimeKey, deleteThreadGCRuntime) == 0);
+                                g_gcRuntimeKeyCreated = true;
+                            })
+                            == 0);
+    ESCARGOT_RELEASE_ASSERT(pthread_setspecific(g_gcRuntimeKey, g_globalDeleteChecker) == 0);
+}
+#endif
+#else
+static std::unique_ptr<GlobalDeleteChecker> g_globalDeleteChecker;
 #endif
 
 GlobalDeleteChecker::GlobalDeleteChecker()
 {
+#if defined(ENABLE_THREADING)
+    ++g_gcRuntimeCount;
+#endif
     m_mappedMemories = reinterpret_cast<std::pair<void*, size_t>*>(malloc(sizeof(std::pair<void*, size_t>) * m_mappedMemoriesAllocatedSize));
     GC_set_on_os_get_mem([](void* ptr, size_t length) {
         if (g_globalDeleteChecker->m_mappedMemoriesSize == g_globalDeleteChecker->m_mappedMemoriesAllocatedSize) {
@@ -156,6 +203,7 @@ GlobalDeleteChecker::GlobalDeleteChecker()
 
 GlobalDeleteChecker::~GlobalDeleteChecker()
 {
+    GC_set_on_os_get_mem(nullptr);
     // call GC_deinit for releasing bdwgc's vdb resource
     GC_deinit();
 
@@ -171,6 +219,9 @@ GlobalDeleteChecker::~GlobalDeleteChecker()
 #endif
 
     free(m_mappedMemories);
+#if defined(ENABLE_THREADING)
+    --g_gcRuntimeCount;
+#endif
 }
 #endif
 
@@ -515,6 +566,7 @@ static bool verifyPthreadKeySlotOffset(pthread_key_t key, char* tlsBase, ptrdiff
 }
 
 static pthread_once_t g_tlsKeySlotOnce = PTHREAD_ONCE_INIT;
+static bool g_tlsKeySlotsCreated;
 
 static ptrdiff_t createAndProbeTlsKey(pthread_key_t* key, char* tlsBase)
 {
@@ -551,6 +603,7 @@ void ThreadLocal::initializeTlsKeySlotOffsets()
     g_emptyStringKeyOffset = createAndProbeTlsKey(&g_emptyStringKey, baseAddr);
 #endif
     g_gcEpochKeyOffset = createAndProbeTlsKey(&g_gcEpochKey, baseAddr);
+    g_tlsKeySlotsCreated = true;
 }
 #endif
 
@@ -570,9 +623,14 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
 
     initGcFlags(static_cast<Globals::InitializeOption>(optionFromGlobal));
 
-#if defined(ENABLE_THREADING)
+#if !defined(OS_BAREMETAL)
     if (!g_globalDeleteChecker) {
+#if defined(ENABLE_THREADING)
+        g_globalDeleteChecker = new GlobalDeleteChecker();
+        registerThreadGCRuntime();
+#else
         g_globalDeleteChecker = std::unique_ptr<GlobalDeleteChecker>(new GlobalDeleteChecker());
+#endif
     }
 #endif
     // Heap is initialized for each thread
@@ -755,6 +813,49 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     g_gcEpoch = GC_get_gc_no();
 
     inited = true;
+}
+
+void ThreadLocal::destroyRuntimeForSharedLibraryUnload()
+{
+    ESCARGOT_RELEASE_ASSERT(!inited);
+#if defined(OS_BAREMETAL)
+    GC_deinit();
+#elif defined(ENABLE_THREADING)
+    // Even a finalized foreign thread retains its heap and cached descriptors.
+    // Such threads must exit before the containing library can be unloaded.
+    ESCARGOT_RELEASE_ASSERT(g_gcRuntimeCount == (g_globalDeleteChecker ? 1u : 0u));
+    if (g_gcRuntimeKeyCreated) {
+#if defined(OS_WINDOWS)
+        ESCARGOT_RELEASE_ASSERT(FlsSetValue(g_gcRuntimeKey, nullptr));
+#else
+        ESCARGOT_RELEASE_ASSERT(pthread_setspecific(g_gcRuntimeKey, nullptr) == 0);
+#endif
+        delete g_globalDeleteChecker;
+        g_globalDeleteChecker = nullptr;
+#if defined(OS_WINDOWS)
+        ESCARGOT_RELEASE_ASSERT(FlsFree(g_gcRuntimeKey));
+#else
+        ESCARGOT_RELEASE_ASSERT(pthread_key_delete(g_gcRuntimeKey) == 0);
+#endif
+        g_gcRuntimeKeyCreated = false;
+    }
+#else
+    g_globalDeleteChecker.reset();
+#endif
+
+    GC_destroy_runtime_for_shared_library_unload();
+
+#if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+    if (g_tlsKeySlotsCreated) {
+        ESCARGOT_RELEASE_ASSERT(pthread_key_delete(g_stackLimitKey) == 0);
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        ESCARGOT_RELEASE_ASSERT(pthread_key_delete(g_cageBaseKey) == 0);
+        ESCARGOT_RELEASE_ASSERT(pthread_key_delete(g_emptyStringKey) == 0);
+#endif
+        ESCARGOT_RELEASE_ASSERT(pthread_key_delete(g_gcEpochKey) == 0);
+        g_tlsKeySlotsCreated = false;
+    }
+#endif
 }
 
 void ThreadLocal::finalize()

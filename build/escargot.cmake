@@ -406,6 +406,20 @@ ENDIF()
 
 # 3. Build the C++ tests if enabled
 IF(ESCARGOT_BUILD_CCTEST)
+    IF (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ESCARGOT_NAPI)
+        # The driver has no Escargot dependency: dlclose must remove the
+        # embedding DSO and its private or separately linked engine for real.
+        # Ordinary C++ tests may link non-PIC static dependencies, so build
+        # this embedding DSO only when the unload test is explicitly requested.
+        ADD_LIBRARY (escargot_unload_test_runtime MODULE EXCLUDE_FROM_ALL ${ESCARGOT_ROOT}/test/shared_library_unload/runtime.cpp)
+        TARGET_LINK_LIBRARIES (escargot_unload_test_runtime PRIVATE ${ESCARGOT_TARGET})
+        TARGET_COMPILE_OPTIONS (escargot_unload_test_runtime PRIVATE ${ESCARGOT_CONFIG_CXXFLAGS} ${ESCARGOT_CXXFLAGS} ${CXXFLAGS_FROM_ENV})
+        TARGET_COMPILE_DEFINITIONS (escargot_unload_test_runtime PRIVATE ${ESCARGOT_DEFINITIONS} ${ESCARGOT_CONFIG_DEFINITIONS})
+        ADD_EXECUTABLE (shared_library_unload_test EXCLUDE_FROM_ALL ${ESCARGOT_ROOT}/test/shared_library_unload/driver.cpp)
+        TARGET_LINK_LIBRARIES (shared_library_unload_test PRIVATE ${CMAKE_DL_LIBS} pthread)
+        SET_TARGET_PROPERTIES (shared_library_unload_test PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+        ADD_DEPENDENCIES (shared_library_unload_test escargot_unload_test_runtime)
+    ENDIF()
     ADD_EXECUTABLE (${ESCARGOT_CCTEST_TARGET} ${CCTEST_SRC})
 
     TARGET_LINK_LIBRARIES (${ESCARGOT_CCTEST_TARGET} PRIVATE ${ESCARGOT_TARGET} gtest gtest_main)

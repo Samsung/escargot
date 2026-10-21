@@ -49,6 +49,8 @@ ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         ${ESCARGOT_CXXFLAGS}
         -std=c++11 -g3
         -fno-rtti
+        # GNU unique symbols make the containing DSO non-unloadable on glibc.
+        -fno-gnu-unique
         -fno-math-errno
         -fdata-sections -ffunction-sections
         -fno-omit-frame-pointer
