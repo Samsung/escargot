@@ -3496,21 +3496,25 @@ TEST(Object, DeepProxyTargetStackOverflow)
 {
     const char source[] = R"JS(
 (function () {
-    var proxy = { x: 1 };
+    var target = { x: 1 };
+    var proxy = target;
     for (var i = 0; i < 100000; ++i) proxy = new Proxy(proxy, {});
     var operations = [
-        () => Object.getOwnPropertyDescriptor(proxy, "x"),
-        () => Object.defineProperty(proxy, "x", { value: 2 }),
-        () => Reflect.deleteProperty(proxy, "x"),
-        () => Object.preventExtensions(proxy),
-        () => new Proxy(proxy, { get() { return 1; } }).x
+        () => Object.getOwnPropertyDescriptor(proxy, "x").value === 1,
+        () => Object.defineProperty(proxy, "x", { value: 2 }) === proxy && target.x === 2,
+        () => Reflect.deleteProperty(proxy, "x") && !Object.prototype.hasOwnProperty.call(target, "x"),
+        () => Object.preventExtensions(proxy) === proxy && !Object.isExtensible(target),
+        () => new Proxy(proxy, { get() { return 1; } }).x === 1
     ];
+    // Native frame sizes and stack budgets vary. If the chain fits on the
+    // stack, the operation must complete with the expected result instead.
     for (var operation of operations) {
-        try { operation(); } catch (error) {
+        var result;
+        try { result = operation(); } catch (error) {
             if (error instanceof RangeError) continue;
             throw error;
         }
-        throw new Error("Missing stack overflow exception");
+        if (!result) throw new Error("Incorrect Proxy operation result");
     }
     return true;
 })()
