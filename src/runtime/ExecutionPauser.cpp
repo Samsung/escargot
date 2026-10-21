@@ -253,6 +253,12 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
                 // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
                 // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
                 result = self->m_promiseCapability.m_promise;
+            } else if (from == StartFrom::AsyncGenerator && pauseReason == PauseReason::Yield) {
+                // Resolving can synchronously resume the next queued request.
+                // Save the pause data and unwind the interpreter before doing so.
+                auto generator = source->asAsyncGeneratorObject();
+                generator->m_asyncGeneratorState = AsyncGeneratorObject::SuspendedYield;
+                result = AsyncGeneratorObject::asyncGeneratorResolve(state, generator, result, false);
             }
         } else {
             // normal execution end
@@ -328,36 +334,16 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     self->m_resumeStateStore = resumeStateStore;
 
     bool isGenerator = pauser->isGeneratorObject();
-    bool isAsyncGenerator = pauser->isAsyncGeneratorObject();
 
     if (reason == PauseReason::Yield) {
         if (isGenerator) {
             pauser->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::SuspendedYield;
-        } else if (isAsyncGenerator) {
-            pauser->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::SuspendedYield;
-            returnValue = AsyncGeneratorObject::asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
-            // asyncGeneratorResolve() can synchronously drive this same generator through
-            // another full resume (e.g. when a subsequent next() request is already queued),
-            // which runs executionResumeOperation() and, as a side effect, clears
-            // m_inExecutionStopState along the very execution state chain (&state..originalState)
-            // that *this* pause() call is still unwinding. Restore it here, otherwise the
-            // still-unwinding blockOperation()/tryOperation() frames above us on the C++ stack
-            // read a stale "not stopped" flag and fall through past the end of the (already
-            // fully consumed) bytecode block.
-            ExecutionState* restoreState = &state;
-            while (true) {
-                restoreState->m_inExecutionStopState = true;
-                if (restoreState == originalState) {
-                    break;
-                }
-                restoreState = restoreState->parent();
-            }
         }
     } else {
         ASSERT(reason == PauseReason::Await || reason == PauseReason::GeneratorsInitialize);
     }
 
-    // we need to reset parent here beacuse asyncGeneratorResolve access parent
+    // Detach the suspended state from the active caller.
     originalState->m_parent = nullptr;
     originalState->m_programCounter = nullptr;
 

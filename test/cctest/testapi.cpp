@@ -3712,6 +3712,65 @@ TEST(AsyncGenerator, CompletionExceptionPreservesNextRequest)
     eval(g_context.get(), StringRef::createFromASCII("delete globalThis.release1734; delete globalThis.gate1734; delete globalThis.generator1734; delete globalThis.first1734; delete globalThis.second1734;"));
 }
 
+TEST(AsyncGenerator, QueuedRequestsPreservePausedScopes)
+{
+    const char source[] = R"JS(
+        var queuedScopes1744;
+        (function () {
+            let afterBlock = 0, finalized = 0;
+            async function* withFinally() {
+                try { { let v = 1; () => v; yield v; } }
+                finally { await 0; }
+                return 2;
+            }
+            async function* withBlock() {
+                { let v = 1; () => v; yield v; }
+                await 0;
+                return 2;
+            }
+            async function* withAwait() {
+                yield 1;
+                { let v; () => v; await 0; }
+                ++afterBlock;
+                return 2;
+            }
+            async function* withReturn() {
+                try { { let v = 1; () => v; yield v; } }
+                finally { await 0; ++finalized; }
+            }
+            async function* withThrow() {
+                try { { let v = 1; () => v; yield v; } }
+                finally { await 0; ++finalized; }
+            }
+            function queue(generator, abrupt) {
+                const first = generator.next();
+                const second = abrupt ? abrupt(generator) : generator.next();
+                const third = generator.next();
+                return Promise.all([first, second, third]).then(([a, b, c]) =>
+                    [a.value, a.done, b.value, b.done, c.value, c.done]);
+            }
+            Promise.all([
+                queue(withFinally()), queue(withBlock()), queue(withAwait()),
+                queue(withReturn(), generator => generator.return(9)),
+                queue(withThrow(), generator => generator.throw(8).catch(error => ({ value: error, done: true })))
+            ]).then(results => {
+                queuedScopes1744 = JSON.stringify(results) + ";" + afterBlock + ";" + finalized;
+            });
+        })();
+        "ready";
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("async-generator-queued-scopes.js"), false),
+              "ready");
+    while (g_instance.get()->hasPendingJob()) {
+        auto result = g_instance.get()->executePendingJob();
+        ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(g_context.get())->toStdUTF8String();
+    }
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("queuedScopes1744"),
+                         StringRef::createFromASCII("async-generator-queued-results.js"), false),
+              "[[1,false,2,true,null,true],[1,false,2,true,null,true],[1,false,2,true,null,true],[1,false,9,true,null,true],[1,false,8,true,null,true]];1;2");
+}
+
 TEST(Object, PrototypeIterationPreservesExoticDispatch)
 {
     const char source[] = R"JS(
