@@ -3441,6 +3441,48 @@ TEST(Array, SortComparatorResizesArray)
               "true");
 }
 
+TEST(Generator, DelegateThrowAfterCompletedTry)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(value) { if (!value) throw new Error("Incorrect iterator completion"); }
+    for (var factory of [
+        function* () { try {} catch (error) {} yield* [1]; },
+        function* () { try {} finally {} yield* [1]; },
+        function* () { try { throw 1; } catch (error) {} yield* [1]; },
+        function* () { try { yield* [1]; } finally {} }
+    ]) {
+        var generator = factory();
+        check(generator.next().value === 1);
+        var threw = false;
+        try { generator.throw(42); }
+        catch (error) { check(error instanceof TypeError); threw = true; }
+        check(threw && generator.next().done);
+    }
+    // Missing throw() must still close the delegate and propagate close errors.
+    for (var failClose of [false, true]) {
+        var closed = 0;
+        var closeError = {};
+        var delegate = {
+            [Symbol.iterator]() { return this; },
+            next() { return {value: 1, done: false}; },
+            return() { ++closed; if (failClose) throw closeError; return {}; }
+        };
+        var generator = (function* () { try {} catch (error) {} yield* delegate; })();
+        check(generator.next().value === 1);
+        var threw = false;
+        try { generator.throw(42); }
+        catch (error) { check(failClose ? error === closeError : error instanceof TypeError); threw = true; }
+        check(threw && closed === 1 && generator.next().done);
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("generator-delegate-throw-completed-try.js"), false),
+              "true");
+}
+
 TEST(ByteCode, TypedArrayLengthAfterInlineCache)
 {
     const char source[] = R"JS(

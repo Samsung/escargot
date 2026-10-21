@@ -6621,7 +6621,9 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             IteratorObject::iteratorClose(state, iteratorRecord, registerFile[code->m_iteratorCloseData.m_execeptionRegisterIndexIfExists], true);
         } else {
-            bool exceptionWasThrown = state.rareData()->controlFlowRecordStack() && state.rareData()->controlFlowRecordStack()->back() && state.rareData()->controlFlowRecordStack()->back()->reason() == ControlFlowRecord::NeedsThrow;
+            auto controlFlowRecordStack = state.rareData()->controlFlowRecordStack();
+            bool exceptionWasThrown = controlFlowRecordStack && controlFlowRecordStack->size()
+                && controlFlowRecordStack->back() && controlFlowRecordStack->back()->reason() == ControlFlowRecord::NeedsThrow;
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             if (LIKELY(IteratorObject::directArrayIterationClosesWithoutReturn(state, iteratorRecord))) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
