@@ -267,6 +267,11 @@ class TestResult(object):
         return 'Test262:AsyncTestComplete' not in self.stdout
 
   def HasUnexpectedOutcome(self):
+    # Crashes and sanitizer diagnostics cannot satisfy an expected JS error.
+    if self.exit_code < 0:
+       return True
+    if 'AddressSanitizer:' in self.stderr or 'LeakSanitizer:' in self.stderr:
+       return True
     if self.case.IsNegative():
        return not (self.HasFailed() and self.case.NegativeMatch(self.GetErrorOutput()))
     elif self.case.IsAsyncTest():

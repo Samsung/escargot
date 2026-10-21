@@ -2480,8 +2480,12 @@ jobs:
         attempt_delay: 10000
     - name: Init required submodules
       run: |
+        submodules=(third_party/GCutil third_party/googletest third_party/icu third_party/walrus test/vendortest)
+        if [ "${{ matrix.extended_api }}" = "OFF" ]; then
+          submodules+=(test/test262)
+        fi
         for i in 1 2 3; do
-          git submodule update --init --recursive -- third_party/GCutil third_party/googletest third_party/icu third_party/walrus test/vendortest && break
+          git submodule update --init --recursive -- "${submodules[@]}" && break
           if [ "$i" -eq 3 ]; then exit 1; fi
           sleep 10
         done
@@ -2502,6 +2506,14 @@ jobs:
       if: matrix.extended_api == 'OFF'
       run: |
         $RUNNER --engine="$GITHUB_WORKSPACE/out/asan/escargot" regression-tests new-es wasm-js
+    - name: Run test262 under ASAN
+      if: matrix.extended_api == 'OFF'
+      env:
+        LOCALE: en_US
+      run: |
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/asan/escargot" test262
 
   # Separate from build-test-api: N-API support is an early PoC
   # gated behind ESCARGOT_NAPI, and test/napi-tc is a sparse checkout of the
