@@ -146,6 +146,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
 // FlattenIntoArray(target, source, sourceLen, start, depth [ , mapperFunction, thisArg ])
 static int64_t flattenIntoArray(ExecutionState& state, Value target, Value source, int64_t sourceLen, int64_t start, double depth, Value mappedValue = Value(Value::EmptyValue), Value thisArg = Value(Value::EmptyValue))
 {
+    CHECK_STACK_OVERFLOW(state);
     ASSERT(target.isObject());
     ASSERT(source.isObject());
     ASSERT(sourceLen >= 0);
