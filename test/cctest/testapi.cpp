@@ -3385,6 +3385,34 @@ TEST(ReloadableString, StringBufferAccessDataHoldsBuffer)
     EXPECT_FALSE(d.loaded);
 }
 
+TEST(Array, FlattenStackOverflow)
+{
+    const char source[] = R"JS(
+(function () {
+    var cyclic = [];
+    cyclic[0] = cyclic;
+    var threw = false;
+    try { cyclic.flat(Infinity); }
+    catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        threw = true;
+    }
+    if (!threw) throw new Error("Missing flatten stack overflow exception");
+    for (var depth of [0, 1, 2]) {
+        var result = cyclic.flat(depth);
+        if (result.length !== 1 || result[0] !== cyclic) throw new Error("Incorrect finite flatten result");
+    }
+    var mapped = cyclic.flatMap(value => value);
+    if (mapped.length !== 1 || mapped[0] !== cyclic) throw new Error("Incorrect flatMap result");
+    if ([1, [2, [3]]].flat(Infinity).join() !== "1,2,3") throw new Error("Incorrect nested flatten result");
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("array-flat-stack-overflow.js"), false),
+              "true");
+}
+
 TEST(Array, ShrinkAfterExactAllocation)
 {
     const char source[] = R"JS(
@@ -3400,6 +3428,14 @@ TEST(Array, ShrinkAfterExactAllocation)
         }
         array.push(17);
         if (array.length !== 18 || array[17] !== 17) throw new Error("Invalid capacity after shrink");
+    }
+    // Exercise both bytecode sites while repeatedly discarding fitted storage.
+    const mixed = [-8];
+    for (let length = 0; length < 25; ++length) {
+        mixed["length"] = length;
+        if (mixed.length !== length) throw new Error("Incorrect computed length write");
+        mixed.length = 10000;
+        if (mixed.length !== 10000) throw new Error("Incorrect named length write");
     }
     return true;
 })()
