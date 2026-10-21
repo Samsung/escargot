@@ -119,6 +119,38 @@ for configuration and host responsibilities.</li>
 <p>Set <code>ESCARGOT_BUILD_SHARED_LIBS=ON</code> for a shared library, or
 <code>ESCARGOT_ENABLE_SHELL=OFF</code> to build without the C++ shell. Run the
 <a href="#testing-">benchmark and conformance suites</a> as part of your evaluation.</p>
+<p>Before unloading a shared library that contains or links Escargot, the host
+must release all Escargot objects, persistent references and callbacks, call
+<code>Globals::finalizeThread()</code> on every auxiliary thread that initialized Escargot,
+and let those threads exit. On the main Escargot thread, call:</p>
+<pre><code class="language-cpp">Escargot::Globals::finalize();
+Escargot::Globals::destroyRuntimeForSharedLibraryUnload();
+// Now the host may dlclose() the library containing or linking Escargot.
+</code></pre>
+<p>The calling host thread may remain alive. All finalization must finish before
+<code>dlclose()</code>; Escargot does not detect an embedding library&#39;s unload and finalize
+it automatically. No Escargot calls may run concurrently with final runtime
+destruction. Keep this work outside shared-library destructors, where loader
+locking can conflict with thread shutdown.</p>
+<p>Ordinary <code>finalize()</code> retains the GC runtime and its descriptor caches for
+existing initialization/finalization cycles. The explicit destruction API
+invalidates those caches and is terminal for that library mapping: neither
+<code>initialize()</code> nor <code>initializeThread()</code> is allowed afterward until the library
+has actually been unloaded and freshly loaded. Extra loader references or
+non-unloadable dependencies can prevent that unload; a successful <code>dlclose()</code>
+alone does not prove a fresh runtime. A collector shared with other users must
+not be destroyed while any of them still needs it.</p>
+<p>The unload regression runs on Linux. Mach-based incremental GC on Darwin
+cannot currently retire its exception-monitor thread; the final destruction
+operation rejects that configuration instead of allowing unsafe unload.</p>
+<p>Linux C++ test configurations (<code>ESCARGOT_BUILD_CCTEST=ON</code>, Node-API disabled)
+provide the separate <code>shared_library_unload_test</code> target. Build it explicitly
+and run it with the embedding test DSO:</p>
+<pre><code class="language-sh">cmake --build out --target shared_library_unload_test
+./out/shared_library_unload_test ./out/libescargot_unload_test_runtime.so
+</code></pre>
+<p>It tests normal restart and actual embedding/engine unload and reload on the
+same host thread, including GC, TLS keys and incremental GC cleanup.</p>
 <p>Escargot is available under the <a href="https://github.com/Samsung/escargot/blob/master/LICENSE">LGPL-2.1 license</a>.
 Bug reports and contributions are welcome; see <a href="#contributing-">Contributing</a>.</p>
 <h2 id="contents-">Contents 📋</h2>
