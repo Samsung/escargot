@@ -3004,15 +3004,16 @@ ISO8601::PlainDateTime Temporal::interpretTemporalDateTimeFields(ExecutionState&
 {
     // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
     auto fieldResult = calendarDateFromFields(state, calendar, fields, overflow);
+    LocalResourcePointer<UCalendar> icuDate(fieldResult.first, [](UCalendar* calendar) {
+        ucal_close(calendar);
+    });
 
     ISO8601::PlainDate isoDate;
     if (fieldResult.second) {
         isoDate = fieldResult.second.value();
     } else {
-        auto icuDate = fieldResult.first;
         UErrorCode status = U_ZERO_ERROR;
-        auto epochTime = ucal_getMillis(icuDate, &status);
-        ucal_close(icuDate);
+        auto epochTime = ucal_getMillis(icuDate.get(), &status);
         CHECK_ICU_CALENDAR()
 
         DateObject::DateTimeInfo timeInfo;

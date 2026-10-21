@@ -285,10 +285,6 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
 {
     // 6.4.1 IsValidTimeZoneName (timeZone)
     // The abstract operation returns true if timeZone, converted to upper case as described in 6.1, is equal to one of the Zone or Link names of the IANA Time Zone Database, converted to upper case as described in 6.1. It returns false otherwise.
-    UErrorCode status = U_ZERO_ERROR;
-    UEnumeration* timeZones = ucal_openTimeZones(&status);
-    ASSERT(U_SUCCESS(status));
-
     if (auto offset = parseUTCOffsetInMinutes(timeZoneName->bufferAccessData())) {
         int64_t minutes = offset.value();
         int64_t absMinutes = std::abs(minutes);
@@ -310,12 +306,18 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
         return exceptional.value();
     }
 
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UEnumeration> timeZones(ucal_openTimeZones(&status), [](UEnumeration* enumeration) {
+        uenum_close(enumeration);
+    });
+    ASSERT(U_SUCCESS(status));
+
     String* canonical = String::emptyString();
     do {
         status = U_ZERO_ERROR;
         int32_t ianaTimeZoneLength;
         // Time zone names are respresented as UChar[] in all related ICU apis.
-        const UChar* ianaTimeZone = uenum_unext(timeZones, &ianaTimeZoneLength, &status);
+        const UChar* ianaTimeZone = uenum_unext(timeZones.get(), &ianaTimeZoneLength, &status);
         ASSERT(U_SUCCESS(status));
 
         // End of enumeration.
@@ -330,8 +332,6 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
         // Asia/Calcutta into Asia/Kolkata, which is observably incorrect.
         canonical = new UTF16String(ianaTimeZoneView.data(), ianaTimeZoneLength);
     } while (canonical->length() == 0);
-    uenum_close(timeZones);
-
     // 4. Return ianaTimeZone.
     return canonical;
 }
