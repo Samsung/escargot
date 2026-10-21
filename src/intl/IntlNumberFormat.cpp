@@ -246,9 +246,9 @@ static bool isWellFormedUnitIdenifier(const std::string& s)
 
 static const char* findICUUnitTypeFromUnitString(const std::string& s)
 {
-#define COMPARE_ONCE(to, from)                             \
-    if (memcmp(s.data(), #from, sizeof(#from) - 1) == 0) { \
-        return #to;                                        \
+#define COMPARE_ONCE(to, from) \
+    if (s == #from) {          \
+        return #to;            \
     }
     if (false) {
     }

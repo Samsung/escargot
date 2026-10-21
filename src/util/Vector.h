@@ -31,7 +31,7 @@ struct VectorCopier<T, true> {
     static void copy(T* dst, const T* src, const size_t size)
     {
         if (LIKELY(size)) {
-            memcpy(dst, src, sizeof(T) * size);
+            memmove(dst, src, sizeof(T) * size);
         }
     }
 };

@@ -3979,14 +3979,19 @@ void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size
     bool skipEraName = id() == ID::Japanese;
     int meijiKey = std::numeric_limits<int>::max();
 
-    UResourceBundle* res = nullptr;
+    LocalResourcePointer<UResourceBundle> res(nullptr, [](UResourceBundle* resource) {
+        ures_close(resource);
+    });
     while (true) {
-        res = ures_getNextResource(bundle.get(), res, &status);
-        if (res == nullptr || U_FAILURE(status)) {
+        Optional<UResourceBundle*> nextResource = ures_getNextResource(bundle.get(), res.get(), &status);
+        if (nextResource != Optional<UResourceBundle*>(res.get())) {
+            res.reset(nextResource.unwrap());
+        }
+        if (!res || U_FAILURE(status)) {
             break;
         }
 
-        auto key = ures_getKey(res);
+        auto key = ures_getKey(res.get());
 
         int32_t length = 0;
         const UChar* data = ures_getStringByKey(bundle.get(), key, &length, &status);
