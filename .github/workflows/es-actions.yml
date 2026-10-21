@@ -2421,6 +2421,39 @@ jobs:
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/cctest/x86/cctest" cctest
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/x64/cctest" cctest
 
+  shared-library-unload:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {cc: gcc, cxx: g++, shared: 'OFF', threading: 'ON', keys: 'OFF', large: 'ON'}
+          - {cc: gcc, cxx: g++, shared: 'ON', threading: 'ON', keys: 'OFF', large: 'ON', gc_flags: '-DNO_UFFDWP_VDB -DNO_SOFT_VDB'}
+          - {cc: clang, cxx: clang++, shared: 'ON', threading: 'ON', keys: 'OFF', large: 'ON'}
+          - {cc: gcc, cxx: g++, shared: 'ON', threading: 'ON', keys: 'ON', large: 'ON'}
+          - {cc: gcc, cxx: g++, shared: 'ON', threading: 'ON', keys: 'ON', large: 'OFF'}
+          - {cc: gcc, cxx: g++, shared: 'ON', threading: 'OFF', keys: 'OFF', large: 'ON'}
+    steps:
+    - uses: actions/checkout@v5
+    - name: Init required submodules
+      run: git submodule update --init -- third_party/GCutil third_party/googletest
+    - name: Install packages
+      run: sudo apt-get update && sudo apt-get install -y ninja-build libicu-dev clang xvfb
+    - name: Build unload test
+      run: |
+        cmake -S . -B out/unload -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DESCARGOT_BUILD_CCTEST=ON -DESCARGOT_ENABLE_SHELL=OFF \
+          -DESCARGOT_BUILD_SHARED_LIBS=${{ matrix.shared }} \
+          -DESCARGOT_THREADING=${{ matrix.threading }} \
+          -DESCARGOT_TLS_ACCESS_BY_ADDRESS=OFF \
+          -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY=${{ matrix.keys }} \
+          -DESCARGOT_BUILD_64BIT_FORCE_LARGE=${{ matrix.large }} \
+          "-DGCUTIL_CFLAGS_FROM_EXTERNAL=${{ matrix.gc_flags }}"
+        cmake --build out/unload --target shared_library_unload_test --parallel 4
+    - name: Verify host-thread unload and fresh reload
+      run: xvfb-run -s '-screen 0 1920x1080x24' -a out/unload/shared_library_unload_test "$GITHUB_WORKSPACE/out/unload/libescargot_unload_test_runtime.so"
+
   build-test-asan:
     runs-on: ubuntu-latest
     strategy:

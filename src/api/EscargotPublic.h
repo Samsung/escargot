@@ -166,6 +166,19 @@ public:
     static void initialize(PlatformRef* platform, InitializeOption option = InitializeOption::None);
     static void finalize();
 
+    // Permanently destroy the retained GC runtime before unloading the shared
+    // library containing Escargot. Call on the thread that called finalize(),
+    // after releasing every Escargot object and callback and after all other
+    // threads that used Escargot have finalized and exited. The caller's thread
+    // may remain alive. No concurrent Escargot calls are permitted.
+    //
+    // Unlike finalize(), this invalidates GC descriptors cached in static/TLS
+    // variables. Neither initialize() nor initializeThread() may be called
+    // again until the library has actually been unloaded and freshly loaded.
+    // This does not unload the library or release references owned by others.
+    // Mach-based incremental GC on Darwin is currently unsupported and rejected.
+    static void destroyRuntimeForSharedLibraryUnload();
+
     // Globals also used for thread initialization
     // Users need to call initializeThread, finalizeThread function for each thread
     static void initializeThread(InitializeOption option = InitializeOption::None);

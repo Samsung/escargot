@@ -285,18 +285,23 @@ void* PlatformRef::threadLocalCustomData()
 
 #if defined(OS_BAREMETAL)
 static bool g_globalsInited;
+static bool g_globalsFinalized;
 #else
 thread_local bool g_globalsInited;
+static thread_local bool g_globalsFinalized;
 #endif
+static bool g_runtimeDestroyedForSharedLibraryUnload;
 void Globals::initialize(PlatformRef* platform, InitializeOption option)
 {
     // initialize global value or context including thread-local variables
     // this function should be invoked once at the start of the program
     // argument `platform` will be deleted automatically when Globals::finalize called
+    RELEASE_ASSERT(!g_runtimeDestroyedForSharedLibraryUnload);
     RELEASE_ASSERT(!g_globalsInited);
     Global::initialize(new PlatformBridge(platform));
     ThreadLocal::initialize(static_cast<uint32_t>(option));
     g_globalsInited = true;
+    g_globalsFinalized = false;
 }
 
 void Globals::finalize()
@@ -310,6 +315,15 @@ void Globals::finalize()
     // Global::finalize should be called at the end of program
     // because it holds Platform which could be used in other Object's finalizer
     Global::finalize();
+    g_globalsFinalized = true;
+}
+
+void Globals::destroyRuntimeForSharedLibraryUnload()
+{
+    RELEASE_ASSERT(!g_runtimeDestroyedForSharedLibraryUnload);
+    RELEASE_ASSERT(g_globalsFinalized && !g_globalsInited && !Global::isInitialized());
+    ThreadLocal::destroyRuntimeForSharedLibraryUnload();
+    g_runtimeDestroyedForSharedLibraryUnload = true;
 }
 
 bool Globals::isInitialized()
@@ -321,6 +335,7 @@ void Globals::initializeThread(InitializeOption option)
 {
     // initialize thread-local variables
     // this function should be invoked at the start of sub-thread
+    RELEASE_ASSERT(!g_runtimeDestroyedForSharedLibraryUnload);
     RELEASE_ASSERT(!g_globalsInited);
     ThreadLocal::initialize(static_cast<uint32_t>(option));
     g_globalsInited = true;
