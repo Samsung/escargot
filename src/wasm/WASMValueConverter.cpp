@@ -69,7 +69,7 @@ namespace Escargot {
 
 wasm_val_t WASMValueConverter::defaultValue(ExecutionState& state, wasm_valkind_t type)
 {
-    if (type == WASM_V128) {
+    if (!isJSCompatibleType(type)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
     }
 
@@ -111,7 +111,7 @@ wasm_val_t WASMValueConverter::defaultValue(ExecutionState& state, wasm_valkind_
 
 Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& value)
 {
-    if (value.kind == WASM_V128) {
+    if (!isJSCompatibleType(value.kind)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
     }
 
@@ -195,7 +195,7 @@ wasm_valkind_t WASMValueConverter::toValueType(ExecutionState& state, const Valu
 
 wasm_val_t WASMValueConverter::toWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
 {
-    if (type == WASM_V128) {
+    if (!isJSCompatibleType(type)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
     }
 

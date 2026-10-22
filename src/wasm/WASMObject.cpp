@@ -424,6 +424,11 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     // Let globaladdr be global.[[Global]].
     wasm_global_t* globaladdr = global();
 
+    std::unique_ptr<wasm_globaltype_t, decltype(&wasm_globaltype_delete)> type(wasm_global_type(globaladdr), wasm_globaltype_delete);
+    if (!WASMValueConverter::isJSCompatibleType(wasm_valtype_kind(wasm_globaltype_content(type.get())))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
+
     // Let value be global_read(store, globaladdr).
     own wasm_val_t value;
     wasm_global_get(globaladdr, &value);

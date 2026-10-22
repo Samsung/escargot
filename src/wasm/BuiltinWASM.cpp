@@ -666,6 +666,9 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
     wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
     wasm_tabletype_delete(tabletype);
+    if (!WASMValueConverter::isJSCompatibleType(elementType)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
     ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
 
     wasm_ref_t* ref = nullptr;
@@ -710,16 +713,19 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     // Let tableaddr be this.[[Table]].
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
+    own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
+    wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
+    wasm_tabletype_delete(tabletype);
+    if (!WASMValueConverter::isJSCompatibleType(elementType)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
+
     // If result is error, throw a RangeError exception.
     if (UNLIKELY(index >= wasm_table_size(tableaddr))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
     // Let result be table_read(store, tableaddr, index).
     own wasm_ref_t* result = wasm_table_get(tableaddr, index);
-
-    own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
-    wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
-    wasm_tabletype_delete(tabletype);
 
     // Return ToJSValue(result).
     wasm_val_t resultVal;
@@ -763,6 +769,9 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
     wasm_tabletype_delete(tabletype);
 
+    if (!WASMValueConverter::isJSCompatibleType(elementType)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+    }
     ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
 
     wasm_ref_t* ref = nullptr;
@@ -864,7 +873,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     // Let valuetype be ToValueType(descriptor["value"]).
     wasm_valkind_t valuetype = WASMValueConverter::toValueType(state, wasmGetValueFromObjectProperty(state, desc, strings->value, strings->toString).second);
     // If valuetype is v128,
-    if (valuetype == WASM_V128) {
+    if (!WASMValueConverter::isJSCompatibleType(valuetype)) {
         // Throw a TypeError exception.
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
