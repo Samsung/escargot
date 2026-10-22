@@ -3975,6 +3975,65 @@ TEST(WebAssembly, ExnRefContainers)
               "true");
 }
 
+TEST(WebAssembly, LargeMemoryBuffers)
+{
+    const char source[] = R"JS(
+(function () {
+    function section(id, bytes) { return [id, bytes.length].concat(bytes); }
+    function check(value) { if (!value) throw new Error("large memory buffer mismatch"); }
+    function throwsRange(f) {
+        try { f(); } catch (error) { if (error instanceof RangeError) return; throw error; }
+        throw new Error("Missing RangeError");
+    }
+    const page = 65536;
+    for (var shared of typeof SharedArrayBuffer === "function" ? [false, true] : [false]) {
+        var memory = new WebAssembly.Memory({initial: 0, maximum: 3206, shared});
+        var expected = 0, calls = 0, throwHost = false, sentinel = {};
+        var bytes = [0,97,115,109,1,0,0,0].concat(
+            section(1, [2,96,0,0,96,0,1,127]),
+            section(2, [2,1,109,1,102,0,0,1,109,3,109,101,109,2,shared ? 3 : 1,0,134,25]),
+            section(3, [2,1,0]), section(7, [2,1,103,0,1,1,99,0,2]),
+            section(10, [2,8,0,65,1,64,0,16,0,11,4,0,16,0,11]));
+        var exports = new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(bytes)),
+            {m: {mem: memory, f() {
+                check(memory.buffer.byteLength === expected);
+                ++calls;
+                if (throwHost) throw sentinel;
+            }}}).exports;
+        var empty = memory.buffer;
+        check(memory.grow(3204) === 0);
+        check(empty.byteLength === 0);
+        expected = 3205 * page;
+        check(exports.g() === 3204);
+        check(calls === 1 && memory.buffer.byteLength === expected);
+        var old = memory.buffer;
+        check(memory.grow(1) === 3205);
+        expected = 3206 * page;
+        check(old.byteLength === (shared ? 3205 * page : 0));
+        var tail = new Uint8Array(memory.buffer, expected - 1, 1);
+        tail[0] = 73;
+        exports.c();
+        check(calls === 2 && tail[0] === 73);
+        var buffer = memory.buffer;
+        throwsRange(() => memory.grow(1));
+        check(memory.buffer === buffer && buffer.byteLength === expected && tail[0] === 73);
+        check(exports.g() === -1);
+        check(calls === 3 && memory.buffer === buffer);
+        throwHost = true;
+        try { exports.c(); throw new Error("Missing host exception"); }
+        catch (error) { check(error === sentinel); }
+        check(calls === 4 && memory.buffer === buffer);
+    }
+    throwsRange(() => new ArrayBuffer(210000000));
+    if (typeof SharedArrayBuffer === "function") throwsRange(() => new SharedArrayBuffer(210000000));
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-large-memory-buffers.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, HostCallbackExceptionCleanup)
 {
     const char source[] = R"JS(

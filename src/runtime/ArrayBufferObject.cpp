@@ -64,10 +64,7 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
 
 ArrayBufferObject* ArrayBufferObject::allocateExternalArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength)
 {
-    if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
-    }
-
+    // The allocation limit applies to engine-owned storage, not external memory.
     // creating a fixed length memory buffer from memaddr.
     // NOTE) deleter do nothing, dataBlock will be freed in external module
     BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, byteLength, [](void* data, size_t length, void* deleterData) {}, nullptr);

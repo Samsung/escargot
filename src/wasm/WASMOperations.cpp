@@ -49,7 +49,6 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     // Let realm be func's associated Realm.
     // Let relevant settings be realm?s settings object.
     ExecutionState state(funcEnv->realm);
-    state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
 
     // Let [parameters] ? [results] be functype.
     wasm_functype_t* functype = funcEnv->functype;
@@ -82,6 +81,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         CallBackData* callBackData = (CallBackData*)data;
+        state.context()->wasmCache()->refreshGrownMemoryBuffers(state);
         // Keep type checks and conversions inside the sandbox so a TypeError
         // follows the normal host-exception propagation path back through wasm.
         for (const wasm_valtype_vec_t* types : { callBackData->params, callBackData->res }) {
