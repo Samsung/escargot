@@ -109,10 +109,7 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateExternalSharedArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength)
 {
-    if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
-    }
-
+    // The allocation limit applies to engine-owned storage, not external memory.
     // creating a fixed length memory buffer from memaddr.
     // NOTE) deleter do nothing, dataBlock will be freed in external module
     SharedDataBlockInfo* sharedInfo = new SharedDataBlockInfo(dataBlock, byteLength,
