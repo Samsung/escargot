@@ -95,10 +95,10 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     const wasm_valtype_vec_t* results = wasm_functype_results(functype.get());
 
     // Reject JS-inexpressible signatures before converting any arguments or
-    // executing wasm, including when only a result is v128.
+    // executing wasm, including when only a result is v128 or exnref.
     for (const wasm_valtype_vec_t* types : { parameters, results }) {
         for (size_t i = 0; i < types->size; i++) {
-            if (wasm_valtype_kind(types->data[i]) == WASM_V128) {
+            if (!WASMValueConverter::isJSCompatibleType(wasm_valtype_kind(types->data[i]))) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
             }
         }

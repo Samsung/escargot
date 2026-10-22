@@ -86,7 +86,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
         // follows the normal host-exception propagation path back through wasm.
         for (const wasm_valtype_vec_t* types : { callBackData->params, callBackData->res }) {
             for (size_t i = 0; i < types->size; i++) {
-                if (wasm_valtype_kind(types->data[i]) == WASM_V128) {
+                if (!WASMValueConverter::isJSCompatibleType(wasm_valtype_kind(types->data[i]))) {
                     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
                 }
             }

@@ -3883,7 +3883,7 @@ TEST(WebAssembly, TagImportsAndExports)
               "true");
 }
 
-TEST(WebAssembly, V128JavaScriptBoundary)
+TEST(WebAssembly, V128AndExnRefJavaScriptBoundary)
 {
     const char source[] = R"JS(
 (function () {
@@ -3897,34 +3897,81 @@ TEST(WebAssembly, V128JavaScriptBoundary)
         try { f(); } catch (error) { if (error instanceof TypeError) return; throw error; }
         throw new Error("Missing TypeError");
     }
-    var constant = [253,12].concat(Array(16).fill(0));
-    for (var returnsVector of [false, true]) {
-        var sig = returnsVector ? signature([], [123]) : signature([127,123], []);
-        var body = [0].concat(returnsVector ? constant : [], [11]);
-        var f = module([
-            section(1, [1].concat(sig)), section(3, [1,0]),
-            section(7, [1,1,102,0,0]), section(10, [1,body.length].concat(body))
-        ]).f;
-        var converted = false;
-        throws(() => f({valueOf() { converted = true; return 0; }}, 0));
-        if (converted) throw new Error("Converted an argument before rejecting v128");
-        // The same restriction applies before invoking a JS import callback.
-        var hostSig = returnsVector ? signature([], [123]) : signature([123], []);
-        var wrapper = [0].concat(returnsVector ? [] : constant, [16,0], returnsVector ? [26] : [], [11]);
-        var called = false;
-        var wrapperFunction = module([
-            section(1, [2].concat(hostSig, signature([], []))),
-            section(2, [1,1,109,1,102,0,0]), section(3, [1,1]),
-            section(7, [1,1,102,0,1]), section(10, [1,wrapper.length].concat(wrapper))
-        ], {m: {f() { called = true; }}}).f;
-        throws(() => wrapperFunction());
-        if (called) throw new Error("Called a JS callback with a v128 signature");
+    for (var type of [123, 105]) {
+        var constant = type === 123 ? [253,12].concat(Array(16).fill(0)) : [208,105];
+        for (var returnsVector of [false, true]) {
+            var sig = returnsVector ? signature([], [type]) : signature([127,type], []);
+            var body = [0].concat(returnsVector ? constant : [], [11]);
+            var f = module([
+                section(1, [1].concat(sig)), section(3, [1,0]),
+                section(7, [1,1,102,0,0]), section(10, [1,body.length].concat(body))
+            ]).f;
+            var converted = false;
+            throws(() => f({valueOf() { converted = true; return 0; }}, 0));
+            if (converted) throw new Error("Converted an argument before rejecting v128 or exnref");
+            // The same restriction applies before invoking a JS import callback.
+            var hostSig = returnsVector ? signature([], [type]) : signature([type], []);
+            var wrapper = [0].concat(returnsVector ? [] : constant, [16,0], returnsVector ? [26] : [], [11]);
+            var called = false;
+            var wrapperFunction = module([
+                section(1, [2].concat(hostSig, signature([], []))),
+                section(2, [1,1,109,1,102,0,0]), section(3, [1,1]),
+                section(7, [1,1,102,0,1]), section(10, [1,wrapper.length].concat(wrapper))
+            ], {m: {f() { called = true; }}}).f;
+            throws(() => wrapperFunction());
+            if (called) throw new Error("Called a JS callback with a v128 or exnref signature");
+        }
     }
     return true;
 })()
 )JS";
     EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
-                         StringRef::createFromASCII("wasm-v128-boundary.js"), false),
+                         StringRef::createFromASCII("wasm-v128-exnref-boundary.js"), false),
+              "true");
+}
+
+TEST(WebAssembly, ExnRefContainers)
+{
+    const char source[] = R"JS(
+(function () {
+    function section(id, bytes) { return [id, bytes.length].concat(bytes); }
+    function module(parts, imports) {
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(
+            [0,97,115,109,1,0,0,0].concat(...parts))), imports).exports;
+    }
+    function check(value) { if (!value) throw new Error("exnref container mismatch"); }
+    function throws(f) {
+        try { f(); } catch (error) { if (error instanceof TypeError) return; throw error; }
+        throw new Error("Missing TypeError");
+    }
+    var types = section(1, [1,96,1,105,0]);
+    var exports = module([
+        types, section(4, [1,105,1,1,2]), section(13, [1,0,0]),
+        section(6, [2,105,0,208,105,11,105,1,208,105,11]),
+        section(7, [4,1,116,1,0,1,103,3,0,1,104,3,1,1,120,4,0])
+    ]);
+    check(exports.x instanceof WebAssembly.Tag);
+    var imported = module([
+        types, section(2, [1,1,109,1,120,4,0,0]), section(7, [1,1,120,4,0])
+    ], {m: {x: exports.x}});
+    check(imported.x === exports.x);
+    check(exports.t.length === 1);
+    for (var operation of [() => exports.t.get(0), () => exports.t.get(9),
+                          () => exports.t.set(0), () => exports.t.set(0, null),
+                          () => exports.t.grow(0), () => exports.t.grow(1, null)]) {
+        throws(operation);
+    }
+    check(exports.t.length === 1);
+    for (var global of [exports.g, exports.h]) {
+        throws(() => global.value);
+        throws(() => global.valueOf());
+        throws(() => { global.value = null; });
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-exnref-containers.js"), false),
               "true");
 }
 

@@ -26,6 +26,11 @@ namespace Escargot {
 
 class WASMValueConverter {
 public:
+    static bool isJSCompatibleType(wasm_valkind_t type)
+    {
+        return type != WASM_V128 && type != WASM_EXNREF;
+    }
+
     static wasm_val_t defaultValue(ExecutionState& state, wasm_valkind_t type);
     static Value toJSValue(ExecutionState& state, const wasm_val_t& value);
     static wasm_valkind_t toValueType(ExecutionState& state, const Value& desc);
