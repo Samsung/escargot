@@ -1723,6 +1723,9 @@ ObjectStructure* ObjectStructureWithIndexProperties::addNonIndexProperty(const O
         symbolProperties = copyProperties(m_symbolProperties.value());
         indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
         indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
+        // The map also preserves append-order slots after deletions shrink
+        // the index storage below the threshold for creating a new map.
+        indexMap = m_indexPropertyMap ? new IndexPropertyMapWithCache(*indexProperties.value()) : nullptr;
     } else {
         namedProperties = m_namedProperties.value();
         symbolProperties = m_symbolProperties.value();
@@ -1773,6 +1776,7 @@ ObjectStructure* ObjectStructureWithIndexProperties::addIndexProperty(uint32_t i
         symbolProperties = copyProperties(m_symbolProperties.value());
         indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
         indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
+        indexMap = m_indexPropertyMap ? new IndexPropertyMapWithCache(*indexProperties.value()) : nullptr;
     } else {
         namedProperties = m_namedProperties.value();
         symbolProperties = m_symbolProperties.value();
@@ -1949,6 +1953,7 @@ ObjectStructure* ObjectStructureWithIndexProperties::replacePropertyDescriptor(s
         symbolProperties = copyProperties(m_symbolProperties.value());
         indexProperties = m_indexProperties ? new ObjectStructureIndexPropertyVector(*m_indexProperties.value()) : nullptr;
         indexDescriptors = m_indexDescriptors ? new ObjectStructureIndexDescriptorVector(*m_indexDescriptors.value()) : nullptr;
+        indexMap = m_indexPropertyMap ? new IndexPropertyMapWithCache(*indexProperties.value()) : nullptr;
     } else {
         namedProperties = m_namedProperties.value();
         symbolProperties = m_symbolProperties.value();

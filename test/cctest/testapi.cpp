@@ -3477,6 +3477,75 @@ TEST(Array, SortComparatorResizesArray)
               "true");
 }
 
+TEST(Array, SparseIndicesAfterCachedStructureCopy)
+{
+    const char source[] = R"JS(
+(function () {
+    function check(value) { if (!value) throw new Error("Inconsistent indexed properties"); }
+    function checkKeys(object) {
+        var keys = Reflect.ownKeys(object);
+        check(new Set(keys).size === keys.length);
+        for (var key of keys) check(Object.getOwnPropertyDescriptor(object, key) !== undefined);
+        return keys;
+    }
+    for (var fail of [
+        a => a.forEach(), a => a.reduce(), a => a.reduceRight(),
+        a => a.map(), a => a.at(Symbol())
+    ]) {
+        var array = [3, 2, 1];
+        for (var i = 0; i < 12; ++i) {
+            Object.defineProperty(array, 99, {configurable: true, set() {}});
+            array.sort();
+            array[7] = i;
+            array.reverse();
+            var threw = false;
+            try { fail(array); }
+            catch (error) { check(error instanceof TypeError); threw = true; }
+            check(threw);
+            checkKeys(array);
+        }
+    }
+    // A map keeps value slots in append order even after deletion takes the
+    // index count below its creation threshold. Warm a named-property cache
+    // so each mutation copies the structure instead of moving its storage.
+    for (var count of [1, 2, 4, 7, 8, 9, 64, 65]) {
+        for (var mutation = 0; mutation < 4; ++mutation) {
+            var object = {marker: true};
+            for (var i = 0; i < 100 + count; ++i) object[i] = i;
+            for (var i = 0; i < 100; ++i) delete object[i];
+            object[1] = 1;
+            for (var warm = 0; warm < 16; ++warm) check(object.marker);
+            var expected = ["1"];
+            var symbol = Symbol();
+            if (mutation === 0) Object.defineProperty(object, 100, {enumerable: false});
+            if (mutation === 1) object.extra = true;
+            if (mutation === 2) object[symbol] = true;
+            if (mutation === 3) { object[2] = 2; expected.push("2"); }
+            check(object[1] === 1 && object.marker);
+            for (var i = 100; i < 100 + count; ++i) {
+                check(object[i] === i);
+                expected.push(String(i));
+            }
+            expected.push("marker");
+            if (mutation === 1) expected.push("extra");
+            if (mutation === 2) expected.push(symbol);
+            var keys = checkKeys(object);
+            check(keys.length === expected.length);
+            for (var i = 0; i < keys.length; ++i) check(keys[i] === expected[i]);
+            if (mutation === 0) check(!Object.getOwnPropertyDescriptor(object, 100).enumerable);
+            if (mutation === 1) check(object.extra);
+            if (mutation === 2) check(object[symbol]);
+            if (mutation === 3) check(object[2] === 2);
+        }
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("array-sparse-cached-structure.js"), false),
+              "true");
+}
+
 TEST(Generator, DelegateThrowAfterCompletedTry)
 {
     const char source[] = R"JS(
