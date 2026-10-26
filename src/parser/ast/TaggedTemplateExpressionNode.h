@@ -63,15 +63,13 @@ public:
     {
         fn(this);
 
-        m_expr->iterateChildren(fn);
-        m_quasi->iterateChildren(fn);
+        // The converted call contains the tag and all template substitutions.
         m_convertedExpression->iterateChildren(fn);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        m_expr->iterateChildrenIdentifier(fn);
-        m_quasi->iterateChildrenIdentifier(fn);
+        // Visit shared children only once, including in chained tagged templates.
         m_convertedExpression->iterateChildrenIdentifier(fn);
     }
 

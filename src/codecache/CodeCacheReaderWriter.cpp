@@ -187,7 +187,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         // InterpretedCodeBlock::BlockInfo::m_identifiers
         const InterpretedCodeBlock::BlockIdentifierInfoVector& infoVector = info->identifiers();
         const size_t vectorSize = infoVector.size();
-        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (2 * sizeof(bool) + 2 * sizeof(size_t)));
+        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (3 * sizeof(bool) + 2 * sizeof(size_t)));
         m_buffer.put(vectorSize);
         for (size_t j = 0; j < vectorSize; j++) {
             const InterpretedCodeBlock::BlockIdentifierInfo& info = infoVector[j];
@@ -304,7 +304,7 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
 
     size_t size = 0;
 
-    m_buffer.ensureSize(2 * sizeof(bool) + 2 * sizeof(uint16_t));
+    m_buffer.ensureSize(3 * sizeof(bool) + 2 * sizeof(uint16_t));
     m_buffer.put(block->m_shouldClearStack);
     m_buffer.put(block->m_isOwnerMayFreed);
     m_buffer.put(block->m_needsExtendedExecutionState);

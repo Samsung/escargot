@@ -431,6 +431,19 @@ int main(int argc, char* argv[])
     return testResult;
 }
 
+TEST(ScriptParser, ChainedTaggedTemplates)
+{
+    std::string source = "(function() { let calls = 0; "
+                         "function tag(strings, value) { "
+                         "if (strings[0] !== 'x' || value !== calls) throw new Error('tag arguments'); "
+                         "++calls; return tag; } tag";
+    for (size_t i = 0; i < 128; i++) {
+        source += "`x${calls}`";
+    }
+    source += "; return calls; })()";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source.c_str(), source.length()), StringRef::createFromASCII("chained-tagged-templates.js"), false), "128");
+}
+
 TEST(ValueRef, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
