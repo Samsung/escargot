@@ -149,6 +149,14 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
             // so a new Exported Function must own a copy of it.
             ExportedFunctionObject* func = state.context()->wasmCache()->findFunction(value.of.ref);
             if (!func) {
+                // Walrus currently casts wasm_ref_as_func without checking the
+                // runtime kind. Reject known non-functions before that cast.
+                auto* cache = state.context()->wasmCache();
+                if (wasm_ref_as_foreign(value.of.ref) || cache->findMemory(value.of.ref)
+                    || cache->findTable(value.of.ref) || cache->findGlobal(value.of.ref)
+                    || cache->findTag(value.of.ref) || cache->findOther(value.of.ref).first) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+                }
                 // FIXME set parameter index as 0, need to be fixed
                 func = ExportedFunctionObject::createExportedFunction(state, wasm_func_copy(wasm_ref_as_func(value.of.ref)), 0);
             }

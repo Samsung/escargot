@@ -725,25 +725,19 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
     // Let result be table_read(store, tableaddr, index).
-    own wasm_ref_t* result = wasm_table_get(tableaddr, index);
+    std::unique_ptr<wasm_ref_t, decltype(&wasm_ref_delete)> result(wasm_table_get(tableaddr, index), wasm_ref_delete);
 
     // Return ToJSValue(result).
     wasm_val_t resultVal;
     if (elementType == WASM_ANYREF) {
         resultVal.kind = WASM_ANYREF;
-        resultVal.of.ref = result;
+        resultVal.of.ref = result.get();
     } else {
         ASSERT(elementType == WASM_FUNCREF);
         resultVal.kind = WASM_FUNCREF;
-        resultVal.of.ref = result;
+        resultVal.of.ref = result.get();
     }
-    Value resultValue = WASMValueConverter::toJSValue(state, resultVal);
-    if (result) {
-        // result could be nullptr (ref.null)
-        wasm_ref_delete(result);
-    }
-
-    return resultValue;
+    return WASMValueConverter::toJSValue(state, resultVal);
 }
 
 static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

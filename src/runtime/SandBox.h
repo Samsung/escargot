@@ -86,7 +86,7 @@ struct StackTraceData : public gc {
     Value exception;
 
     void buildStackTrace(Context* context, StringBuilder& builder);
-    static StackTraceData* create(SandBox* sandBox);
+    static StackTraceData* create(SandBox* sandBox, const Value& exception);
     static StackTraceData* create(StackTraceDataOnStackVector& data);
 
 private:
@@ -126,11 +126,6 @@ public:
         return m_stackTraceDataVector;
     }
 
-    Value exception() const
-    {
-        return m_exception;
-    }
-
     Context* context() const
     {
         return m_context;
@@ -144,7 +139,6 @@ private:
     Context* m_context;
     SandBox* m_oldSandBox;
     StackTraceDataOnStackVector m_stackTraceDataVector;
-    Value m_exception; // To avoid accidential GC of exception value
 };
 } // namespace Escargot
 
