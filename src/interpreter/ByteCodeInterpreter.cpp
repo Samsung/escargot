@@ -4773,7 +4773,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #ifndef NDEBUG
             char* dumpErrorInTryCatch = getenv("DUMP_ERROR_IN_TRY_CATCH");
             if (dumpErrorInTryCatch && (strcmp(dumpErrorInTryCatch, "1") == 0)) {
-                StackTraceData* data = StackTraceData::create(newState->context()->vmInstance()->currentSandBox());
+                StackTraceData* data = StackTraceData::create(newState->context()->vmInstance()->currentSandBox(), val);
                 StringBuilder builder;
                 builder.appendString("Caught error in try-catch block\n");
                 data->buildStackTrace(newState->context(), builder);

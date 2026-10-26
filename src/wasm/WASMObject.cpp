@@ -434,12 +434,11 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     wasm_global_get(globaladdr, &value);
 
     // Return ToJSValue(value).
-    Value result = WASMValueConverter::toJSValue(state, value);
-    // ToJSValue() resolves references without taking ownership of the wrapper.
-    if ((value.kind == WASM_FUNCREF || value.kind == WASM_ANYREF) && value.of.ref) {
-        wasm_ref_delete(value.of.ref);
-    }
-    return result;
+    // Release the owning wrapper even if ToJSValue rejects its runtime type.
+    std::unique_ptr<wasm_ref_t, decltype(&wasm_ref_delete)> reference(
+        (value.kind == WASM_FUNCREF || value.kind == WASM_ANYREF) ? value.of.ref : nullptr,
+        wasm_ref_delete);
+    return WASMValueConverter::toJSValue(state, value);
 }
 
 WASMTagObject::WASMTagObject(ExecutionState& state, Object* proto, wasm_tag_t* tag)

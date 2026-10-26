@@ -82,6 +82,15 @@ static void releaseResultRefs(wasm_val_vec_t& vals)
     }
 }
 
+struct ResultReferenceReleaser {
+    wasm_val_vec_t& values;
+
+    ~ResultReferenceReleaser()
+    {
+        releaseResultRefs(values);
+    }
+};
+
 static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ExportedFunctionObject* callee = state.resolveCallee()->asExportedFunctionObject();
@@ -149,6 +158,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     }
 
     // Let outArity be the size of ret.
+    ResultReferenceReleaser resultReferences{ ret };
     size_t outArity = ret.size;
     if (outArity == 0) {
         // If outArity is 0, return undefined.
@@ -156,7 +166,6 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     } else if (outArity == 1) {
         // Otherwise, if outArity is 1, return ToJSValue(ret[0]).
         Value result = WASMValueConverter::toJSValue(state, ret.data[0]);
-        releaseResultRefs(ret);
         return result;
     }
 
@@ -170,7 +179,6 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     for (size_t i = 0; i < ret.size; i++) {
         values[i] = WASMValueConverter::toJSValue(state, ret.data[i]);
     }
-    releaseResultRefs(ret);
 
     // Return CreateArrayFromList(values).
     return Object::createArrayFromList(state, values);

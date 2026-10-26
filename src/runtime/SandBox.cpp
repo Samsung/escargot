@@ -30,9 +30,7 @@
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
-#ifdef ASAN_ENABLED
-#include "runtime/ASANException.h"
-#endif
+#include "runtime/ExceptionValue.h"
 
 namespace Escargot {
 
@@ -322,41 +320,27 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
 
 void SandBox::throwException(ExecutionState& state, const Value& exception)
 {
+    ExceptionValue rootedException(exception);
     m_stackTraceDataVector.clear();
     createStackTrace(m_stackTraceDataVector, state);
 
-    // We MUST save thrown exception Value.
-    // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
-    m_exception = exception;
-
-#ifdef ASAN_ENABLED
-    throw ASANExceptionValue(exception);
-#else
-    throw exception;
-#endif
+    throw rootedException;
 }
 
 void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector)
 {
+    ExceptionValue rootedException(exception);
     m_stackTraceDataVector = stackTraceDataVector;
     // update stack trace data if needs
     createStackTrace(m_stackTraceDataVector, state);
 
-    // We MUST save thrown exception Value.
-    // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
-    m_exception = exception;
-
-#ifdef ASAN_ENABLED
-    throw ASANExceptionValue(exception);
-#else
-    throw exception;
-#endif
+    throw rootedException;
 }
 
-StackTraceData* StackTraceData::create(SandBox* sandBox)
+StackTraceData* StackTraceData::create(SandBox* sandBox, const Value& exception)
 {
     StackTraceData* data = create(sandBox->stackTraceDataVector());
-    data->exception = sandBox->exception();
+    data->exception = exception;
     return data;
 }
 
@@ -493,7 +477,7 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
     if (e.isObject() && e.asObject()->isErrorObject()) {
         ErrorObject* obj = e.asObject()->asErrorObject();
 
-        obj->setStackTraceData(StackTraceData::create(this));
+        obj->setStackTraceData(StackTraceData::create(this, e));
     }
 }
 } // namespace Escargot

@@ -28,7 +28,17 @@ class WASMValueConverter {
 public:
     static bool isJSCompatibleType(wasm_valkind_t type)
     {
-        return type != WASM_V128 && type != WASM_EXNREF;
+        switch (type) {
+        case WASM_I32:
+        case WASM_I64:
+        case WASM_F32:
+        case WASM_F64:
+        case WASM_ANYREF:
+        case WASM_FUNCREF:
+            return true;
+        default:
+            return false;
+        }
     }
 
     static wasm_val_t defaultValue(ExecutionState& state, wasm_valkind_t type);

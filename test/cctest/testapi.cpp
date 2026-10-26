@@ -431,6 +431,115 @@ int main(int argc, char* argv[])
     return testResult;
 }
 
+TEST(IteratorObject, CloseCompletionSurvivesGC)
+{
+    auto context = createEscargotContext(g_instance.get());
+    auto setup = Evaluator::execute(context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        FunctionObjectRef::NativeFunctionInfo info(AtomicStringRef::create(state->context(), "collect"), [](ExecutionStateRef*, ValueRef*, size_t, ValueRef**, bool) -> ValueRef* {
+                                                     GC_clear_stack(nullptr);
+                                                     Memory::gc();
+                                                     return ValueRef::createUndefined(); }, 0, true, false);
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("collect"),
+                                                             FunctionObjectRef::create(state, info), true, true, true);
+        return ValueRef::createUndefined();
+    });
+    ASSERT_TRUE(setup.isSuccessful());
+
+    const char source[] = R"JS(
+(function () {
+    function collectAfterNestedThrow() {
+        // Catch another exception before collecting the original completion.
+        try { throw 1; } catch (ignored) {}
+        collect();
+        for (var i = 0; i < 50000; ++i) ({ s: "x" + i });
+    }
+    var factories = [
+        () => new Error("original error"),
+        () => ({ marker: "original object" }),
+        () => ["original array"],
+        () => "original string".repeat(100),
+        () => Symbol("original symbol"),
+        () => BigInt("123456789012345678901234567890")
+    ];
+    function check(value, kind) {
+        switch (kind) {
+        case 0: return value instanceof Error && value.message === "original error";
+        case 1: return value.marker === "original object";
+        case 2: return Array.isArray(value) && value[0] === "original array";
+        case 3: return value === "original string".repeat(100);
+        case 4: return typeof value === "symbol" && value.description === "original symbol";
+        case 5: return value === BigInt("123456789012345678901234567890");
+        }
+    }
+    for (var method of ["some", "every", "find", "forEach", "reduce"]) {
+        for (var kind = 0; kind < factories.length; ++kind) {
+            for (var mode = 0; mode < 5; ++mode) {
+                var closed = 0;
+                var iterator = {
+                    __proto__: Iterator.prototype,
+                    next() { return { value: 1, done: false }; },
+                    get return() {
+                        if (mode >= 3) {
+                            ++closed;
+                            collectAfterNestedThrow();
+                            return mode === 3 ? undefined : null;
+                        }
+                        return function () {
+                            ++closed;
+                            collectAfterNestedThrow();
+                            if (mode === 1) throw new Error("close error");
+                            return mode === 2 ? 1 : {};
+                        };
+                    }
+                };
+                var caught = false;
+                try {
+                    // Do not retain the thrown value in a JS variable.
+                    iterator[method](function () { throw factories[kind](); }, 0);
+                } catch (error) {
+                    caught = check(error, kind);
+                }
+                if (!caught || closed !== 1) {
+                    throw new Error("Lost completion: " + method + ":" + kind + ":" + mode);
+                }
+            }
+        }
+    }
+    // Constructors and fromEntries also close iterators from native catches.
+    for (var kind = 0; kind < factories.length; ++kind) {
+        var fail = function () { throw factories[kind](); };
+        var consumers = [
+            it => Array.from(it, fail),
+            it => new (class extends Set { add() { fail(); } })(it),
+            it => new (class extends Map { set() { fail(); } })(it),
+            it => new (class extends WeakSet { add() { fail(); } })(it),
+            it => new (class extends WeakMap { set() { fail(); } })(it),
+            it => Object.fromEntries(it)
+        ];
+        for (var consume of consumers) {
+            var closed = 0;
+            var iterator = {
+                [Symbol.iterator]() { return this; },
+                next() { return { value: [{ [Symbol.toPrimitive]: fail }, {}], done: false }; },
+                return() {
+                    ++closed;
+                    collectAfterNestedThrow();
+                    throw new Error("close error");
+                }
+            };
+            var caught = false;
+            try { consume(iterator); } catch (error) { caught = check(error, kind); }
+            if (!caught || closed !== 1) throw new Error("Lost constructor completion");
+        }
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("iterator-close-gc.js"), false),
+              "true");
+}
+
 TEST(ScriptParser, ChainedTaggedTemplates)
 {
     std::string source = "(function() { let calls = 0; "
@@ -3886,6 +3995,73 @@ TEST(Object, PrototypeIterationPreservesExoticDispatch)
 }
 
 #if defined(ENABLE_WASM)
+TEST(WebAssembly, RejectNonFunctionReferences)
+{
+    const char source[] = R"JS(
+(function () {
+    function section(id, bytes) { return [id, bytes.length].concat(bytes); }
+    function module(parts) {
+        return new WebAssembly.Instance(new WebAssembly.Module(Uint8Array.from(
+            [0,97,115,109,1,0,0,0].concat(...parts)))).exports;
+    }
+    function throws(f) {
+        try { f(); } catch (error) { if (error instanceof TypeError) return; throw error; }
+        throw new Error("Missing TypeError for non-function reference");
+    }
+    // Store a nofunc argument in funcref containers and return it as funcref.
+    // Walrus currently erases nofunc to anyref at the C API input boundary.
+    var body = [0,65,0,32,0,38,0,32,0,36,0,35,0,11];
+    var exports = module([
+        section(1, [1,96,1,99,115,1,99,112]), section(3, [1,0]),
+        section(4, [1,112,0,1]), section(6, [1,112,1,208,112,11]),
+        section(7, [3,1,102,0,0,1,116,1,0,1,103,3,0]),
+        section(10, [1,body.length].concat(body))
+    ]);
+    var invalid = [undefined, {}, [], 1, "s", true, Symbol("s"), 1n, function () {},
+        new WebAssembly.Memory({initial: 1}),
+        new WebAssembly.Table({element: "anyfunc", initial: 1}),
+        new WebAssembly.Global({value: "i32"}, 1),
+        new WebAssembly.Tag({parameters: []})];
+    for (var value of invalid) {
+        throws(() => exports.f(value));
+        throws(() => exports.t.get(0));
+        throws(() => exports.g.value);
+    }
+    throws(() => exports.f());
+    if (exports.f(null) !== null || exports.t.get(0) !== null || exports.g.value !== null)
+        throw new Error("Rejected null function reference");
+
+    // A later failing result must also release earlier owning wrappers.
+    var multi = module([
+        section(1, [2,96,0,1,127,96,1,99,115,2,112,112]), section(3, [2,0,1]),
+        section(4, [1,112,0,1]), section(7, [1,1,102,0,1]),
+        section(9, [1,0,65,0,11,1,0]),
+        section(10, [2,4,0,65,42,11,6,0,210,0,32,0,11])
+    ]).f;
+    for (var i = 0; i < 100; ++i) throws(() => multi({}));
+
+    // Previously unexported, real wasm functions must still be wrapped.
+    var table = module([
+        section(1, [1,96,0,1,127]), section(3, [1,0]),
+        section(4, [1,112,0,1]), section(7, [1,1,116,1,0]),
+        section(9, [1,0,65,0,11,1,0]), section(10, [1,4,0,65,42,11])
+    ]).t;
+    var f = table.get(0);
+    if (f() !== 42 || table.get(0) !== f) throw new Error("Lost real function reference");
+    if (new WebAssembly.Global({value: "anyfunc"}, f).value !== f)
+        throw new Error("Lost cached function reference");
+    for (var value of invalid) {
+        if (new WebAssembly.Global({value: "externref"}, value).value !== value)
+            throw new Error("Rejected valid externref");
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-reference-type-guards.js"), false),
+              "true");
+}
+
 TEST(WebAssembly, GlobalCacheAfterArrayResize)
 {
     const char source[] = R"JS(
