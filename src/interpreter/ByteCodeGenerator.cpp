@@ -800,6 +800,8 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             break;
         }
         case BinaryPlusOpcode:
+        case BinaryPlusNumberOpcode:
+        case BinaryPlusStringOpcode:
         case BinaryMinusOpcode:
         case BinaryMultiplyOpcode:
         case BinaryDivisionOpcode:

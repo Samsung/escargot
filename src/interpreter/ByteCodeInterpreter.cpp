@@ -351,6 +351,26 @@ public:
     static void storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile);
 
     static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static ALWAYS_INLINE void updatePlusSpecialization(BinaryPlus* code, bool numbers, bool strings)
+    {
+        // Count non-int32 generic entries, including initial specialization.
+        // Steady-state int32/number/string execution does not write profiling data.
+        // Once the budget is exhausted, use the generic handler without retagging.
+        constexpr ByteCodeRegisterIndex specializationLimit = 8;
+        if (code->m_extraData < specializationLimit) {
+            ++code->m_extraData;
+            Opcode opcode = BinaryPlusOpcode;
+            if (code->m_extraData < specializationLimit) {
+                if (numbers) {
+                    opcode = BinaryPlusNumberOpcode;
+                } else if (strings) {
+                    opcode = BinaryPlusStringOpcode;
+                }
+            }
+            // Retag before any user code can recursively execute this site.
+            code->changeOpcode(opcode);
+        }
+    }
     static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
@@ -708,6 +728,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(BinaryPlus)
             :
         {
+        binaryPlusGeneric:
             BinaryPlus* code = (BinaryPlus*)programCounter;
             const Value& v0 = registerFile[code->m_srcIndex0];
             const Value& v1 = registerFile[code->m_srcIndex1];
@@ -723,10 +744,43 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     ret = Value(Value::EncodeAsDouble, (double)a + (double)b);
                 }
             } else if (v0.isNumber() && v1.isNumber()) {
-                // most cases are double
+                InterpreterSlowPath::updatePlusSpecialization(code, true, false);
                 ret = Value(Value::EncodeAsDouble, v0.asNumber() + v1.asNumber());
             } else {
+                InterpreterSlowPath::updatePlusSpecialization(code, false, v0.isString() && v1.isString());
                 ret = InterpreterSlowPath::plusSlowCase(*state, v0, v1);
+            }
+            ADD_PROGRAM_COUNTER(BinaryPlus);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BinaryPlusNumber)
+            :
+        {
+            BinaryPlus* code = (BinaryPlus*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            if (LIKELY(left.isNumber() && right.isNumber())) {
+                registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, left.asNumber() + right.asNumber());
+            } else {
+                code->changeOpcode(BinaryPlusOpcode);
+                goto binaryPlusGeneric;
+            }
+            ADD_PROGRAM_COUNTER(BinaryPlus);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BinaryPlusString)
+            :
+        {
+            BinaryPlus* code = (BinaryPlus*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            if (LIKELY(left.isString() && right.isString())) {
+                registerFile[code->m_dstIndex] = RopeString::createRopeString(left.asString(), right.asString(), state);
+            } else {
+                code->changeOpcode(BinaryPlusOpcode);
+                goto binaryPlusGeneric;
             }
             ADD_PROGRAM_COUNTER(BinaryPlus);
             NEXT_INSTRUCTION();

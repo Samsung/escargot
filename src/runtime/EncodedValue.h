@@ -433,7 +433,7 @@ public:
                 return *this;
             }
         }
-        m_data.payload = static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind));
+        m_data.payload = EncodedValue::encodeNumberForStore(mutableFrom);
         return *this;
     }
 
@@ -497,6 +497,16 @@ protected:
     }
 
 private:
+    // Encode a normalized number when no existing box can be reused.
+    static NEVER_INLINE intptr_t encodeNumberForStore(const Value& value)
+    {
+        int32_t i32;
+        if (value.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = value.asInt32())) {
+            return EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+        }
+        return static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(value), NumberPointerKind));
+    }
+
     EncodedValueData m_data;
 };
 
@@ -675,7 +685,7 @@ public:
             reinterpret_cast<NumberInEncodedValue*>(untagPointer(bits))->setValue(mutableFrom);
             return *this;
         }
-        setPayload(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)));
+        setPayload(EncodedValue::encodeNumberForStore(mutableFrom));
         return *this;
     }
 
@@ -703,7 +713,7 @@ public:
             reinterpret_cast<NumberInEncodedValue*>(untagPointer(base + offset))->setValue(mutableFrom);
             return;
         }
-        setPayloadWithBase(static_cast<intptr_t>(tagPointer(new NumberInEncodedValue(mutableFrom), NumberPointerKind)), base);
+        setPayloadWithBase(EncodedValue::encodeNumberForStore(mutableFrom), base);
     }
 
 private:
