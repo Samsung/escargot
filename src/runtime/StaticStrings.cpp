@@ -146,7 +146,22 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(sectionInt16Array, "[[Int16Array]]");
     INIT_STATIC_STRING(sectionInt32Array, "[[Int32Array]]");
     INIT_STATIC_STRING(sectionArrayBufferByteLength, "[[ArrayBufferByteLength]]");
+    INIT_STATIC_STRING(sectionHandler, "[[Handler]]");
+    INIT_STATIC_STRING(sectionTarget, "[[Target]]");
+    INIT_STATIC_STRING(sectionPromiseState, "[[PromiseState]]");
+    INIT_STATIC_STRING(sectionPromiseResult, "[[PromiseResult]]");
+    INIT_STATIC_STRING(sectionGeneratorState, "[[GeneratorState]]");
+    INIT_STATIC_STRING(generatorSuspended, "suspended");
+    INIT_STATIC_STRING(generatorExucuting, "executing");
+    INIT_STATIC_STRING(generatorCompleted, "completed");
+    INIT_STATIC_STRING(iteratorHasMore, "[[IteratorHasMore]]");
+    INIT_STATIC_STRING(iteratorIndex, "[[IteratorIndex]]");
+    INIT_STATIC_STRING(iteratorKind, "[[IteratorKind]]");
+    INIT_STATIC_STRING(pending, "pending");
+    INIT_STATIC_STRING(fulfilled, "fulfilled");
+    INIT_STATIC_STRING(rejected, "rejected");
     INIT_STATIC_STRING(key, "key");
+    INIT_STATIC_STRING(keyValue, "key-value");
 #else
 #endif
 

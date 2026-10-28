@@ -96,6 +96,10 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    const CompressibleHeapPointer<MapObject>& map() const { return m_map; }
+    size_t iteratorIndex() const { return m_iteratorIndex; }
+    Type type() const { return m_type; }
+
 private:
     CompressibleHeapPointer<MapObject> m_map;
 
