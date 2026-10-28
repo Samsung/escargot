@@ -253,14 +253,14 @@ extern OpcodeTable g_opcodeTable;
 
 struct ByteCodeLOC {
     size_t index;
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(ESCARGOT_DEBUGGER)
     size_t line;
     size_t column;
 #endif
 
     explicit ByteCodeLOC(size_t index)
         : index(index)
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(ESCARGOT_DEBUGGER)
         , line(SIZE_MAX)
         , column(SIZE_MAX)
 #endif
@@ -283,7 +283,7 @@ public:
 #else
         : m_opcode(code)
 #endif
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(ESCARGOT_DEBUGGER)
         , m_loc(loc)
         , m_orgOpcode(code)
 #endif
@@ -322,10 +322,12 @@ public:
     Opcode m_opcode;
 #endif
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(ESCARGOT_DEBUGGER)
     ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
+#endif
 
+#ifndef NDEBUG
     static void dumpCode(const uint8_t* byteCodeStart, const size_t endPos);
     static size_t dumpJumpPosition(size_t pos);
 #endif

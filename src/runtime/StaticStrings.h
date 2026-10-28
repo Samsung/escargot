@@ -1070,7 +1070,22 @@ namespace Escargot {
     F(sectionInt16Array)                   \
     F(sectionInt32Array)                   \
     F(sectionArrayBufferByteLength)        \
-    F(key)
+    F(sectionHandler)                      \
+    F(sectionTarget)                       \
+    F(sectionPromiseState)                 \
+    F(sectionPromiseResult)                \
+    F(sectionGeneratorState)               \
+    F(generatorSuspended)                  \
+    F(generatorExucuting)                  \
+    F(generatorCompleted)                  \
+    F(iteratorHasMore)                     \
+    F(iteratorIndex)                       \
+    F(iteratorKind)                        \
+    F(pending)                             \
+    F(fulfilled)                           \
+    F(rejected)                            \
+    F(key)                                 \
+    F(keyValue)
 #else
 #define FOR_EACH_DEBUGGER_STATIC_STRING(F)
 #endif

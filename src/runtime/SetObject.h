@@ -98,6 +98,10 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    const CompressibleHeapPointer<SetObject>& set() const { return m_set; }
+    size_t iteratorIndex() const { return m_iteratorIndex; }
+    Type type() const { return m_type; }
+
 private:
     CompressibleHeapPointer<SetObject> m_set;
 

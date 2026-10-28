@@ -55,6 +55,8 @@ typedef struct {
 } PropertyMaps;
 typedef Vector<PropertyMaps, GCUtil::gc_malloc_allocator<PropertyMaps>> PropertyNameValueMapVector;
 
+typedef HashMap<uint8_t, ScriptInfo, std::hash<uint8_t>, std::equal_to<uint8_t>, GCUtil::gc_malloc_allocator<std::pair<uint8_t const, ScriptInfo>>> ScriptIDMap;
+
 typedef struct {
     std::string type;
     std::string subType;
@@ -137,7 +139,7 @@ private:
     bool m_startBreakpoint = true;
     bool m_processingPauseEvent = false;
 
-    std::unordered_map<uint8_t, ScriptInfo> m_scriptsById;
+    ScriptIDMap m_scriptsById;
     std::unordered_map<std::string, uint8_t> m_scriptIdByUrl;
     uint8_t m_nextScriptId = 1;
     std::unordered_map<uint8_t, std::set<BreakpointByteCodeLocation, decltype(compareBreakpointLocations)*>> m_breakpointInfo;
