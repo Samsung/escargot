@@ -307,7 +307,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     }
 
     if (self->m_executionState) {
-        self->m_executionState->m_programCounter = nullptr;
+        self->m_executionState->m_programCounter = 0;
     }
 
     return result;
@@ -345,7 +345,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
 
     // Detach the suspended state from the active caller.
     originalState->m_parent = nullptr;
-    originalState->m_programCounter = nullptr;
+    originalState->m_programCounter = 0;
 
     self->m_pausedCode.clear();
 

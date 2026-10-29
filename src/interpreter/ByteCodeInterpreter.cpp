@@ -342,15 +342,67 @@ public:
 #endif
     }
 
+    // Records where `state` is executing. ExecutionState::m_programCounter has exactly one
+    // reader, SandBox::createStackTrace, so it only has to be current when control is about
+    // to leave the interpreter for something that can throw or run script. Interpreter::interpret
+    // therefore keeps its program counter (and `state` itself) in registers and never hands out
+    // their addresses -- that is what used to pin both to the stack and cost every opcode a
+    // store plus a reload after every call. The copy is refreshed at the entry of each
+    // out-of-line slow path instead, and in interpret() itself only before the few inline
+    // operations that can throw or call out.
+    static ALWAYS_INLINE void publishProgramCounter(ExecutionState& state, size_t programCounter)
+    {
+        state.m_programCounter = programCounter;
+    }
 
-    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
+    static ALWAYS_INLINE void publishProgramCounter(ExecutionState& state, const ByteCode* code)
+    {
+        state.m_programCounter = reinterpret_cast<size_t>(code);
+    }
+
+    // What a slow path that runs a nested Interpreter::interpret hands back. interpret() must
+    // not expose its locals by reference (see publishProgramCounter), so the ExecutionState to
+    // carry on with -- a different one once a paused generator or async body has been resumed --
+    // and the program counter to carry on at come back by value, together with the value
+    // interpret() has to return instead when it is not empty.
+    struct Continuation {
+        ExecutionState* state;
+        size_t programCounter;
+        Value value;
+
+        static Continuation resumeAt(ExecutionState* state, size_t programCounter)
+        {
+            return Continuation{ state, programCounter, Value(Value::EmptyValue) };
+        }
+
+        static Continuation returnValue(ExecutionState* state, const Value& value)
+        {
+            ASSERT(!value.isEmpty());
+            return Continuation{ state, 0, value };
+        }
+    };
+
+#if defined(ENABLE_TCO)
+    // Likewise for a tail call the fast path can take: the ExecutionState the callee runs in
+    // (replaced only under ENABLE_TCO_DEBUG), the callee's ByteCodeBlock -- interpret()
+    // continues at its first instruction -- and the callee's this value, empty when the call
+    // has to take the slow path instead.
+    struct TailCallPreparation {
+        ExecutionState* state;
+        ByteCodeBlock* byteCodeBlock;
+        Value thisValue;
+    };
+#endif
+
+
+    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException = true);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue);
-    static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
-    static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
+    static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value, size_t programCounter);
+    static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value, size_t programCounter);
     static void resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile);
     static void storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile);
 
-    static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b, size_t programCounter);
     static ALWAYS_INLINE void updatePlusSpecialization(BinaryPlus* code, bool numbers, bool strings)
     {
         // Count non-int32 generic entries, including initial specialization.
@@ -385,61 +437,61 @@ public:
         }
     }
 
-    static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
-    static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
-    static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
-    static Value unaryMinusSlowCase(ExecutionState& state, const Value& a);
-    static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
-    static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
+    static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b, size_t programCounter);
+    static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b, size_t programCounter);
+    static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b, size_t programCounter);
+    static Value unaryMinusSlowCase(ExecutionState& state, const Value& a, size_t programCounter);
+    static Value modOperation(ExecutionState& state, const Value& left, const Value& right, size_t programCounter);
+    static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right, size_t programCounter);
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile, ByteCodeBlock* block);
     static bool tryInstanceOfInlineCache(ExecutionState& state, BinaryInstanceOfOperation* code, Object* C, const Value& lhs, bool& result);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
-    static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::BitwiseOperationKind kind);
-    static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a);
-    static Value shiftOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::ShiftOperationKind kind);
+    static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::BitwiseOperationKind kind, size_t programCounter);
+    static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a, size_t programCounter);
+    static Value shiftOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::ShiftOperationKind kind, size_t programCounter);
 
     // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
-    static bool abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched);
-    static bool abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched);
+    static bool abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter);
+    static bool abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter);
 
     static void getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static bool typedArrayLengthPropertyIsIntrinsic(ExecutionState& state, Object* obj);
 
-    static Object* fastToObject(ExecutionState& state, const Value& obj);
+    static Object* fastToObject(ExecutionState& state, const Value& obj, size_t programCounter);
 
-    static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block);
-    static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block);
+    static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block, size_t programCounter);
+    static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block, size_t programCounter);
     static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
 
-    static Value tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Continuation tryOperation(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static void createObjectOperation(ExecutionState& state, CreateObject* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createOnlyKeyValueObjectOperation(ExecutionState& state, CreateOnlyKeyValueObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createArrayOperation(ExecutionState& state, CreateArray* createArray, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
-    static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
+    static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, size_t programCounter);
     static void initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile);
     static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
     static void complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
-    static Value openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
-    static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Continuation openLexicalEnvironment(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Continuation blockOperation(ExecutionState* state, BlockOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
     static void binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile);
-    static Value constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv);
+    static Value constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, size_t programCounter);
     static void callFunctionComplexCase(ExecutionState& state, CallComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
-    static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+    static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector, size_t programCounter);
     static void spreadSoleIterableArgument(ExecutionState& state, const Value& source, ValueVector& argVector);
 
     static void createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile);
-    static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile);
+    static size_t checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t programCounter, Value* registerFile);
     static void markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile);
 
-    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, uint8_t* codeBuffer);
-    static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t programCounter, uint8_t* codeBuffer);
+    static Continuation executionResumeOperation(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
@@ -450,8 +502,8 @@ public:
     static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
     static void createArrayFromIterable(ExecutionState& state, CreateArrayFromIterable* code, Value* registerFile);
     static void defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
-    static Value incrementOperation(ExecutionState& state, const Value& value);
-    static Value decrementOperation(ExecutionState& state, const Value& value);
+    static Value incrementOperation(ExecutionState& state, const Value& value, size_t programCounter);
+    static Value decrementOperation(ExecutionState& state, const Value& value, size_t programCounter);
 
     static void getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile);
     static void setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile);
@@ -459,26 +511,27 @@ public:
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
     static void iteratorBindValueSlowCase(ExecutionState& state, IteratorBindValue* code, Value* registerFile);
-    static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer);
+    static size_t iteratorOperation(ExecutionState& state, size_t programCounter, Value* registerFile, uint8_t* codeBuffer);
     static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
-    static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
+    static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord, size_t programCounter);
 
-    static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock);
+    static size_t taggedTemplateOperation(ExecutionState& state, size_t programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock);
 
-    static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile, size_t programCounter);
 
     static void loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile);
 
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
-    static void initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
-    static bool finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+    static size_t initializeDisposable(ExecutionState& state, Value* registerFile, size_t programCounter);
+    // Returns the program counter to continue at, or nothing once the function has been paused on an await.
+    static Optional<size_t> finalizeDisposable(ExecutionState& state, Value* registerFile, size_t programCounter, ByteCodeBlock* byteCodeBlock);
 
-    static void setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t& programCounter);
+    static size_t setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t programCounter);
 
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
-    static Value prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerBlock, size_t& programCounter, const Value* registerFile);
+    static TailCallPreparation prepareTailCallOptimization(ExecutionState* state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock* callerByteBlock, size_t programCounter, const Value* registerFile);
     static Value tailCallSlowCase(ExecutionState& state, TailCall* code, const Value& callee, Value* registerFile);
 #if defined(ENABLE_TCO_DEBUG)
     static ExecutionState* createExecutionStateForTailCall(ExecutionState* state, ScriptFunctionObject* callee, ByteCodeBlock* callerByteBlock);
@@ -486,14 +539,14 @@ public:
 #endif
 
 private:
-    static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);
-    static bool abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);
+    static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter);
+    static bool abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter);
     static void setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* originalObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object);
     static void updateObjectGetterSetterFunctionName(ExecutionState& state, FunctionObject* fn, Value propertyName, bool isGetter);
-    static Value incrementOperationSlowCase(ExecutionState& state, const Value& value);
-    static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
+    static Value incrementOperationSlowCase(ExecutionState& state, const Value& value, size_t programCounter);
+    static Value decrementOperationSlowCase(ExecutionState& state, const Value& value, size_t programCounter);
     static FunctionEnvironmentRecord* findNearestFunctionEnvironmentRecord(ExecutionState& state, ExecutionState*& es);
 };
 
@@ -519,18 +572,24 @@ ALWAYS_INLINE bool InterpreterSlowPath::tryInstanceOfInlineCache(ExecutionState&
     if (LIKELY(code->m_canReadPrototypeDirectly)) {
         prototype = interpreterValue(interpreterPropertySlot(C->m_values, code->m_cachedPrototypeIndex));
         if (UNLIKELY(prototype.isEmpty())) {
+            state.m_programCounter = reinterpret_cast<size_t>(code);
             prototype = VMInstance::functionPrototypeNativeGetter(state, C, Value(C), interpreterPropertySlot(C->m_values, code->m_cachedPrototypeIndex));
         }
     } else {
+        state.m_programCounter = reinterpret_cast<size_t>(code);
         prototype = C->getOwnNonPlainDataPropertyUtilForObject(state, code->m_cachedPrototypeIndex, Value(C));
     }
     if (UNLIKELY(!prototype.isObject())) {
+        state.m_programCounter = reinterpret_cast<size_t>(code);
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_InvalidPrototypeProperty);
     }
 
     Object* target = prototype.asObject();
     Object* chainObject = lhs.asObject();
     while (true) {
+        if (UNLIKELY(chainObject->isProxyObject())) {
+            state.m_programCounter = reinterpret_cast<size_t>(code);
+        }
         Object* next = chainObject->getPrototypeObject(state);
         if (next == target) {
             result = true;
@@ -601,7 +660,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
     CageBaseRegisterScope cageBaseRegisterScope;
 #endif
-    state->m_programCounter = &programCounter;
+// See InterpreterSlowPath::publishProgramCounter: used only in front of the inline operations
+// below that can throw or call out; the out-of-line slow paths publish on their own entry.
+#define PUBLISH_PROGRAM_COUNTER() InterpreterSlowPath::publishProgramCounter(*state, programCounter)
+
+    PUBLISH_PROGRAM_COUNTER();
 #ifdef ESCARGOT_DEBUGGER
     try {
 #else /* ESCARGOT_DEBUGGER */
@@ -684,13 +747,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     const EncodedValueVectorElement& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
+                        PUBLISH_PROGRAM_COUNTER();
                         ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
                     }
                     registerFile[code->m_registerIndex] = interpreterValue(val);
                 }
             }
             if (UNLIKELY(!isCacheWork)) {
-                registerFile[code->m_registerIndex] = InterpreterSlowPath::getGlobalVariableSlowCase(*state, globalObject, slot, byteCodeBlock);
+                registerFile[code->m_registerIndex] = InterpreterSlowPath::getGlobalVariableSlowCase(*state, globalObject, slot, byteCodeBlock, programCounter);
             }
             ADD_PROGRAM_COUNTER(GetGlobalVariable);
             NEXT_INSTRUCTION();
@@ -718,9 +782,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     const auto& record = ctx->globalDeclarativeRecord()->at(idx);
                     auto& storage = ctx->globalDeclarativeStorage()->at(idx);
                     if (UNLIKELY(storage.isEmpty())) {
+                        PUBLISH_PROGRAM_COUNTER();
                         ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, record.m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
                     }
                     if (UNLIKELY(!record.m_isMutable)) {
+                        PUBLISH_PROGRAM_COUNTER();
                         ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, record.m_name.string(), false, String::emptyString(), ErrorObject::Messages::AssignmentToConstantVariable);
                     }
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
@@ -732,7 +798,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             }
 
             if (UNLIKELY(!isCacheWork)) {
-                InterpreterSlowPath::setGlobalVariableSlowCase(*state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock);
+                InterpreterSlowPath::setGlobalVariableSlowCase(*state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock, programCounter);
             }
 
             ADD_PROGRAM_COUNTER(SetGlobalVariable);
@@ -762,7 +828,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 ret = Value(Value::EncodeAsDouble, v0.asNumber() + v1.asNumber());
             } else {
                 InterpreterSlowPath::updatePlusSpecialization(code, false, v0.isString() && v1.isString());
-                ret = InterpreterSlowPath::plusSlowCase(*state, v0, v1);
+                ret = InterpreterSlowPath::plusSlowCase(*state, v0, v1, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryPlus);
             NEXT_INSTRUCTION();
@@ -791,6 +857,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             if (LIKELY(left.isString() && right.isString())) {
+                // throws RangeError past STRING_MAXIMUM_LENGTH
+                PUBLISH_PROGRAM_COUNTER();
                 registerFile[code->m_dstIndex] = RopeString::createRopeString(left.asString(), right.asString(), state);
             } else {
                 code->changeOpcode(BinaryPlusOpcode);
@@ -823,7 +891,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 ret = Value(Value::EncodeAsDouble, left.asNumber() - right.asNumber());
             } else {
                 InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMinusNumberOpcode);
-                ret = InterpreterSlowPath::minusSlowCase(*state, left, right);
+                ret = InterpreterSlowPath::minusSlowCase(*state, left, right, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryMinus);
             NEXT_INSTRUCTION();
@@ -874,7 +942,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
             } else {
                 InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMultiplyNumberOpcode);
-                ret = InterpreterSlowPath::multiplySlowCase(*state, left, right);
+                ret = InterpreterSlowPath::multiplySlowCase(*state, left, right, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryMultiply);
             NEXT_INSTRUCTION();
@@ -909,7 +977,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 // most cases are double
                 ret = Value(Value::EncodeAsDouble, left.asNumber() / right.asNumber());
             } else {
-                ret = InterpreterSlowPath::divisionSlowCase(*state, left, right);
+                ret = InterpreterSlowPath::divisionSlowCase(*state, left, right, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryDivision);
             NEXT_INSTRUCTION();
@@ -921,6 +989,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryEqual* code = (BinaryEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
+            // loose equality can run ToPrimitive on an object operand
+            PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_dstIndex] = Value(static_cast<bool>(left.abstractEqualsTo(*state, right) ^ code->m_extraData));
             ADD_PROGRAM_COUNTER(BinaryEqual);
             NEXT_INSTRUCTION();
@@ -943,7 +1013,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryLessThan* code = (BinaryLessThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, false));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, false, programCounter));
             ADD_PROGRAM_COUNTER(BinaryLessThan);
             NEXT_INSTRUCTION();
         }
@@ -954,7 +1024,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, false));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, false, programCounter));
             ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -965,7 +1035,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, right, left, true));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, right, left, true, programCounter));
             ADD_PROGRAM_COUNTER(BinaryGreaterThan);
             NEXT_INSTRUCTION();
         }
@@ -976,7 +1046,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, right, left, true));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, right, left, true, programCounter));
             ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -986,10 +1056,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             Increment* code = (Increment*)programCounter;
             if (code->m_storeIndex == REGISTER_LIMIT) {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex], programCounter);
             } else {
+                // ToNumeric can run valueOf on an object operand
+                PUBLISH_PROGRAM_COUNTER();
                 registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-                registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex], programCounter);
             }
             ADD_PROGRAM_COUNTER(Increment);
             NEXT_INSTRUCTION();
@@ -1000,10 +1072,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             Decrement* code = (Decrement*)programCounter;
             if (code->m_storeIndex == REGISTER_LIMIT) {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex], programCounter);
             } else {
+                // ToNumeric can run valueOf on an object operand
+                PUBLISH_PROGRAM_COUNTER();
                 registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-                registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
+                registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex], programCounter);
             }
             ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
@@ -1111,7 +1185,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         if (LIKELY(receiver.isObject())) {                                             \
             obj = receiver.asObject();                                                 \
         } else {                                                                       \
-            obj = InterpreterSlowPath::fastToObject(*state, receiver);                 \
+            obj = InterpreterSlowPath::fastToObject(*state, receiver, programCounter); \
         }                                                                              \
     }                                                                                  \
     GetObjectInlineCacheSimpleCaseData* const inlineCache = code->m_simpleInlineCache; \
@@ -1170,7 +1244,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 if (LIKELY(receiver.isObject())) {
                     obj = receiver.asObject();
                 } else {
-                    obj = InterpreterSlowPath::fastToObject(*state, receiver);
+                    obj = InterpreterSlowPath::fastToObject(*state, receiver, programCounter);
                 }
             }
 
@@ -1270,7 +1344,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (LIKELY(receiver.isObject())) {
                 obj = receiver.asObject();
             } else {
-                obj = InterpreterSlowPath::fastToObject(*state, receiver);
+                obj = InterpreterSlowPath::fastToObject(*state, receiver, programCounter);
             }
 
             GetObjectInlineCacheComplexCaseData* inlineCache = code->m_complexInlineCache;
@@ -1296,6 +1370,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         if (LIKELY(entry.m_isPlainDataProperty)) {
                             registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(cur->m_values, cachedIndex));
                         } else {
+                            // accessor: runs the getter
+                            PUBLISH_PROGRAM_COUNTER();
                             registerFile[code->m_storeRegisterIndex] = cur->getOwnNonPlainDataPropertyUtilForObject(*state, cachedIndex, receiver);
                         }
                     } else {
@@ -1339,7 +1415,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             } else {
                                 // accessor / native getter-setter / non-writable own property --
                                 // dispatches correctly by kind, no findProperty() needed since
-                                // the index is already cached.
+                                // the index is already cached. Runs the setter, or throws.
+                                PUBLISH_PROGRAM_COUNTER();
                                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item0.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                             }
                         } else {
@@ -1360,6 +1437,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                                 if (LIKELY(item1.m_isPlainDataProperty)) {
                                     interpreterStore(interpreterPropertySlot(obj->m_values, item1.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                                 } else {
+                                    PUBLISH_PROGRAM_COUNTER();
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, item1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
                             } else {
@@ -1415,6 +1493,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             if (LIKELY(entry0.m_isPlainDataProperty)) {
                                 interpreterStore(interpreterPropertySlot(obj->m_values, entry0.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                             } else {
+                                PUBLISH_PROGRAM_COUNTER();
                                 obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry0.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                             }
                         } else {
@@ -1449,6 +1528,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                                 if (LIKELY(entry1.m_isPlainDataProperty)) {
                                     interpreterStore(interpreterPropertySlot(obj->m_values, entry1.m_cachedIndex), registerFile[code->m_loadRegisterIndex]);
                                 } else {
+                                    PUBLISH_PROGRAM_COUNTER();
                                     obj->setOwnPropertyThrowsExceptionWhenStrictMode(*state, entry1.m_cachedIndex, registerFile[code->m_loadRegisterIndex], willBeObject);
                                 }
                             } else {
@@ -1510,7 +1590,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             const Value& left = registerFile[code->m_leftIndex];
             const Value& right = registerFile[code->m_rightIndex];
-            bool result = code->m_containEqual ? InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, code->m_switched) : InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, code->m_switched);
+            bool result = code->m_containEqual ? InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, code->m_switched, programCounter) : InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, code->m_switched, programCounter);
 
             // Jump if the condition is NOT fulfilled
             if (result) {
@@ -1528,7 +1608,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             const Value& left = registerFile[code->m_registerIndex0];
             const Value& right = registerFile[code->m_registerIndex1];
-            bool result = code->m_isStrict ? left.equalsTo(*state, right) : left.abstractEqualsTo(*state, right);
+            bool result;
+            if (code->m_isStrict) {
+                result = left.equalsTo(*state, right);
+            } else {
+                // loose equality can run ToPrimitive on an object operand
+                PUBLISH_PROGRAM_COUNTER();
+                result = left.abstractEqualsTo(*state, right);
+            }
 
             if (result ^ code->m_shouldNegate) {
                 programCounter = code->m_jumpPosition;
@@ -1573,6 +1660,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             Call* code = (Call*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
+            PUBLISH_PROGRAM_COUNTER();
 
             // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -1602,6 +1690,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             CallWithReceiver* code = (CallWithReceiver*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = registerFile[code->m_receiverIndex];
+            PUBLISH_PROGRAM_COUNTER();
 
             // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -1665,6 +1754,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             for (size_t i = 0; i < code->m_upperIndex; i++) {
                 upperEnv = upperEnv->outerEnvironment();
             }
+            // throws on a binding still in its temporal dead zone
+            PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->getHeapValueByIndex(*state, code->m_index);
             ADD_PROGRAM_COUNTER(LoadByHeapIndexComplexCase);
             NEXT_INSTRUCTION();
@@ -1678,6 +1769,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             for (size_t i = 0; i < code->m_upperIndex; i++) {
                 upperEnv = upperEnv->outerEnvironment();
             }
+            // throws on a const binding or one still in its temporal dead zone
+            PUBLISH_PROGRAM_COUNTER();
             upperEnv->record()->setMutableBindingByIndex(*state, code->m_index, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreByHeapIndex);
             NEXT_INSTRUCTION();
@@ -1689,7 +1782,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             UnaryMinus* code = (UnaryMinus*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
             if (UNLIKELY(val.isPointerValue())) {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::unaryMinusSlowCase(*state, val);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::unaryMinusSlowCase(*state, val, programCounter);
             } else {
                 registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, -val.toNumber(*state));
             }
@@ -1703,7 +1796,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryMod* code = (BinaryMod*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::modOperation(*state, left, right);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::modOperation(*state, left, right, programCounter);
             ADD_PROGRAM_COUNTER(BinaryMod);
             NEXT_INSTRUCTION();
         }
@@ -1717,7 +1810,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() & right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
             NEXT_INSTRUCTION();
@@ -1732,7 +1825,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() | right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
             NEXT_INSTRUCTION();
@@ -1747,7 +1840,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() ^ right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
             NEXT_INSTRUCTION();
@@ -1768,7 +1861,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 lnum <<= ((unsigned int)rnum) & 0x1F;
                 registerFile[code->m_dstIndex] = Value(static_cast<int32_t>(lnum));
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryLeftShift);
             NEXT_INSTRUCTION();
@@ -1786,7 +1879,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 lnum >>= ((unsigned int)rnum) & 0x1F;
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinarySignedRightShift);
             NEXT_INSTRUCTION();
@@ -1804,7 +1897,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 lnum = (lnum) >> ((rnum) & 0x1F);
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight, programCounter);
             }
             ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
             NEXT_INSTRUCTION();
@@ -1816,7 +1909,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             BinaryExponentiation* code = (BinaryExponentiation*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = InterpreterSlowPath::exponentialOperation(*state, left, right);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::exponentialOperation(*state, left, right, programCounter);
             ADD_PROGRAM_COUNTER(BinaryExponentiation);
             NEXT_INSTRUCTION();
         }
@@ -1829,7 +1922,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (val.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(~val.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseNotOperationSlowCase(*state, val);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseNotOperationSlowCase(*state, val, programCounter);
             }
             ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
             NEXT_INSTRUCTION();
@@ -1838,10 +1931,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(ExecutionResume)
             :
         {
-            Value v = InterpreterSlowPath::executionResumeOperation(state, programCounter, byteCodeBlock);
-            if (!v.isEmpty()) {
-                return v;
+            InterpreterSlowPath::Continuation next = InterpreterSlowPath::executionResumeOperation(state, programCounter, byteCodeBlock);
+            if (!next.value.isEmpty()) {
+                return next.value;
             }
+            state = next.state;
+            programCounter = next.programCounter;
             NEXT_INSTRUCTION();
         }
 
@@ -1856,24 +1951,25 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(InitializeDisposable)
             :
         {
-            InterpreterSlowPath::initializeDisposable(*state, registerFile, programCounter);
+            programCounter = InterpreterSlowPath::initializeDisposable(*state, registerFile, programCounter);
             NEXT_INSTRUCTION();
         }
 
         DEFINE_OPCODE(FinalizeDisposable)
             :
         {
-            bool r = InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter, byteCodeBlock);
-            if (!r) {
+            Optional<size_t> next = InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter, byteCodeBlock);
+            if (!next) {
                 return Value();
             }
+            programCounter = next.value();
             NEXT_INSTRUCTION();
         }
 
         DEFINE_OPCODE(SetExecutionStateInStrictMode)
             :
         {
-            InterpreterSlowPath::setExecutionStateInStrictModeOperation(*state, registerFile, programCounter);
+            programCounter = InterpreterSlowPath::setExecutionStateInStrictModeOperation(*state, registerFile, programCounter);
             NEXT_INSTRUCTION();
         }
 
@@ -1894,6 +1990,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ToNumber* code = (ToNumber*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
+            if (UNLIKELY(!val.isNumber())) {
+                // ToNumber can run valueOf on an object operand
+                PUBLISH_PROGRAM_COUNTER();
+            }
             registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(*state));
             ADD_PROGRAM_COUNTER(ToNumber);
             NEXT_INSTRUCTION();
@@ -1904,6 +2004,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ToPropertyKey* code = (ToPropertyKey*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
+            if (UNLIKELY(val.isObject())) {
+                // ToPropertyKey runs ToPrimitive on an object operand
+                PUBLISH_PROGRAM_COUNTER();
+            }
             registerFile[code->m_dstIndex] = val.toPropertyKey(*state);
             ADD_PROGRAM_COUNTER(ToPropertyKey);
             NEXT_INSTRUCTION();
@@ -1986,7 +2090,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex], programCounter);
             ADD_PROGRAM_COUNTER(NewOperation);
             NEXT_INSTRUCTION();
         }
@@ -2008,6 +2112,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             CallReturn* code = (CallReturn*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
+            PUBLISH_PROGRAM_COUNTER();
 
             // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -2042,7 +2147,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             LoadByName* code = (LoadByName*)programCounter;
-            registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name);
+            registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name, programCounter);
             ADD_PROGRAM_COUNTER(LoadByName);
             NEXT_INSTRUCTION();
         }
@@ -2051,7 +2156,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             StoreByName* code = (StoreByName*)programCounter;
-            InterpreterSlowPath::storeByName(*state, state->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
+            InterpreterSlowPath::storeByName(*state, state->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex], programCounter);
             ADD_PROGRAM_COUNTER(StoreByName);
             NEXT_INSTRUCTION();
         }
@@ -2060,7 +2165,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             InitializeByName* code = (InitializeByName*)programCounter;
-            InterpreterSlowPath::initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex]);
+            InterpreterSlowPath::initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex], programCounter);
             ADD_PROGRAM_COUNTER(InitializeByName);
             NEXT_INSTRUCTION();
         }
@@ -2150,7 +2255,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             CreateRestElement* code = (CreateRestElement*)programCounter;
-            registerFile[code->m_registerIndex] = InterpreterSlowPath::createRestElementOperation(*state, byteCodeBlock);
+            registerFile[code->m_registerIndex] = InterpreterSlowPath::createRestElementOperation(*state, byteCodeBlock, programCounter);
             ADD_PROGRAM_COUNTER(CreateRestElement);
             NEXT_INSTRUCTION();
         }
@@ -2161,6 +2266,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             LoadThisBinding* code = (LoadThisBinding*)programCounter;
             EnvironmentRecord* envRec = state->getThisEnvironment();
             ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+            // throws in a derived constructor before super() has run
+            PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_dstIndex] = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(*state);
             ADD_PROGRAM_COUNTER(LoadThisBinding);
             NEXT_INSTRUCTION();
@@ -2169,10 +2276,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(TryOperation)
             :
         {
-            Value v = InterpreterSlowPath::tryOperation(state, programCounter, byteCodeBlock, registerFile);
-            if (!v.isEmpty()) {
-                return v;
+            InterpreterSlowPath::Continuation next = InterpreterSlowPath::tryOperation(state, programCounter, byteCodeBlock, registerFile);
+            if (!next.value.isEmpty()) {
+                return next.value;
             }
+            state = next.state;
+            programCounter = next.programCounter;
             NEXT_INSTRUCTION();
         }
 
@@ -2188,16 +2297,19 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             ThrowOperation* code = (ThrowOperation*)programCounter;
+            PUBLISH_PROGRAM_COUNTER();
             state->context()->throwException(*state, registerFile[code->m_registerIndex]);
         }
 
         DEFINE_OPCODE(OpenLexicalEnvironment)
             :
         {
-            Value v = InterpreterSlowPath::openLexicalEnvironment(state, programCounter, byteCodeBlock, registerFile);
-            if (!v.isEmpty()) {
-                return v;
+            InterpreterSlowPath::Continuation next = InterpreterSlowPath::openLexicalEnvironment(state, programCounter, byteCodeBlock, registerFile);
+            if (!next.value.isEmpty()) {
+                return next.value;
             }
+            state = next.state;
+            programCounter = next.programCounter;
             NEXT_INSTRUCTION();
         }
 
@@ -2222,7 +2334,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             CheckLastEnumerateKey* code = (CheckLastEnumerateKey*)programCounter;
-            InterpreterSlowPath::checkLastEnumerateKey(*state, code, byteCodeBlock->m_code.data(), programCounter, registerFile);
+            programCounter = InterpreterSlowPath::checkLastEnumerateKey(*state, code, byteCodeBlock->m_code.data(), programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -2254,7 +2366,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             IteratorOperation* code = (IteratorOperation*)programCounter;
-            InterpreterSlowPath::iteratorOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data());
+            programCounter = InterpreterSlowPath::iteratorOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data());
             NEXT_INSTRUCTION();
         }
 
@@ -2264,6 +2376,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             IteratorNextValue* code = (IteratorNextValue*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             IteratorRecord* record = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+            // both arms can throw (a detached TypedArray even on the fast one) or run script
+            PUBLISH_PROGRAM_COUNTER();
             bool done;
             if (LIKELY(record->m_isFastBuiltinIterator)) {
                 // stepping a pristine builtin iterator through advance() is observably
@@ -2294,6 +2408,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             IteratorBindValue* code = (IteratorBindValue*)programCounter;
             IteratorRecord* record = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
+            PUBLISH_PROGRAM_COUNTER();
             // a pristine builtin iterator steps without materializing the
             // IteratorResult object. m_done is set before the step and cleared
             // again only on success, so an abrupt step leaves the record done
@@ -2327,6 +2442,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             LoadRegExp* code = (LoadRegExp*)programCounter;
+            // throws SyntaxError on a pattern Yarr rejects
+            PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_registerIndex] = new RegExpObject(*state, code->m_body, code->m_option);
             ADD_PROGRAM_COUNTER(LoadRegExp);
             NEXT_INSTRUCTION();
@@ -2427,6 +2544,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
+            PUBLISH_PROGRAM_COUNTER();
             ErrorObject::throwBuiltinError(*state, (ErrorCode)code->m_errorKind, code->m_errorMessage, code->m_templateDataString);
         }
 
@@ -2438,8 +2556,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             {
                 ValueVector spreadArgs;
-                InterpreterSlowPath::spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+                InterpreterSlowPath::spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs, programCounter);
+                registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data(), programCounter);
             }
 
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
@@ -2509,12 +2627,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (UNLIKELY(iterOrEnum.asPointerValue()->isEnumerateObject())) {
                 ASSERT(iterOrEnum.asPointerValue()->isEnumerateObject());
                 EnumerateObject* enumObj = (EnumerateObject*)iterOrEnum.asPointerValue();
+                // copying the remaining properties runs their getters
+                PUBLISH_PROGRAM_COUNTER();
                 result = new Object(*state);
                 enumObj->fillRestElement(*state, result);
                 registerFile[code->m_iterOrEnumIndex] = Value();
                 delete enumObj;
             } else {
-                result = InterpreterSlowPath::restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord());
+                result = InterpreterSlowPath::restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord(), programCounter);
             }
 
             registerFile[code->m_dstIndex] = result;
@@ -2526,10 +2646,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             BlockOperation* code = (BlockOperation*)programCounter;
-            Value v = InterpreterSlowPath::blockOperation(state, code, programCounter, byteCodeBlock, registerFile);
-            if (!v.isEmpty()) {
-                return v;
+            InterpreterSlowPath::Continuation next = InterpreterSlowPath::blockOperation(state, code, byteCodeBlock, registerFile);
+            if (!next.value.isEmpty()) {
+                return next.value;
             }
+            state = next.state;
+            programCounter = next.programCounter;
             NEXT_INSTRUCTION();
         }
 
@@ -2544,7 +2666,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(EnsureArgumentsObject)
             :
         {
-            InterpreterSlowPath::ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile);
+            InterpreterSlowPath::ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile, programCounter);
             ADD_PROGRAM_COUNTER(EnsureArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -2561,7 +2683,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(TaggedTemplateOperation)
             :
         {
-            InterpreterSlowPath::taggedTemplateOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data(), byteCodeBlock);
+            programCounter = InterpreterSlowPath::taggedTemplateOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data(), byteCodeBlock);
             NEXT_INSTRUCTION();
         }
 
@@ -2732,10 +2854,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (UNLIKELY(!state->inTCO())) {
 #if defined(ENABLE_TCO_DEBUG)
                 ExecutionState* newState = InterpreterSlowPath::createExecutionStateForTailCall(state, callee.asPointerValue()->asScriptFunctionObject(), byteCodeBlock);
-                // copy the current programCounter info
-                state->m_programCounter = (size_t*)GC_MALLOC(sizeof(size_t));
-                *state->m_programCounter = programCounter;
-                newState->m_programCounter = &programCounter;
+                // the caller's frame stays in the chain for debugging, so record where it was
+                PUBLISH_PROGRAM_COUNTER();
                 state = newState;
 #endif
                 // At the start of tail call, we need to allocate a buffer for arguments
@@ -2779,7 +2899,6 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
             // set programCounter
             programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
-            ASSERT(state->m_programCounter == &programCounter);
 
             NEXT_INSTRUCTION();
         }
@@ -2796,11 +2915,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& calleeValue = registerFile[code->m_calleeIndex];
 
             if (calleeValue.isObject() && calleeValue.asObject()->canBeTailCallTargetRuntime(code->m_argumentCount)) {
-                Value thisValue = InterpreterSlowPath::prepareTailCallOptimization(state, code, calleeValue.asObject()->asScriptFunctionObject(), byteCodeBlock, programCounter, registerFile);
-                if (!thisValue.isEmpty()) {
+                InterpreterSlowPath::TailCallPreparation prepared = InterpreterSlowPath::prepareTailCallOptimization(state, code, calleeValue.asObject()->asScriptFunctionObject(), byteCodeBlock, programCounter, registerFile);
+                if (!prepared.thisValue.isEmpty()) {
+                    state = prepared.state;
+                    byteCodeBlock = prepared.byteCodeBlock;
+                    programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
                     ASSERT(byteCodeBlock == calleeValue.asObject()->asScriptFunctionObject()->interpretedCodeBlock()->byteCodeBlock());
-                    ASSERT(programCounter == (size_t)byteCodeBlock->m_code.data());
-                    ASSERT(state->m_programCounter == &programCounter);
 
                     if (UNLIKELY(!state->lexicalEnvironment())) {
                         // should allocate environment stuctures on the stack
@@ -2816,7 +2936,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     }
 
                     // set this value
-                    registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = thisValue;
+                    registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = prepared.thisValue;
 
                     // directly jump to the first bytecode of callee
                     NEXT_INSTRUCTION();
@@ -2838,6 +2958,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 // should call resolveCallee because try-catch-finally block is executed in a sub-interpreter
                 // goto slow path
                 code->changeOpcode(Opcode::CallOpcode);
+                PUBLISH_PROGRAM_COUNTER();
                 if (UNLIKELY(!callee.isObject())) {
                     ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
                 }
@@ -2865,6 +2986,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             if (state->context()->debuggerEnabled()) {
+                PUBLISH_PROGRAM_COUNTER();
                 bool restart = state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
                 if (restart) {
                     return Value(true);
@@ -2879,6 +3001,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             if (state->context()->debuggerEnabled()) {
+                PUBLISH_PROGRAM_COUNTER();
                 bool restart = state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
                 if (restart) {
                     return Value(true);
@@ -2940,6 +3063,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         if (state->context()->debuggerEnabled() && !state->context()->isStoppingOnExceptionInProgress()) {
             state->context()->setStoppingOnExceptionInProgress(true);
             const auto offset = static_cast<uint32_t>(programCounter - reinterpret_cast<size_t>(byteCodeBlock->m_code.data()));
+            PUBLISH_PROGRAM_COUNTER();
             state->context()->debugger()->stopAtException(byteCodeBlock, offset, state, &err);
         }
         throw;
@@ -2949,6 +3073,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
     ASSERT_NOT_REACHED();
 
     return Value();
+#undef PUBLISH_PROGRAM_COUNTER
 }
 
 NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue)
@@ -2966,8 +3091,9 @@ NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordB
     return NULL;
 }
 
-NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException)
+NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException)
 {
+    publishProgramCounter(state, programCounter);
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
         if (result.m_hasBindingValue) {
@@ -2988,8 +3114,9 @@ NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, Lexica
     return Value();
 }
 
-NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
+NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     while (env) {
         auto result = env->record()->hasBinding(state, name);
         if (result.m_index != SIZE_MAX) {
@@ -3005,8 +3132,9 @@ NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, Lexica
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
 }
 
-NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
+NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     if (isLexicallyDeclaredName) {
         state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
     } else {
@@ -3026,6 +3154,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, L
 
 NEVER_INLINE void InterpreterSlowPath::resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     LexicalEnvironment* env = state.lexicalEnvironment();
     int64_t count = 0;
     while (env) {
@@ -3057,6 +3186,7 @@ NEVER_INLINE void InterpreterSlowPath::resolveNameAddress(ExecutionState& state,
 
 NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     LexicalEnvironment* env = state.lexicalEnvironment();
     const Value& value = registerFile[code->m_valueRegisterIndex];
     int64_t count = registerFile[code->m_addressRegisterIndex].toNumber(state);
@@ -3098,8 +3228,9 @@ NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& st
     o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
 }
 
-NEVER_INLINE Value InterpreterSlowPath::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::plusSlowCase(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Value ret(Value::ForceUninitialized);
     Value lval(Value::ForceUninitialized);
     Value rval(Value::ForceUninitialized);
@@ -3141,8 +3272,9 @@ NEVER_INLINE Value InterpreterSlowPath::plusSlowCase(ExecutionState& state, cons
     return ret;
 }
 
-NEVER_INLINE Value InterpreterSlowPath::minusSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::minusSlowCase(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     // https://www.ecma-international.org/ecma-262/#sec-subtraction-operator-minus
     // Let lref be the result of evaluating AdditiveExpression.
     // Let lval be ? GetValue(lref).
@@ -3165,8 +3297,9 @@ NEVER_INLINE Value InterpreterSlowPath::minusSlowCase(ExecutionState& state, con
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::multiplySlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::multiplySlowCase(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
@@ -3179,8 +3312,9 @@ NEVER_INLINE Value InterpreterSlowPath::multiplySlowCase(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::divisionSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::divisionSlowCase(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
@@ -3196,8 +3330,9 @@ NEVER_INLINE Value InterpreterSlowPath::divisionSlowCase(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::unaryMinusSlowCase(ExecutionState& state, const Value& src)
+NEVER_INLINE Value InterpreterSlowPath::unaryMinusSlowCase(ExecutionState& state, const Value& src, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto r = src.toNumeric(state);
     if (r.second) {
         return r.first.asBigInt()->negativeValue(state);
@@ -3206,8 +3341,9 @@ NEVER_INLINE Value InterpreterSlowPath::unaryMinusSlowCase(ExecutionState& state
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Value ret(Value::ForceUninitialized);
 
     int32_t intLeft;
@@ -3255,8 +3391,9 @@ NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, cons
     return ret;
 }
 
-NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& state, const Value& left, const Value& right, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Value ret(Value::ForceUninitialized);
 
     auto lnum = left.toNumeric(state);
@@ -3284,6 +3421,7 @@ NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& sta
 
 NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile, ByteCodeBlock* block)
 {
+    publishProgramCounter(state, code);
     const Value& lhs = registerFile[code->m_srcIndex0];
     const Value& rhs = registerFile[code->m_srcIndex1];
 
@@ -3387,6 +3525,7 @@ static void appendValueToTemplateBuilder(StringBuilder& builder, const Value& va
 
 NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_stage == TemplateOperation::LegacyConcat) {
         const Value& s1 = registerFile[code->m_src0Index];
         const Value& s2 = registerFile[code->m_src1Index];
@@ -3408,8 +3547,9 @@ NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::BitwiseOperationKind kind)
+NEVER_INLINE Value InterpreterSlowPath::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::BitwiseOperationKind kind, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
@@ -3443,8 +3583,9 @@ NEVER_INLINE Value InterpreterSlowPath::bitwiseOperationSlowCase(ExecutionState&
     return Value();
 }
 
-NEVER_INLINE Value InterpreterSlowPath::bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a)
+NEVER_INLINE Value InterpreterSlowPath::bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto r = a.toNumeric(state);
     if (r.second) {
         return r.first.asBigInt()->bitwiseNot(state);
@@ -3453,8 +3594,9 @@ NEVER_INLINE Value InterpreterSlowPath::bitwiseNotOperationSlowCase(ExecutionSta
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::ShiftOperationKind kind)
+NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::ShiftOperationKind kind, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
@@ -3505,6 +3647,7 @@ NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& s
 
 NEVER_INLINE void InterpreterSlowPath::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, code);
     if (code->m_id.string()->length()) {
         bool result;
         AtomicString arguments = state.context()->staticStrings().arguments;
@@ -3545,7 +3688,7 @@ NEVER_INLINE void InterpreterSlowPath::deleteOperation(ExecutionState& state, Le
     }
 }
 
-ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
+ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -3556,10 +3699,10 @@ ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRight(ExecutionSta
         return left.asNumber() < right.asNumber();
     }
 
-    return abstractLeftIsLessThanRightSlowCase(state, left, right, switched);
+    return abstractLeftIsLessThanRightSlowCase(state, left, right, switched, programCounter);
 }
 
-ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
+ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -3570,7 +3713,7 @@ ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRight(Executi
         return left.asNumber() <= right.asNumber();
     }
 
-    return abstractLeftIsLessThanEqualRightSlowCase(state, left, right, switched);
+    return abstractLeftIsLessThanEqualRightSlowCase(state, left, right, switched, programCounter);
 }
 
 template <typename CompBigIntBigInt, typename CompBigIntBigIntData, typename CompBigIntDataBigInt, typename CompDoubleDouble>
@@ -3634,8 +3777,9 @@ ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, con
     }
 }
 
-NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
+NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Value lval, rval;
     if (switched) {
         rval = right.toPrimitive(state, Value::PreferNumber);
@@ -3654,8 +3798,9 @@ NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRightSlowCase(Execu
     }
 }
 
-NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
+NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Value lval, rval;
     if (switched) {
         rval = right.toPrimitive(state, Value::PreferNumber);
@@ -3676,12 +3821,13 @@ NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRightSlowCase(
 
 NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block)
 {
+    publishProgramCounter(state, code);
     const Value& receiver = registerFile[code->m_objectRegisterIndex];
     Object* orgObj;
     if (LIKELY(receiver.isObject())) {
         orgObj = receiver.asObject();
     } else {
-        orgObj = fastToObject(state, receiver);
+        orgObj = fastToObject(state, receiver, reinterpret_cast<size_t>(code));
     }
 
     if (code->m_inlineCacheMode == GetObjectPreComputedCase::Complex) {
@@ -4001,6 +4147,7 @@ ALWAYS_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperation(Execut
 
 NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* originalObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
+    publishProgramCounter(state, code);
     ASSERT(code->m_inlineCacheProtoTraverseMaxIndex < SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount);
     Object* obj = originalObject;
     Object* objChain[SetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
@@ -4061,6 +4208,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase
 
 NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
+    publishProgramCounter(state, code);
     if (code->m_isLength && originalObject->isArrayObject()) {
         if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
             if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
@@ -4299,8 +4447,9 @@ GiveUp:
     // clang-format on
 }
 
-NEVER_INLINE Object* InterpreterSlowPath::fastToObject(ExecutionState& state, const Value& obj)
+NEVER_INLINE Object* InterpreterSlowPath::fastToObject(ExecutionState& state, const Value& obj, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     if (LIKELY(obj.isString())) {
         StringObject* o = state.context()->globalObject()->stringProxyObject();
         o->setPrimitiveValue(state, obj.asString());
@@ -4313,8 +4462,9 @@ NEVER_INLINE Object* InterpreterSlowPath::fastToObject(ExecutionState& state, co
     return obj.toObject(state);
 }
 
-NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block)
+NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
     AtomicString name = slot->m_propertyName;
@@ -4364,8 +4514,9 @@ NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
+NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
     AtomicString name = slot->m_propertyName;
@@ -4415,6 +4566,7 @@ NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState&
 
 NEVER_INLINE void InterpreterSlowPath::initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value)
 {
+    publishProgramCounter(state, code);
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
     for (size_t i = 0; i < records.size(); i++) {
@@ -4428,6 +4580,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeGlobalVariable(ExecutionState& 
 
 NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& state, CreateObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_dataRegisterIndex != REGISTER_LIMIT) {
         CreateObjectPrepare::CreateObjectData* data;
         bool isAsyncOrGenerator = byteCodeBlock->codeBlock()->isAsyncOrGenerator();
@@ -4501,6 +4654,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
 
 NEVER_INLINE void InterpreterSlowPath::createOnlyKeyValueObjectOperation(ExecutionState& state, CreateOnlyKeyValueObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     size_t keyCount = code->m_count;
     Object* obj = new Object(state);
 
@@ -4560,6 +4714,7 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
 
 NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_stage == CreateObjectPrepare::Init) {
         uint8_t* ptr;
         if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
@@ -4717,11 +4872,13 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
 
 NEVER_INLINE void InterpreterSlowPath::createArrayOperation(ExecutionState& state, CreateArray* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     registerFile[code->m_registerIndex] = new ArrayObject(state, (uint64_t)code->m_length);
 }
 
 NEVER_INLINE void InterpreterSlowPath::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     InterpretedCodeBlock* cb = code->m_codeBlock;
 
     LexicalEnvironment* outerLexicalEnvironment = state.mostNearestHeapAllocatedLexicalEnvironment().unwrap();
@@ -4760,8 +4917,9 @@ NEVER_INLINE void InterpreterSlowPath::createFunctionOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     ASSERT(state.resolveCallee());
 
     ArrayObject* newArray;
@@ -4782,8 +4940,9 @@ NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(Execut
     return newArray;
 }
 
-NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::tryOperation(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(*state, programCounter);
     ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
     uint8_t* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
@@ -4848,10 +5007,10 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             size_t newPc = programCounter + sizeof(TryOperation);
             Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
             if (newState->inExecutionStopState()) {
-                return Value();
+                return Continuation::returnValue(state, Value());
             }
             if (UNLIKELY(isTryResumeProcess && newState->parent()->inExecutionStopState())) {
-                return Value();
+                return Continuation::returnValue(state, Value());
             }
             clearStack<512>();
             if (UNLIKELY(isTryResumeProcess)) {
@@ -4859,8 +5018,8 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
-                state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+                publishProgramCounter(*state, code);
                 newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode()); //
                 newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
             }
@@ -4870,8 +5029,8 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
-                state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+                publishProgramCounter(*state, code);
                 newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
                 newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
             }
@@ -4898,7 +5057,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 shouldInterpretCatch = true;
 #else
                     if (interpretCatch()) {
-                        return Value();
+                        return Continuation::returnValue(state, Value());
                     }
 #endif
             }
@@ -4907,7 +5066,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
         // The caught value is rooted in registerFile. Leave the C++ handler
         // and release its GC pause before executing arbitrary JS catch code.
         if (shouldInterpretCatch && interpretCatch()) {
-            return Value();
+            return Continuation::returnValue(state, Value());
         }
 #endif
     } else if (code->m_isCatchResumeProcess) {
@@ -4919,15 +5078,15 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #endif
             Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
             if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
-                return Value();
+                return Continuation::returnValue(state, Value());
             }
             state = newState->parent();
-            state->m_programCounter = &programCounter;
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            publishProgramCounter(*state, code);
         } catch (const Value& val) {
             state = newState->parent();
-            state->m_programCounter = &programCounter;
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            publishProgramCounter(*state, code);
             state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
         }
     }
@@ -4940,19 +5099,19 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #endif
         Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
         if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
-            return Value();
+            return Continuation::returnValue(state, Value());
         }
         state = newState->parent();
-        state->m_programCounter = &programCounter;
         code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+        publishProgramCounter(*state, code);
     } else if (code->m_hasFinalizer) {
         if (UNLIKELY(code->m_isTryResumeProcess || code->m_isCatchResumeProcess)) {
 #ifdef ESCARGOT_DEBUGGER
             Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
             state = newState->parent();
-            state->m_programCounter = &programCounter;
             code = (TryOperation*)(codeBuffer + newState->rareData()->m_programCounterWhenItStoppedByYield);
+            publishProgramCounter(*state, code);
             newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
         }
@@ -4963,7 +5122,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #endif
         Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_tryCatchEndPosition, registerFile);
         if (newState->inExecutionStopState()) {
-            return Value();
+            return Continuation::returnValue(state, Value());
         }
     }
 
@@ -4981,25 +5140,24 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
-                return Value();
+                return Continuation::returnValue(state, Value());
             } else {
-                programCounter = jumpTo(codeBuffer, pos);
-                return Value(Value::EmptyValue);
+                return Continuation::resumeAt(state, jumpTo(codeBuffer, pos));
             }
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
             if (UNLIKELY(inPauserResumeProcess)) {
-                state->m_programCounter = nullptr;
+                state->m_programCounter = 0;
             }
             state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), std::move(stackTraceDataVector));
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
-            return Value(Value::EmptyValue);
+            return Continuation::resumeAt(state, programCounter);
         } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
             record->m_count--;
             if (record->count()) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
-            return record->value();
+            return Continuation::returnValue(state, record->value());
         } else {
 #if defined(ENABLE_TCO)
             // NeedsRecursion should be allocated in one of catch or finally block
@@ -5033,23 +5191,20 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 state->m_argv[i] = registerFile[argStartIndex + i];
             }
 
-            // set programCounter
-            programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
-            ASSERT(state->m_programCounter == &programCounter);
-
-            return Value(Value::EmptyValue);
+            // continue at the first bytecode of the callee
+            return Continuation::resumeAt(state, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()));
 #else
                 ASSERT_UNREACHABLE();
 #endif
         }
     } else {
-        programCounter = jumpTo(codeBuffer, code->m_finallyEndPosition);
-        return Value(Value::EmptyValue);
+        return Continuation::resumeAt(state, jumpTo(codeBuffer, code->m_finallyEndPosition));
     }
 }
 
 NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_stage == InitializeClass::CreateClass) {
         Value protoParent;
         Value constructorParent;
@@ -5199,6 +5354,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
 
 NEVER_INLINE void InterpreterSlowPath::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_isCall) {
         // Let newTarget be GetNewTarget().
         Object* newTarget = state.getNewTarget();
@@ -5214,6 +5370,7 @@ NEVER_INLINE void InterpreterSlowPath::superOperation(ExecutionState& state, Sup
 
 NEVER_INLINE void InterpreterSlowPath::complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, code);
     if (code->m_type == ComplexSetObjectOperation::Super) {
         // find `this` value for receiver
         Value thisValue(Value::ForceUninitialized);
@@ -5255,6 +5412,7 @@ NEVER_INLINE void InterpreterSlowPath::complexSetObjectOperation(ExecutionState&
 
 NEVER_INLINE void InterpreterSlowPath::complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, code);
     if (code->m_type == ComplexGetObjectOperation::Super) {
         // find `this` value for receiver
         Value thisValue(Value::ForceUninitialized);
@@ -5276,8 +5434,9 @@ NEVER_INLINE void InterpreterSlowPath::complexGetObjectOperation(ExecutionState&
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::openLexicalEnvironment(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(*state, programCounter);
     ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
     OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
     bool inWithStatement = code->m_kind == OpenLexicalEnvironment::WithStatement;
@@ -5313,13 +5472,13 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
     Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
 
     if (newState->inExecutionStopState() || (!inWithStatement && newState->parent()->inExecutionStopState())) {
-        return Value();
+        return Continuation::returnValue(state, Value());
     }
 
     if (UNLIKELY(!inWithStatement)) {
         state = newState->parent();
-        state->m_programCounter = &programCounter;
         code = (OpenLexicalEnvironment*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+        publishProgramCounter(*state, code);
     }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -5334,10 +5493,9 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
             record->m_count--;
             if (record->count() && (record->outerLimitCount() < record->count())) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
-                return Value();
+                return Continuation::returnValue(state, Value());
             } else {
-                programCounter = jumpTo(codeBuffer, pos);
-                return Value(Value::EmptyValue);
+                return Continuation::resumeAt(state, jumpTo(codeBuffer, pos));
             }
         } else {
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
@@ -5345,16 +5503,16 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
             if (record->count()) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
-            return record->value();
+            return Continuation::returnValue(state, record->value());
         }
     } else {
-        programCounter = jumpTo(codeBuffer, code->m_endPostion);
-        return Value(Value::EmptyValue);
+        return Continuation::resumeAt(state, jumpTo(codeBuffer, code->m_endPostion));
     }
 }
 
 NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, programCounter);
     ReplaceBlockLexicalEnvironmentOperation* code = (ReplaceBlockLexicalEnvironmentOperation*)programCounter;
     // setup new env
     EnvironmentRecord* newRecord;
@@ -5384,12 +5542,13 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
     state.setLexicalEnvironment(newEnv, state.inStrictMode());
 }
 
-NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::blockOperation(ExecutionState* state, BlockOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(*state, code);
     ControlFlowRecordStackUnwindGuard unwindGuard(state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance()));
     // Push an empty completion before sharing the stack with newState.
     state->rareData()->ensureControlFlowRecordStack(state->context()->vmInstance())->push();
-    size_t newPc = programCounter + sizeof(BlockOperation);
+    size_t newPc = reinterpret_cast<size_t>(code) + sizeof(BlockOperation);
     uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
     // setup new env
@@ -5463,13 +5622,13 @@ interpretBlock:
     Interpreter::interpret(newState, byteCodeBlock, innerPc, registerFile);
 
     if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
-        return Value();
+        return Continuation::returnValue(state, Value());
     }
 
     if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
-        state->m_programCounter = &programCounter;
         code = (BlockOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
+        publishProgramCounter(*state, code);
     }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -5493,10 +5652,9 @@ interpretBlock:
             }
             if (record->count() && (record->outerLimitCount() < record->count())) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
-                return Value();
+                return Continuation::returnValue(state, Value());
             } else {
-                programCounter = jumpTo(codeBuffer, pos);
-                return Value(Value::EmptyValue);
+                return Continuation::resumeAt(state, jumpTo(codeBuffer, pos));
             }
         } else {
             ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
@@ -5504,16 +5662,16 @@ interpretBlock:
             if (record->count()) {
                 state->rareData()->controlFlowRecordStack()->setBack(record.value());
             }
-            return record->value();
+            return Continuation::returnValue(state, record->value());
         }
     } else {
-        programCounter = jumpTo(codeBuffer, code->m_blockEndPosition);
-        return Value(Value::EmptyValue);
+        return Continuation::resumeAt(state, jumpTo(codeBuffer, code->m_blockEndPosition));
     }
 }
 
 NEVER_INLINE void InterpreterSlowPath::binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     const Value& left = registerFile[code->m_srcIndex0];
     const Value& right = registerFile[code->m_srcIndex1];
     if (!right.isObject()) {
@@ -5527,8 +5685,9 @@ NEVER_INLINE void InterpreterSlowPath::binaryInOperation(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
+NEVER_INLINE Value InterpreterSlowPath::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     if (!constructor.isConstructor()) {
         if (constructor.isFunctionObject()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunctionObject()->codeBlock()->functionName());
@@ -5583,6 +5742,7 @@ static Value callDynamicImportRejected(ExecutionState& state, Value thisValue, s
 
 NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& state, CallComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, code);
     switch (code->m_kind) {
     case CallComplexCase::InWithScope: {
         const AtomicString& calleeName = code->m_calleeName;
@@ -5603,7 +5763,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         } else {
             if (code->m_hasSpreadElement) {
                 ValueVector spreadArgs;
-                spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs, reinterpret_cast<size_t>(code));
                 registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, spreadArgs.size(), spreadArgs.data());
             } else {
                 registerFile[code->m_resultIndex] = Object::call(state, callee, receiverObj, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
@@ -5632,7 +5792,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
             }
         }
 
-        ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+        ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile, reinterpret_cast<size_t>(code));
 
         const auto& idInfo = byteCodeBlock->m_codeBlock->identifierInfos();
         AtomicString argumentsAtomicString = state.context()->staticStrings().arguments;
@@ -5656,7 +5816,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         ValueVector spreadArgs;
 
         if (code->m_hasSpreadElement) {
-            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs, reinterpret_cast<size_t>(code));
             argv = spreadArgs.data();
             argc = spreadArgs.size();
         } else {
@@ -5712,7 +5872,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
 
         {
             ValueVector spreadArgs;
-            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs, reinterpret_cast<size_t>(code));
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
         }
@@ -5767,7 +5927,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
             argv = spreadArgs.data();
             argc = spreadArgs.size();
         } else if (code->m_hasSpreadElement) {
-            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+            spreadFunctionArguments(state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs, reinterpret_cast<size_t>(code));
             argv = spreadArgs.data();
             argc = spreadArgs.size();
         } else {
@@ -5867,8 +6027,9 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
+NEVER_INLINE void InterpreterSlowPath::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     for (size_t i = 0; i < argc; i++) {
         Value arg = argv[i];
         if (arg.isObject() && arg.asObject()->isSpreadArray()) {
@@ -5935,6 +6096,7 @@ NEVER_INLINE void InterpreterSlowPath::spreadSoleIterableArgument(ExecutionState
 
 NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     Object* obj = registerFile[code->m_objectRegisterIndex].toObject(state);
     bool isDestruction = code->m_isDestruction;
 
@@ -5947,16 +6109,16 @@ NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& sta
     registerFile[code->m_dataRegisterIndex] = Value(enumObj);
 }
 
-NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile)
+NEVER_INLINE size_t InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t programCounter, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
     if (data->checkLastEnumerateKey(state)) {
         registerFile[code->m_registerIndex] = Value();
         delete data;
-        programCounter = jumpTo(codeBuffer, code->m_exitPosition);
-    } else {
-        ADD_PROGRAM_COUNTER(CheckLastEnumerateKey);
+        return jumpTo(codeBuffer, code->m_exitPosition);
     }
+    return programCounter + sizeof(CheckLastEnumerateKey);
 }
 
 NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile)
@@ -5980,8 +6142,9 @@ NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, M
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, uint8_t* codeBuffer)
+NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t programCounter, uint8_t* codeBuffer)
 {
+    publishProgramCounter(state, programCounter);
     ExecutionPause* code = (ExecutionPause*)programCounter;
     if (code->m_reason == ExecutionPause::Yield) {
         // http://www.ecma-international.org/ecma-262/6.0/#sec-generator-function-definitions-runtime-semantics-evaluation
@@ -6030,8 +6193,9 @@ NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::executionResumeOperation(ExecutionState* state, size_t programCounter, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(*state, programCounter);
     ExecutionResume* code = (ExecutionResume*)programCounter;
 
     bool needsReturn = code->m_needsReturn;
@@ -6069,13 +6233,13 @@ NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*
 
     // sync ExecutionState
     state = data->m_executionState;
-    state->m_programCounter = &programCounter;
 
     // update program counter
     programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
+    publishProgramCounter(*state, programCounter);
 
     if (data->m_registerFile == nullptr) { // released generator. return now.
-        return Value();
+        return Continuation::returnValue(state, Value());
     }
 
     if (!state->executionPauser()->m_resumeStateStore) {
@@ -6083,19 +6247,20 @@ NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*
             if (state->rareData()->controlFlowRecordStack() && state->rareData()->controlFlowRecordStack()->size()) {
                 state->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->controlFlowRecordStack()->size()));
             }
-            return data->m_resumeValue;
+            return Continuation::returnValue(state, data->m_resumeValue);
         } else if (needsThrow) {
             state->throwException(data->m_resumeValue);
         }
 
-        return Value(Value::EmptyValue);
+        return Continuation::resumeAt(state, programCounter);
     } else {
-        return Value(Value::EmptyValue);
+        return Continuation::resumeAt(state, programCounter);
     }
 }
 
 NEVER_INLINE void InterpreterSlowPath::metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     if (code->m_type == MetaPropertyOperation::NewTarget) {
         auto newTarget = state.getNewTarget();
         if (newTarget) {
@@ -6113,6 +6278,7 @@ NEVER_INLINE void InterpreterSlowPath::metaPropertyOperation(ExecutionState& sta
 
 NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
     const Value& value = registerFile[code->m_loadRegisterIndex];
@@ -6130,6 +6296,7 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(Executio
 
 NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     Object* object = registerFile[code->m_objectRegisterIndex].asObject();
     const Value& v = registerFile[code->m_loadRegisterIndex];
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
@@ -6176,6 +6343,7 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(
 
 NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
     if (LIKELY(arr->isFastModeArray())) {
         for (size_t i = 0; i < code->m_count; i++) {
@@ -6195,6 +6363,7 @@ NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyOperation(Execution
 
 NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
 
     if (LIKELY(arr->isFastModeArray())) {
@@ -6296,6 +6465,7 @@ NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOper
 
 NEVER_INLINE void InterpreterSlowPath::createArrayFromIterable(ExecutionState& state, CreateArrayFromIterable* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     const Value& source = registerFile[code->m_argumentIndex];
     Optional<ArrayObject*> fastSource = IteratorObject::tryFastArrayIterationSource(state, source);
     if (LIKELY(fastSource)) {
@@ -6324,6 +6494,7 @@ NEVER_INLINE void InterpreterSlowPath::createArrayFromIterable(ExecutionState& s
 
 NEVER_INLINE void InterpreterSlowPath::createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     ArrayObject* spreadArray = ArrayObject::createSpreadArray(state);
     ASSERT(spreadArray->isFastModeArray());
 
@@ -6383,6 +6554,7 @@ NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetterOperation(Executi
 
 NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     const size_t minCacheFillCount = 2;
     if (object->structure() == code->m_inlineCachedStructureBefore) {
@@ -6427,7 +6599,7 @@ NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& 
     }
 }
 
-ALWAYS_INLINE Value InterpreterSlowPath::incrementOperation(ExecutionState& state, const Value& value)
+ALWAYS_INLINE Value InterpreterSlowPath::incrementOperation(ExecutionState& state, const Value& value, size_t programCounter)
 {
     if (LIKELY(value.isInt32())) {
         int32_t a = value.asInt32();
@@ -6440,12 +6612,13 @@ ALWAYS_INLINE Value InterpreterSlowPath::incrementOperation(ExecutionState& stat
             return Value(Value::EncodeAsDouble, (double)a + (double)b);
         }
     } else {
-        return incrementOperationSlowCase(state, value);
+        return incrementOperationSlowCase(state, value, programCounter);
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::incrementOperationSlowCase(ExecutionState& state, const Value& value)
+NEVER_INLINE Value InterpreterSlowPath::incrementOperationSlowCase(ExecutionState& state, const Value& value, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     // https://www.ecma-international.org/ecma-262/#sec-postfix-increment-operator
     // https://www.ecma-international.org/ecma-262/#sec-prefix-increment-operator
     auto newVal = value.toNumeric(state);
@@ -6456,7 +6629,7 @@ NEVER_INLINE Value InterpreterSlowPath::incrementOperationSlowCase(ExecutionStat
     }
 }
 
-ALWAYS_INLINE Value InterpreterSlowPath::decrementOperation(ExecutionState& state, const Value& value)
+ALWAYS_INLINE Value InterpreterSlowPath::decrementOperation(ExecutionState& state, const Value& value, size_t programCounter)
 {
     if (LIKELY(value.isInt32())) {
         int32_t a = value.asInt32();
@@ -6469,12 +6642,13 @@ ALWAYS_INLINE Value InterpreterSlowPath::decrementOperation(ExecutionState& stat
             return Value(Value::EncodeAsDouble, (double)a - (double)b);
         }
     } else {
-        return decrementOperationSlowCase(state, value);
+        return decrementOperationSlowCase(state, value, programCounter);
     }
 }
 
-NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionState& state, const Value& value)
+NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionState& state, const Value& value, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     // https://www.ecma-international.org/ecma-262/#sec-postfix-decrement-operator
     // https://www.ecma-international.org/ecma-262/#sec-prefix-decrement-operator
     auto newVal = value.toNumeric(state);
@@ -6485,8 +6659,9 @@ NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionStat
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter)
+NEVER_INLINE size_t InterpreterSlowPath::initializeDisposable(ExecutionState& state, Value* registerFile, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     InitializeDisposable* code = (InitializeDisposable*)programCounter;
 
     if (registerFile[code->m_dstRegisterIndex].isUndefined()) {
@@ -6494,7 +6669,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& stat
     }
     DisposableResourceRecord* record = registerFile[code->m_dstRegisterIndex].asPointerValue()->asDisposableResourceRecord();
     record->m_records.pushBack(createDisposableResource(state, registerFile[code->m_srcRegisterIndex], code->m_isAsyncDisposable, NullOption));
-    ADD_PROGRAM_COUNTER(InitializeDisposable);
+    return programCounter + sizeof(InitializeDisposable);
 }
 
 // A class definition is always strict mode code. This rarely-used opcode forces
@@ -6502,7 +6677,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& stat
 // and computed property names are evaluated, then restores the previous strict flag.
 // Kept out-of-line (and away from the hot opcodes) on purpose to keep it out of the
 // interpreter's hot path.
-NEVER_INLINE void InterpreterSlowPath::setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t& programCounter)
+NEVER_INLINE size_t InterpreterSlowPath::setExecutionStateInStrictModeOperation(ExecutionState& state, Value* registerFile, size_t programCounter)
 {
     SetExecutionStateInStrictMode* code = (SetExecutionStateInStrictMode*)programCounter;
     if (code->m_enter) {
@@ -6511,7 +6686,7 @@ NEVER_INLINE void InterpreterSlowPath::setExecutionStateInStrictModeOperation(Ex
     } else {
         state.setInStrictMode(registerFile[code->m_savedStrictRegisterIndex].asBoolean());
     }
-    ADD_PROGRAM_COUNTER(SetExecutionStateInStrictMode);
+    return programCounter + sizeof(SetExecutionStateInStrictMode);
 }
 
 static void finalizeDisposableAwaitOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, DisposableResourceRecord* data,
@@ -6528,8 +6703,9 @@ static void finalizeDisposableAwaitOperation(ExecutionState& state, ByteCodeBloc
                            &data->m_awaitResumeValueSlot, &data->m_awaitResumeStateSlot, ExecutionPauser::PauseReason::Await);
 }
 
-NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE Optional<size_t> InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t programCounter, ByteCodeBlock* byteCodeBlock)
 {
+    publishProgramCounter(state, programCounter);
     FinalizeDisposable* code = (FinalizeDisposable*)programCounter;
     const Value& dataRegisterValue = registerFile[code->m_dataRegisterIndex];
     // The data register can, in principle, hold something other than a DisposableResourceRecord
@@ -6569,7 +6745,7 @@ NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                 // Perform ! Await(undefined).
                 data->m_records.pushBack(record);
                 finalizeDisposableAwaitOperation(state, byteCodeBlock, data, Value(), programCounter, code, 1);
-                return false;
+                return NullOption;
             FinalizeDisposableAwaitResumeStage1:
                 // Set needsAwait to false.
                 data->m_needsAwait = false;
@@ -6590,7 +6766,7 @@ NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                     // Set result to Completion(Await(result.[[Value]])).
                     data->m_records.pushBack(record);
                     finalizeDisposableAwaitOperation(state, byteCodeBlock, data, result, programCounter, code, 2);
-                    return false;
+                    return NullOption;
                     // Set hasAwaited to true.
                 FinalizeDisposableAwaitResumeStage2:
                     result = data->m_awaitResumeValueSlot;
@@ -6636,24 +6812,22 @@ NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
             data->m_needsAwait = false;
             // Perform ! Await(undefined).
             finalizeDisposableAwaitOperation(state, byteCodeBlock, data, Value(), programCounter, code, 3);
-            return false;
+            return NullOption;
         }
     }
 // NOTE: After disposeCapability has been disposed, it will never be used again. The contents of disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage collection, at this point.
 // Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
 // Return ? completion.
 FinalizeDisposableAwaitResumeStage3:
-    size_t tailDataLength = code->m_tailDataLength;
-    ADD_PROGRAM_COUNTER(FinalizeDisposable);
-    programCounter += tailDataLength;
-    return true;
+    return programCounter + sizeof(FinalizeDisposable) + code->m_tailDataLength;
 }
 
 NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     Value val;
     if (code->m_id.string()->length()) {
-        val = loadByName(state, state.lexicalEnvironment(), code->m_id, false);
+        val = loadByName(state, state.lexicalEnvironment(), code->m_id, reinterpret_cast<size_t>(code), false);
     } else {
         val = registerFile[code->m_srcIndex];
     }
@@ -6693,6 +6867,7 @@ NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryT
 
 NEVER_INLINE void InterpreterSlowPath::iteratorBindValueSlowCase(ExecutionState& state, IteratorBindValue* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     Value value;
     IteratorRecord* iteratorRecord = registerFile[code->m_iteratorRecordRegisterIndex].asPointerValue()->asIteratorRecord();
 
@@ -6714,8 +6889,9 @@ NEVER_INLINE void InterpreterSlowPath::iteratorBindValueSlowCase(ExecutionState&
     registerFile[code->m_dstRegisterIndex] = value;
 }
 
-NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer)
+NEVER_INLINE size_t InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t programCounter, Value* registerFile, uint8_t* codeBuffer)
 {
+    publishProgramCounter(state, programCounter);
     IteratorOperation* code = (IteratorOperation*)programCounter;
     if (code->m_operation == IteratorOperation::Operation::GetIterator) {
         const Value& obj = registerFile[code->m_getIteratorData.m_srcObjectRegisterIndex];
@@ -6735,7 +6911,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
             IteratorRecord* iteratorRecord = registerFile[code->m_iteratorCloseData.m_iterRegisterIndex].asPointerValue()->asIteratorRecord();
             if (LIKELY(IteratorObject::directArrayIterationClosesWithoutReturn(state, iteratorRecord))) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
-                return;
+                return programCounter;
             }
             Object* iterator = iteratorRecord->iterator(state);
             Value returnFunction;
@@ -6750,7 +6926,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
 
             if (!innerResultHasException && returnFunction.isUndefinedOrNull()) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
-                return;
+                return programCounter;
             }
 
             if (!innerResultHasException) {
@@ -6764,7 +6940,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
 
             if (exceptionWasThrown) {
                 ADD_PROGRAM_COUNTER(IteratorOperation);
-                return;
+                return programCounter;
             }
 
             if (innerResultHasException) {
@@ -6840,16 +7016,19 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
     } else {
         ASSERT_NOT_REACHED();
     }
+    return programCounter;
 }
 
 NEVER_INLINE void InterpreterSlowPath::getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
 {
+    publishProgramCounter(state, programCounter);
     GetMethod* code = (GetMethod*)programCounter;
     registerFile[code->m_resultRegisterIndex] = Object::getMethod(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName);
 }
 
-NEVER_INLINE Object* InterpreterSlowPath::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord)
+NEVER_INLINE Object* InterpreterSlowPath::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     auto strings = &state.context()->staticStrings();
 
     Object* result = new ArrayObject(state);
@@ -6890,7 +7069,7 @@ NEVER_INLINE Object* InterpreterSlowPath::restBindOperation(ExecutionState& stat
     return result;
 }
 
-NEVER_INLINE void InterpreterSlowPath::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE size_t InterpreterSlowPath::taggedTemplateOperation(ExecutionState& state, size_t programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock)
 {
     TaggedTemplateOperation* code = (TaggedTemplateOperation*)programCounter;
     InterpretedCodeBlock* cb = byteCodeBlock->m_codeBlock;
@@ -6899,35 +7078,36 @@ NEVER_INLINE void InterpreterSlowPath::taggedTemplateOperation(ExecutionState& s
     if (code->m_operaton == TaggedTemplateOperation::TestCacheOperation) {
         if (cache.size() > code->m_testCacheOperationData.m_cacheIndex && cache[code->m_testCacheOperationData.m_cacheIndex]) {
             registerFile[code->m_testCacheOperationData.m_registerIndex] = cache[code->m_testCacheOperationData.m_cacheIndex].value();
-            programCounter = code->m_testCacheOperationData.m_jumpPosition;
-        } else {
-            ADD_PROGRAM_COUNTER(TaggedTemplateOperation);
+            return code->m_testCacheOperationData.m_jumpPosition;
         }
+        return programCounter + sizeof(TaggedTemplateOperation);
     } else {
         ASSERT(code->m_operaton == TaggedTemplateOperation::FillCacheOperation);
         if (cache.size() <= code->m_fillCacheOperationData.m_cacheIndex) {
             cache.resize(code->m_fillCacheOperationData.m_cacheIndex + 1);
         }
         cache[code->m_fillCacheOperationData.m_cacheIndex] = registerFile[code->m_fillCacheOperationData.m_registerIndex].asPointerValue()->asArrayObject();
-        ADD_PROGRAM_COUNTER(TaggedTemplateOperation);
+        return programCounter + sizeof(TaggedTemplateOperation);
     }
 }
 
 NEVER_INLINE void InterpreterSlowPath::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
     Object* obj;
     if (LIKELY(willBeObject.isObject())) {
         obj = willBeObject.asObject();
     } else {
-        obj = fastToObject(state, willBeObject);
+        obj = fastToObject(state, willBeObject, reinterpret_cast<size_t>(code));
     }
     registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(state, property, willBeObject);
 }
 
 NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
     Object* obj = willBeObject.toObject(state);
@@ -6959,8 +7139,9 @@ NEVER_INLINE FunctionEnvironmentRecord* InterpreterSlowPath::findNearestFunction
     return nullptr;
 }
 
-NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile, size_t programCounter)
 {
+    publishProgramCounter(state, programCounter);
     ExecutionState* es;
     FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
 
@@ -6972,6 +7153,7 @@ NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionS
 
 NEVER_INLINE void InterpreterSlowPath::loadArgumentsElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, LoadArgumentsElement* code, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     ExecutionState* es;
     FunctionEnvironmentRecord* funcRecord = findNearestFunctionEnvironmentRecord(state, es);
     ASSERT(!!funcRecord);
@@ -7009,7 +7191,7 @@ NEVER_INLINE void InterpreterSlowPath::loadArgumentsElementOperation(ExecutionSt
     // out of range, non-integer key, deleted/redefined index) falls back to
     // materializing (if needed) and doing a real indexed get, so it stays fully
     // spec-correct.
-    ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile);
+    ensureArgumentsObjectOperation(state, byteCodeBlock, registerFile, reinterpret_cast<size_t>(code));
     ArgumentsObject* argsObj = funcRecord->argumentsObject().value();
     registerFile[code->m_dstRegisterIndex] = argsObj->get(state, ObjectPropertyName(state, indexValue)).value(state, argsObj);
 }
@@ -7067,6 +7249,7 @@ NEVER_INLINE int InterpreterSlowPath::evaluateImportWithOperation(ExecutionState
 #if defined(ENABLE_TCO)
 NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     // fail to tail recursion
     // fix the caller's call site to TailCall
     code->changeOpcode(Opcode::TailCallOpcode);
@@ -7083,10 +7266,10 @@ NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& st
     return callee.asObject()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
 
-NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerByteBlock, size_t& programCounter, const Value* registerFile)
+NEVER_INLINE InterpreterSlowPath::TailCallPreparation InterpreterSlowPath::prepareTailCallOptimization(ExecutionState* state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock* callerByteBlock, size_t programCounter, const Value* registerFile)
 {
     ASSERT(!callee->isScriptArrowFunctionObject() && !!callerByteBlock);
-    ASSERT(state->m_programCounter == &programCounter);
+    publishProgramCounter(*state, programCounter);
     ASSERT(ThreadLocal::tcoBuffer());
     ASSERT(code->m_argumentCount <= TCO_ARGUMENT_COUNT_LIMIT);
 
@@ -7111,10 +7294,7 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
         // allocate a new ExecutionState for debugging purpose
         ExecutionState* newState = createExecutionStateForTailCall(state, callee, callerByteBlock);
 
-        // copy the current programCounter info
-        state->m_programCounter = (size_t*)GC_MALLOC(sizeof(size_t));
-        *state->m_programCounter = programCounter;
-        newState->m_programCounter = &programCounter;
+        // the caller's frame stays in the chain for debugging; its program counter is already published
         state = newState;
 
         if (isTailRecursion) {
@@ -7150,7 +7330,6 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
             // this will be handled right after this slow path
 
             ExecutionState* newState = new (state) ExecutionState(context, state->parent(), lexEnv, 0, nullptr, isStrict);
-            newState->m_programCounter = &programCounter;
             ASSERT(state == newState);
         }
 #endif
@@ -7175,20 +7354,17 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
             thisValue = isStrict ? receiver : (receiver.isUndefinedOrNull() ? context->globalObjectProxy() : receiver.toObject(*state));
         }
 
-        // rewrite call environment
-        ASSERT(state->m_programCounter == &programCounter);
-        callerByteBlock = calleeByteBlock;
-        programCounter = reinterpret_cast<size_t>(calleeByteBlock->m_code.data());
-
-        return thisValue;
+        // interpret() carries on at the first bytecode of the callee
+        return TailCallPreparation{ state, calleeByteBlock, thisValue };
     }
 
     // empty value represents invalid tail call
-    return Value(Value::EmptyValue);
+    return TailCallPreparation{ state, callerByteBlock, Value(Value::EmptyValue) };
 }
 
 NEVER_INLINE Value InterpreterSlowPath::tailCallSlowCase(ExecutionState& state, TailCall* code, const Value& callee, Value* registerFile)
 {
+    publishProgramCounter(state, code);
     // fail to tail Call
     // convert to CallReturn
     code->changeOpcode(Opcode::CallReturnOpcode);
