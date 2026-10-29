@@ -850,6 +850,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(BinaryMultiply)
             :
         {
+        binaryMultiplyGeneric:
             BinaryMultiply* code = (BinaryMultiply*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
@@ -869,10 +870,29 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     }
                 }
             } else if (LIKELY(left.isNumber() && right.isNumber())) {
-                // most cases are double
+                InterpreterSlowPath::updateArithmeticSpecialization(code, true, BinaryMultiplyNumberOpcode);
                 ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
             } else {
+                InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMultiplyNumberOpcode);
                 ret = InterpreterSlowPath::multiplySlowCase(*state, left, right);
+            }
+            ADD_PROGRAM_COUNTER(BinaryMultiply);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BinaryMultiplyNumber)
+            :
+        {
+            BinaryMultiply* code = (BinaryMultiply*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            if (LIKELY(left.isNumber() && right.isNumber())) {
+                double leftNumber = UNLIKELY(left.isInt32()) ? left.asInt32() : left.asDouble();
+                double rightNumber = UNLIKELY(right.isInt32()) ? right.asInt32() : right.asDouble();
+                registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, leftNumber * rightNumber);
+            } else {
+                code->changeOpcode(BinaryMultiplyOpcode);
+                goto binaryMultiplyGeneric;
             }
             ADD_PROGRAM_COUNTER(BinaryMultiply);
             NEXT_INSTRUCTION();
