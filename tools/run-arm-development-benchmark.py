@@ -162,6 +162,10 @@ def main():
         'cpu': cpu, 'architecture_order': ['arm32', 'arm64'], 'wtb_min_samples': 3,
         'repetitions': repetitions, 'profile': profile,
     }, indent=2) + '\n')
+    if experiment == 'bench:tools/diagnose-performance-host.py':
+        run([sys.executable, str(harness / 'tools/diagnose-performance-host.py')],
+            log=report / 'host-lock-diagnosis.json')
+        return
     container = f"escargot-arm-benchmark-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
     with host_lock(), tempfile.TemporaryDirectory(prefix='escargot-arm-benchmark.', dir=os.environ['RUNNER_TEMP']) as temporary:
         work = Path(temporary)
