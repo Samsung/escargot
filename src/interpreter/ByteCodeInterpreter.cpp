@@ -371,6 +371,20 @@ public:
             code->changeOpcode(opcode);
         }
     }
+    template <typename BinaryOperation>
+    static ALWAYS_INLINE void updateArithmeticSpecialization(BinaryOperation* code, bool numbers, Opcode numberOpcode)
+    {
+        // Count non-int32 generic entries, including initial specialization.
+        // Steady-state int32 and specialized number paths do not update the budget.
+        constexpr ByteCodeRegisterIndex specializationLimit = 8;
+        if (code->m_extraData < specializationLimit) {
+            ++code->m_extraData;
+            if (numbers && code->m_extraData < specializationLimit) {
+                code->changeOpcode(numberOpcode);
+            }
+        }
+    }
+
     static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
     static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
@@ -789,6 +803,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         DEFINE_OPCODE(BinaryMinus)
             :
         {
+        binaryMinusGeneric:
             BinaryMinus* code = (BinaryMinus*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
@@ -804,10 +819,29 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
                 }
             } else if (LIKELY(left.isNumber() && right.isNumber())) {
-                // most cases are double
+                InterpreterSlowPath::updateArithmeticSpecialization(code, true, BinaryMinusNumberOpcode);
                 ret = Value(Value::EncodeAsDouble, left.asNumber() - right.asNumber());
             } else {
+                InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMinusNumberOpcode);
                 ret = InterpreterSlowPath::minusSlowCase(*state, left, right);
+            }
+            ADD_PROGRAM_COUNTER(BinaryMinus);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BinaryMinusNumber)
+            :
+        {
+            BinaryMinus* code = (BinaryMinus*)programCounter;
+            const Value& left = registerFile[code->m_srcIndex0];
+            const Value& right = registerFile[code->m_srcIndex1];
+            if (LIKELY(left.isNumber() && right.isNumber())) {
+                double leftNumber = UNLIKELY(left.isInt32()) ? left.asInt32() : left.asDouble();
+                double rightNumber = UNLIKELY(right.isInt32()) ? right.asInt32() : right.asDouble();
+                registerFile[code->m_dstIndex] = Value(Value::EncodeAsDouble, leftNumber - rightNumber);
+            } else {
+                code->changeOpcode(BinaryMinusOpcode);
+                goto binaryMinusGeneric;
             }
             ADD_PROGRAM_COUNTER(BinaryMinus);
             NEXT_INSTRUCTION();
