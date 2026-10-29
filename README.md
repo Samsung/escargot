@@ -206,7 +206,7 @@ Pass these options when configuring with CMake.
 | -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN | Load ICU at runtime instead of linking directly | ON/OFF | ON unless vendored ICU is selected; OFF on macOS and iOS; unsupported on iOS |
 | -DESCARGOT_WASM | Enable WebAssembly support | ON/OFF | OFF |
 | -DESCARGOT_CODE_CACHE | Enable code cache | ON/OFF | OFF |
-| -DESCARGOT_TCO | Enable tail call optimization | ON/OFF | OFF |
+| -DESCARGOT_TCO | Enable tail call optimization | ON/OFF | ON |
 | -DESCARGOT_THREADING | Enable threading features (e.g. Atomics, SharedArrayBuffer) | ON/OFF | ON, except OFF on bare-metal |
 | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | Enable thread local storage access optimization (offset) | ON/OFF | OFF everywhere (safety-first; opt in manually on stable glibc-style targets) |
 | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | Enable thread local storage access optimization (pthread_key) | ON/OFF | ON when THREADING is ON and host is Android, otherwise OFF |
