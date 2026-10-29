@@ -323,16 +323,22 @@ void SandBox::throwException(ExecutionState& state, const Value& exception)
     ExceptionValue rootedException(exception);
     m_stackTraceDataVector.clear();
     createStackTrace(m_stackTraceDataVector, state);
+    m_materializedStackTraceData = NullOption;
 
     throw rootedException;
 }
 
-void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector)
+void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector, Optional<StackTraceData*> materializedStackTraceData)
 {
     ExceptionValue rootedException(exception);
-    m_stackTraceDataVector = stackTraceDataVector;
-    // update stack trace data if needs
-    createStackTrace(m_stackTraceDataVector, state);
+    m_stackTraceDataVector = std::move(stackTraceDataVector);
+    m_materializedStackTraceData = materializedStackTraceData;
+    if (m_stackTraceDataVector.empty()) {
+        // the frame had no record of the original throw (e.g. it caught the exception while
+        // resuming a paused function), so the rethrow is the best site there is
+        createStackTrace(m_stackTraceDataVector, state);
+        m_materializedStackTraceData = NullOption;
+    }
 
     throw rootedException;
 }
@@ -475,9 +481,10 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
 void SandBox::fillStackDataIntoErrorObject(const Value& e)
 {
     if (e.isObject() && e.asObject()->isErrorObject()) {
-        ErrorObject* obj = e.asObject()->asErrorObject();
-
-        obj->setStackTraceData(StackTraceData::create(this, e));
+        if (!materializedStackTraceData(e)) {
+            m_materializedStackTraceData = StackTraceData::create(this, e);
+        }
+        e.asObject()->asErrorObject()->setStackTraceData(m_materializedStackTraceData.value());
     }
 }
 } // namespace Escargot

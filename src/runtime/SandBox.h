@@ -119,11 +119,24 @@ public:
     static bool createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
 
     void throwException(ExecutionState& state, const Value& exception);
-    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector);
+    // Throws `exception` again from a try/finally frame that caught it, restoring the trace of the
+    // original throw (and the StackTraceData already built from it, if any) instead of recording
+    // the rethrow site -- the only trace recorded fresh is for a frame that has nothing saved.
+    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector, Optional<StackTraceData*> materializedStackTraceData);
 
     StackTraceDataOnStackVector& stackTraceDataVector()
     {
         return m_stackTraceDataVector;
+    }
+
+    // The StackTraceData built from the current trace for `exception`, if one has been attached
+    // to it already; a frame that saves the trace for a later rethrow saves this with it.
+    Optional<StackTraceData*> materializedStackTraceData(const Value& exception)
+    {
+        if (m_materializedStackTraceData && m_materializedStackTraceData->exception == exception) {
+            return m_materializedStackTraceData;
+        }
+        return NullOption;
     }
 
     Context* context() const
@@ -139,6 +152,12 @@ private:
     Context* m_context;
     SandBox* m_oldSandBox;
     StackTraceDataOnStackVector m_stackTraceDataVector;
+    // The StackTraceData most recently built from m_stackTraceDataVector and attached to the
+    // ErrorObject it names. An exception unwinding through nested try/finally blocks is caught
+    // and rethrown once per block and every catch re-attaches the trace; reusing this keeps that
+    // from rebuilding a copy of the whole trace per block. Valid only for the current vector:
+    // reset whenever the vector is rebuilt.
+    Optional<StackTraceData*> m_materializedStackTraceData;
 };
 } // namespace Escargot
 
