@@ -237,6 +237,51 @@ public:
     static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea);
     static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
 
+    // Sandbox controls (PoC). The interpreter polls shouldPollSandbox() at loop
+    // back-edges and calls; the slow path lives in InterpreterSlowPath::pollSandbox.
+    // requestInterrupt may be called from any thread. Once a termination has
+    // been raised, m_terminating makes every try/catch on the way out skip its
+    // catch handler, so script cannot swallow it. The host clears it with
+    // clearInterrupt before running more script on this VM.
+    void requestInterrupt()
+    {
+        m_interruptRequested.store(true, std::memory_order_relaxed);
+    }
+    void clearInterrupt()
+    {
+        m_interruptRequested.store(false, std::memory_order_relaxed);
+        m_terminating = false;
+    }
+    bool interruptRequested() const
+    {
+        return m_interruptRequested.load(std::memory_order_relaxed);
+    }
+    bool isTerminating() const
+    {
+        return m_terminating;
+    }
+    void setTerminating()
+    {
+        m_terminating = true;
+    }
+    // Soft limit on live GC heap bytes of the thread running this VM; 0 = off.
+    void setHeapSoftLimit(size_t bytes)
+    {
+        m_heapSoftLimit = bytes;
+    }
+    size_t heapSoftLimit() const
+    {
+        return m_heapSoftLimit;
+    }
+    uint32_t& sandboxPollCounter()
+    {
+        return m_sandboxPollCounter;
+    }
+    bool shouldPollSandbox() const
+    {
+        return UNLIKELY(interruptRequested() || m_heapSoftLimit != 0);
+    }
+
     bool inIdleMode() const
     {
         return m_inIdleMode;
@@ -546,6 +591,10 @@ private:
 
     bool m_isFinalized;
     bool m_inIdleMode;
+    bool m_terminating{ false };
+    std::atomic<bool> m_interruptRequested{ false };
+    size_t m_heapSoftLimit{ 0 };
+    uint32_t m_sandboxPollCounter{ 0 };
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;
 

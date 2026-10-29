@@ -323,6 +323,34 @@ OpcodeTable::OpcodeTable()
 
 class InterpreterSlowPath {
 public:
+    // Sandbox poll point. Raises the termination error for a host interrupt,
+    // or when the thread's live heap stays above the soft limit after a GC.
+    static NEVER_INLINE void pollSandbox(ExecutionState& state)
+    {
+        VMInstance* vm = state.context()->vmInstance();
+        if (vm->interruptRequested()) {
+            vm->setTerminating();
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Execution interrupted by host");
+        }
+        size_t limit = vm->heapSoftLimit();
+        // the heap query is a GC call, so only sample it every 1024 polls
+        if (limit && (++vm->sandboxPollCounter() & 1023) == 0) {
+            auto liveBytes = []() -> size_t {
+                return GC_get_heap_size() - GC_get_free_bytes() - GC_get_unmapped_bytes();
+            };
+            if (liveBytes() > limit) {
+                GC_gcollect();
+                size_t live = liveBytes();
+                if (live > limit) {
+                    vm->setTerminating();
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Heap soft limit exceeded (%zu bytes live, limit %zu)", live, limit);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, buf);
+                }
+            }
+        }
+    }
+
     static ALWAYS_INLINE InterpreterStructureKey structureKey(const Object* object)
     {
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
@@ -1377,6 +1405,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             Jump* code = (Jump*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
+            // every loop closes with a Jump, so this is the back-edge poll point
+            if (UNLIKELY(state->context()->vmInstance()->shouldPollSandbox())) {
+                InterpreterSlowPath::pollSandbox(*state);
+            }
             programCounter = code->m_jumpPosition;
             NEXT_INSTRUCTION();
         }
@@ -1465,6 +1497,9 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             Call* code = (Call*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
+            if (UNLIKELY(state->context()->vmInstance()->shouldPollSandbox())) {
+                InterpreterSlowPath::pollSandbox(*state);
+            }
 
             // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -1494,6 +1529,9 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             CallWithReceiver* code = (CallWithReceiver*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = registerFile[code->m_receiverIndex];
+            if (UNLIKELY(state->context()->vmInstance()->shouldPollSandbox())) {
+                InterpreterSlowPath::pollSandbox(*state);
+            }
 
             // if the callee Object is not callable, Object::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -4781,7 +4819,8 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             }
 #endif
             stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
-            if (!code->m_hasCatch) {
+            // a sandbox termination keeps unwinding past every catch handler
+            if (!code->m_hasCatch || UNLIKELY(newState->context()->vmInstance()->isTerminating())) {
                 newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
             } else {
                 stackTraceDataVector.clear();

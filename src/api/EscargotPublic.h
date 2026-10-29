@@ -254,6 +254,12 @@ public:
     // Increasing this value may use less space but there is more collection event
     static void setGCFrequency(size_t value = 1);
 
+    // Hard upper bound on the GC heap (bytes, 0 = unlimited). With threading
+    // enabled each thread owns its own heap, so this applies to the calling
+    // thread only. Allocation beyond it is fatal (abort), so pair it with
+    // VMInstanceRef::setHeapSoftLimit to get a catchable-by-host error first.
+    static void setMaxHeapSize(size_t bytes);
+
     // Set the cold end (bottom/high address on descending stack) of the current thread's stack
     // scanned by conservative GC to reduce false pointer retention. The address must
     // remain valid while GC scans the stack; before initialization it sets the initial stack bottom.
@@ -811,6 +817,20 @@ public:
     // force clear every caches related with context
     // you can call this function if you don't want to use every alive contexts
     void clearCachesRelatedWithContext();
+
+    // Sandbox controls (PoC).
+    // requestInterrupt may be called from another thread. The script running on
+    // this VM receives an uncatchable RangeError at its next loop back-edge or
+    // call, and the error surfaces to the host as a normal evaluation failure.
+    // Call clearInterrupt before running more script on this VM.
+    void requestInterrupt();
+    void clearInterrupt();
+    bool isInterrupted();
+    // Soft limit on the live GC heap of the thread running this VM (bytes, 0 = off).
+    // Checked at the same poll points: when exceeded after a collection, the
+    // script receives an uncatchable RangeError. For a hard limit that stops the
+    // heap from growing at all, see Memory::setMaxHeapSize.
+    void setHeapSoftLimit(size_t bytes);
 
     SymbolRef* toStringTagSymbol();
     SymbolRef* iteratorSymbol();

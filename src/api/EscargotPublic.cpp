@@ -627,6 +627,11 @@ void Memory::setGCFrequency(size_t value)
     GC_set_free_space_divisor(value);
 }
 
+void Memory::setMaxHeapSize(size_t bytes)
+{
+    GC_set_max_heap_size(bytes);
+}
+
 void Memory::setStackBottom(void* stackBottom)
 {
     RELEASE_ASSERT(stackBottom != nullptr);
@@ -1582,6 +1587,26 @@ void VMInstanceRef::setConfig(size_t s)
 void VMInstanceRef::enterIdleMode()
 {
     toImpl(this)->enterIdleMode();
+}
+
+void VMInstanceRef::requestInterrupt()
+{
+    toImpl(this)->requestInterrupt();
+}
+
+void VMInstanceRef::clearInterrupt()
+{
+    toImpl(this)->clearInterrupt();
+}
+
+bool VMInstanceRef::isInterrupted()
+{
+    return toImpl(this)->isTerminating();
+}
+
+void VMInstanceRef::setHeapSoftLimit(size_t bytes)
+{
+    toImpl(this)->setHeapSoftLimit(bytes);
 }
 
 void VMInstanceRef::clearCachesRelatedWithContext()

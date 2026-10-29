@@ -20,6 +20,7 @@
 #include <string.h>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include <mutex>
 #include <sstream>
 #include <chrono>
@@ -434,6 +435,12 @@ static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t
 {
     Memory::gc();
     return ValueRef::createUndefined();
+}
+
+// live GC heap bytes of the calling thread (sandbox PoC)
+static ValueRef* builtinHeapSize(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ValueRef::create((double)Memory::heapSize());
 }
 
 PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
@@ -1100,6 +1107,11 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
             FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
         }
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "heapSize"), builtinHeapSize, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("heapSize"), buildFunctionObjectRef, true, true, true);
+        }
 
 #if defined(ESCARGOT_ENABLE_TEST)
         // There is no specific standard for the [@@toStringTag] property of global object.
@@ -1270,6 +1282,9 @@ static void printHelp()
     printf("  --start-debug-server[=opt]  Start the debugger server\n");
     printf("  --debugger-wait-source      Wait for and execute the debug client source script\n");
     printf("  --wait-before-exit          Wait before exit for inspection\n");
+    printf("  --interrupt-after-ms=<n>    Sandbox PoC: interrupt the running script after n ms\n");
+    printf("  --heap-soft-limit-mb=<n>    Sandbox PoC: terminate the script when live GC heap exceeds n MB\n");
+    printf("  --heap-hard-limit-mb=<n>    Sandbox PoC: refuse to grow this thread's GC heap beyond n MB (fatal)\n");
 }
 
 #if defined(_MSC_VER)
@@ -1344,6 +1359,8 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
     bool seenModule = false;
     std::string fileName;
     int exitCode = 0;
+    std::thread sandboxWatchdog;
+    std::atomic<bool> sandboxWatchdogStop{ false };
 
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
@@ -1398,6 +1415,30 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
                         }
                         runShell = false;
                     }
+                    continue;
+                }
+                if (strstr(argv[i], "--interrupt-after-ms=") == argv[i]) {
+                    int ms = atoi(argv[i] + sizeof("--interrupt-after-ms=") - 1);
+                    VMInstanceRef* vm = instance.get();
+                    std::atomic<bool>* stop = &sandboxWatchdogStop;
+                    sandboxWatchdog = std::thread([vm, ms, stop]() {
+                        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+                        while (std::chrono::steady_clock::now() < deadline) {
+                            if (stop->load()) {
+                                return;
+                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        }
+                        vm->requestInterrupt();
+                    });
+                    continue;
+                }
+                if (strstr(argv[i], "--heap-soft-limit-mb=") == argv[i]) {
+                    instance->setHeapSoftLimit((size_t)atoi(argv[i] + sizeof("--heap-soft-limit-mb=") - 1) * 1024 * 1024);
+                    continue;
+                }
+                if (strstr(argv[i], "--heap-hard-limit-mb=") == argv[i]) {
+                    Memory::setMaxHeapSize((size_t)atoi(argv[i] + sizeof("--heap-hard-limit-mb=") - 1) * 1024 * 1024);
                     continue;
                 }
                 if (strcmp(argv[i], "--wait-before-exit") == 0) {
@@ -1499,6 +1540,11 @@ static __attribute__((noinline)) int shellMain(int argc, char* argv[], void* tar
         i.first.join();
     }
 #endif
+
+    if (sandboxWatchdog.joinable()) {
+        sandboxWatchdogStop = true;
+        sandboxWatchdog.join();
+    }
 
     context.release();
     instance.release();
