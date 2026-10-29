@@ -4971,7 +4971,10 @@ NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::tryOperation
         newState->rareData()->setControlFlowRecordStack(state->rareData()->controlFlowRecordStack());
     }
 
+    // the trace of a caught exception, kept for the rethrow after the finally block, together with
+    // the StackTraceData already built from it so the rethrow does not build another
     StackTraceDataOnStackVector stackTraceDataVector;
+    Optional<StackTraceData*> stackTraceData;
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         auto interpretCatch = [&]() -> bool {
@@ -4990,6 +4993,7 @@ NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::tryOperation
                 }
             } catch (const Value& val) {
                 stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
+                stackTraceData = newState->context()->vmInstance()->currentSandBox()->materializedStackTraceData(val);
                 newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
             }
             return false;
@@ -5048,10 +5052,12 @@ NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::tryOperation
             }
 #endif
             stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
+            stackTraceData = newState->context()->vmInstance()->currentSandBox()->materializedStackTraceData(val);
             if (!code->m_hasCatch) {
                 newState->rareData()->controlFlowRecordStack()->setBack(ControlFlowRecord(ControlFlowRecord::NeedsThrow, val));
             } else {
                 stackTraceDataVector.clear();
+                stackTraceData = NullOption;
                 registerFile[code->m_catchedValueRegisterIndex] = val;
 #ifdef ASAN_ENABLED
                 shouldInterpretCatch = true;
@@ -5148,7 +5154,7 @@ NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::tryOperation
             if (UNLIKELY(inPauserResumeProcess)) {
                 state->m_programCounter = 0;
             }
-            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), std::move(stackTraceDataVector));
+            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), std::move(stackTraceDataVector), stackTraceData);
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
             return Continuation::resumeAt(state, programCounter);
