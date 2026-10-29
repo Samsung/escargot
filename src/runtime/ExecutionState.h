@@ -118,7 +118,7 @@ public:
     ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_programCounter(nullptr)
+        , m_programCounter(0)
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
@@ -140,7 +140,7 @@ public:
     ExecutionState(Context* context)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_programCounter(nullptr)
+        , m_programCounter(0)
         , m_parent(nullptr)
         , m_hasRareData(false)
         , m_inStrictMode(false)
@@ -162,7 +162,7 @@ public:
     ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_programCounter(nullptr)
+        , m_programCounter(0)
         , m_parent(parent)
         , m_hasRareData(false)
         , m_inStrictMode(inStrictMode)
@@ -362,7 +362,7 @@ protected:
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
     union {
-        size_t* m_programCounter;
+        size_t m_programCounter;
         NativeFunctionObject* m_calledNativeFunctionObject;
     };
 

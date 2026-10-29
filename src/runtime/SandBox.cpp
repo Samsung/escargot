@@ -204,9 +204,9 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             ByteCodeBlock* b = cb->byteCodeBlock();
 
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-            if (curState->m_programCounter != nullptr) {
-                if ((*curState->m_programCounter >= (size_t)b->m_code.data()) && (*curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
-                    loc.byteCodePosition = *curState->m_programCounter - (size_t)b->m_code.data();
+            if (curState->m_programCounter != 0) {
+                if ((curState->m_programCounter >= (size_t)b->m_code.data()) && (curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
+                    loc.byteCodePosition = curState->m_programCounter - (size_t)b->m_code.data();
                     loc.actualCodeBlock = b;
                 }
             }
@@ -247,9 +247,9 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             ByteCodeBlock* b = cb->byteCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
             ASSERT(!curState->isNativeFunctionObjectExecutionContext());
-            if (curState->m_programCounter != nullptr) {
-                if ((*curState->m_programCounter >= (size_t)b->m_code.data()) && (*curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
-                    loc.byteCodePosition = *curState->m_programCounter - (size_t)b->m_code.data();
+            if (curState->m_programCounter != 0) {
+                if ((curState->m_programCounter >= (size_t)b->m_code.data()) && (curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
+                    loc.byteCodePosition = curState->m_programCounter - (size_t)b->m_code.data();
                     loc.actualCodeBlock = b;
                 }
             }
