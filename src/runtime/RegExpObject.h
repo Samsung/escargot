@@ -327,6 +327,22 @@ public:
     // returns error string if there is error
     static Optional<String*> checkRegExpSyntax(String* pattern, String* flags);
 
+    enum class PrototypeMethod : uint8_t {
+        Exec,
+        Match,
+        MatchAll,
+        Replace,
+        Search,
+        Split,
+    };
+    // True when obj is a RegExp instance of the current realm that still has only
+    // its initial own property (lastIndex), whose prototype is %RegExp.prototype%
+    // with the structure it was installed with, and whose exec and the given method
+    // are still the builtin functions. Such a RegExp resolves those properties to
+    // the builtins, so callers may skip the lookups and the observable behaviour
+    // stays identical.
+    static bool hasPristineBuiltinMethod(ExecutionState& state, Object* obj, PrototypeMethod method);
+
 protected:
     explicit RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex = true);
 
@@ -421,6 +437,9 @@ public:
     {
         return true;
     }
+
+    // Exposed for the identity check in RegExpObject::hasPristineBuiltinMethod().
+    using Object::structure;
 };
 
 } // namespace Escargot

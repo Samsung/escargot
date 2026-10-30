@@ -54,6 +54,7 @@ void* GlobalObject::operator new(size_t size)
         GC_word bitmap[(sizeof(GlobalObject) / 4 + GC_WORDSZ - 1) / GC_WORDSZ] = { 0 };
         Object::fillCompressedGCDescriptor(bitmap);
         GC_set_bit(bitmap, offsetof(GlobalObject, m_context) / 4);
+        GC_set_bit(bitmap, offsetof(GlobalObject, m_regexpPrototypePristineStructure) / 4);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
         GC_set_bit(bitmap, offsetof(GlobalObject, m_intlLegacyConstructedSymbol) / 4);
         for (size_t i = 0; i < 3; ++i) {
