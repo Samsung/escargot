@@ -655,14 +655,46 @@ NEVER_INLINE static Opcode specializedTypedArraySetOpcode(TypedArrayType type)
     }
 }
 
-ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
+// interpret()'s program counter, held as a pointer. With a size_t the dispatch
+// cast `(ByteCode*)programCounter` is a second value that is live across the
+// computed-goto edges together with the integer, and GCC cannot coalesce the
+// two, so every handler copied the integer into a second register right before
+// its indirect jump. The pointer form leaves a single value live there; the
+// conversions below keep the handler bodies and the slow-path calls unchanged.
+class InterpreterProgramCounter {
+public:
+    explicit InterpreterProgramCounter(size_t pc)
+        : m_code(reinterpret_cast<ByteCode*>(pc))
+    {
+    }
+    template <typename T>
+    operator T*() const { return reinterpret_cast<T*>(m_code); }
+    operator size_t() const { return reinterpret_cast<size_t>(m_code); }
+    InterpreterProgramCounter& operator=(size_t pc)
+    {
+        m_code = reinterpret_cast<ByteCode*>(pc);
+        return *this;
+    }
+    InterpreterProgramCounter& operator+=(size_t bytes)
+    {
+        m_code = reinterpret_cast<ByteCode*>(reinterpret_cast<uint8_t*>(m_code) + bytes);
+        return *this;
+    }
+    ByteCode* code() const { return m_code; }
+
+private:
+    ByteCode* m_code;
+};
+
+ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t entryProgramCounter, Value* registerFile)
 {
 #if defined(ESCARGOT_INTERPRETER_CAGE_REGISTER)
     CageBaseRegisterScope cageBaseRegisterScope;
 #endif
+    InterpreterProgramCounter programCounter(entryProgramCounter);
 // See InterpreterSlowPath::publishProgramCounter: used only in front of the inline operations
 // below that can throw or call out; the out-of-line slow paths publish on their own entry.
-#define PUBLISH_PROGRAM_COUNTER() InterpreterSlowPath::publishProgramCounter(*state, programCounter)
+#define PUBLISH_PROGRAM_COUNTER() InterpreterSlowPath::publishProgramCounter(*state, programCounter.code())
 
     PUBLISH_PROGRAM_COUNTER();
 #ifdef ESCARGOT_DEBUGGER
@@ -672,7 +704,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #endif /* ESCARGOT_DEBUGGER */
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
-        if (UNLIKELY((((ByteCode*)programCounter)->m_opcodeInAddress) == NULL)) {
+        if (UNLIKELY((programCounter.code()->m_opcodeInAddress) == NULL)) {
             goto FillOpcodeTableOpcodeLbl;
         }
 #endif
@@ -685,7 +717,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
     NextInstruction:
         /* Execute first instruction. */
-        goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
+        goto*(programCounter.code()->m_opcodeInAddress);
 #else
 
 #define DEFINE_OPCODE(codeName) case codeName##Opcode
