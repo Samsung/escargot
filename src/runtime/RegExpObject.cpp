@@ -531,11 +531,7 @@ void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, 
         return;
     }
     const size_t last = matches.back();
-    legacy.dollarCount = 0;
-    legacy.lastParen = StringView();
-    legacy.lastMatch = StringView(string, last, last + matchLength);
-    legacy.leftContext = StringView(string, 0, last);
-    legacy.rightContext = StringView(string, last + matchLength, string->length());
+    legacy.setLiteralMatch(string, last, last + matchLength);
 }
 
 #endif
@@ -656,41 +652,16 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 }
             }
 
-            // Details:{3, 10, 3, 10, 3, 6, 7, 10, 1684872, 806200}
-            legacyFeatures.dollarCount = maxMatchedIndex;
-            unsigned dollarEnd = std::min(maxMatchedIndex, (unsigned)9);
-            for (unsigned i = 1; i <= dollarEnd; i++) {
-                if (outputBuf[i * 2] == std::numeric_limits<unsigned>::max()) {
-                    legacyFeatures.dollars[i - 1] = StringView();
-                } else {
-                    legacyFeatures.dollars[i - 1] = StringView(str, outputBuf[i * 2], outputBuf[i * 2 + 1]);
-                }
-            }
-
+            bool lastParenValid = !lastParenInvalid && subPatternNum;
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal || isSticky) {
                     setLastIndex(state, Value(outputBuf[1]));
                 }
-                if (!lastParenInvalid && subPatternNum) {
-                    legacyFeatures.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
-                } else {
-                    legacyFeatures.lastParen = StringView();
-                }
-                legacyFeatures.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
-                legacyFeatures.leftContext = StringView(str, 0, outputBuf[0]);
-                legacyFeatures.rightContext = StringView(str, outputBuf[1], length);
+                legacyFeatures.setMatch(str, outputBuf, maxMatchedIndex, lastParenValid, outputBuf[1]);
                 return true;
             }
-            if (!lastParenInvalid && subPatternNum) {
-                legacyFeatures.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
-            } else {
-                legacyFeatures.lastParen = StringView();
-            }
-
-            legacyFeatures.leftContext = StringView(str, 0, outputBuf[0]);
-            legacyFeatures.rightContext = StringView(str, outputBuf[maxMatchedIndex * 2 + 1], length);
-            legacyFeatures.lastMatch = StringView(str, outputBuf[0], outputBuf[1]);
+            legacyFeatures.setMatch(str, outputBuf, maxMatchedIndex, lastParenValid, outputBuf[maxMatchedIndex * 2 + 1]);
             matchResult.appendCaptures(outputBuf);
             if (!isGlobal)
                 break;
