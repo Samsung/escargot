@@ -95,29 +95,31 @@ class Context : public gc {
 #endif
 
 public:
-    // Legacy RegExp Features (non-standard)
+    // Legacy RegExp Features (non-standard): RegExp.input, RegExp.lastMatch,
+    // RegExp.lastParen, RegExp.leftContext, RegExp.rightContext and RegExp.$1-$9.
+    // Every successful match has to publish this state while the accessors are
+    // rarely read, so only the subject string and the offsets of the last match
+    // are recorded here. The accessors build the substrings on demand.
     struct RegExpLegacyFeatures {
+        static constexpr unsigned maxDollars = 9;
+        static constexpr unsigned noOffset = std::numeric_limits<unsigned>::max();
+
         String* input; // RegExp.input ($_)
-        StringView lastMatch;
-        StringView lastParen;
-        StringView leftContext;
-        StringView rightContext;
-        StringView dollars[9]; // RegExp.$1-$9
-        size_t dollarCount;
+        String* subject; // the string every offset below indexes into
+        unsigned lastMatchStart;
+        unsigned lastMatchEnd;
+        unsigned lastParenStart; // noOffset when lastParen is empty
+        unsigned lastParenEnd;
+        unsigned rightContextStart;
+        unsigned dollarCount;
+        unsigned dollars[maxDollars * 2]; // (start, end) of $1-$9, start is noOffset for an unmatched group
         bool valid;
 
         RegExpLegacyFeatures()
             : input(String::emptyString())
-            , lastMatch()
-            , lastParen()
-            , leftContext()
-            , rightContext()
-            , dollarCount(0)
             , valid(true)
         {
-            for (size_t i = 0; i < 9; i++) {
-                dollars[i] = StringView();
-            }
+            resetMatch();
         }
 
         bool isValid() const { return valid; }
@@ -125,15 +127,79 @@ public:
         void invalidate()
         {
             input = String::emptyString();
-            lastMatch = StringView();
-            lastParen = StringView();
-            leftContext = StringView();
-            rightContext = StringView();
-            for (size_t i = 0; i < 9; i++) {
-                dollars[i] = StringView();
-            }
-            dollarCount = 0;
+            resetMatch();
             valid = false;
+        }
+
+        // offsets holds Yarr's (start, end) pairs for group 0..maxMatchedIndex;
+        // an unmatched group has noOffset as its start.
+        void setMatch(String* str, const unsigned* offsets, unsigned maxMatchedIndex, bool lastParenValid, unsigned rightContextStartOffset)
+        {
+            subject = str;
+            lastMatchStart = offsets[0];
+            lastMatchEnd = offsets[1];
+            rightContextStart = rightContextStartOffset;
+            dollarCount = maxMatchedIndex;
+            unsigned copied = maxMatchedIndex < maxDollars ? maxMatchedIndex : maxDollars;
+            if (copied) {
+                memcpy(dollars, offsets + 2, copied * 2 * sizeof(unsigned));
+            }
+            if (lastParenValid) {
+                lastParenStart = offsets[maxMatchedIndex * 2];
+                lastParenEnd = offsets[maxMatchedIndex * 2 + 1];
+            } else {
+                lastParenStart = noOffset;
+                lastParenEnd = noOffset;
+            }
+        }
+
+        // A capture-free literal match: only the whole match is known.
+        void setLiteralMatch(String* str, unsigned start, unsigned end)
+        {
+            subject = str;
+            lastMatchStart = start;
+            lastMatchEnd = end;
+            rightContextStart = end;
+            dollarCount = 0;
+            lastParenStart = noOffset;
+            lastParenEnd = noOffset;
+        }
+
+        String* lastMatch() const { return substring(lastMatchStart, lastMatchEnd); }
+        String* lastParen() const { return lastParenStart == noOffset ? String::emptyString() : substring(lastParenStart, lastParenEnd); }
+        String* leftContext() const { return substring(0, lastMatchStart); }
+        String* rightContext() const { return substring(rightContextStart, subject->length()); }
+        String* dollar(unsigned number) const
+        {
+            ASSERT(number >= 1 && number <= maxDollars);
+            if (dollarCount < number || dollars[(number - 1) * 2] == noOffset) {
+                return String::emptyString();
+            }
+            return substring(dollars[(number - 1) * 2], dollars[(number - 1) * 2 + 1]);
+        }
+
+    private:
+        void resetMatch()
+        {
+            subject = String::emptyString();
+            lastMatchStart = 0;
+            lastMatchEnd = 0;
+            lastParenStart = noOffset;
+            lastParenEnd = noOffset;
+            rightContextStart = 0;
+            dollarCount = 0;
+            for (unsigned i = 0; i < maxDollars * 2; i++) {
+                dollars[i] = noOffset;
+            }
+        }
+
+        String* substring(unsigned start, unsigned end) const
+        {
+            ASSERT(start <= end && end <= subject->length());
+            if (start == end) {
+                return String::emptyString();
+            }
+            return StringView::create(subject, start, end);
         }
     };
 
