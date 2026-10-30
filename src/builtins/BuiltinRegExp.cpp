@@ -198,6 +198,12 @@ static Value regExpExec(ExecutionState& state, Object* R, String* S, RegExpExecR
 {
     ASSERT(R->isObject());
     ASSERT(S->isString());
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    // An unmodified RegExp resolves "exec" to the builtin, so skip the lookup.
+    if (RegExpObject::hasPristineBuiltinMethod(state, R, RegExpObject::PrototypeMethod::Exec)) {
+        return builtinRegExpExecImpl(state, R, S, resultKind);
+    }
+#endif
     Value exec = R->get(state, ObjectPropertyName(state.context()->staticStrings().exec)).value(state, R);
     Value arg[1] = { S };
     if (exec.isCallable()) {
@@ -1273,8 +1279,9 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpPrototype->defineBuiltinFunction(state, strings->compile, builtinRegExpCompile, 2);
 
     // $21.2.5.9 RegExp.prototype[@@search]
+    m_regexpSearchMethod = new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict));
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolSearch, builtinRegExpSearch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(m_regexpSearchMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.2.5.11 RegExp.prototype[@@split]
     m_regexpSplitMethod = new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolSplit, builtinRegExpSplit, 2, NativeFunctionInfo::Strict));
@@ -1287,11 +1294,32 @@ void GlobalObject::installRegExp(ExecutionState& state)
                                                ObjectPropertyDescriptor(m_regexpReplaceMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.2.5.6 RegExp.prototype[@@match]
+    m_regexpMatchMethod = new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatch, builtinRegExpMatch, 1, NativeFunctionInfo::Strict));
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatch, builtinRegExpMatch, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(m_regexpMatchMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_regexpMatchAllMethod = new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatchAll, builtinRegExpMatchAll, 1, NativeFunctionInfo::Strict));
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll),
-                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatchAll, builtinRegExpMatchAll, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                               ObjectPropertyDescriptor(m_regexpMatchAllMethod, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Remember the installed layout so the String builtins can verify that a RegExp
+    // still uses these builtin methods without looking them up on every call.
+    {
+        ObjectStructure* structure = static_cast<RegExpPrototypeObject*>(regexpPrototype())->structure();
+        m_regexpPrototypePristineStructure = structure;
+        auto& symbols = state.context()->vmInstance()->globalSymbols();
+        auto slotOf = [&](const ObjectStructurePropertyName& name) -> uint32_t {
+            size_t index = structure->findProperty(name).first;
+            ASSERT(index != SIZE_MAX && structure->propertyDescriptor(index).isDataProperty());
+            return static_cast<uint32_t>(index);
+        };
+        m_regexpPrototypeMethodSlots.exec = slotOf(ObjectStructurePropertyName(strings->exec));
+        m_regexpPrototypeMethodSlots.match = slotOf(ObjectStructurePropertyName(symbols.match));
+        m_regexpPrototypeMethodSlots.matchAll = slotOf(ObjectStructurePropertyName(symbols.matchAll));
+        m_regexpPrototypeMethodSlots.replace = slotOf(ObjectStructurePropertyName(symbols.replace));
+        m_regexpPrototypeMethodSlots.search = slotOf(ObjectStructurePropertyName(symbols.search));
+        m_regexpPrototypeMethodSlots.split = slotOf(ObjectStructurePropertyName(symbols.split));
+    }
 
     m_regexpStringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_regexpStringIteratorPrototype->setGlobalIntrinsicObject(state, true);

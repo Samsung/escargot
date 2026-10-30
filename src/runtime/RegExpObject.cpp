@@ -849,6 +849,54 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
     }
 }
 
+bool RegExpObject::hasPristineBuiltinMethod(ExecutionState& state, Object* obj, PrototypeMethod method)
+{
+    if (!obj->isRegExpObject()) {
+        return false;
+    }
+    Context* context = state.context();
+    // The initial structure holds lastIndex only, so no own property can shadow
+    // the prototype's methods.
+    if (obj->asRegExpObject()->structure() != context->defaultStructureForRegExpObject()) {
+        return false;
+    }
+    GlobalObject* global = context->globalObject();
+    ASSERT(global->regexpPrototype()->isRegExpPrototypeObject());
+    RegExpPrototypeObject* prototype = static_cast<RegExpPrototypeObject*>(global->regexpPrototype());
+    if (obj->rawInternalPrototypeObject() != static_cast<Object*>(prototype)) {
+        return false;
+    }
+    // Adding, removing or redefining any property replaces the structure, so the
+    // same structure means the builtin methods still occupy their installed slots
+    // as data properties; only their values could have been overwritten.
+    if (prototype->structure() != global->regexpPrototypePristineStructure()) {
+        return false;
+    }
+    const auto& slots = global->regexpPrototypeMethodSlots();
+    auto holdsBuiltin = [&](uint32_t slot, FunctionObject* builtin) -> bool {
+        Value value = prototype->uncheckedGetOwnDataProperty(slot);
+        return value.isObject() && value.asObject() == builtin;
+    };
+    if (!holdsBuiltin(slots.exec, global->regexpExecMethod())) {
+        return false;
+    }
+    switch (method) {
+    case PrototypeMethod::Exec:
+        return true;
+    case PrototypeMethod::Match:
+        return holdsBuiltin(slots.match, global->regexpMatchMethod());
+    case PrototypeMethod::MatchAll:
+        return holdsBuiltin(slots.matchAll, global->regexpMatchAllMethod());
+    case PrototypeMethod::Replace:
+        return holdsBuiltin(slots.replace, global->regexpReplaceMethod());
+    case PrototypeMethod::Search:
+        return holdsBuiltin(slots.search, global->regexpSearchMethod());
+    case PrototypeMethod::Split:
+        return holdsBuiltin(slots.split, global->regexpSplitMethod());
+    }
+    return false;
+}
+
 bool RegExpObject::hasOwnRegExpProperty(ExecutionState& state, Object* obj)
 {
     if (obj->isRegExpObject() && !obj->asRegExpObject()->m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype

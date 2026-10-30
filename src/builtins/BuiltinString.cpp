@@ -227,7 +227,16 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
 
     Value regexp = argv[0];
     if (regexp.isObject()) {
-        Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
+        Value matcher(Value::EmptyValue);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+        // An unmodified RegExp resolves @@match to the builtin.
+        if (RegExpObject::hasPristineBuiltinMethod(state, regexp.asObject(), RegExpObject::PrototypeMethod::Match)) {
+            matcher = state.context()->globalObject()->regexpMatchMethod();
+        }
+#endif
+        if (matcher.isEmpty()) {
+            matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
+        }
         if (!matcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, matcher, regexp, 1, args);
@@ -255,7 +264,16 @@ static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
             }
         }
-        Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll));
+        Value matcher(Value::EmptyValue);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+        // An unmodified RegExp resolves @@matchAll to the builtin.
+        if (RegExpObject::hasPristineBuiltinMethod(state, regexp.asObject(), RegExpObject::PrototypeMethod::MatchAll)) {
+            matcher = state.context()->globalObject()->regexpMatchAllMethod();
+        }
+#endif
+        if (matcher.isEmpty()) {
+            matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll));
+        }
         if (!matcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, matcher, regexp, 1, args);
@@ -872,7 +890,13 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     bool isSearchValueRegExp = searchValue.isObject() && searchValue.asObject()->isRegExpObject();
     // we should keep fast-path while performace issue is unresolved
     bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && searchValue.asPointerValue()->asRegExpObject()->yarrPatern()->m_captureGroupNames.size() == 0);
-    if (searchValue.isObject()) {
+    // An unmodified RegExp resolves @@replace and exec to the builtins checked below,
+    // so the fast path applies without looking either of them up.
+    bool isPristineRegExp = false;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    isPristineRegExp = canUseFastPath && isSearchValueRegExp && RegExpObject::hasPristineBuiltinMethod(state, searchValue.asObject(), RegExpObject::PrototypeMethod::Replace);
+#endif
+    if (searchValue.isObject() && !isPristineRegExp) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
         if (canUseFastPath && isSearchValueRegExp && replacer.isObject() && replacer.asObject() == state.context()->globalObject()->regexpReplaceMethod()) {
             auto exec = searchValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().exec));
@@ -1117,7 +1141,16 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 
     Value regexp = argv[0];
     if (regexp.isObject()) {
-        Value searcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
+        Value searcher(Value::EmptyValue);
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+        // An unmodified RegExp resolves @@search to the builtin.
+        if (RegExpObject::hasPristineBuiltinMethod(state, regexp.asObject(), RegExpObject::PrototypeMethod::Search)) {
+            searcher = state.context()->globalObject()->regexpSearchMethod();
+        }
+#endif
+        if (searcher.isEmpty()) {
+            searcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
+        }
         if (!searcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, searcher, regexp, 1, args);
@@ -1141,7 +1174,12 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     Value limit = argv[1];
     bool isSeparatorRegExp = separator.isObject() && separator.asObject()->isRegExpObject();
 
-    if (separator.isObject()) {
+    bool isPristineRegExp = false;
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    // An unmodified RegExp resolves @@split to the builtin checked below.
+    isPristineRegExp = isSeparatorRegExp && RegExpObject::hasPristineBuiltinMethod(state, separator.asObject(), RegExpObject::PrototypeMethod::Split);
+#endif
+    if (separator.isObject() && !isPristineRegExp) {
         // Let splitter be GetMethod(separator, @@split).
         Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().split));
 

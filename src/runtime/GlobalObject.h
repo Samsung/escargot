@@ -209,7 +209,10 @@ enum class TypedArrayType : unsigned;
     F(regexp, FunctionObject, objName)                \
     F(regexpExecMethod, FunctionObject, objName)      \
     F(regexpPrototype, Object, objName)               \
+    F(regexpMatchMethod, FunctionObject, objName)     \
+    F(regexpMatchAllMethod, FunctionObject, objName)  \
     F(regexpReplaceMethod, FunctionObject, objName)   \
+    F(regexpSearchMethod, FunctionObject, objName)    \
     F(regexpStringIteratorPrototype, Object, objName) \
     F(regexpSplitMethod, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_SET(F, objName)       \
@@ -492,7 +495,34 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    // Slot indexes of the builtin methods inside %RegExp.prototype%'s structure
+    // as installed. Valid while the prototype still has that exact structure;
+    // see RegExpObject::hasPristineBuiltinMethod().
+    struct RegExpPrototypeMethodSlots {
+        uint32_t exec;
+        uint32_t match;
+        uint32_t matchAll;
+        uint32_t replace;
+        uint32_t search;
+        uint32_t split;
+    };
+    // The structure %RegExp.prototype% had right after installation. Only
+    // compared by identity: every property addition, removal or attribute
+    // change gives the object a different structure.
+    ObjectStructure* regexpPrototypePristineStructure()
+    {
+        ASSERT(!!m_regexpPrototype);
+        return m_regexpPrototypePristineStructure;
+    }
+    const RegExpPrototypeMethodSlots& regexpPrototypeMethodSlots() const
+    {
+        ASSERT(!!m_regexpPrototype);
+        return m_regexpPrototypeMethodSlots;
+    }
+
 private:
+    CompressibleHeapPointer<ObjectStructure> m_regexpPrototypePristineStructure;
+    RegExpPrototypeMethodSlots m_regexpPrototypeMethodSlots{};
 #if defined(ENABLE_TEMPORAL) && defined(ENABLE_RUNTIME_ICU_BINDER)
     enum class TemporalAvailability : uint8_t { Pending,
                                                 Supported,
