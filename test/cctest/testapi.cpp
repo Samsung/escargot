@@ -1429,6 +1429,26 @@ TEST(EvalScript, RuntimeError)
     EXPECT_TRUE(s.find("Uncaught 1") == 0);
 }
 
+TEST(EvalScript, SloppyModeTailCallKeepsCallerFrame)
+{
+    // ECMA-262 IsInTailPosition only recognizes tail calls in strict mode code,
+    // so a sloppy mode caller stays on the stack even with TCO enabled: it is
+    // still reported by Function.prototype.caller and appears in stack traces.
+    const char* callerSource = "function inner() { return inner.caller.name; }\n"
+                               "function outer() { return inner(); }\n"
+                               "outer();";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(callerSource, strlen(callerSource)), StringRef::createFromASCII("sloppy-tail-call-caller.js"), false), "outer");
+
+    const char* stackSource = "function thrower() { throw new Error('x'); }\n"
+                              "function tail() { return thrower(); }\n"
+                              "tail();";
+    auto s = evalScript(g_context.get(), StringRef::createFromASCII(stackSource, strlen(stackSource)), StringRef::createFromASCII("sloppy-tail-call-stack.js"), false);
+    EXPECT_TRUE(s.find("Uncaught Error: x") == 0);
+    EXPECT_TRUE(s.find("sloppy-tail-call-stack.js (1:") != std::string::npos);
+    EXPECT_TRUE(s.find("sloppy-tail-call-stack.js (2:") != std::string::npos);
+    EXPECT_TRUE(s.find("sloppy-tail-call-stack.js (3:") != std::string::npos);
+}
+
 TEST(Object, ConstructorName)
 {
     ObjectRef* testObj = eval(g_context.get(), StringRef::createFromASCII("function foo(){}; var ctorNameTest = new foo(); ctorNameTest;"))->asObject();
