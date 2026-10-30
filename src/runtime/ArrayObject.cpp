@@ -155,12 +155,46 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
 }
 
 #if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+ArrayObject::ArrayObject(ExecutionState& state, Object* proto, ObjectStructure* structure, uint32_t length)
+    : DerivedObject(state, proto, structure->propertyCount())
+    , m_arrayLength(0)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_fastModeData()
+#else
+    , m_fastModeData(nullptr)
+#endif
+{
+    m_structure = structure;
+    // same fast-mode condition as ArrayObject(ExecutionState&, Object*)
+    if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty()
+                 && Object::prototypeChainMayHaveIndexedProperty(proto))) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_fastModeData.setNonFastMode();
+#else
+        m_fastModeData = &ArrayObject::DummyArrayElement;
+#endif
+        setArrayLength(state, length, true, false);
+        return;
+    }
+    if (length) {
+        // the fitted-storage allocation of setArrayLength() for a fresh array,
+        // without its writable-length and hole checks
+        m_arrayLength = length;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_fastModeData.resizeWithRealloc(length);
+        memset(static_cast<void*>(m_fastModeData.data()), 0, sizeof(ObjectPropertyValue) * length);
+#else
+        m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * length);
+        memset(static_cast<void*>(m_fastModeData), 0, sizeof(ObjectPropertyValue) * length);
+#endif
+    }
+}
+
 ArrayObject* ArrayObject::createRegExpResult(ExecutionState& state, uint64_t size, unsigned index, String* input, bool hasIndices)
 {
-    ArrayObject* result = new ArrayObject(state, size, false);
+    ASSERT(size <= std::numeric_limits<uint32_t>::max());
     ObjectStructure* structure = state.context()->vmInstance()->regExpResultStructure(hasIndices);
-    result->m_values.resizeWithUninitializedValues(0, structure->propertyCount());
-    result->m_structure = structure;
+    ArrayObject* result = new ArrayObject(state, state.context()->globalObject()->arrayPrototype(), structure, static_cast<uint32_t>(size));
     result->m_values[0] = Value(index);
     result->m_values[1] = Value(input);
     for (size_t i = 2; i < structure->propertyCount(); ++i) {
