@@ -202,6 +202,14 @@ protected:
     // constructor for SpreadArray (ArrayObject::createSpreadArray)
     ArrayObject(ExecutionState& state, ForSpreadArray);
 
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    // constructor for RegExp exec results (ArrayObject::createRegExpResult):
+    // the named-property storage is sized for `structure` once instead of
+    // being grown from the default, and the element store is allocated fitted
+    // to `length` without the generic length-change checks
+    ArrayObject(ExecutionState& state, Object* proto, ObjectStructure* structure, uint32_t length);
+#endif
+
     void convertIntoNonFastMode(ExecutionState& state);
 
 private:
