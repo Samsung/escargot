@@ -1836,17 +1836,16 @@ public class EscargotTest {
             }
         });
 
-        // Keep the callers out of tail position so stack frames do not depend on TCO.
-        ret = Evaluator.evalScript(context, "function foo() { var result = Native.empty(); return result; }\nfunction bar() { var result = foo(); return result; }\nbar();", "test.js");
+        ret = Evaluator.evalScript(context, "function foo() { return Native.empty() }\nfunction bar() { return foo() }\nbar();", "test.js");
         assertTrue(ret.isPresent());
         assertFalse(context.exceptionWasThrown());
         assertEquals(ret.get().asScriptString().toJavaString(), "at function empty() { [native function] } \n" +
-                "at test.js:1:30\n" +
-                "function foo() { var result = Native.empty(); return result; }\n" +
-                "                              ^\n" +
-                "at test.js:2:30\n" +
-                "function bar() { var result = foo(); return result; }\n" +
-                "                              ^\n" +
+                "at test.js:1:24\n" +
+                "function foo() { return Native.empty() }\n" +
+                "                        ^\n" +
+                "at test.js:2:24\n" +
+                "function bar() { return foo() }\n" +
+                "                        ^\n" +
                 "at test.js:3:1\n" +
                 "bar()\n" +
                 "^");
@@ -1893,17 +1892,17 @@ public class EscargotTest {
                             }
                         });
         context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
-        ret = Evaluator.evalScript(context, "function foo() { var result = asdf(); return result; }\nfunction bar() { var result = foo(); return result; }\nbar();", "test.js");
+        ret = Evaluator.evalScript(context, "function foo() { return asdf() }\nfunction bar() { return foo() }\nbar();", "test.js");
         assertTrue(ret.isPresent());
         assertFalse(context.exceptionWasThrown());
 
         assertEquals(ret.get().asScriptString().toJavaString(), "at function fnname() { [native function] } \n" +
-                "at test.js:1:30\n" +
-                "function foo() { var result = asdf(); return result; }\n" +
-                "                              ^\n" +
-                "at test.js:2:30\n" +
-                "function bar() { var result = foo(); return result; }\n" +
-                "                              ^\n" +
+                "at test.js:1:24\n" +
+                "function foo() { return asdf() }\n" +
+                "                        ^\n" +
+                "at test.js:2:24\n" +
+                "function bar() { return foo() }\n" +
+                "                        ^\n" +
                 "at test.js:3:1\n" +
                 "bar()\n" +
                 "^");

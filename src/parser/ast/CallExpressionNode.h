@@ -455,6 +455,9 @@ public:
                                                 receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
         } else if (isCalleeHasReceiver) {
+            // Tail position calls exist only in strict mode code (ECMA-262 IsInTailPosition).
+            // Sloppy mode functions keep their frame so that Function.prototype.caller/arguments
+            // observe the caller, as in other engines.
             if (dstRegister == context->m_returnRegister) {
                 // try tail call optimization (TCO)
                 isTailCallForm = true;
@@ -462,7 +465,7 @@ public:
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                 } else {
-                    if (context->m_codeBlock->isTailCallTarget(m_arguments.size())) {
+                    if (context->m_codeBlock->isStrict() && context->m_codeBlock->isTailCallTarget(m_arguments.size())) {
                         // tail call
                         codeBlock->pushCode(TailCall(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                     } else {
@@ -477,7 +480,7 @@ public:
                 // try tail call optimization (TCO)
                 isTailCallForm = true;
                 const AtomicString& calleeName = m_callee->isIdentifier() ? m_callee->asIdentifier()->name() : AtomicString();
-                bool isTailCallTarget = context->m_codeBlock->isTailCallTarget(m_arguments.size());
+                bool isTailCallTarget = context->m_codeBlock->isStrict() && context->m_codeBlock->isTailCallTarget(m_arguments.size());
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     if (isTailCallTarget) {
                         // try tail recursion
