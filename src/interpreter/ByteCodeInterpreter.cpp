@@ -120,7 +120,16 @@ public:
     }
 
 private:
+#if defined(CPU_ARM64)
+    // volatile: otherwise GCC keeps the saved value in x24 for the whole of
+    // interpret(), one callee-saved register fewer for the opcode handlers.
+    // A stack slot costs one store at entry and one load per exit instead.
+    // x86-64 already spills it, and forcing the slot there only reshuffles
+    // the handlers' register allocation.
+    volatile uintptr_t m_previous;
+#else
     uintptr_t m_previous;
+#endif
 };
 
 static ALWAYS_INLINE uintptr_t interpreterCageBase()
