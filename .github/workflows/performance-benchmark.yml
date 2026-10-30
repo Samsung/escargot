@@ -7,6 +7,11 @@ on:
     types: [completed]
     branches: [master]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to measure (defaults to the head of the selected branch)"
+        required: false
+        default: ""
 
 concurrency:
   group: performance-benchmark-master
@@ -27,17 +32,28 @@ jobs:
     - uses: actions/checkout@v5
       with:
         ref: ${{ github.event.workflow_run.head_sha }}
-        fetch-depth: 2
-    - name: Check engine changes in the merged commit
+    - name: Check engine changes since the last measured commit
       id: changes
       shell: bash
       run: |
-        # The first parent is master before the merge (also works for squash merges).
-        if git diff --quiet HEAD^ HEAD -- src/ third_party/; then
-          echo "engine=false" >> "$GITHUB_OUTPUT"
+        # Compare against the last commit the dashboard measured, not HEAD^.
+        # A rebase-merged PR lands several commits at once and only the last
+        # one is HEAD; if that one happens to touch no engine file (e.g. a
+        # CMake default flip) the whole PR's engine work was skipped. Any
+        # unmeasured engine change since the last dashboard entry must run.
+        engine=true
+        if git fetch --depth=1 origin gh-pages 2>/dev/null; then
+          baseline="$(git show FETCH_HEAD:performance/data/history.json 2>/dev/null \
+            | python3 -c 'import json,sys; h=json.load(sys.stdin); print(h[-1]["sha"] if h else "")' 2>/dev/null || true)"
+          if [ -n "$baseline" ] && git fetch --depth=1 origin "$baseline" 2>/dev/null \
+             && git diff --quiet "$baseline" HEAD -- src/ third_party/ CMakeLists.txt; then
+            engine=false
+          fi
+          echo "baseline=${baseline:-none} head=$(git rev-parse HEAD) engine=$engine"
         else
-          echo "engine=true" >> "$GITHUB_OUTPUT"
+          echo "No gh-pages history yet; measuring."
         fi
+        echo "engine=$engine" >> "$GITHUB_OUTPUT"
 
   benchmark-arm64:
     needs: detect-changes
@@ -45,7 +61,7 @@ jobs:
     runs-on: [self-hosted, linux, arm64, test]
     timeout-minutes: 180
     env:
-      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      TARGET_SHA: ${{ github.event.inputs.sha || github.event.workflow_run.head_sha || github.sha }}
     permissions:
       contents: write
       pages: write
