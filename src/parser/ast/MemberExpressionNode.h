@@ -84,6 +84,11 @@ public:
         return m_isReferencePrivateField;
     }
 
+    inline bool isStartOfOptionalChaining()
+    {
+        return m_startOfOptionalChaining;
+    }
+
     virtual void setStartOfOptionalChaining() override
     {
         ASSERT(!m_startOfOptionalChaining);
