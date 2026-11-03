@@ -43,6 +43,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ClassExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // The constructor is created in dstRegister before computed keys and static initializers run.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         Node* classIdent = m_class.id();

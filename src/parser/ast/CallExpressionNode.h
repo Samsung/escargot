@@ -48,6 +48,13 @@ public:
     Node* callee() { return m_callee; }
     const NodeList& arguments() { return m_arguments; }
     virtual ASTNodeType type() override { return ASTNodeType::CallExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // An optional chain loads undefined into dstRegister before evaluating its links.
+        return m_startOfOptionalChaining;
+    }
+
     std::pair<ByteCodeRegisterIndex, bool> generateArguments(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, bool clearInCallingExpressionScope = true)
     {
         context->m_inCallingExpressionScope = !clearInCallingExpressionScope;

@@ -49,6 +49,13 @@ public:
     }
 
     virtual ASTNodeType type() override = 0;
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // PutValue or destructuring can throw after the result is written to dstRegister.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override = 0;
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

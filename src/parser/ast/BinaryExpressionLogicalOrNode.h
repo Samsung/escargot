@@ -34,6 +34,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionLogicalOr; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // The left operand is evaluated into dstRegister before the right one runs.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left, m_right);

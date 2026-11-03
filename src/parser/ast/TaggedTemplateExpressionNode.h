@@ -47,6 +47,12 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::TaggedTemplateExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        return m_convertedExpression->mayWriteDestinationBeforeCompletion();
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         return m_convertedExpression->generateExpressionByteCode(codeBlock, context, dstRegister);

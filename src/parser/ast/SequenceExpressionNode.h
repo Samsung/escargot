@@ -71,6 +71,12 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::SequenceExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        return m_expressions.back()->astNode()->mayWriteDestinationBeforeCompletion();
+    }
+
     NodeList& expressions() { return m_expressions; }
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {

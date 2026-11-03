@@ -355,6 +355,16 @@ public:
 
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context);
 
+    // Whether generateExpressionByteCode may store into dstRegister before
+    // the expression has finished evaluating, so that an exception thrown later
+    // leaves a partial result there. A simple assignment compiles its
+    // right-hand side straight into a stack variable's register only when this
+    // is false; otherwise the variable would change although PutValue never ran.
+    virtual bool mayWriteDestinationBeforeCompletion()
+    {
+        return false;
+    }
+
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context);
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn)
