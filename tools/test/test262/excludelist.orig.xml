@@ -745,7 +745,6 @@
     <test id="language/expressions/object/object-spread-proxy-no-excluded-keys"><reason>TODO</reason></test>
     <test id="language/expressions/object/object-spread-proxy-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="language/expressions/object/prop-def-invalid-async-prefix"><reason>TODO</reason></test>
-    <test id="language/expressions/optional-chaining/eval-optional-call"><reason>TODO</reason></test>
     <test id="language/expressions/postfix-decrement/S11.3.2_A6_T3"><reason>TODO</reason></test>
     <test id="language/expressions/postfix-increment/S11.3.1_A6_T3"><reason>TODO</reason></test>
     <test id="language/expressions/prefix-decrement/S11.4.5_A6_T3"><reason>TODO</reason></test>
@@ -1100,7 +1099,6 @@
     <test id="staging/sm/expressions/nested-delete-name-in-evalcode"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/object-literal-__proto__"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/object-literal-computed-property-evaluation"><reason>TODO</reason></test>
-    <test id="staging/sm/expressions/optional-chain"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment-anon-fns"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation"><reason>TODO</reason></test>

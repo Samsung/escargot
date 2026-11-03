@@ -399,19 +399,24 @@ BYTECODE_SIZE_CHECK_IN_32BIT(MetaPropertyOperation, sizeof(size_t) * 2);
 
 class LoadByName : public ByteCode {
 public:
-    LoadByName(const ByteCodeLOC& loc, const size_t registerIndex, const AtomicString& name)
+    LoadByName(const ByteCodeLOC& loc, const size_t registerIndex, const AtomicString& name, ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT)
         : ByteCode(Opcode::LoadByNameOpcode, loc)
         , m_registerIndex(registerIndex)
+        , m_receiverIndex(receiverIndex)
         , m_name(name)
     {
     }
     ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_receiverIndex;
     AtomicString m_name;
 
 #ifndef NDEBUG
     void dump()
     {
         printf("load r%u <- %s", m_registerIndex, m_name.string()->toUTF8StringData().data());
+        if (m_receiverIndex != REGISTER_LIMIT) {
+            printf(" (receiver r%u)", m_receiverIndex);
+        }
     }
 #endif
 };
