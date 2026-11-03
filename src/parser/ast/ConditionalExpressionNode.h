@@ -35,6 +35,12 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ConditionalExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        return m_consequente->mayWriteDestinationBeforeCompletion() || m_alternate->mayWriteDestinationBeforeCompletion();
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         size_t testReg = m_test->getRegister(codeBlock, context);

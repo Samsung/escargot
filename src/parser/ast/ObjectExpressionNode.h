@@ -54,6 +54,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // The object is created in dstRegister before its properties are evaluated.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         // Fast path: object literal with only simple key-value pairs

@@ -33,6 +33,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::UpdateExpressionIncrementPrefix; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // PutValue can throw after the result is written to dstRegister.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         m_argument->generateResolveAddressByteCode(codeBlock, context);

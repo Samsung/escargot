@@ -44,6 +44,13 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ArrayExpression; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // The array is created in dstRegister before its elements are evaluated.
+        return true;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         // `[...x]` builds its array straight from the iterable; see CreateArrayFromIterable

@@ -71,6 +71,14 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::TemplateLiteral; }
+
+    virtual bool mayWriteDestinationBeforeCompletion() override
+    {
+        // A template built in several chunks finalizes each chunk into dstRegister
+        // before the expressions of the next chunk are evaluated.
+        return m_expressions.size() + m_quasis->size() > TemplateOperation::kMaxTemplateRegisterCount;
+    }
+
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ASSERT(m_expressions.size() + 1 == m_quasis->size());
