@@ -404,7 +404,7 @@ public:
 #endif
 
 
-    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException = true);
+    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException = true, Value* receiver = nullptr);
     static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value, size_t programCounter);
     static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value, size_t programCounter);
@@ -2188,7 +2188,8 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             LoadByName* code = (LoadByName*)programCounter;
-            registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name, programCounter);
+            Value* receiver = code->m_receiverIndex == REGISTER_LIMIT ? nullptr : &registerFile[code->m_receiverIndex];
+            registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name, programCounter, true, receiver);
             ADD_PROGRAM_COUNTER(LoadByName);
             NEXT_INSTRUCTION();
         }
@@ -3132,12 +3133,21 @@ NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordB
     return NULL;
 }
 
-NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException)
+NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, size_t programCounter, bool throwException, Value* receiver)
 {
     publishProgramCounter(state, programCounter);
+    if (receiver) {
+        *receiver = Value();
+    }
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
         if (result.m_hasBindingValue) {
+            // EvaluateCall uses WithBaseObject from the same Reference as
+            // the callee. Resolve both before argument evaluation, without
+            // reading a with object's getter or @@unscopables a second time.
+            if (receiver && env->record()->isObjectEnvironmentRecord()) {
+                *receiver = Value(env->record()->asObjectEnvironmentRecord()->bindingObject());
+            }
             return result.m_value;
         }
         env = env->outerEnvironment();
@@ -5930,14 +5940,17 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = code->m_receiverOrThisIndex == REGISTER_LIMIT ? Value() : registerFile[code->m_receiverOrThisIndex];
 
-        if (UNLIKELY(!callee.isObject())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
-        }
-
         // m_argumentsStartIndex holds the raw iterable directly (see CallExpressionNode's
         // isSoleSpreadElement codegen) - no CreateSpreadArrayObject was built for it
         ValueVector spreadArgs;
         spreadSoleIterableArgument(state, registerFile[code->m_argumentsStartIndex], spreadArgs);
+
+        // ArgumentListEvaluation precedes the callable check (ECMA-262 EvaluateCall).
+        // The iterator must run, and its exception takes precedence over TypeError.
+        if (UNLIKELY(!callee.isObject())) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        }
+
         registerFile[code->m_resultIndex] = callee.asObject()->call(state, receiver, spreadArgs.size(), spreadArgs.data());
         break;
     }

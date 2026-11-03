@@ -157,7 +157,8 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+        // Optional eval is an indirect call (ECMA-262 ChainEvaluation).
+        if (!m_isOptional && m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this->m_loc.index);
             auto args = generateArguments(codeBlock, context, false);
@@ -177,7 +178,7 @@ public:
 
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
         bool useWithObjectAsReceiver = context->m_isWithScope && m_callee->isIdentifier();
-        if (UNLIKELY(useWithObjectAsReceiver)) {
+        if (UNLIKELY(useWithObjectAsReceiver && !m_isOptional)) {
             // Call should check whether receiver is global obj or with obj.
             ASSERT(m_callee->isIdentifier());
             AtomicString calleeName = m_callee->asIdentifier()->name();
@@ -190,12 +191,12 @@ public:
             return;
         }
 
-        bool isCalleeHasReceiver = false;
+        bool isCalleeHasReceiver = useWithObjectAsReceiver;
         bool isSuperCall = m_callee->isSuperExpression() && ((SuperExpressionNode*)m_callee)->isCall();
         bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
         bool calleeIsMemberExpression = m_callee->isMemberExpression();
 
-        if (calleeIsMemberExpression && !m_isOptional && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+        if (calleeIsMemberExpression && !m_isOptional && !m_startOfOptionalChaining && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
             if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
                 auto node = m_arguments.begin();
                 node = node->next();
@@ -242,16 +243,30 @@ public:
         ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
         ByteCodeRegisterIndex calleeIndex = REGISTER_LIMIT;
 
-        calleeIndex = m_callee->getRegister(codeBlock, context);
-        m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
+        if (useWithObjectAsReceiver) {
+            calleeIndex = context->getRegister();
+            receiverIndex = context->getRegister();
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), calleeIndex, m_callee->asIdentifier()->name(), receiverIndex), context, this->m_loc.index);
+        } else {
+            calleeIndex = m_callee->getRegister(codeBlock, context);
+            m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
 
-        if (isCalleeHasReceiver) {
-            receiverIndex = context->getLastRegisterIndex();
-            Node* object = ((MemberExpressionNode*)(m_callee))->object();
-            if (object->isSuperExpression()) {
-                ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
-                nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
+            if (isCalleeHasReceiver) {
+                receiverIndex = context->getLastRegisterIndex();
+                Node* object = ((MemberExpressionNode*)(m_callee))->object();
+                if (object->isSuperExpression()) {
+                    ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
+                    nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
+                }
             }
+        }
+
+        // A short-circuited optional call must not evaluate its arguments,
+        // so test the callee before generating them.
+        if (m_isOptional) {
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
+            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
         // `f(...args)` with nothing else in the argument list has no sibling argument whose
@@ -273,12 +288,6 @@ public:
             auto args = generateArguments(codeBlock, context);
             argumentsStartIndex = args.first;
             hasSpreadElement = args.second;
-        }
-
-        if (m_isOptional) {
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
-            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
-            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
         // drop callee, receiver registers
@@ -319,7 +328,8 @@ public:
 #if defined(ENABLE_TCO)
     virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
-        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+        // Optional eval is an indirect call (ECMA-262 ChainEvaluation).
+        if (!m_isOptional && m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this->m_loc.index);
             auto args = generateArguments(codeBlock, context, false);
@@ -339,7 +349,7 @@ public:
 
         bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
         bool useWithObjectAsReceiver = context->m_isWithScope && m_callee->isIdentifier();
-        if (UNLIKELY(useWithObjectAsReceiver)) {
+        if (UNLIKELY(useWithObjectAsReceiver && !m_isOptional)) {
             // Call should check whether receiver is global obj or with obj.
             ASSERT(m_callee->isIdentifier());
             AtomicString calleeName = m_callee->asIdentifier()->name();
@@ -352,12 +362,12 @@ public:
             return;
         }
 
-        bool isCalleeHasReceiver = false;
+        bool isCalleeHasReceiver = useWithObjectAsReceiver;
         bool isSuperCall = m_callee->isSuperExpression() && ((SuperExpressionNode*)m_callee)->isCall();
         bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
         bool calleeIsMemberExpression = m_callee->isMemberExpression();
 
-        if (calleeIsMemberExpression && !m_isOptional && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+        if (calleeIsMemberExpression && !m_isOptional && !m_startOfOptionalChaining && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
             if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
                 auto node = m_arguments.begin();
                 node = node->next();
@@ -404,16 +414,30 @@ public:
         ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
         ByteCodeRegisterIndex calleeIndex = REGISTER_LIMIT;
 
-        calleeIndex = m_callee->getRegister(codeBlock, context);
-        m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
+        if (useWithObjectAsReceiver) {
+            calleeIndex = context->getRegister();
+            receiverIndex = context->getRegister();
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), calleeIndex, m_callee->asIdentifier()->name(), receiverIndex), context, this->m_loc.index);
+        } else {
+            calleeIndex = m_callee->getRegister(codeBlock, context);
+            m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
 
-        if (isCalleeHasReceiver) {
-            receiverIndex = context->getLastRegisterIndex();
-            Node* object = ((MemberExpressionNode*)(m_callee))->object();
-            if (object->isSuperExpression()) {
-                ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
-                nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
+            if (isCalleeHasReceiver) {
+                receiverIndex = context->getLastRegisterIndex();
+                Node* object = ((MemberExpressionNode*)(m_callee))->object();
+                if (object->isSuperExpression()) {
+                    ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
+                    nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
+                }
             }
+        }
+
+        // A short-circuited optional call must not evaluate its arguments,
+        // so test the callee before generating them.
+        if (m_isOptional) {
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
+            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
         // see the non-TCO generateExpressionByteCode above for the rationale; spread calls
@@ -433,12 +457,6 @@ public:
             auto args = generateArguments(codeBlock, context);
             argumentsStartIndex = args.first;
             hasSpreadElement = args.second;
-        }
-
-        if (m_isOptional) {
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
-            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
-            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
         // drop callee, receiver registers
@@ -468,7 +486,6 @@ public:
             if (dstRegister == context->m_returnRegister) {
                 // try tail call optimization (TCO)
                 isTailCallForm = true;
-                const AtomicString& calleeName = m_callee->asMemberExpression()->property()->isIdentifier() ? m_callee->asMemberExpression()->property()->asIdentifier()->name() : AtomicString();
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                 } else {
@@ -514,8 +531,7 @@ public:
         if (UNLIKELY(m_startOfOptionalChaining)) {
             context->linkOptionalChainingJumpPosition(codeBlock, codeBlock->currentCodeSize());
             context->popOptionalChainingJumpPositionList();
-            // A short-circuited chain jumps past the tail call,
-            // so the return statement must still emit its End for that path.
+            // The short-circuit path still needs ReturnStatementNode's End.
             isTailCallForm = false;
         }
     }

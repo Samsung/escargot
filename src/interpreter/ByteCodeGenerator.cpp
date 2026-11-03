@@ -415,6 +415,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case LoadByNameOpcode: {
             LoadByName* cd = (LoadByName*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case StoreByNameOpcode: {
