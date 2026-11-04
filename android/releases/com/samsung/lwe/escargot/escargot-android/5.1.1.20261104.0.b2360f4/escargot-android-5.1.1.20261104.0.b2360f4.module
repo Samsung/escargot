@@ -1,0 +1,116 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.samsung.lwe.escargot",
+    "module": "escargot-android",
+    "version": "5.1.1.20261104.0.b2360f4",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.5.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "escargot-android-5.1.1.20261104.0.b2360f4.aar",
+          "url": "escargot-android-5.1.1.20261104.0.b2360f4.aar",
+          "size": 7851491,
+          "sha512": "0711115378c11a42d762cc780e99e13b919be788d4efb46088449a6b53f783e146e2105631ab1dc6cf48ec872d00ae705132d770e11a0c14b019b3ee7f6a0dfd",
+          "sha256": "a021d54c0a7b92312af6fe7269937236dd3d0a6c564aeb08e9397bc77306abe0",
+          "sha1": "ac3cb76b84079043ef3e690b313a50d347c5e25e",
+          "md5": "bb5af1c135628bbf5a531be6c08a04ea"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "escargot-android-5.1.1.20261104.0.b2360f4.aar",
+          "url": "escargot-android-5.1.1.20261104.0.b2360f4.aar",
+          "size": 7851491,
+          "sha512": "0711115378c11a42d762cc780e99e13b919be788d4efb46088449a6b53f783e146e2105631ab1dc6cf48ec872d00ae705132d770e11a0c14b019b3ee7f6a0dfd",
+          "sha256": "a021d54c0a7b92312af6fe7269937236dd3d0a6c564aeb08e9397bc77306abe0",
+          "sha1": "ac3cb76b84079043ef3e690b313a50d347c5e25e",
+          "md5": "bb5af1c135628bbf5a531be6c08a04ea"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.1.20261104.0.b2360f4-sources.jar",
+          "url": "escargot-android-5.1.1.20261104.0.b2360f4-sources.jar",
+          "size": 14157,
+          "sha512": "224fab0aa6126a0b9604eb95da36fc42f32634b3b1325064bd2e634b95d8922cabc13d86c60fe633a6dd96f48eaac81a12552e8b3c3557289df196be80967b55",
+          "sha256": "100ca93e5d6f0baf8580d2c420b14a903bd4b21c3b515e6c6516e2030ef6384b",
+          "sha1": "a8f5e07f78409847a89c31d2836984f580aaf636",
+          "md5": "298239f02570ac5353742936ef739fcc"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseJavaDocPublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.1.20261104.0.b2360f4-javadoc.jar",
+          "url": "escargot-android-5.1.1.20261104.0.b2360f4-javadoc.jar",
+          "size": 547274,
+          "sha512": "e726d11942f8734bddf03eab9fed55d6f945b1ef84f86e87a3fe24e7fd2cf08269a10f5fb62960286d09ad6ad143611be8e6ef956ee42164240b96920aaffdd6",
+          "sha256": "b7345e0a3bf1afb2fc791ce3a629ceac531953be8c1464b60ebf008d38cc86ba",
+          "sha1": "825d6986fdb7ad294bc1e05f16db6c809bbccc8c",
+          "md5": "dccafa5e3c2473a010166521ce1bccc1"
+        }
+      ]
+    }
+  ]
+}
