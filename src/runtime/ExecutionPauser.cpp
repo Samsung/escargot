@@ -284,17 +284,19 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
             throw;
         } else if (from == StartFrom::AsyncGenerator) {
-            if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
+            auto generator = source->asAsyncGeneratorObject();
+            auto previousState = generator->m_asyncGeneratorState;
+            generator->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+            if (previousState == AsyncGeneratorObject::SuspendedStart) {
                 throw;
             } else {
-                auto& queue = source->asAsyncGeneratorObject()->m_asyncGeneratorQueue;
+                auto& queue = generator->m_asyncGeneratorQueue;
                 // Resolution can throw after dequeuing this request or resuming
                 // another one. Only reject the request that this start resumed.
                 if (!queue.size() || queue[0].m_capability.m_promise != asyncGeneratorRequest) {
                     throw;
                 }
-                source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
-                result = AsyncGeneratorObject::asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
+                result = AsyncGeneratorObject::asyncGeneratorReject(state, generator, thrownValue);
             }
         } else {
             // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
