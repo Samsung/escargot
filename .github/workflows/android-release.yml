@@ -58,14 +58,27 @@ jobs:
       # operators) -- confirmed by hand -- so GCC 9 is installed instead.
       # Stock cmake 2.8.12 is likewise too old, so 3.26.5 is downloaded.
       run: |
-        docker run --rm -v "$PWD":/src -w /src ubuntu:14.04.5 bash -c '
+        # Resolve neither the PPA nor its key through Trusty's obsolete
+        # add-apt-repository client. Fetch and verify the known signing key
+        # with the host runner's current TLS stack instead.
+        ppa_key=$(mktemp "$RUNNER_TEMP/toolchain-ppa.XXXXXX.asc")
+        trap 'rm -f "$ppa_key"' EXIT
+        curl --fail --show-error --location --retry 5 --retry-delay 5 \
+          --retry-all-errors --connect-timeout 15 --max-time 120 \
+          'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xC8EC952E2A0E1FBDC5090F6A2C277A0A352154E5' \
+          --output "$ppa_key"
+        fingerprint=$(gpg --show-keys --with-colons "$ppa_key" | awk -F: '$1 == "fpr" { print $10; exit }')
+        test "$fingerprint" = C8EC952E2A0E1FBDC5090F6A2C277A0A352154E5
+
+        docker run --rm -v "$PWD":/src -v "$ppa_key":/toolchain-ppa.asc:ro -w /src ubuntu:14.04.5 bash -c '
           set -euxo pipefail
           sed -i -e "s|archive.ubuntu.com|security.ubuntu.com|g" /etc/apt/sources.list
           apt-get update
-          apt-get install -y build-essential wget curl unzip git software-properties-common ca-certificates pkg-config
+          apt-get install -y build-essential wget curl unzip git gnupg ca-certificates pkg-config
 
-          add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          apt-get update
+          apt-key add /toolchain-ppa.asc
+          echo "deb http://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu trusty main" > /etc/apt/sources.list.d/ubuntu-toolchain-r-test.list
+          apt-get -o Acquire::Retries=3 update
           apt-get install -y gcc-9 g++-9
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 60
