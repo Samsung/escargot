@@ -21,7 +21,10 @@ public abstract class NativePointerHolder {
         }
         public void release()
         {
-            releaseNativePointerMemory(m_nativePointer);
+            if (m_nativePointer != 0) {
+                releaseNativePointerMemory(m_nativePointer);
+                m_nativePointer = 0;
+            }
         }
         long m_nativePointer;
     }
@@ -65,6 +68,22 @@ public abstract class NativePointerHolder {
             s_referenceSet.get().remove(((NativePointerHolderPhantomReference)ref));
             ((NativePointerHolderPhantomReference)ref).release();
             ref.clear();
+        }
+    }
+
+    // Called on the owning thread before its native heap is finalized. Java
+    // wrappers may still be reachable, but must not be used after finalization.
+    static void releaseAll()
+    {
+        for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
+            reference.release();
+            reference.clear();
+        }
+        s_referenceSet.get().clear();
+
+        Reference<?> reference;
+        while ((reference = s_referenceQueue.get().poll()) != null) {
+            reference.clear();
         }
     }
 

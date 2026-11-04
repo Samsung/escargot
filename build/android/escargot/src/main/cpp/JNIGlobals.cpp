@@ -35,6 +35,20 @@ static void gcCallback(void* data)
     }
 }
 
+static bool releaseAllJavaReferences(JNIEnv* env)
+{
+    jclass clazz = env->FindClass("com/samsung/lwe/escargot/NativePointerHolder");
+    if (!clazz) {
+        return false;
+    }
+    jmethodID method = env->GetStaticMethodID(clazz, "releaseAll", "()V");
+    if (method) {
+        env->CallStaticVoidMethod(clazz, method);
+    }
+    env->DeleteLocalRef(clazz);
+    return !env->ExceptionCheck();
+}
+
 static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
 {
     FILE* fp = fopen(fileName, "r");
@@ -258,8 +272,10 @@ JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv* env, jclass clazz)
 {
     if (Globals::isInitialized()) {
-        // java object cleanup
-        gcCallback(nullptr);
+        // Drop Java roots before the native shutdown collections.
+        if (!releaseAllJavaReferences(env)) {
+            return;
+        }
 
         Memory::removeGCEventListener(Memory::MARK_START, gcCallback, nullptr);
         Globals::finalize();
@@ -279,6 +295,9 @@ JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_finalizeThread(JNIEnv* env, jclass clazz)
 {
     if (Globals::isInitialized()) {
+        if (!releaseAllJavaReferences(env)) {
+            return;
+        }
         Globals::finalizeThread();
     }
 }
