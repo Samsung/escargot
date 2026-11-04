@@ -1,0 +1,36 @@
+Escargot v5.1.0
+
+Changes since v5.0.3
+
+WebAssembly
+- Add WebAssembly.Tag support and improve exception and reference handling
+  across JavaScript and WebAssembly boundaries.
+- Update Walrus and fix memory growth, allocation failures, and resource
+  lifetime issues.
+
+Performance and memory
+- Enable tail call optimization by default and specialize interpreter
+  arithmetic and program counter handling.
+- Improve RegExp matching, replacement, and result allocation; optimize
+  JSON parsing and reuse object structures.
+- Reduce compressed-pointer metadata and string storage, and improve garbage
+  collection and resource cleanup.
+
+Correctness and embedding
+- Fix optional calls, optional chain deletion, and assignment evaluation.
+- Fix async generator completion, iterator closing, and reentrant array and
+  property operations.
+- Guard recursive operations and fix code cache boundary checks.
+- Add explicit runtime destruction for shared-library unload and reload.
+- Support owned and reloadable UTF-8 script sources, and defer ICU loading.
+
+Tooling and testing
+- Expand debugger object previews and test coverage across platforms.
+- Improve sanitizer, WebAssembly, Android, and benchmark CI coverage.
+
+## Contributors
+
+- @envia
+- @ksh8281
+- @kwy404
+- @luank3
