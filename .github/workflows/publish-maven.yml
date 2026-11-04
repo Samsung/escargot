@@ -1,0 +1,134 @@
+name: Publish Maven
+
+on:
+  workflow_run:
+    workflows: [Android-Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Android-Release run to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-publish-${{ github.event.workflow_run.id || inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'Samsung/escargot' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+    steps:
+    - name: Verify release run and tag
+      id: release
+      uses: actions/github-script@v8
+      env:
+        SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+      with:
+        script: |
+          const id = process.env.SOURCE_RUN_ID;
+          if (!/^[0-9]+$/.test(id)) throw new Error('Expected a numeric run ID');
+          const {data: run} = await github.rest.actions.getWorkflowRun({
+            ...context.repo, run_id: Number(id)
+          });
+          if (run.path !== '.github/workflows/android-release.yml' ||
+              run.head_repository?.full_name !== `${context.repo.owner}/${context.repo.repo}` ||
+              !['push', 'workflow_dispatch'].includes(run.event) ||
+              run.status !== 'completed' || run.conclusion !== 'success') {
+            throw new Error('Expected a successful Android-Release run from this repository');
+          }
+          const tag = run.head_branch;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Expected a release tag run');
+          const {data: ref} = await github.rest.git.getRef({...context.repo, ref: `tags/${tag}`});
+          let object = ref.object;
+          while (object.type === 'tag') {
+            const {data: annotated} = await github.rest.git.getTag({...context.repo, tag_sha: object.sha});
+            object = annotated.object;
+          }
+          if (object.type !== 'commit' || object.sha !== run.head_sha) {
+            throw new Error('Release tag no longer matches the build commit');
+          }
+          const {data: release} = await github.rest.repos.getReleaseByTag({...context.repo, tag});
+          if (release.draft) throw new Error('Release is still a draft');
+          const {data: version} = await github.rest.repos.getContent({
+            ...context.repo, path: 'RELEASE_VERSION', ref: run.head_sha
+          });
+          if (Buffer.from(version.content, 'base64').toString().trim() !== tag) {
+            throw new Error('RELEASE_VERSION differs from the release tag');
+          }
+          core.setOutput('run_id', id);
+          core.setOutput('tag', tag);
+          core.setOutput('sha', run.head_sha);
+
+    # Only execute publishing code from the default branch. Downloaded
+    # release artifacts are data; never execute scripts from the source run.
+    - uses: actions/checkout@v5
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        path: source
+        persist-credentials: false
+    - uses: actions/download-artifact@v6
+      with:
+        name: maven-publish-android
+        path: artifacts/maven-publish-android
+        run-id: ${{ steps.release.outputs.run_id }}
+        github-token: ${{ github.token }}
+    - uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-ubuntu
+        path: artifacts/build-artifact-ubuntu
+        run-id: ${{ steps.release.outputs.run_id }}
+        github-token: ${{ github.token }}
+    - uses: actions/download-artifact@v6
+      with:
+        name: build-artifact-mac
+        path: artifacts/build-artifact-mac
+        run-id: ${{ steps.release.outputs.run_id }}
+        github-token: ${{ github.token }}
+    - uses: actions/checkout@v5
+      with:
+        ref: maven
+        path: maven
+    - name: Publish all platforms to maven
+      env:
+        SOURCE_TAG: ${{ steps.release.outputs.tag }}
+        SOURCE_SHA: ${{ steps.release.outputs.sha }}
+      run: |
+        git -C maven config user.name 'github-actions[bot]'
+        git -C maven config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        for attempt in 1 2 3 4 5; do
+          git -C maven fetch origin maven
+          git -C maven reset --hard origin/maven
+          version=$(python3 source/tools/publish-maven.py \
+            --repository maven --artifacts artifacts --tag "$SOURCE_TAG" --sha "$SOURCE_SHA")
+          git -C maven add -- android/releases mac/releases ubuntu/releases
+          git -C maven diff --cached --check
+          if git -C maven diff --cached --quiet; then
+            echo "Maven $version is already published." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf 'Publish Maven artifacts %s\n\nPublish Android, Ubuntu and macOS artifacts for %s.\n\nSource: %s\n\nSigned-off-by: Seonghyun Kim <sh8281.kim@samsung.com>\n' \
+            "$version" "$SOURCE_TAG" "$SOURCE_SHA" > "$RUNNER_TEMP/maven-commit.txt"
+          git -C maven commit --file "$RUNNER_TEMP/maven-commit.txt"
+          if git -C maven push origin HEAD:maven; then
+            echo "Published Maven $version for Android, Ubuntu and macOS." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Another release or a manual publisher may have advanced maven.
+          # Recompute metadata against its new tip; never force-push it.
+          sleep 5
+        done
+        echo 'Could not publish Maven artifacts after five attempts.' >&2
+        exit 1
