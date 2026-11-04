@@ -3,6 +3,7 @@ package com.samsung.lwe.escargot;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -10,6 +11,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Optional;
@@ -33,6 +35,8 @@ public class NativePointerHolderMemoryTest {
 
     @Test
     public void repeatedThreadSessionsDoNotAccumulateNativeMemory() throws Exception {
+        assumeTrue("RSS measurement requires /proc/self/status",
+                new File("/proc/self/status").canRead());
         Globals.initializeGlobals();
         try {
             for (int session = 0; session < WARMUP_SESSIONS; session++) {
