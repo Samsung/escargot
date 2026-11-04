@@ -4165,22 +4165,29 @@ TEST(WebAssembly, I31TableValues)
             if (done) return bytes;
         }
     }
-    function instance(value) {
+    function instance(table64, value) {
         // (table 10 (ref null i31)), grown by a function using ref.i31.
         var body = [0,65].concat(signedLEB(value), [251,28,32,0,252,15,0,26,11]);
         var bytes = [0,97,115,109,1,0,0,0,
-            1,5,1,96,1,127,0,3,2,1,0,
-            4,5,1,99,108,0,10,
+            1,5,1,96,1,table64 ? 126 : 127,0,3,2,1,0,
+            4,5,1,99,108,table64 ? 4 : 0,10,
             7,12,2,2,119,50,0,0,3,119,116,48,1,0,
             10,body.length + 2,1,body.length].concat(body);
         return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(bytes))).exports;
     }
-    for (var value of [0,256,-1,1073741823,-1073741824]) {
-        var exports = instance(value);
-        if (exports.wt0.get(0) !== null) throw new Error("Lost null i31");
-        exports.w2(1);
-        for (var repeat = 0; repeat < 3; ++repeat) {
-            if (exports.wt0.get(10) !== value) throw new Error("Lost signed i31 value");
+    for (var table64 of [false, true]) {
+        for (var value of [0,256,-1,1073741823,-1073741824]) {
+            var exports = instance(table64, value);
+            if (exports.wt0.get(0) !== null) throw new Error("Lost null i31");
+            exports.w2(table64 ? 1n : 1);
+            for (var repeat = 0; repeat < 3; ++repeat) {
+                if (exports.wt0.get(10) !== value) throw new Error("Lost signed i31 value");
+            }
+            exports.wt0.set(10, null);
+            if (exports.wt0.get(10) !== null) throw new Error("Failed to clear i31 table");
+            var outOfBounds = false;
+            try { exports.wt0.get(11); } catch (error) { outOfBounds = error instanceof RangeError; }
+            if (!outOfBounds) throw new Error("Missing table bounds check");
         }
     }
     return true;
