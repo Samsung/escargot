@@ -3982,6 +3982,70 @@ TEST(AsyncGenerator, QueuedRequestsPreservePausedScopes)
               "[[1,false,2,true,null,true],[1,false,2,true,null,true],[1,false,2,true,null,true],[1,false,9,true,null,true],[1,false,8,true,null,true]];1;2");
 }
 
+TEST(AsyncGenerator, StackOverflowAfterYieldReleaseSafety)
+{
+    const char source[] = R"JS(
+        var result1755 = "";
+        (function () {
+            async function* g() { yield 1; return 2; }
+            const it = g();
+            it.next();
+            function rec(n) {
+                try {
+                    rec(n + 1);
+                } catch (e) {
+                }
+            }
+            rec(0);
+            it["throw"](new Error("x")).then(
+                () => { result1755 = "fulfilled"; },
+                e => { result1755 = e.message; }
+            );
+        })();
+        "ready";
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("async-generator-stack-overflow-release.js"), false),
+              "ready");
+    while (g_instance.get()->hasPendingJob()) {
+        auto result = g_instance.get()->executePendingJob();
+        ASSERT_TRUE(result.isSuccessful()) << result.resultOrErrorToString(g_context.get())->toStdUTF8String();
+    }
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII("result1755"),
+                         StringRef::createFromASCII("async-generator-stack-overflow-result.js"), false),
+              "x");
+    eval(g_context.get(), StringRef::createFromASCII("delete globalThis.result1755;"));
+}
+
+TEST(AsyncGenerator, StackOverflowMultiplePendingGenerators)
+{
+    const char source[] = R"JS(
+        var passed1755 = true;
+        (function () {
+            async function* g() { yield 1; return 2; }
+            const gens = [];
+            for (let i = 0; i < 40; i++) {
+                const it = g();
+                it.next();
+                gens.push(it);
+            }
+            function rec(n) {
+                try {
+                    rec(n + 1);
+                } catch (e) {}
+            }
+            rec(0);
+            for (const it of gens) {
+                it["throw"](new Error("x")).catch(e => {});
+            }
+        })();
+        passed1755 ? "ok" : "fail";
+    )JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("async-generator-multi-stack.js"), false),
+              "ok");
+}
+
 TEST(Object, PrototypeIterationPreservesExoticDispatch)
 {
     const char source[] = R"JS(
