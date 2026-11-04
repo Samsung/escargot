@@ -507,6 +507,9 @@ public:
         if (UNLIKELY(m_startOfOptionalChaining)) {
             context->linkOptionalChainingJumpPosition(codeBlock, codeBlock->currentCodeSize());
             context->popOptionalChainingJumpPositionList();
+            // A short-circuited chain jumps past the tail call,
+            // so the return statement must still emit its End for that path.
+            isTailCallForm = false;
         }
     }
 #endif
