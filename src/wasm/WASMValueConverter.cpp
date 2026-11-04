@@ -136,6 +136,8 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
     case WASM_ANYREF: {
         if (!value.of.ref) {
             result = Value(Value::Null);
+        } else if (wasm_ref_is_i31(value.of.ref)) {
+            result = Value(wasm_ref_i31_get_s(value.of.ref));
         } else {
             result = state.context()->wasmCache()->findValueByRef(value.of.ref);
         }
@@ -145,6 +147,9 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
         if (!value.of.ref) {
             result = Value(Value::Null);
         } else {
+            if (wasm_ref_is_i31(value.of.ref)) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+            }
             // The caller still owns value.of.ref (e.g. Table.get deletes it),
             // so a new Exported Function must own a copy of it.
             ExportedFunctionObject* func = state.context()->wasmCache()->findFunction(value.of.ref);

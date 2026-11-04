@@ -123,6 +123,12 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         // Otherwise, let arg be undefined.
         Value arg = (argc > i) ? argv[i] : Value();
 
+        // nofunc is represented as WASM_FUNCREF by the C API, but only null
+        // belongs to this heap type, including for exported wasm functions.
+        if (wasm_valtype_heapkind(parameters->data[i]) == WASM_HEAP_NOFUNC && !arg.isNull()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+        }
+
         // Append ToWebAssemblyValue(arg, t) to args.
         args.data[i] = WASMValueConverter::toWebAssemblyValue(state, arg, wasm_valtype_kind(parameters->data[i]));
     }

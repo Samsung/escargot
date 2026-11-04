@@ -4093,7 +4093,7 @@ TEST(WebAssembly, RejectNonFunctionReferences)
         throw new Error("Missing TypeError for non-function reference");
     }
     // Store a nofunc argument in funcref containers and return it as funcref.
-    // Walrus currently erases nofunc to anyref at the C API input boundary.
+    // Reject invalid nofunc arguments before the function can store them.
     var body = [0,65,0,32,0,38,0,32,0,36,0,35,0,11];
     var exports = module([
         section(1, [1,96,1,99,115,1,99,112]), section(3, [1,0]),
@@ -4101,28 +4101,33 @@ TEST(WebAssembly, RejectNonFunctionReferences)
         section(7, [3,1,102,0,0,1,116,1,0,1,103,3,0]),
         section(10, [1,body.length].concat(body))
     ]);
-    var invalid = [undefined, {}, [], 1, "s", true, Symbol("s"), 1n, function () {},
+    var invalid = [undefined, {}, [], 1, "s", true, Symbol("s"), 1n, function () {}, exports.f,
         new WebAssembly.Memory({initial: 1}),
         new WebAssembly.Table({element: "anyfunc", initial: 1}),
         new WebAssembly.Global({value: "i32"}, 1),
         new WebAssembly.Tag({parameters: []})];
     for (var value of invalid) {
         throws(() => exports.f(value));
-        throws(() => exports.t.get(0));
-        throws(() => exports.g.value);
+        if (exports.t.get(0) !== null || exports.g.value !== null)
+            throw new Error("Invalid nofunc argument reached wasm");
     }
     throws(() => exports.f());
     if (exports.f(null) !== null || exports.t.get(0) !== null || exports.g.value !== null)
         throw new Error("Rejected null function reference");
 
-    // A later failing result must also release earlier owning wrappers.
+    // Mixed function/null results must retain owning wrappers correctly.
     var multi = module([
         section(1, [2,96,0,1,127,96,1,99,115,2,112,112]), section(3, [2,0,1]),
         section(4, [1,112,0,1]), section(7, [1,1,102,0,1]),
         section(9, [1,0,65,0,11,1,0]),
         section(10, [2,4,0,65,42,11,6,0,210,0,32,0,11])
     ]).f;
-    for (var i = 0; i < 100; ++i) throws(() => multi({}));
+    for (var i = 0; i < 100; ++i) {
+        throws(() => multi({}));
+        var results = multi(null);
+        if (results[0]() !== 42 || results[1] !== null)
+            throw new Error("Lost mixed function/null results");
+    }
 
     // Previously unexported, real wasm functions must still be wrapped.
     var table = module([
@@ -4143,6 +4148,46 @@ TEST(WebAssembly, RejectNonFunctionReferences)
 )JS";
     EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
                          StringRef::createFromASCII("wasm-reference-type-guards.js"), false),
+              "true");
+}
+
+TEST(WebAssembly, I31TableValues)
+{
+    const char source[] = R"JS(
+(function () {
+    function signedLEB(value) {
+        var bytes = [];
+        while (true) {
+            var byte = value & 127;
+            value >>= 7;
+            var done = (value === 0 && !(byte & 64)) || (value === -1 && (byte & 64));
+            bytes.push(byte | (done ? 0 : 128));
+            if (done) return bytes;
+        }
+    }
+    function instance(value) {
+        // (table 10 (ref null i31)), grown by a function using ref.i31.
+        var body = [0,65].concat(signedLEB(value), [251,28,32,0,252,15,0,26,11]);
+        var bytes = [0,97,115,109,1,0,0,0,
+            1,5,1,96,1,127,0,3,2,1,0,
+            4,5,1,99,108,0,10,
+            7,12,2,2,119,50,0,0,3,119,116,48,1,0,
+            10,body.length + 2,1,body.length].concat(body);
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array(bytes))).exports;
+    }
+    for (var value of [0,256,-1,1073741823,-1073741824]) {
+        var exports = instance(value);
+        if (exports.wt0.get(0) !== null) throw new Error("Lost null i31");
+        exports.w2(1);
+        for (var repeat = 0; repeat < 3; ++repeat) {
+            if (exports.wt0.get(10) !== value) throw new Error("Lost signed i31 value");
+        }
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source),
+                         StringRef::createFromASCII("wasm-i31-table-values.js"), false),
               "true");
 }
 

@@ -553,29 +553,10 @@ wasm_ref_t* WASMCacheMap::insertRefByValue(const Value& value)
 {
     wasm_ref_t* result = nullptr;
 
-    if (value.isObject()) {
-        Object* val = value.asObject();
-        if (val->isWASMMemoryObject()) {
-            result = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
-            appendMemory(result, val->asWASMMemoryObject());
-            return result;
-        } else if (val->isWASMTableObject()) {
-            result = wasm_table_as_ref(val->asWASMTableObject()->table());
-            appendTable(result, val->asWASMTableObject());
-            return result;
-        } else if (val->isWASMGlobalObject()) {
-            result = wasm_global_as_ref(val->asWASMGlobalObject()->global());
-            appendGlobal(result, val->asWASMGlobalObject());
-            return result;
-        } else if (val->isExportedFunctionObject()) {
-            result = wasm_func_as_ref(val->asExportedFunctionObject()->function());
-            appendFunction(result, val->asExportedFunctionObject());
-            return result;
-        }
-    }
-
     // Let extern address externaddr be the smallest address such that map[externaddr] exists is false.
     // Set map[externaddr] to v.
+    // Even wasm wrapper objects are JS externref values here. Reusing their
+    // native refs would conflate externref with funcref or other wasm types.
     // A wasm_ref_t is an owning wrapper, not an arbitrary tagged address.
     result = wasm_foreign_as_ref(wasm_foreign_new(ThreadLocal::wasmStore()));
     appendOther(result, value);
@@ -648,48 +629,6 @@ std::pair<bool, Value> WASMCacheMap::findOther(wasm_ref_t* ref)
 
 wasm_ref_t* WASMCacheMap::findRefByValue(const Value& value)
 {
-    if (value.isObject()) {
-        wasm_ref_t* ref = nullptr;
-        Object* val = value.asObject();
-        if (val->isWASMMemoryObject()) {
-            ref = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
-            for (auto iter = m_memoryMap.begin(); iter != m_memoryMap.end(); iter++) {
-                if (wasm_ref_same(iter->first, ref)) {
-                    ASSERT(iter->second == val->asWASMMemoryObject());
-                    return ref;
-                }
-            }
-            return nullptr;
-        } else if (val->isWASMTableObject()) {
-            ref = wasm_table_as_ref(val->asWASMTableObject()->table());
-            for (auto iter = m_tableMap.begin(); iter != m_tableMap.end(); iter++) {
-                if (wasm_ref_same(iter->first, ref)) {
-                    ASSERT(iter->second == val->asWASMTableObject());
-                    return ref;
-                }
-            }
-            return nullptr;
-        } else if (val->isWASMGlobalObject()) {
-            ref = wasm_global_as_ref(val->asWASMGlobalObject()->global());
-            for (auto iter = m_globalMap.begin(); iter != m_globalMap.end(); iter++) {
-                if (wasm_ref_same(iter->first, ref)) {
-                    ASSERT(iter->second == val->asWASMGlobalObject());
-                    return ref;
-                }
-            }
-            return nullptr;
-        } else if (val->isExportedFunctionObject()) {
-            ref = wasm_func_as_ref(val->asExportedFunctionObject()->function());
-            for (auto iter = m_functionMap.begin(); iter != m_functionMap.end(); iter++) {
-                if (wasm_ref_same(iter->first, ref)) {
-                    ASSERT(iter->second == val->asExportedFunctionObject());
-                    return ref;
-                }
-            }
-            return nullptr;
-        }
-    }
-
     for (auto iter = m_otherMap.begin(); iter != m_otherMap.end(); iter++) {
         if (iter->second == value) {
             return iter->first;
