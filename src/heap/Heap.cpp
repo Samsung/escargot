@@ -72,6 +72,9 @@ static bool isTizenTV()
 #endif
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+// Keep descriptors for the lifetime of the thread's GC runtime, just like
+// the custom allocator kinds. Ordinary finalize/reinitialize cycles retain
+// both; thread exit or shared-library unload discards this TLS storage.
 MAY_THREAD_LOCAL Optional<const GC_compressed_bitmap_descr*> Heap::s_compressedDescriptors[static_cast<size_t>(Heap::CompressedType::Count)];
 
 void Heap::initializeCompressedType(CompressedType type, size_t size,
@@ -109,11 +112,6 @@ void Heap::initializeCompressedType(CompressedType type, size_t size,
 
 void Heap::initialize()
 {
-#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    for (auto& descriptor : s_compressedDescriptors) {
-        descriptor.reset();
-    }
-#endif
     COMPILE_ASSERT(GC_GRANULE_BYTES >= 8, "BDWGC allocations must be 8-byte aligned");
     COMPILE_ASSERT((GC_GRANULE_BYTES & PointerKindMask) == 0, "BDWGC granule must preserve pointer-kind bits");
     // disable data area searching in bdwgc

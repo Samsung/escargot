@@ -90,6 +90,20 @@ public class EscargotTest {
         Globals.initializeGlobals();
         Globals.finalizeGlobals();
 
+        // Reuse the same thread's GC heap and typed allocation kinds across
+        // sessions. Re-registering every type eventually exhausts GC kinds.
+        for (int session = 0; session < 20; session++) {
+            Globals.initializeGlobals();
+            try {
+                Context context = Context.create(VMInstance.create(Optional.empty(), Optional.empty()));
+                assertEquals(42, Evaluator.evalScript(context,
+                        "var value = {answer: 42}; value.answer;",
+                        "reinitialize.js", false).get().asInt32());
+            } finally {
+                Globals.finalizeGlobals();
+            }
+        }
+
         printNegativeTC("Globals inbalance call test");
     }
 
