@@ -1,0 +1,14 @@
+Escargot v5.1.1
+
+Changes since v5.1.0
+
+Correctness and embedding
+- Reuse GC allocation descriptors across repeated engine initialization to
+  prevent termination with "Too many kinds".
+
+Tooling and testing
+- Fix host test execution and skip procfs-dependent RSS checks on macOS.
+
+## Contributors
+
+- @ksh8281
