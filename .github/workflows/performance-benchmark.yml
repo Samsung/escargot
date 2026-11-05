@@ -30,6 +30,10 @@ on:
         description: 'Skip memory measurements in combined score/memory experiments'
         type: boolean
         default: false
+      build_only:
+        description: 'Build and collect binary sizes without running benchmarks'
+        type: boolean
+        default: false
       upload_artifact:
         description: 'Upload measurement logs, metadata and experiment output'
         type: boolean
@@ -119,6 +123,7 @@ jobs:
           BENCHMARK_PROFILE: ${{ inputs.profile }}
           BENCHMARK_ARM32_ONLY: ${{ inputs.arm32_only }}
           BENCHMARK_SCORES_ONLY: ${{ inputs.scores_only }}
+          BENCHMARK_BUILD_ONLY: ${{ inputs.build_only }}
         run: python3 -u tools/run-arm-development-benchmark.py
       - name: Upload measurement data
         if: always() && inputs.upload_artifact && steps.measure.outputs.report_directory != ''

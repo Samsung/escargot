@@ -46,8 +46,55 @@ def revision(path):
     return subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
 
 
+def inspect_binary(engine, architecture, report, tool_prefix=''):
+    def output(tool, *args):
+        return subprocess.check_output([tool_prefix + tool, *map(str, args)], text=True)
+
+    section_output = output('size', '-A', engine)
+    (report / f'sections-{architecture}.txt').write_text(section_output)
+    sections = {}
+    for line in section_output.splitlines():
+        fields = line.split()
+        if len(fields) == 3 and fields[1].isdigit():
+            sections[fields[0]] = int(fields[1])
+    symbols_output = output('readelf', '-sW', engine)
+    functions = {}
+    for line in symbols_output.splitlines():
+        fields = line.split()
+        if len(fields) >= 8 and fields[3] == 'FUNC' and fields[6].isdigit():
+            value = int(fields[1], 16)
+            size = int(fields[2], 16 if fields[2].startswith('0x') else 10)
+            functions[fields[7]] = {'value': value, 'size_bytes': size}
+    matches = [(name, data) for name, data in functions.items()
+               if name.startswith('_ZN8Escargot11Interpreter9interpretE')]
+    if len(matches) != 1:
+        raise RuntimeError('Expected one interpreter function for binary inspection')
+    name, interpreter = matches[0]
+    interpreter = dict(interpreter, symbol=name)
+    interpreter['instruction_state'] = ('Thumb' if interpreter['value'] & 1 else 'ARM') if architecture == 'arm32' else 'AArch64'
+    (report / f'interpreter-{architecture}.disasm').write_text(
+        output('objdump', '-d', '--disassemble=' + name, engine))
+    stripped = report / f'escargot-{architecture}.stripped'
+    subprocess.check_call([tool_prefix + 'strip', '--strip-all', '-o', str(stripped), str(engine)])
+    counts = {}
+    if architecture == 'arm32':
+        for function in functions.values():
+            state = 'Thumb' if function['value'] & 1 else 'ARM'
+            counts[state] = counts.get(state, 0) + 1
+    result = {'file_bytes': engine.stat().st_size,
+              'stripped_file_bytes': stripped.stat().st_size,
+              'stripped_sha256': hashlib.sha256(stripped.read_bytes()).hexdigest(),
+              'section_bytes': sections, 'interpreter': interpreter,
+              'defined_function_states': counts}
+    print(f"{architecture}: stripped={result['stripped_file_bytes']} bytes, "
+          f".text={sections['.text']} bytes, interpreter={interpreter['size_bytes']} bytes "
+          f"({interpreter['instruction_state']})", flush=True)
+    return result
+
+
 def build(source, work, architecture, report):
     options = ['-DCMAKE_BUILD_TYPE=Release', '-DESCARGOT_DEPLOY=ON',
+               '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
                '-DCMAKE_C_COMPILER=gcc', '-DCMAKE_CXX_COMPILER=g++',
                '-DESCARGOT_THREADING=ON', '-DESCARGOT_TCO=ON',
                '-DESCARGOT_TEMPORAL=ON', '-DESCARGOT_ENABLE_SHELL=ON']
@@ -69,9 +116,18 @@ def build(source, work, architecture, report):
     engine = directory / 'escargot'
     run(['file', str(engine)], log=log)
     run(['readelf', '-h', str(engine)], log=log)
+    sizes = inspect_binary(engine, architecture, report)
+    commands = json.loads((directory / 'compile_commands.json').read_text())
+    shutil.copy2(directory / 'compile_commands.json', report / f'compile-commands-{architecture}.json')
+    mode_counts = {}
+    for entry in commands:
+        flags = [arg for arg in shlex.split(entry['command']) if arg in ('-marm', '-mthumb')]
+        mode = flags[-1] if flags else 'toolchain-default'
+        mode_counts[mode] = mode_counts.get(mode, 0) + 1
     (report / f'build-{architecture}.json').write_text(json.dumps({
         'architecture': architecture, 'cmake_options': options,
         'binary_sha256': hashlib.sha256(engine.read_bytes()).hexdigest(),
+        'binary_sizes': sizes, 'compile_mode_counts': mode_counts,
     }, indent=2) + '\n')
     print('::endgroup::', flush=True)
     return engine, env
@@ -159,11 +215,13 @@ def main():
     experiment = os.environ.get('BENCHMARK_FILE', '')
     arm32_only = os.environ.get('BENCHMARK_ARM32_ONLY') == 'true'
     scores_only = os.environ.get('BENCHMARK_SCORES_ONLY') == 'true'
+    build_only = os.environ.get('BENCHMARK_BUILD_ONLY') == 'true'
     (report / 'metadata.json').write_text(json.dumps({
         'repository': os.environ['SOURCE_REPOSITORY'], 'revision': os.environ['SOURCE_REVISION'],
         'harness_revision': revision(harness), 'runner': os.environ['RUNNER_NAME'],
         'cpu': cpu, 'architecture_order': ['arm32'] if arm32_only else ['arm32', 'arm64'], 'wtb_min_samples': 3,
         'repetitions': repetitions, 'profile': profile, 'scores_only': scores_only,
+        'build_only': build_only,
     }, indent=2) + '\n')
     if experiment == 'bench:tools/diagnose-performance-host.py':
         run([sys.executable, str(harness / 'tools/diagnose-performance-host.py')],
@@ -225,6 +283,8 @@ exec setpriv --reuid="$BENCHMARK_UID" --regid="$BENCHMARK_GID" --clear-groups py
                  '-v', f'{work}:/work', '-v', f'{harness}:/bench:ro', '-v', f'{report}:/report',
                  '-w', '/work', '-e', f'BENCHMARK_UID={os.getuid()}', '-e', f'BENCHMARK_GID={os.getgid()}',
                  image, 'bash', '-c', install], log=report / 'arm32-container.log')
+            if build_only and arm32_only:
+                return
             # Execute the ARM32 binary natively on the host with its container's
             # loader and libraries. Host perf can then measure the actual engine.
             runtime = work / 'runtime-arm32'
@@ -240,13 +300,15 @@ exec setpriv --reuid="$BENCHMARK_UID" --regid="$BENCHMARK_GID" --clear-groups py
                 shutil.copy2(engine32, report / 'escargot-arm32')
             env32 = dict(os.environ, BENCHMARK_RUNTIME_DIRECTORY=str(runtime),
                          BENCHMARK_RUNTIME_LOADER=str(runtime / 'ld-linux-armhf.so.3'))
-            measure(launcher, 'arm32', env32, source, harness, work, report, cpu, repetitions, experiment, profile)
+            if not build_only:
+                measure(launcher, 'arm32', env32, source, harness, work, report, cpu, repetitions, experiment, profile)
             if arm32_only:
                 return
             engine64, env64 = build(source, work, 'arm64', report)
             if profile:
                 shutil.copy2(engine64, report / 'escargot-arm64')
-            measure(engine64, 'arm64', env64, source, harness, work, report, cpu, repetitions, experiment, profile)
+            if not build_only:
+                measure(engine64, 'arm64', env64, source, harness, work, report, cpu, repetitions, experiment, profile)
         except BaseException as error:
             (report / 'failure.txt').write_text(f'{type(error).__name__}: {error}\n')
             raise
