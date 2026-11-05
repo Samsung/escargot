@@ -5733,3 +5733,79 @@ TEST(EvaluateJob, Job)
     context.release();
     instance.release();
 }
+
+TEST(GlobalObject, CrossRealmVirtualIdentifier)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> callerContext = createEscargotContext(instance.get());
+    PersistentRefHolder<ContextRef> targetContext = createEscargotContext(instance.get());
+
+    callerContext->setVirtualIdentifierCallback([](ExecutionStateRef* state, ValueRef* name) -> OptionalRef<ValueRef> {
+        StringRef* key = name->toString(state);
+        if (key->equalsWithASCIIString("0", 1)) {
+            return ValueRef::create(StringRef::createFromASCII("caller-0"));
+        }
+        if (key->equalsWithASCIIString("sharedVirtual", 13)) {
+            return ValueRef::create(StringRef::createFromASCII("caller-shared"));
+        }
+        if (key->equalsWithASCIIString("callerOnly", 10)) {
+            return ValueRef::create(StringRef::createFromASCII("caller-only"));
+        }
+        return OptionalRef<ValueRef>();
+    });
+
+    targetContext->setVirtualIdentifierCallback([](ExecutionStateRef* state, ValueRef* name) -> OptionalRef<ValueRef> {
+        StringRef* key = name->toString(state);
+        ValueRef* realmTag = state->context()->globalObject()->getOwnProperty(state, StringRef::createFromASCII("realmTag"));
+        if (!realmTag->isString() || !realmTag->asString()->equalsWithASCIIString("target", 6)) {
+            return ValueRef::create(StringRef::createFromASCII("wrong-context"));
+        }
+        if (key->equalsWithASCIIString("0", 1)) {
+            return ValueRef::create(StringRef::createFromASCII("target-0"));
+        }
+        if (key->equalsWithASCIIString("sharedVirtual", 13)) {
+            return ValueRef::create(StringRef::createFromASCII("target-shared"));
+        }
+        if (key->equalsWithASCIIString("targetOnly", 10)) {
+            return ValueRef::create(StringRef::createFromASCII("target-only"));
+        }
+        return OptionalRef<ValueRef>();
+    });
+
+    Evaluator::execute(targetContext.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("realmTag"), StringRef::createFromASCII("target"), true, true, true);
+        return ValueRef::createUndefined();
+    });
+
+    Evaluator::execute(callerContext.get(), [](ExecutionStateRef* state, ContextRef* targetCtx) -> ValueRef* {
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("realmTag"), StringRef::createFromASCII("caller"), true, true, true);
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("frameWindow"), targetCtx->globalObjectProxy(), true, true, true);
+        return ValueRef::createUndefined(); }, targetContext.get());
+
+    const char script[] = "testAssert(frameWindow[0], 'target-0');\n"
+                          "testAssert(frameWindow.sharedVirtual, 'target-shared');\n"
+                          "testAssert(frameWindow.targetOnly, 'target-only');\n"
+                          "testAssert(frameWindow.callerOnly, undefined);\n"
+                          "testAssert(0 in frameWindow, true);\n"
+                          "testAssert('targetOnly' in frameWindow, true);\n"
+                          "testAssert('callerOnly' in frameWindow, false);\n"
+                          "testAssert(Object.prototype.hasOwnProperty.call(frameWindow, 'targetOnly'), true);\n"
+                          "testAssert(Object.prototype.hasOwnProperty.call(frameWindow, 'callerOnly'), false);\n"
+                          "testAssert(sharedVirtual, 'caller-shared');\n"
+                          "testAssert(callerOnly, 'caller-only');\n";
+
+    eval(callerContext.get(), StringRef::createFromASCII(script));
+
+    // Also verify when the caller realm has no virtual identifier callback registered.
+    callerContext->setVirtualIdentifierCallback(nullptr);
+    const char noCallerCallbackScript[] = "testAssert(frameWindow[0], 'target-0');\n"
+                                          "testAssert(frameWindow.targetOnly, 'target-only');\n"
+                                          "testAssert(0 in frameWindow, true);\n"
+                                          "testAssert('targetOnly' in frameWindow, true);\n";
+
+    eval(callerContext.get(), StringRef::createFromASCII(noCallerCallbackScript));
+
+    targetContext.release();
+    callerContext.release();
+    instance.release();
+}

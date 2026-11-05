@@ -309,10 +309,22 @@ static Value builtinAsyncDisposableStackGetDisposed(ExecutionState& state, Value
     return Value(s->disposed());
 }
 
+// Virtual identifiers (e.g. a browser's indexed and named window properties)
+// belong to this global object's realm, so the callback runs in its context
+// even when code of another realm accesses this object through a proxy.
+static Value callVirtualIdentifierCallback(ExecutionState& state, Context* context, const Value& name)
+{
+    if (state.context() == context) {
+        return context->virtualIdentifierCallback()(state, name);
+    }
+    ExecutionState newState(context);
+    return context->virtualIdentifierCallback()(newState, name);
+}
+
 ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     ObjectHasPropertyResult hasResult = Object::hasProperty(state, P);
-    if (!hasResult.hasProperty() && UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+    if (!hasResult.hasProperty() && UNLIKELY((bool)m_context->virtualIdentifierCallback())) {
         Object* target = getPrototypeObject(state);
         while (target) {
             ObjectHasPropertyResult targetHasProperty = target->hasProperty(state, P);
@@ -321,7 +333,7 @@ ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const O
             }
             target = target->getPrototypeObject(state);
         }
-        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue());
+        Value virtialIdResult = callVirtualIdentifierCallback(state, m_context, P.toPlainValue());
         if (!virtialIdResult.isEmpty()) {
             return ObjectHasPropertyResult(ObjectGetResult(virtialIdResult, true, true, true));
         }
@@ -340,7 +352,7 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
     }
 #endif
     ObjectGetResult r = Object::getOwnProperty(state, P);
-    if (!r.hasValue() && UNLIKELY((bool)state.context()->virtualIdentifierCallback())) {
+    if (!r.hasValue() && UNLIKELY((bool)m_context->virtualIdentifierCallback())) {
         Object* target = getPrototypeObject(state);
         while (target) {
             auto result = target->getOwnProperty(state, P);
@@ -349,7 +361,7 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
             }
             target = target->getPrototypeObject(state);
         }
-        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue());
+        Value virtialIdResult = callVirtualIdentifierCallback(state, m_context, P.toPlainValue());
         if (!virtialIdResult.isEmpty())
             return ObjectGetResult(virtialIdResult, true, true, true);
     }
