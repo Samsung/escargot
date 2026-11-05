@@ -130,6 +130,7 @@ def measure(engine, architecture, env, source, harness, work, report, cpu, repet
         'script': experiment or 'tools/arm-benchmark-suites.py',
         'script_sha256': hashlib.sha256(script.read_bytes()).hexdigest(),
         'cpu': cpu, 'repetitions': repetitions, 'profile': profile,
+        'scores_only': env.get('BENCHMARK_SCORES_ONLY') == 'true',
     }, indent=2) + '\n')
     run([sys.executable, '-u', str(script)], cwd=source, env=env, log=report / f'run-{architecture}.log')
 
@@ -156,11 +157,13 @@ def main():
     cpu = min(os.sched_getaffinity(0))
     profile = os.environ.get('BENCHMARK_PROFILE') == 'true'
     experiment = os.environ.get('BENCHMARK_FILE', '')
+    arm32_only = os.environ.get('BENCHMARK_ARM32_ONLY') == 'true'
+    scores_only = os.environ.get('BENCHMARK_SCORES_ONLY') == 'true'
     (report / 'metadata.json').write_text(json.dumps({
         'repository': os.environ['SOURCE_REPOSITORY'], 'revision': os.environ['SOURCE_REVISION'],
         'harness_revision': revision(harness), 'runner': os.environ['RUNNER_NAME'],
-        'cpu': cpu, 'architecture_order': ['arm32', 'arm64'], 'wtb_min_samples': 3,
-        'repetitions': repetitions, 'profile': profile,
+        'cpu': cpu, 'architecture_order': ['arm32'] if arm32_only else ['arm32', 'arm64'], 'wtb_min_samples': 3,
+        'repetitions': repetitions, 'profile': profile, 'scores_only': scores_only,
     }, indent=2) + '\n')
     if experiment == 'bench:tools/diagnose-performance-host.py':
         run([sys.executable, str(harness / 'tools/diagnose-performance-host.py')],
@@ -238,6 +241,8 @@ exec setpriv --reuid="$BENCHMARK_UID" --regid="$BENCHMARK_GID" --clear-groups py
             env32 = dict(os.environ, BENCHMARK_RUNTIME_DIRECTORY=str(runtime),
                          BENCHMARK_RUNTIME_LOADER=str(runtime / 'ld-linux-armhf.so.3'))
             measure(launcher, 'arm32', env32, source, harness, work, report, cpu, repetitions, experiment, profile)
+            if arm32_only:
+                return
             engine64, env64 = build(source, work, 'arm64', report)
             if profile:
                 shutil.copy2(engine64, report / 'escargot-arm64')

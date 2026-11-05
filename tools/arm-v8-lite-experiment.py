@@ -216,6 +216,8 @@ def run_experiment(harness, report, data, mode, engine_names):
 
 
 def main(mode='memory', engine_names=('escargot', 'd8_lite')):
+    if mode == 'both' and os.environ.get('BENCHMARK_SCORES_ONLY') == 'true':
+        mode = 'score'
     if mode not in ('memory', 'score', 'both'):
         raise ValueError('Experiment mode must be memory, score, or both')
     if tuple(engine_names) not in (('escargot',), ('escargot', 'd8_lite')):
