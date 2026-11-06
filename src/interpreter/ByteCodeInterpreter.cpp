@@ -59,6 +59,18 @@
 #include "runtime/FunctionObjectInlines.h"
 #endif
 
+#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
+#if !defined(COMPILER_GCC) || !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) || !defined(__thumb2__) || !defined(__ELF__) || !defined(__ARMEL__)
+#error "ESCARGOT_ARM32_THUMB_DISPATCH requires little-endian GCC Thumb-2 ELF output"
+#endif
+// The compiler launcher verifies this marker before removing dispatch ORs.
+// Keep markers out of the hot path: even an empty inline asm changes GCC's
+// computed-goto duplication decisions.
+asm(".pushsection .escargot.thumb_dispatch,\"\",%progbits\n"
+    ".ascii \"ESCARGOT_THUMB_DISPATCH_V1\"\n"
+    ".popsection\n");
+#endif
+
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) && !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
 // Keep the entry label assembler-local so profilers do not split interpret() at this point.
 extern char FillOpcodeTableAsmLbl[] asm(".LFillOpcodeTableAsmLbl");
@@ -324,8 +336,26 @@ OpcodeTable::OpcodeTable()
     size_t dummyCode = 0;
 #else
     size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAddress[0]);
+#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
+    dummyCode |= 1;
+#endif
 #endif
     Interpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
+#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
+    // ByteCode::assignOpcodeInAddress() and changeOpcode() copy these entries
+    // verbatim. Tag every target before the constructor returns, including the
+    // reverse map used by the code cache. Keep this outside interpret() so its
+    // dispatch layout is unchanged; the dummy entry above is tagged separately.
+#if defined(ENABLE_CODE_CACHE)
+    m_opcodeMap.clear();
+#endif
+    for (size_t i = 0; i < OpcodeKindEnd; ++i) {
+        m_addressTable[i] = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_addressTable[i]) | 1);
+#if defined(ENABLE_CODE_CACHE)
+        m_opcodeMap.insert(std::make_pair(m_addressTable[i], i));
+#endif
+    }
+#endif
 #endif
 }
 
@@ -726,6 +756,10 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
     NextInstruction:
         /* Execute first instruction. */
+        // With ESCARGOT_ARM32_THUMB_DISPATCH every target, including the dummy
+        // initialization instruction, already carries the Thumb state bit.
+        // The build tool can remove GCC's redundant OR before BX and preserve
+        // subsequent code addresses with unreachable space after the branch.
         goto*(programCounter.code()->m_opcodeInAddress);
 #else
 
@@ -3064,7 +3098,13 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 
 #if !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
+#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
+            // Enter at the C++ label, including any register setup GCC places
+            // before this asm statement.
+            asm volatile(".set .LFillOpcodeTableAsmLbl, %l0" : : "X"(&&FillOpcodeTableOpcodeLbl));
+#else
             asm volatile(".LFillOpcodeTableAsmLbl:");
+#endif
 #endif
 
             // The label addresses must be computed here, in this cold block. Passing each
