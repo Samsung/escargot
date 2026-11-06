@@ -389,7 +389,7 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND ESCARGOT_ARCH STREQUAL "arm" AND
     ENDFUNCTION()
     _escargot_check_thumb_dispatch()
 ENDIF()
-option(ESCARGOT_ARM32_THUMB_DISPATCH "Remove redundant GCC Thumb-2 dispatch ORs (interpreter compiled without LTO)" ${_thumb_dispatch_default})
+option(ESCARGOT_ARM32_THUMB_DISPATCH "Optimize GCC Thumb-2 interpreter dispatch (interpreter compiled without LTO)" ${_thumb_dispatch_default})
 IF (ESCARGOT_ARM32_THUMB_DISPATCH)
     IF (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR NOT ESCARGOT_ARCH STREQUAL "arm")
         MESSAGE(FATAL_ERROR "ESCARGOT_ARM32_THUMB_DISPATCH requires GCC targeting ARM32 Thumb-2")
@@ -399,6 +399,10 @@ IF (ESCARGOT_ARM32_THUMB_DISPATCH)
     ENDIF()
     SET (_thumb_dispatch_source "${ESCARGOT_ROOT}/src/interpreter/ByteCodeInterpreter.cpp")
     SET (_thumb_dispatch_launcher "${ESCARGOT_ROOT}/tools/optimize-arm32-dispatch.py")
+    # Keep dispatch tails duplicated after combining PC updates with opcode
+    # loads. GCC's default limit can leave a single shared indirect branch.
+    SET_PROPERTY (SOURCE ${_thumb_dispatch_source} APPEND_STRING PROPERTY COMPILE_FLAGS
+        " --param=max-goto-duplication-insns=10")
     GET_TARGET_PROPERTY (_thumb_dispatch_existing_launcher ${ESCARGOT_TARGET} CXX_COMPILER_LAUNCHER)
     IF (NOT _thumb_dispatch_existing_launcher)
         SET (_thumb_dispatch_existing_launcher "")

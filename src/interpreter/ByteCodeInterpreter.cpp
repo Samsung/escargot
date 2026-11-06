@@ -694,6 +694,13 @@ NEVER_INLINE static Opcode specializedTypedArraySetOpcode(TypedArrayType type)
     }
 }
 
+#if defined(__clang__) && defined(__arm__) && defined(__thumb2__) && defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+#define ESCARGOT_CLANG_THUMB_INTERPRETER
+#endif
+#if defined(ESCARGOT_ARM32_THUMB_DISPATCH) && defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+#define ESCARGOT_GCC_THUMB_INTERPRETER
+#endif
+
 // interpret()'s program counter, held as a pointer. With a size_t the dispatch
 // cast `(ByteCode*)programCounter` is a second value that is live across the
 // computed-goto edges together with the integer, and GCC cannot coalesce the
@@ -720,6 +727,37 @@ public:
         return *this;
     }
     ByteCode* code() const { return m_code; }
+
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER)
+    void enterOpcode()
+    {
+        // Keep addresses used by individual handlers out of the shared
+        // dispatch edges. This emits no instructions or memory barrier.
+        asm("" : "+r"(m_code));
+    }
+#endif
+#if defined(ESCARGOT_GCC_THUMB_INTERPRETER)
+    void prepareNextOpcode()
+    {
+        // Hide the old literal address from GCC before the writeback load.
+        // Otherwise it copies the PC to a temporary register and back.
+        asm("" : "+r"(m_code));
+    }
+#endif
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER) || defined(ESCARGOT_GCC_THUMB_INTERPRETER)
+    template <size_t step>
+    void* advanceAndFetch()
+    {
+        static_assert(step <= 255, "Thumb pre-indexed load offset must fit");
+        void* target;
+        // Model the read through the next opcode without materializing its
+        // address separately. The early clobber keeps target distinct from pc.
+        asm("ldr %[target], [%[pc], #%c[step]]!"
+            : [target] "=&r"(target), [pc] "+r"(m_code)
+            : [step] "I"(step), "m"(*reinterpret_cast<const char (*)[step + sizeof(void*)]>(m_code)));
+        return target;
+    }
+#endif
 
 private:
     ByteCode* m_code;
@@ -748,7 +786,13 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         }
 #endif
 
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER)
+#define DEFINE_OPCODE(codeName)                         \
+    codeName##OpcodeLbl : programCounter.enterOpcode(); \
+    __attribute__((unused)) codeName##OpcodeBodyLbl
+#else
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
+#endif
 #define DEFINE_DEFAULT
 #define NEXT_INSTRUCTION() goto NextInstruction;
 #define JUMP_INSTRUCTION(opcode) \
@@ -781,13 +825,41 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         switch (currentOpcode) {
 #endif
 
+// Keep the PC update and opcode fetch together on targets that otherwise
+// leave a separate add in the dispatch tail.
+#if defined(ESCARGOT_GCC_THUMB_INTERPRETER) || defined(ESCARGOT_CLANG_THUMB_INTERPRETER)
+#define ADVANCE_AND_DISPATCH(CodeType)                            \
+    do {                                                          \
+        goto* programCounter.advanceAndFetch<sizeof(CodeType)>(); \
+    } while (false)
+#else
+#define ADVANCE_AND_DISPATCH(CodeType) \
+    do {                               \
+        ADD_PROGRAM_COUNTER(CodeType); \
+        NEXT_INSTRUCTION();            \
+    } while (false)
+#endif
+
         DEFINE_OPCODE(LoadLiteral)
             :
         {
             LoadLiteral* code = (LoadLiteral*)programCounter;
-            registerFile[code->m_registerIndex] = code->m_value;
-            ADD_PROGRAM_COUNTER(LoadLiteral);
-            NEXT_INSTRUCTION();
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER)
+            Value* dst = &registerFile[code->m_registerIndex];
+            // Prevent indexed stores from splitting the paired Value store.
+            asm("" : "+r"(dst));
+            *dst = code->m_value;
+#else
+                registerFile[code->m_registerIndex] = code->m_value;
+#endif
+#if defined(ESCARGOT_GCC_THUMB_INTERPRETER)
+            programCounter.prepareNextOpcode();
+#endif
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER) || defined(ESCARGOT_GCC_THUMB_INTERPRETER)
+            goto* programCounter.advanceAndFetch<sizeof(LoadLiteral)>();
+#else
+                ADVANCE_AND_DISPATCH(LoadLiteral);
+#endif
         }
 
         DEFINE_OPCODE(Move)
@@ -796,9 +868,21 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             Move* code = (Move*)programCounter;
             ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredOperandRegisterNumber + byteCodeBlock->m_codeBlock->totalStackAllocatedVariableSize() + 1));
             ASSERT(!registerFile[code->m_registerIndex0].isEmpty());
-            registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
-            ADD_PROGRAM_COUNTER(Move);
-            NEXT_INSTRUCTION();
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER)
+            Value* dst = &registerFile[code->m_registerIndex1];
+            const Value* src = &registerFile[code->m_registerIndex0];
+            // Materialize both addresses so the backend can pair the loads
+            // and stores. Source and destination may still be the same slot.
+            asm("" : "+r"(dst), "+r"(src));
+            *dst = *src;
+#else
+                registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
+#endif
+#if defined(ESCARGOT_CLANG_THUMB_INTERPRETER) || defined(ESCARGOT_GCC_THUMB_INTERPRETER)
+            goto* programCounter.advanceAndFetch<sizeof(Move)>();
+#else
+                ADVANCE_AND_DISPATCH(Move);
+#endif
         }
 
         DEFINE_OPCODE(GetGlobalVariable)
@@ -831,8 +915,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (UNLIKELY(!isCacheWork)) {
                 registerFile[code->m_registerIndex] = InterpreterSlowPath::getGlobalVariableSlowCase(*state, globalObject, slot, byteCodeBlock, programCounter);
             }
-            ADD_PROGRAM_COUNTER(GetGlobalVariable);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetGlobalVariable);
         }
 
         DEFINE_OPCODE(SetGlobalVariable)
@@ -876,8 +959,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 InterpreterSlowPath::setGlobalVariableSlowCase(*state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock, programCounter);
             }
 
-            ADD_PROGRAM_COUNTER(SetGlobalVariable);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SetGlobalVariable);
         }
 
         DEFINE_OPCODE(BinaryPlus)
@@ -905,8 +987,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 InterpreterSlowPath::updatePlusSpecialization(code, false, v0.isString() && v1.isString());
                 ret = InterpreterSlowPath::plusSlowCase(*state, v0, v1, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryPlus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryPlus);
         }
 
         DEFINE_OPCODE(BinaryPlusNumber)
@@ -921,8 +1002,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 code->changeOpcode(BinaryPlusOpcode);
                 goto binaryPlusGeneric;
             }
-            ADD_PROGRAM_COUNTER(BinaryPlus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryPlus);
         }
 
         DEFINE_OPCODE(BinaryPlusString)
@@ -939,8 +1019,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 code->changeOpcode(BinaryPlusOpcode);
                 goto binaryPlusGeneric;
             }
-            ADD_PROGRAM_COUNTER(BinaryPlus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryPlus);
         }
 
         DEFINE_OPCODE(BinaryMinus)
@@ -968,8 +1047,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMinusNumberOpcode);
                 ret = InterpreterSlowPath::minusSlowCase(*state, left, right, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryMinus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryMinus);
         }
 
         DEFINE_OPCODE(BinaryMinusNumber)
@@ -986,8 +1064,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 code->changeOpcode(BinaryMinusOpcode);
                 goto binaryMinusGeneric;
             }
-            ADD_PROGRAM_COUNTER(BinaryMinus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryMinus);
         }
 
         DEFINE_OPCODE(BinaryMultiply)
@@ -1019,8 +1096,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 InterpreterSlowPath::updateArithmeticSpecialization(code, false, BinaryMultiplyNumberOpcode);
                 ret = InterpreterSlowPath::multiplySlowCase(*state, left, right, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryMultiply);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryMultiply);
         }
 
         DEFINE_OPCODE(BinaryMultiplyNumber)
@@ -1037,8 +1113,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 code->changeOpcode(BinaryMultiplyOpcode);
                 goto binaryMultiplyGeneric;
             }
-            ADD_PROGRAM_COUNTER(BinaryMultiply);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryMultiply);
         }
 
         DEFINE_OPCODE(BinaryDivision)
@@ -1054,8 +1129,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 ret = InterpreterSlowPath::divisionSlowCase(*state, left, right, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryDivision);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryDivision);
         }
 
         DEFINE_OPCODE(BinaryEqual)
@@ -1067,8 +1141,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // loose equality can run ToPrimitive on an object operand
             PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_dstIndex] = Value(static_cast<bool>(left.abstractEqualsTo(*state, right) ^ code->m_extraData));
-            ADD_PROGRAM_COUNTER(BinaryEqual);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryEqual);
         }
 
         DEFINE_OPCODE(BinaryStrictEqual)
@@ -1078,8 +1151,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = Value(static_cast<bool>(left.equalsTo(*state, right) ^ code->m_extraData));
-            ADD_PROGRAM_COUNTER(BinaryStrictEqual);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryStrictEqual);
         }
 
         DEFINE_OPCODE(BinaryLessThan)
@@ -1089,8 +1161,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, false, programCounter));
-            ADD_PROGRAM_COUNTER(BinaryLessThan);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryLessThan);
         }
 
         DEFINE_OPCODE(BinaryLessThanOrEqual)
@@ -1100,8 +1171,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, false, programCounter));
-            ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryLessThanOrEqual);
         }
 
         DEFINE_OPCODE(BinaryGreaterThan)
@@ -1111,8 +1181,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, right, left, true, programCounter));
-            ADD_PROGRAM_COUNTER(BinaryGreaterThan);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryGreaterThan);
         }
 
         DEFINE_OPCODE(BinaryGreaterThanOrEqual)
@@ -1122,8 +1191,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, right, left, true, programCounter));
-            ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryGreaterThanOrEqual);
         }
 
         DEFINE_OPCODE(Increment)
@@ -1138,8 +1206,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
                 registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex], programCounter);
             }
-            ADD_PROGRAM_COUNTER(Increment);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(Increment);
         }
 
         DEFINE_OPCODE(Decrement)
@@ -1154,8 +1221,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
                 registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex], programCounter);
             }
-            ADD_PROGRAM_COUNTER(Decrement);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(Decrement);
         }
 
         DEFINE_OPCODE(UnaryNot)
@@ -1164,8 +1230,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             UnaryNot* code = (UnaryNot*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
             registerFile[code->m_dstIndex] = Value(!val.toBoolean());
-            ADD_PROGRAM_COUNTER(UnaryNot);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(UnaryNot);
         }
 
         DEFINE_OPCODE(GetObject)
@@ -1196,8 +1261,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             const auto& slot = arr->m_fastModeData[idx];
 #endif
                         registerFile[code->m_storeRegisterIndex] = interpreterValue<true>(slot);
-                        ADD_PROGRAM_COUNTER(GetObject);
-                        NEXT_INSTRUCTION();
+                        ADVANCE_AND_DISPATCH(GetObject);
                     }
                 } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
                     // Only specialize on keys the specialized handler can actually serve.
@@ -1236,8 +1300,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             auto& slot = arr->m_fastModeData[idx];
 #endif
                         interpreterStore(slot, registerFile[code->m_loadRegisterIndex]);
-                        ADD_PROGRAM_COUNTER(SetObjectOperation);
-                        NEXT_INSTRUCTION();
+                        ADVANCE_AND_DISPATCH(SetObjectOperation);
                     }
                 } else if (obj->hasTypedArrayObjectTag() && property.isUInt32()) {
                     TypedArrayType type = static_cast<TypedArrayObject*>(obj)->typedArrayType();
@@ -1292,8 +1355,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             holder = protoObj.value();                                                                                                                           \
         }                                                                                                                                                        \
         registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(holder->m_values, inlineCache->m_cachedIndexes[IDX])); \
-        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);                                                                                                           \
-        NEXT_INSTRUCTION();                                                                                                                                      \
+        ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);                                                                                                          \
     }                                                                                                                                                            \
     SimpleInlineCacheProbeMiss##IDX:
 
@@ -1338,14 +1400,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     const auto protoStructure = cachedCompactStructureKey(protoCacheData[currentCacheIndex]);
                     if (LIKELY(!protoStructure)) {
                         registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(obj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
-                        ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                        NEXT_INSTRUCTION();
+                        ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
                     } else {
                         Optional<Object*> protoObj = interpreterPrototype(*state, obj);
                         if (LIKELY(protoObj && InterpreterSlowPath::structureKey(protoObj.value()) == protoStructure)) {
                             registerFile[code->m_storeRegisterIndex] = interpreterValue<false, false>(interpreterPropertySlot(protoObj->m_values, code->m_simpleInlineCache->m_cachedIndexes[currentCacheIndex]));
-                            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                            NEXT_INSTRUCTION();
+                            ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
                         }
                     }
                 }
@@ -1357,8 +1417,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
             InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(GetObjectPreComputedCaseLength)
@@ -1386,22 +1445,18 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     // -- a real ArrayObject instance is the overwhelmingly common receiver here;
                     // Array.prototype.length directly is rare enough to just fall through below.
                     registerFile[code->m_storeRegisterIndex] = Value(obj->asArrayObject()->arrayLength(*state));
-                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                    NEXT_INSTRUCTION();
+                    ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
                 } else if (obj->isTypedArrayObject() && LIKELY(InterpreterSlowPath::typedArrayLengthPropertyIsIntrinsic(*state, obj))) {
                     TypedArrayObject* ta = obj->asTypedArrayObject();
                     registerFile[code->m_storeRegisterIndex] = UNLIKELY(ta->buffer()->isDetachedBuffer()) ? Value(0) : Value(ta->arrayLength());
-                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                    NEXT_INSTRUCTION();
+                    ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
                 }
             } else if (LIKELY(receiver.isString())) {
                 registerFile[code->m_storeRegisterIndex] = Value(receiver.asString()->length());
-                ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                NEXT_INSTRUCTION();
+                ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
             }
             InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(GetObjectPreComputedCaseComplexInlineCache)
@@ -1452,14 +1507,12 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                     } else {
                         registerFile[code->m_storeRegisterIndex] = Value();
                     }
-                    ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-                    NEXT_INSTRUCTION();
+                    ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
                 }
             }
 
             InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(SetObjectPreComputedCaseSimpleInlineCache)
@@ -1502,8 +1555,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             ASSERT(newPropertyIndex != SIZE_MAX);
                             obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                         }
-                        ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                        NEXT_INSTRUCTION();
+                        ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
                     }
                     if (UNLIKELY(cacheFillCount > 1)) {
                         const auto& item1 = inlineCache->m_cache[1];
@@ -1523,16 +1575,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                                 ASSERT(newPropertyIndex != SIZE_MAX);
                                 obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                             }
-                            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                            NEXT_INSTRUCTION();
+                            ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
                         }
                     }
                 }
             }
             // miss → slow path
             InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(SetObjectPreComputedCaseComplexInlineCache)
@@ -1579,8 +1629,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                             ASSERT(newPropertyIndex != SIZE_MAX);
                             obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                         }
-                        ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                        NEXT_INSTRUCTION();
+                        ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
                     }
 
                     if (checkCount > 1) {
@@ -1614,16 +1663,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                                 ASSERT(newPropertyIndex != SIZE_MAX);
                                 obj->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, registerFile[code->m_loadRegisterIndex]);
                             }
-                            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-                            NEXT_INSTRUCTION();
+                            ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
                         }
                     }
                 }
             }
             // miss → slow path
             InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(SetObjectPreComputedCase)
@@ -1631,8 +1678,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
             InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SetObjectPreComputedCase);
         }
 
         DEFINE_OPCODE(Jump)
@@ -1755,8 +1801,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             }
 #endif /* ESCARGOT_DEBUGGER */
 
-            ADD_PROGRAM_COUNTER(Call);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(Call);
         }
 
         DEFINE_OPCODE(CallWithReceiver)
@@ -1777,8 +1822,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asObject()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
-            ADD_PROGRAM_COUNTER(CallWithReceiver);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CallWithReceiver);
         }
 
         DEFINE_OPCODE(GetParameter)
@@ -1790,8 +1834,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_registerIndex] = Value();
             }
-            ADD_PROGRAM_COUNTER(GetParameter);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetParameter);
         }
 
         DEFINE_OPCODE(LoadByHeapIndex)
@@ -1817,8 +1860,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #else
                 registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->heapStorageData()[code->m_index];
 #endif
-            ADD_PROGRAM_COUNTER(LoadByHeapIndex);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadByHeapIndex);
         }
 
         DEFINE_OPCODE(LoadByHeapIndexComplexCase)
@@ -1832,8 +1874,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // throws on a binding still in its temporal dead zone
             PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_registerIndex] = upperEnv->record()->asDeclarativeEnvironmentRecord()->getHeapValueByIndex(*state, code->m_index);
-            ADD_PROGRAM_COUNTER(LoadByHeapIndexComplexCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadByHeapIndexComplexCase);
         }
 
         DEFINE_OPCODE(StoreByHeapIndex)
@@ -1847,8 +1888,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // throws on a const binding or one still in its temporal dead zone
             PUBLISH_PROGRAM_COUNTER();
             upperEnv->record()->setMutableBindingByIndex(*state, code->m_index, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(StoreByHeapIndex);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(StoreByHeapIndex);
         }
 
         DEFINE_OPCODE(UnaryMinus)
@@ -1861,8 +1901,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, -val.toNumber(*state));
             }
-            ADD_PROGRAM_COUNTER(UnaryMinus);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(UnaryMinus);
         }
 
         DEFINE_OPCODE(BinaryMod)
@@ -1872,8 +1911,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = InterpreterSlowPath::modOperation(*state, left, right, programCounter);
-            ADD_PROGRAM_COUNTER(BinaryMod);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryMod);
         }
 
         DEFINE_OPCODE(BinaryBitwiseAnd)
@@ -1887,8 +1925,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryBitwiseAnd);
         }
 
         DEFINE_OPCODE(BinaryBitwiseOr)
@@ -1902,8 +1939,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryBitwiseOr);
         }
 
         DEFINE_OPCODE(BinaryBitwiseXor)
@@ -1917,8 +1953,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryBitwiseXor);
         }
 
         DEFINE_OPCODE(BinaryLeftShift)
@@ -1938,8 +1973,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryLeftShift);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryLeftShift);
         }
 
         DEFINE_OPCODE(BinarySignedRightShift)
@@ -1956,8 +1990,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinarySignedRightShift);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinarySignedRightShift);
         }
 
         DEFINE_OPCODE(BinaryUnsignedRightShift)
@@ -1974,8 +2007,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight, programCounter);
             }
-            ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryUnsignedRightShift);
         }
 
         DEFINE_OPCODE(BinaryExponentiation)
@@ -1985,8 +2017,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
             registerFile[code->m_dstIndex] = InterpreterSlowPath::exponentialOperation(*state, left, right, programCounter);
-            ADD_PROGRAM_COUNTER(BinaryExponentiation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryExponentiation);
         }
 
         DEFINE_OPCODE(UnaryBitwiseNot)
@@ -1999,8 +2030,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseNotOperationSlowCase(*state, val, programCounter);
             }
-            ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(UnaryBitwiseNot);
         }
 
         DEFINE_OPCODE(ExecutionResume)
@@ -2070,8 +2100,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 PUBLISH_PROGRAM_COUNTER();
             }
             registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(*state));
-            ADD_PROGRAM_COUNTER(ToNumber);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ToNumber);
         }
 
         DEFINE_OPCODE(ToPropertyKey)
@@ -2084,8 +2113,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 PUBLISH_PROGRAM_COUNTER();
             }
             registerFile[code->m_dstIndex] = val.toPropertyKey(*state);
-            ADD_PROGRAM_COUNTER(ToPropertyKey);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ToPropertyKey);
         }
 
         DEFINE_OPCODE(BindingCalleeIntoRegister)
@@ -2093,8 +2121,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             BindingCalleeIntoRegister* code = (BindingCalleeIntoRegister*)programCounter;
             registerFile[byteCodeBlock->m_requiredOperandRegisterNumber + 1] = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
-            ADD_PROGRAM_COUNTER(BindingCalleeIntoRegister);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BindingCalleeIntoRegister);
         }
 
         DEFINE_OPCODE(InitializeGlobalVariable)
@@ -2103,8 +2130,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             InitializeGlobalVariable* code = (InitializeGlobalVariable*)programCounter;
             ASSERT(byteCodeBlock->m_codeBlock->context() == state->context());
             InterpreterSlowPath::initializeGlobalVariable(*state, code, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(InitializeGlobalVariable);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(InitializeGlobalVariable);
         }
 
         DEFINE_OPCODE(InitializeByHeapIndex)
@@ -2112,8 +2138,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             InitializeByHeapIndex* code = (InitializeByHeapIndex*)programCounter;
             state->lexicalEnvironment()->record()->initializeBindingByIndex(*state, code->m_index, registerFile[code->m_registerIndex]);
-            ADD_PROGRAM_COUNTER(InitializeByHeapIndex);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(InitializeByHeapIndex);
         }
 
         DEFINE_OPCODE(ObjectDefineOwnPropertyOperation)
@@ -2121,8 +2146,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
             InterpreterSlowPath::objectDefineOwnPropertyOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ObjectDefineOwnPropertyOperation);
         }
 
         DEFINE_OPCODE(ObjectDefineOwnPropertyWithNameOperation)
@@ -2130,8 +2154,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
             InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ObjectDefineOwnPropertyWithNameOperation);
         }
 
         DEFINE_OPCODE(ArrayDefineOwnPropertyOperation)
@@ -2139,8 +2162,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
             InterpreterSlowPath::arrayDefineOwnPropertyOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ArrayDefineOwnPropertyOperation);
         }
 
         DEFINE_OPCODE(ArrayDefineOwnPropertyBySpreadElementOperation)
@@ -2148,8 +2170,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ArrayDefineOwnPropertyBySpreadElementOperation* code = (ArrayDefineOwnPropertyBySpreadElementOperation*)programCounter;
             InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyBySpreadElementOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ArrayDefineOwnPropertyBySpreadElementOperation);
         }
 
         DEFINE_OPCODE(CreateSpreadArrayObject)
@@ -2157,8 +2178,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateSpreadArrayObject* code = (CreateSpreadArrayObject*)programCounter;
             InterpreterSlowPath::createSpreadArrayObject(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CreateSpreadArrayObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateSpreadArrayObject);
         }
 
         DEFINE_OPCODE(NewOperation)
@@ -2166,8 +2186,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             NewOperation* code = (NewOperation*)programCounter;
             registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex], programCounter);
-            ADD_PROGRAM_COUNTER(NewOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(NewOperation);
         }
 
         DEFINE_OPCODE(UnaryTypeof)
@@ -2175,8 +2194,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             UnaryTypeof* code = (UnaryTypeof*)programCounter;
             InterpreterSlowPath::unaryTypeof(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(UnaryTypeof);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(UnaryTypeof);
         }
 
 #if defined(ENABLE_TCO)
@@ -2205,8 +2223,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             GetObject* code = (GetObject*)programCounter;
             InterpreterSlowPath::getObjectOpcodeSlowCase(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(GetObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetObject);
         }
 
         DEFINE_OPCODE(SetObjectOpcodeSlowCase)
@@ -2214,8 +2231,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
             InterpreterSlowPath::setObjectOpcodeSlowCase(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(SetObjectOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SetObjectOperation);
         }
 
         DEFINE_OPCODE(LoadByName)
@@ -2224,8 +2240,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             LoadByName* code = (LoadByName*)programCounter;
             Value* receiver = code->m_receiverIndex == REGISTER_LIMIT ? nullptr : &registerFile[code->m_receiverIndex];
             registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name, programCounter, true, receiver);
-            ADD_PROGRAM_COUNTER(LoadByName);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadByName);
         }
 
         DEFINE_OPCODE(StoreByName)
@@ -2233,8 +2248,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             StoreByName* code = (StoreByName*)programCounter;
             InterpreterSlowPath::storeByName(*state, state->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex], programCounter);
-            ADD_PROGRAM_COUNTER(StoreByName);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(StoreByName);
         }
 
         DEFINE_OPCODE(InitializeByName)
@@ -2242,8 +2256,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             InitializeByName* code = (InitializeByName*)programCounter;
             InterpreterSlowPath::initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex], programCounter);
-            ADD_PROGRAM_COUNTER(InitializeByName);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(InitializeByName);
         }
 
         DEFINE_OPCODE(CreateObject)
@@ -2251,8 +2264,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateObject* code = (CreateObject*)programCounter;
             InterpreterSlowPath::createObjectOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(CreateObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateObject);
         }
 
         DEFINE_OPCODE(CreateObjectPrepare)
@@ -2260,8 +2272,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateObjectPrepare* code = (CreateObjectPrepare*)programCounter;
             InterpreterSlowPath::createObjectPrepareOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(CreateObjectPrepare);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateObjectPrepare);
         }
 
         DEFINE_OPCODE(CreateOnlyKeyValueObject)
@@ -2269,8 +2280,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateOnlyKeyValueObject* code = (CreateOnlyKeyValueObject*)programCounter;
             InterpreterSlowPath::createOnlyKeyValueObjectOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(CreateOnlyKeyValueObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateOnlyKeyValueObject);
         }
 
         DEFINE_OPCODE(CreateArray)
@@ -2278,8 +2288,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateArray* code = (CreateArray*)programCounter;
             InterpreterSlowPath::createArrayOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(CreateArray);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateArray);
         }
 
         DEFINE_OPCODE(CreateFunction)
@@ -2287,8 +2296,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateFunction* code = (CreateFunction*)programCounter;
             InterpreterSlowPath::createFunctionOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(CreateFunction);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateFunction);
         }
 
         DEFINE_OPCODE(InitializeClass)
@@ -2296,8 +2304,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             InitializeClass* code = (InitializeClass*)programCounter;
             InterpreterSlowPath::initializeClassOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(InitializeClass);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(InitializeClass);
         }
 
         DEFINE_OPCODE(SuperReference)
@@ -2305,8 +2312,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             SuperReference* code = (SuperReference*)programCounter;
             InterpreterSlowPath::superOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(SuperReference);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(SuperReference);
         }
 
         DEFINE_OPCODE(ComplexSetObjectOperation)
@@ -2314,8 +2320,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ComplexSetObjectOperation* code = (ComplexSetObjectOperation*)programCounter;
             InterpreterSlowPath::complexSetObjectOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(ComplexSetObjectOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ComplexSetObjectOperation);
         }
 
         DEFINE_OPCODE(ComplexGetObjectOperation)
@@ -2323,8 +2328,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ComplexGetObjectOperation* code = (ComplexGetObjectOperation*)programCounter;
             InterpreterSlowPath::complexGetObjectOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(ComplexGetObjectOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ComplexGetObjectOperation);
         }
 
         DEFINE_OPCODE(CreateRestElement)
@@ -2332,8 +2336,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateRestElement* code = (CreateRestElement*)programCounter;
             registerFile[code->m_registerIndex] = InterpreterSlowPath::createRestElementOperation(*state, byteCodeBlock, programCounter);
-            ADD_PROGRAM_COUNTER(CreateRestElement);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateRestElement);
         }
 
         DEFINE_OPCODE(LoadThisBinding)
@@ -2345,8 +2348,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // throws in a derived constructor before super() has run
             PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_dstIndex] = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(*state);
-            ADD_PROGRAM_COUNTER(LoadThisBinding);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadThisBinding);
         }
 
         DEFINE_OPCODE(TryOperation)
@@ -2402,8 +2404,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateEnumerateObject* code = (CreateEnumerateObject*)programCounter;
             InterpreterSlowPath::createEnumerateObject(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CreateEnumerateObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateEnumerateObject);
         }
 
         DEFINE_OPCODE(CheckLastEnumerateKey)
@@ -2424,8 +2425,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 #else
                 registerFile[code->m_registerIndex] = Value(data->m_keys[data->m_index++]);
 #endif
-            ADD_PROGRAM_COUNTER(GetEnumerateKey);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetEnumerateKey);
         }
 
         DEFINE_OPCODE(MarkEnumerateKey)
@@ -2434,8 +2434,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             MarkEnumerateKey* code = (MarkEnumerateKey*)programCounter;
             InterpreterSlowPath::markEnumerateKey(*state, code, registerFile);
 
-            ADD_PROGRAM_COUNTER(MarkEnumerateKey);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(MarkEnumerateKey);
         }
 
         DEFINE_OPCODE(IteratorOperation)
@@ -2501,8 +2500,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             } else {
                 InterpreterSlowPath::iteratorBindValueSlowCase(*state, code, registerFile);
             }
-            ADD_PROGRAM_COUNTER(IteratorBindValue);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(IteratorBindValue);
         }
 
         DEFINE_OPCODE(GetMethod)
@@ -2510,8 +2508,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             GetMethod* code = (GetMethod*)programCounter;
             InterpreterSlowPath::getMethodOperation(*state, programCounter, registerFile);
-            ADD_PROGRAM_COUNTER(GetMethod);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(GetMethod);
         }
 
         DEFINE_OPCODE(LoadRegExp)
@@ -2521,8 +2518,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             // throws SyntaxError on a pattern Yarr rejects
             PUBLISH_PROGRAM_COUNTER();
             registerFile[code->m_registerIndex] = new RegExpObject(*state, code->m_body, code->m_option);
-            ADD_PROGRAM_COUNTER(LoadRegExp);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadRegExp);
         }
 
         DEFINE_OPCODE(UnaryDelete)
@@ -2530,8 +2526,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             UnaryDelete* code = (UnaryDelete*)programCounter;
             InterpreterSlowPath::deleteOperation(*state, state->lexicalEnvironment(), code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(UnaryDelete);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(UnaryDelete);
         }
 
         DEFINE_OPCODE(TemplateOperation)
@@ -2539,8 +2534,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             TemplateOperation* code = (TemplateOperation*)programCounter;
             InterpreterSlowPath::templateOperation(*state, state->lexicalEnvironment(), code, registerFile);
-            ADD_PROGRAM_COUNTER(TemplateOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(TemplateOperation);
         }
 
         DEFINE_OPCODE(BinaryInOperation)
@@ -2548,8 +2542,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             BinaryInOperation* code = (BinaryInOperation*)programCounter;
             InterpreterSlowPath::binaryInOperation(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(BinaryInOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryInOperation);
         }
 
         DEFINE_OPCODE(BinaryInstanceOfOperationInlineCache)
@@ -2561,13 +2554,11 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 bool result;
                 if (LIKELY(InterpreterSlowPath::tryInstanceOfInlineCache(*state, code, rhs.asObject(), registerFile[code->m_srcIndex0], result))) {
                     registerFile[code->m_dstIndex] = Value(result);
-                    ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
-                    NEXT_INSTRUCTION();
+                    ADVANCE_AND_DISPATCH(BinaryInstanceOfOperation);
                 }
             }
             InterpreterSlowPath::instanceOfOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryInstanceOfOperation);
         }
 
         DEFINE_OPCODE(BinaryInstanceOfOperation)
@@ -2575,8 +2566,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
             InterpreterSlowPath::instanceOfOperation(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BinaryInstanceOfOperation);
         }
 
         DEFINE_OPCODE(MetaPropertyOperation)
@@ -2584,8 +2574,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             MetaPropertyOperation* code = (MetaPropertyOperation*)programCounter;
             InterpreterSlowPath::metaPropertyOperation(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(MetaPropertyOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(MetaPropertyOperation);
         }
 
         DEFINE_OPCODE(ObjectDefineGetterSetter)
@@ -2593,8 +2582,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ObjectDefineGetterSetter* code = (ObjectDefineGetterSetter*)programCounter;
             InterpreterSlowPath::defineObjectGetterSetter(*state, code, byteCodeBlock, registerFile);
-            ADD_PROGRAM_COUNTER(ObjectDefineGetterSetter);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ObjectDefineGetterSetter);
         }
 
         DEFINE_OPCODE(ReturnFunctionSlowCase)
@@ -2612,8 +2600,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CallComplexCase* code = (CallComplexCase*)programCounter;
             InterpreterSlowPath::callFunctionComplexCase(*state, code, registerFile, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(CallComplexCase);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CallComplexCase);
         }
 
         DEFINE_OPCODE(ThrowStaticErrorOperation)
@@ -2636,8 +2623,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data(), programCounter);
             }
 
-            ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(NewOperationWithSpreadElement);
         }
 
         DEFINE_OPCODE(CreateArrayFromIterable)
@@ -2645,8 +2631,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             CreateArrayFromIterable* code = (CreateArrayFromIterable*)programCounter;
             InterpreterSlowPath::createArrayFromIterable(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(CreateArrayFromIterable);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(CreateArrayFromIterable);
         }
 
         DEFINE_OPCODE(ReleaseIteratorRecord)
@@ -2657,8 +2642,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             if (LIKELY(record.isPointerValue() && record.asPointerValue()->isIteratorRecord())) {
                 record.asPointerValue()->asIteratorRecord()->recycle(*state);
             }
-            ADD_PROGRAM_COUNTER(ReleaseIteratorRecord);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ReleaseIteratorRecord);
         }
 
         DEFINE_OPCODE(SwitchOnInt32SlowCase)
@@ -2714,8 +2698,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             }
 
             registerFile[code->m_dstIndex] = result;
-            ADD_PROGRAM_COUNTER(BindingRestElement);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BindingRestElement);
         }
 
         DEFINE_OPCODE(BlockOperation)
@@ -2735,16 +2718,14 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             :
         {
             InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(*state, programCounter, byteCodeBlock);
-            ADD_PROGRAM_COUNTER(ReplaceBlockLexicalEnvironmentOperation);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ReplaceBlockLexicalEnvironmentOperation);
         }
 
         DEFINE_OPCODE(EnsureArgumentsObject)
             :
         {
             InterpreterSlowPath::ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile, programCounter);
-            ADD_PROGRAM_COUNTER(EnsureArgumentsObject);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(EnsureArgumentsObject);
         }
 
         DEFINE_OPCODE(LoadArgumentsElement)
@@ -2752,8 +2733,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             LoadArgumentsElement* code = (LoadArgumentsElement*)programCounter;
             InterpreterSlowPath::loadArgumentsElementOperation(*state, byteCodeBlock, code, registerFile);
-            ADD_PROGRAM_COUNTER(LoadArgumentsElement);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(LoadArgumentsElement);
         }
 
         DEFINE_OPCODE(TaggedTemplateOperation)
@@ -2768,8 +2748,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             ResolveNameAddress* code = (ResolveNameAddress*)programCounter;
             InterpreterSlowPath::resolveNameAddress(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(ResolveNameAddress);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(ResolveNameAddress);
         }
 
         DEFINE_OPCODE(StoreByNameWithAddress)
@@ -2777,8 +2756,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
         {
             StoreByNameWithAddress* code = (StoreByNameWithAddress*)programCounter;
             InterpreterSlowPath::storeByNameWithAddress(*state, code, registerFile);
-            ADD_PROGRAM_COUNTER(StoreByNameWithAddress);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(StoreByNameWithAddress);
         }
 
         DEFINE_OPCODE(GetTypedArrayObject)
@@ -2796,8 +2774,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         // Buffer updates clear the cached address on detach or out-of-bounds.
                         if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength())) {
                             registerFile[code->m_storeRegisterIndex] = arr->getDirectTypedArrayElement(*state, idx);
-                            ADD_PROGRAM_COUNTER(GetTypedArrayObject);
-                            NEXT_INSTRUCTION();
+                            ADVANCE_AND_DISPATCH(GetTypedArrayObject);
                         }
                     }
                 } else {
@@ -2864,8 +2841,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                         if (LIKELY(static_cast<size_t>(idx) < arr->arrayLength() && value.isNumber()
                                    && arr->typedArrayType() < TypedArrayType::BigInt64)) {
                             arr->setDirectTypedArrayElementNumeric(*state, idx, value);
-                            ADD_PROGRAM_COUNTER(SetTypedArrayObjectOperation);
-                            NEXT_INSTRUCTION();
+                            ADVANCE_AND_DISPATCH(SetTypedArrayObjectOperation);
                         }
                     }
                 } else {
@@ -3042,8 +3018,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 // Return F.[[Call]](V, argumentsList).
                 registerFile[code->m_resultIndex] = callee.asObject()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
-                ADD_PROGRAM_COUNTER(Call);
-                NEXT_INSTRUCTION();
+                ADVANCE_AND_DISPATCH(Call);
             }
 
             ASSERT(callee.isObject() && callee.asObject()->isScriptFunctionObject());
@@ -3069,8 +3044,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 }
             }
 
-            ADD_PROGRAM_COUNTER(BreakpointDisabled);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BreakpointDisabled);
         }
 
         DEFINE_OPCODE(BreakpointEnabled)
@@ -3084,8 +3058,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
                 }
             }
 
-            ADD_PROGRAM_COUNTER(BreakpointEnabled);
-            NEXT_INSTRUCTION();
+            ADVANCE_AND_DISPATCH(BreakpointEnabled);
         }
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -3156,6 +3129,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
     return Value();
 #undef PUBLISH_PROGRAM_COUNTER
+#undef ADVANCE_AND_DISPATCH
 }
 
 NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue)
