@@ -48,7 +48,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_canSkipCopyToRegister(true)
     , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
     , m_inCallingExpressionScope(false)
-    , m_inObjectDestruction(false)
     , m_inParameterInitialization(false)
     , m_isHeadOfMemberExpression(false)
     , m_forInOfVarBinding(false)

@@ -89,7 +89,6 @@ struct ByteCodeGenerateContext {
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
-        , m_inObjectDestruction(contextBefore.m_inObjectDestruction)
         , m_inParameterInitialization(contextBefore.m_inParameterInitialization)
         , m_isHeadOfMemberExpression(false)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
@@ -385,7 +384,6 @@ struct ByteCodeGenerateContext {
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
     bool m_inCallingExpressionScope : 1;
-    bool m_inObjectDestruction : 1;
     bool m_inParameterInitialization : 1;
     bool m_isHeadOfMemberExpression : 1;
     bool m_forInOfVarBinding : 1;

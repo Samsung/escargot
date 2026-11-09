@@ -76,9 +76,15 @@ public:
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
-        ASSERT(m_kind == Init);
+        generateStoreByteCodeInObjectPattern(codeBlock, context, srcRegister, REGISTER_LIMIT);
+    }
 
-        size_t enumDataIndex = context->m_inObjectDestruction ? context->getLastRegisterIndex() : REGISTER_LIMIT;
+    // enumDataIndex is the EnumerateObject register of the enclosing object pattern
+    // with a rest element (REGISTER_LIMIT if none). It is passed explicitly so that
+    // nested patterns never see the enclosing pattern's enumeration register
+    void generateStoreByteCodeInObjectPattern(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, ByteCodeRegisterIndex enumDataIndex)
+    {
+        ASSERT(m_kind == Init);
 
         if (m_key->isIdentifier() && !m_computed) {
             AtomicString propertyAtomicName = m_key->asIdentifier()->name();

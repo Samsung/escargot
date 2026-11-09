@@ -64,14 +64,13 @@ public:
         context->m_isLexicallyDeclaredBindingInitialization = false;
         if (m_properties.size() > 0) {
             if (m_hasRestElement) {
-                context->m_inObjectDestruction = true;
                 ByteCodeRegisterIndex enumDataIndex = context->getRegister();
                 codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true), context, this->m_loc.index);
 
                 for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                     context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
                     if (LIKELY(property->astNode()->isProperty())) {
-                        property->astNode()->generateStoreByteCode(codeBlock, context, srcRegister, needToReferenceSelf);
+                        property->astNode()->asProperty()->generateStoreByteCodeInObjectPattern(codeBlock, context, srcRegister, enumDataIndex);
                     } else {
                         ASSERT(property->astNode()->type() == ASTNodeType::RestElement);
                         property->astNode()->generateStoreByteCode(codeBlock, context, enumDataIndex, needToReferenceSelf);
@@ -79,7 +78,6 @@ public:
                 }
 
                 context->giveUpRegister(); // for drop enumDataIndex
-                context->m_inObjectDestruction = false;
             } else {
                 for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                     ASSERT(property->astNode()->isProperty());
