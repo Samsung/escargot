@@ -6177,7 +6177,7 @@ NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& sta
 
     EnumerateObject* enumObj;
     if (isDestruction) {
-        enumObj = new EnumerateObjectWithDestruction(state, obj);
+        enumObj = new EnumerateObjectWithDestruction(state, obj, code->m_isObjectRest);
     } else {
         enumObj = new EnumerateObjectWithIteration(state, obj);
     }
@@ -6200,6 +6200,10 @@ NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, M
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
     Value key = registerFile[code->m_keyRegisterIndex];
+    if (UNLIKELY(((EnumerateObjectWithDestruction*)data)->isProxyEnumeration())) {
+        ((EnumerateObjectWithDestruction*)data)->addExcludedKey(key);
+        return;
+    }
     bool mark = false;
     for (size_t i = 0; i < data->m_keys.size(); i++) {
         Value cachedKey = data->m_keys[i];

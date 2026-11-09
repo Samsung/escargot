@@ -3143,20 +3143,24 @@ public:
         , m_objectRegisterIndex(REGISTER_LIMIT)
         , m_dataRegisterIndex(REGISTER_LIMIT)
         , m_isDestruction(false)
+        , m_isObjectRest(false)
     {
     }
 
-    explicit CreateEnumerateObject(const ByteCodeLOC& loc, size_t objIndex, size_t dataIndex, bool isDestruction)
+    explicit CreateEnumerateObject(const ByteCodeLOC& loc, size_t objIndex, size_t dataIndex, bool isDestruction, bool isObjectRest = false)
         : ByteCode(Opcode::CreateEnumerateObjectOpcode, loc)
         , m_objectRegisterIndex(objIndex)
         , m_dataRegisterIndex(dataIndex)
         , m_isDestruction(isDestruction)
+        , m_isObjectRest(isObjectRest)
     {
+        ASSERT(!isObjectRest || isDestruction);
     }
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_dataRegisterIndex;
     bool m_isDestruction : 1;
+    bool m_isObjectRest : 1; // object pattern with a rest element: keys are collected when the rest element is filled
 
 #ifndef NDEBUG
     void dump()

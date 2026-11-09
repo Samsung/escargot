@@ -115,8 +115,51 @@ void* EnumerateObjectWithIteration::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+bool EnumerateObjectWithDestruction::isExcludedKey(const Value& key)
+{
+    for (size_t i = 0; i < m_keys.size(); i++) {
+        Value excludedKey = m_keys[i];
+        if (key.isString() && excludedKey.isString()) {
+            if (key.asString()->equals(excludedKey.asString())) {
+                return true;
+            }
+        } else if (key.isSymbol() && excludedKey.isSymbol()) {
+            if (key.asSymbol() == excludedKey.asSymbol()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// CopyDataProperties(result, m_object, excludedKeys) for a proxy, whose traps are observable
+// https://tc39.es/ecma262/#sec-copydataproperties
+void EnumerateObjectWithDestruction::fillRestElementFromProxy(ExecutionState& state, Object* result)
+{
+    ASSERT(m_object->isProxyObject());
+    Object::OwnPropertyKeyVector keys = m_object->ownPropertyKeys(state);
+    for (size_t i = 0; i < keys.size(); i++) {
+        const Value& key = keys[i];
+        if (isExcludedKey(key)) {
+            continue;
+        }
+
+        ObjectPropertyName name(state, key);
+        ObjectGetResult desc = m_object->getOwnProperty(state, name);
+        if (desc.hasValue() && desc.isEnumerable()) {
+            Value value = m_object->get(state, name).value(state, m_object);
+            result->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+}
+
 void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Object* result)
 {
+    if (UNLIKELY(isProxyEnumeration())) {
+        fillRestElementFromProxy(state, result);
+        return;
+    }
+
     ASSERT(m_index == 0);
 
     Value key, value;
@@ -137,6 +180,17 @@ void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Obje
 void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys)
 {
     ASSERT(!!m_object);
+
+    if (UNLIKELY(m_object->isProxyObject())) {
+        // [[OwnPropertyKeys]] of a proxy calls its ownKeys trap; enumerability is checked
+        // right before each key is read (see checkIfModified), so m_hiddenClass stays null
+        Object::OwnPropertyKeyVector ownKeys = m_object->ownPropertyKeys(state);
+        keys.resizeWithUninitializedValues(ownKeys.size());
+        for (size_t i = 0; i < ownKeys.size(); i++) {
+            keys[i] = ownKeys[i];
+        }
+        return;
+    }
 
     if (m_object->isArrayObject()) {
         m_arrayLength = m_object->asArrayObject()->arrayLength(state);
@@ -193,6 +247,20 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
 
 bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
 {
+    if (UNLIKELY(isProxyEnumeration())) {
+        ASSERT(m_object->isProxyObject());
+        // CopyDataProperties reads [[GetOwnProperty]] of each proxy key right before its value,
+        // and skips the key if it is missing or not enumerable
+        while (m_index < m_keys.size()) {
+            ObjectGetResult desc = m_object->getOwnProperty(state, ObjectPropertyName(state, m_keys[m_index]));
+            if (desc.hasValue() && desc.isEnumerable()) {
+                break;
+            }
+            m_index++;
+        }
+        return false;
+    }
+
     if (UNLIKELY(m_hiddenClass != m_object->structure())) {
         return true;
     }
