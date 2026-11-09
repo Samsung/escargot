@@ -1,0 +1,98 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.samsung.lwe.escargot",
+    "module": "escargot-android",
+    "version": "5.1.2.20261109.0.6b98515",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.5.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.2.20261109.0.6b98515.aar",
+          "url": "escargot-android-5.1.2.20261109.0.6b98515.aar",
+          "size": 7861763,
+          "sha512": "769f09517960a4a8db13984980017f1049f1265f017338b4cfef99778ce7d2ed92d8c6f0a7a36b7533952c172c997f5494e9a8548a8375b0a6990bf107d83bfc",
+          "sha256": "fa291a93918c24df634802bf881435756bb9240486a78711ab9c9cd5c4064c4a",
+          "sha1": "ff5be284eec113edecb726c8ecea11e4bd5fd946",
+          "md5": "7ec2f0563c48011e16a158e1ef70e341"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.2.20261109.0.6b98515.aar",
+          "url": "escargot-android-5.1.2.20261109.0.6b98515.aar",
+          "size": 7861763,
+          "sha512": "769f09517960a4a8db13984980017f1049f1265f017338b4cfef99778ce7d2ed92d8c6f0a7a36b7533952c172c997f5494e9a8548a8375b0a6990bf107d83bfc",
+          "sha256": "fa291a93918c24df634802bf881435756bb9240486a78711ab9c9cd5c4064c4a",
+          "sha1": "ff5be284eec113edecb726c8ecea11e4bd5fd946",
+          "md5": "7ec2f0563c48011e16a158e1ef70e341"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.2.20261109.0.6b98515-sources.jar",
+          "url": "escargot-android-5.1.2.20261109.0.6b98515-sources.jar",
+          "size": 14157,
+          "sha512": "224fab0aa6126a0b9604eb95da36fc42f32634b3b1325064bd2e634b95d8922cabc13d86c60fe633a6dd96f48eaac81a12552e8b3c3557289df196be80967b55",
+          "sha256": "100ca93e5d6f0baf8580d2c420b14a903bd4b21c3b515e6c6516e2030ef6384b",
+          "sha1": "a8f5e07f78409847a89c31d2836984f580aaf636",
+          "md5": "298239f02570ac5353742936ef739fcc"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseJavaDocPublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-5.1.2.20261109.0.6b98515-javadoc.jar",
+          "url": "escargot-android-5.1.2.20261109.0.6b98515-javadoc.jar",
+          "size": 547274,
+          "sha512": "e726d11942f8734bddf03eab9fed55d6f945b1ef84f86e87a3fe24e7fd2cf08269a10f5fb62960286d09ad6ad143611be8e6ef956ee42164240b96920aaffdd6",
+          "sha256": "b7345e0a3bf1afb2fc791ce3a629ceac531953be8c1464b60ebf008d38cc86ba",
+          "sha1": "825d6986fdb7ad294bc1e05f16db6c809bbccc8c",
+          "md5": "dccafa5e3c2473a010166521ce1bccc1"
+        }
+      ]
+    }
+  ]
+}
