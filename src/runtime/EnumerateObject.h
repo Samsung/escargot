@@ -63,11 +63,29 @@ protected:
 // include symbol, exclude prototype chain and check modification during enumetation
 class EnumerateObjectWithDestruction : public EnumerateObject {
 public:
-    EnumerateObjectWithDestruction(ExecutionState& state, Object* obj)
+    // for an object pattern with a rest element on a proxy, the ownKeys trap must run
+    // only when the rest element is filled, so m_keys holds the excluded keys until then
+    EnumerateObjectWithDestruction(ExecutionState& state, Object* obj, bool isObjectRest = false)
         : EnumerateObject(obj)
         , m_hiddenClass(nullptr)
     {
+        if (UNLIKELY(isObjectRest && obj->isProxyObject())) {
+            return;
+        }
         executeEnumeration(state, m_keys);
+    }
+
+    // m_hiddenClass is left null only for a proxy (see executeEnumeration). For a spread,
+    // m_keys holds the ownKeys result; for an object pattern rest, it holds the excluded keys
+    bool isProxyEnumeration() const
+    {
+        return !m_hiddenClass;
+    }
+
+    void addExcludedKey(const Value& key)
+    {
+        ASSERT(isProxyEnumeration());
+        m_keys.pushBack(key);
     }
 
     virtual void fillRestElement(ExecutionState& state, Object* result) override;
@@ -82,6 +100,9 @@ public:
 protected:
     virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) override;
     virtual bool checkIfModified(ExecutionState& state) override;
+
+    bool isExcludedKey(const Value& key);
+    void fillRestElementFromProxy(ExecutionState& state, Object* result);
 
     ObjectStructure* m_hiddenClass;
 };

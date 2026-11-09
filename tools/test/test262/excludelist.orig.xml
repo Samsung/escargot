@@ -731,9 +731,6 @@
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
     <test id="language/expressions/object/__proto__-permitted-dup-shorthand"><reason>TODO</reason></test>
     <test id="language/expressions/object/computed-property-name-topropertykey-before-value-evaluation"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/object-rest-proxy-get-not-called-on-dontenum-keys"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/object-rest-proxy-gopd-not-called-on-excluded-keys"><reason>TODO</reason></test>
-    <test id="language/expressions/object/dstr/object-rest-proxy-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="language/expressions/object/identifier-shorthand-yield-invalid-strict-mode"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
@@ -741,9 +738,6 @@
     <test id="language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
-    <test id="language/expressions/object/object-spread-proxy-get-not-called-on-dontenum-keys"><reason>TODO</reason></test>
-    <test id="language/expressions/object/object-spread-proxy-no-excluded-keys"><reason>TODO</reason></test>
-    <test id="language/expressions/object/object-spread-proxy-ownkeys-returned-keys-order"><reason>TODO</reason></test>
     <test id="language/expressions/object/prop-def-invalid-async-prefix"><reason>TODO</reason></test>
     <test id="language/expressions/postfix-decrement/S11.3.2_A6_T3"><reason>TODO</reason></test>
     <test id="language/expressions/postfix-increment/S11.3.1_A6_T3"><reason>TODO</reason></test>

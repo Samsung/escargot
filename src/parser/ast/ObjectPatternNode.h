@@ -65,7 +65,7 @@ public:
         if (m_properties.size() > 0) {
             if (m_hasRestElement) {
                 ByteCodeRegisterIndex enumDataIndex = context->getRegister();
-                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true), context, this->m_loc.index);
+                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true, true), context, this->m_loc.index);
 
                 for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                     context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
