@@ -1,0 +1,29 @@
+Escargot v5.1.2
+
+Changes since v5.1.1
+
+Correctness and embedding
+- Resolve virtual identifiers in the accessed global object's own realm.
+- Fix Unicode template escapes, sticky and Unicode RegExp splitting,
+  numeric operations, function property order, parameter scopes and loop
+  continuations.
+- Correct Date handling for oversized time components and preserve separate
+  rounding on Android ARM64.
+- Reject oversized variable counts before they overflow internal fields.
+- Fix nested object rest patterns and follow property-copy semantics for
+  object rest and spread, including proxy traps and property enumeration.
+
+Performance
+- Reduce ARM32 Thumb-2 interpreter dispatch overhead with GCC and Clang.
+
+Android and distribution
+- Set the AAR minimum compile SDK to 28 and remove the unnecessary Kotlin
+  stdlib dependency so existing SDK 35 and Kotlin 1.9.0 consumers can build.
+- Restore low-glibc release builds by registering the toolchain PPA directly
+  with a verified signing key.
+- Publish Android, Ubuntu and macOS Maven artifacts automatically after a
+  successful tagged Android release.
+
+## Contributors
+
+- @ksh8281
