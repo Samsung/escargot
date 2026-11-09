@@ -1841,7 +1841,8 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                     case 'u':
                         if (this->peekChar() == '{') {
                             ++this->index;
-                            cooked += this->scanUnicodeCodePointEscape();
+                            ParserCharPiece piece(this->scanUnicodeCodePointEscape());
+                            cooked += UTF16StringDataNonGCStd(piece.data, piece.length);
                         } else {
                             const size_t restore = this->index;
                             const char32_t unescaped = this->scanHexEscape(ch);

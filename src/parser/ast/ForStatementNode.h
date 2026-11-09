@@ -166,6 +166,8 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
+        // Continue must replace the per-iteration environment before the update.
+        size_t updatePosition = codeBlock->currentCodeSize();
         // replace env if needed
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
@@ -201,7 +203,6 @@ public:
             }
         }
 
-        size_t updatePosition = codeBlock->currentCodeSize();
         if (m_update) {
             if (!shouldCareScriptExecutionResult) {
                 m_update->generateResultNotRequiredExpressionByteCode(codeBlock, &newContext);

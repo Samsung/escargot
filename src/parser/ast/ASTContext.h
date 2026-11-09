@@ -511,6 +511,9 @@ struct ASTScopeContext {
 
         if (idx != SIZE_MAX) {
             ASSERT(m_varNames[idx].name() == name);
+            if (isVarDeclaration) {
+                m_varNames[idx].setIsVarDeclaration(true);
+            }
             if (isExplicitlyDeclaredOrParameterName) {
                 m_varNames[idx].setIsExplicitlyDeclaredOrParameterName(isExplicitlyDeclaredOrParameterName);
             }

@@ -156,15 +156,15 @@ Object* FunctionTemplate::instantiate(Context* ctx, bool addToContextCache)
     const size_t functionDefaultPropertyCount = m_isConstructor ? ctx->defaultStructureForFunctionObject()->propertyCount() : ctx->defaultStructureForNotConstructorFunctionObject()->propertyCount();
     if (!m_cachedObjectStructure.m_objectStructure) {
         if (m_isConstructor) {
-            // [prototype, length, name]
+            // [length, name, prototype]
             ASSERT(functionDefaultPropertyCount == 3);
             ObjectStructureItem structureItemVector[3] = {
-                ObjectStructureItem(ctx->staticStrings().prototype,
-                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::WritablePresent)),
                 ObjectStructureItem(ctx->staticStrings().length,
                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
                 ObjectStructureItem(ctx->staticStrings().name,
-                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent))
+                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
+                ObjectStructureItem(ctx->staticStrings().prototype,
+                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::WritablePresent))
 
             };
             m_cachedObjectStructure = constructObjectStructure(ctx, structureItemVector, 3);
@@ -186,15 +186,15 @@ Object* FunctionTemplate::instantiate(Context* ctx, bool addToContextCache)
     ObjectPropertyValueVector objectPropertyValues;
     Object* functionPrototype = nullptr;
     if (m_isConstructor) {
-        // [prototype, length, name]
+        // [length, name, prototype]
         if (!m_prototypeTemplate->has(ctx->staticStrings().constructor.string())) {
             m_prototypeTemplate->set(ctx->staticStrings().constructor.string(), Value(), true, false, true);
         }
 
         BasePropertyValue baseValues[3];
-        baseValues[0] = functionPrototype = m_prototypeTemplate->instantiate(ctx);
-        baseValues[1] = Value(m_argumentCount);
-        baseValues[2] = m_name.string();
+        baseValues[0] = Value(m_argumentCount);
+        baseValues[1] = m_name.string();
+        baseValues[2] = functionPrototype = m_prototypeTemplate->instantiate(ctx);
         constructObjectPropertyValues(ctx, baseValues, 3, objectPropertyValues);
     } else {
         // [length, name]

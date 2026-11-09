@@ -108,7 +108,7 @@ public:
 
     void setTimeValue(time64_t t);
     void setTimeValue(ExecutionState& state, const Value& str);
-    void setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC = true);
+    void setTimeValue(ExecutionState& state, int year, int month, int date, double hour, double minute, double second, double millisecond, bool convertToUTC = true);
 
     static time64_t timeinfoToMs(ExecutionState& state, int year, int month, int day, int hour, int minute, int64_t second, int64_t millisecond); //
     static time64_t applyLocalTimezoneOffset(ExecutionState& state, time64_t t); //

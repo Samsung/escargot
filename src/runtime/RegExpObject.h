@@ -249,8 +249,8 @@ public:
     Optional<const char16_t*> literalMatchCharacters(ExecutionState& state, size_t& length);
     void collectLiteralMatches(ExecutionState& state, String* str, const StringBufferAccessData& literal, LiteralMatchIndices& matches);
 #endif
-    bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
-    bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0);
+    bool match(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0, bool updateLastIndex = true);
+    bool matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& result, bool testOnly = false, size_t startIndex = 0, bool updateLastIndex = true);
     uint32_t getOptions(ExecutionState& state);
 
     String* source()

@@ -3477,7 +3477,7 @@ NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& sta
     double exp = rnum.first.asNumber();
 
     // The result of base ** exponent when base is 1 or -1 and exponent is +Infinity or -Infinity differs from IEEE 754-2008. The first edition of ECMAScript specified a result of NaN for this operation, whereas later versions of IEEE 754-2008 specified 1. The historical ECMAScript behaviour is preserved for compatibility reasons.
-    if ((base == -1 || base == 1) && (exp == std::numeric_limits<double>::infinity() || exp == -std::numeric_limits<double>::infinity())) {
+    if (std::isnan(exp) || ((base == -1 || base == 1) && std::isinf(exp))) {
         return Value(Value::NanInit);
     }
 
@@ -5639,17 +5639,18 @@ NEVER_INLINE InterpreterSlowPath::Continuation InterpreterSlowPath::blockOperati
                 newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
             }
         } else {
-            bool isParameterEvalBodyScope = byteCodeBlock->m_codeBlock->hasEvalInParameter()
-                && byteCodeBlock->m_codeBlock->isArrowFunctionExpression()
+            bool isParameterBodyScope = byteCodeBlock->m_codeBlock->functionBodyBlockIndex()
                 && blockInfo->blockIndex() == byteCodeBlock->m_codeBlock->functionBodyBlockIndex();
-            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, isParameterEvalBodyScope, blockInfo->fromCatchClauseNode());
+            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, isParameterBodyScope, blockInfo->fromCatchClauseNode());
 
             auto& iv = blockInfo->identifiers();
             auto siz = iv.size();
             for (size_t i = 0; i < siz; i++) {
-                bool isParameterEvalBodyArguments = isParameterEvalBodyScope
+                bool isParameterCopy = isParameterBodyScope && byteCodeBlock->m_codeBlock->isParameterName(iv[i].m_name);
+                bool isParameterEvalBodyArguments = isParameterBodyScope
+                    && byteCodeBlock->m_codeBlock->hasEvalInParameter() && byteCodeBlock->m_codeBlock->isArrowFunctionExpression()
                     && iv[i].m_name == byteCodeBlock->m_codeBlock->context()->staticStrings().arguments;
-                newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, isParameterEvalBodyArguments);
+                newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, isParameterCopy || isParameterEvalBodyArguments);
             }
         }
         if (LIKELY(blockInfo->canAllocateEnvironmentOnStack())) {
@@ -6729,7 +6730,7 @@ NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionStat
     if (UNLIKELY(newVal.second)) {
         return Value(newVal.first.asBigInt()->decrement(state));
     } else {
-        return Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state) - 1);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, newVal.first.asNumber() - 1);
     }
 }
 

@@ -364,7 +364,7 @@ Object* ObjectTemplate::instantiate(Context* ctx)
 
     if (m_constructor && m_constructor->isConstructor()) {
         FunctionObject* fn = m_constructor->instantiate(ctx)->asFunctionObject();
-        proto = fn->uncheckedGetOwnDataProperty(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).asPointerValue()->asObject();
+        proto = fn->uncheckedGetOwnDataProperty(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2).asPointerValue()->asObject();
     } else {
         proto = ctx->globalObject()->objectPrototype();
     }

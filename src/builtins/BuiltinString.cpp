@@ -1246,7 +1246,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         bool ret = true;
         if (P->isRegExpObject()) {
             RegexMatchResult result;
-            ret = P->asRegExpObject()->matchNonGlobally(state, S, result, false, 0);
+            ret = P->asRegExpObject()->matchNonGlobally(state, S, result, false, 0, false);
         } else {
             Value z = splitMatchUsingStr(S, 0, P->asString());
             if (z.isBoolean()) {
@@ -1264,15 +1264,20 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     // 13
     if (P->isRegExpObject()) {
         RegExpObject* R = P->asRegExpObject();
+        bool unicodeMatching = R->option() & (RegExpObject::Option::Unicode | RegExpObject::Option::UnicodeSets);
         while (q != s) {
             RegexMatchResult result;
-            bool ret = R->matchNonGlobally(state, S, result, false, (size_t)q);
+            bool ret = R->matchNonGlobally(state, S, result, false, (size_t)q, false);
             if (!ret) {
+                if (R->option() & RegExpObject::Option::Sticky) {
+                    q = S->advanceStringIndex(q, unicodeMatching);
+                    continue;
+                }
                 break;
             }
 
             if ((size_t)result.matchAt(0, 0).m_end == p) {
-                q++;
+                q = S->advanceStringIndex(q, unicodeMatching);
             } else {
                 if (result.matchAt(0, 0).m_start >= S->length())
                     break;

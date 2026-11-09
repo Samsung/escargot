@@ -591,24 +591,19 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     auto* regexpLastIndexAccessor = &regexpLastIndexGetterSetterData;
 #endif
 
-    m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
-                                                                                   ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(functionPrototypeAccessor));
-
-    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.length,
-                                                                                           ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
+    m_defaultStructureForFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
+                                                                                   ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
     m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.name,
                                                                                            ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+    m_defaultStructureForFunctionObject = m_defaultStructureForFunctionObject->addProperty(m_staticStrings.prototype,
+                                                                                           ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(functionPrototypeAccessor));
 
-    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.prototype,
-                                                                                          ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(builtinFunctionPrototypeAccessor));
-
-    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.length,
-                                                                                                         ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
-
-
+    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
+                                                                                          ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
     m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.name,
                                                                                                          ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));
+    m_defaultStructureForBuiltinFunctionObject = m_defaultStructureForBuiltinFunctionObject->addProperty(m_staticStrings.prototype,
+                                                                                                         ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(builtinFunctionPrototypeAccessor));
 
     m_defaultStructureForNotConstructorFunctionObject = m_defaultStructureForObject->addProperty(m_staticStrings.length,
                                                                                                  ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent));

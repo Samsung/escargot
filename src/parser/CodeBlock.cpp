@@ -679,12 +679,12 @@ void InterpretedCodeBlock::computeVariables()
                     if (m_blockInfosLength == 1) {
                         m_blockInfos = BlockInfo::genericBlockInfoArray(false, blockInfos()[i]->identifiers().size());
                     } else {
-                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || needsParameterEnvironment(blockInfos()[i]->blockIndex()));
                     }
                     ASSERT(!blockInfos()[i]->identifiers().size());
                 } else {
                     blockInfos()[i]->setCanAllocateEnvironmentOnStack(false);
-                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || needsParameterEnvironment(blockInfos()[i]->blockIndex()));
                     for (size_t j = 0; j < blockInfos()[i]->identifiers().size(); j++) {
                         blockInfos()[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
                         blockInfos()[i]->identifiers()[j].m_needToAllocateOnStack = false;
@@ -766,12 +766,12 @@ void InterpretedCodeBlock::computeVariables()
                     if (m_blockInfosLength == 1) {
                         m_blockInfos = BlockInfo::genericBlockInfoArray(false, blockInfos()[i]->identifiers().size());
                     } else {
-                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                        blockInfos()[i] = BlockInfo::genericBlockInfo(false, blockInfos()[i]->identifiers().size() || needsParameterEnvironment(blockInfos()[i]->blockIndex()));
                     }
                     ASSERT(!blockInfos()[i]->identifiers().size());
                 } else {
                     blockInfos()[i]->setCanAllocateEnvironmentOnStack(false);
-                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || (m_hasEvalInParameter && isArrowFunctionExpression() && blockInfos()[i]->blockIndex() == 0));
+                    blockInfos()[i]->setShouldAllocateEnvironment(blockInfos()[i]->identifiers().size() || needsParameterEnvironment(blockInfos()[i]->blockIndex()));
                     for (size_t j = 0; j < blockInfos()[i]->identifiers().size(); j++) {
                         blockInfos()[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
                         blockInfos()[i]->identifiers()[j].m_needToAllocateOnStack = false;

@@ -535,11 +535,11 @@ void RegExpObject::collectLiteralMatches(ExecutionState& state, String* string, 
 }
 
 #endif
-bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
+bool RegExpObject::matchNonGlobally(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex, bool updateLastIndex)
 {
     Option prevOption = option();
     setOption((Option)(prevOption & ~Option::Global));
-    bool ret = match(state, str, matchResult, testOnly, startIndex);
+    bool ret = match(state, str, matchResult, testOnly, startIndex, updateLastIndex);
     setOption(prevOption);
     return ret;
 }
@@ -572,7 +572,7 @@ ALWAYS_INLINE bool RegExpObject::ensureBytecodePattern(ExecutionState& state)
 
 #endif
 
-bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex)
+bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& matchResult, bool testOnly, size_t startIndex, bool updateLastIndex)
 {
     Context::RegExpLegacyFeatures& legacyFeatures = state.context()->regexpLegacyFeatures();
     legacyFeatures.input = str;
@@ -618,7 +618,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     // backtracking storage. Preserve the same failed-match state updates.
     if (startFilter.fixedPosition && startFilter.valid
         && (start >= length || !startFilter.contains(strAccessData.charAt(start)))) {
-        if (isGlobal || isSticky)
+        if (updateLastIndex && (isGlobal || isSticky))
             setLastIndex(state, Value(0));
         return matchResult.matchCount();
     }
@@ -655,7 +655,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             bool lastParenValid = !lastParenInvalid && subPatternNum;
             if (UNLIKELY(testOnly)) {
                 // outputBuf[1] should be set to lastIndex
-                if (isGlobal || isSticky) {
+                if (updateLastIndex && (isGlobal || isSticky)) {
                     setLastIndex(state, Value(outputBuf[1]));
                 }
                 legacyFeatures.setMatch(str, outputBuf, maxMatchedIndex, lastParenValid, outputBuf[1]);
@@ -676,7 +676,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         }
     } while (result != JSC::Yarr::offsetNoMatch);
 
-    if (!gotResult && ((option() & (RegExpObject::Option::Global | RegExpObject::Option::Sticky)))) {
+    if (updateLastIndex && !gotResult && (isGlobal || isSticky)) {
         setLastIndex(state, Value(0));
     }
 

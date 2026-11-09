@@ -139,18 +139,14 @@ protected:
     virtual size_t functionPrototypeIndex()
     {
         ASSERT(isConstructor() || isGenerator());
-        return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
+        return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2;
     }
 
     size_t functionNameIndex()
     {
         // getting a function name index of ScriptClassConstructorFunctionObject is not supported now
         ASSERT(!isScriptClassConstructorFunctionObject());
-        if (isConstructor() || isGenerator()) {
-            return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2;
-        } else {
-            return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1;
-        }
+        return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1;
     }
 
     void ensureFunctionPrototype(ExecutionState& state, const size_t& prototypeIndex)
