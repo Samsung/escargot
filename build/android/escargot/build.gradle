@@ -23,12 +23,19 @@ ext {
 
 android {
     namespace 'com.samsung.lwe.escargot'
+    // This Java/JNI library does not need Kotlin or its implicit stdlib dependency.
+    enableKotlin = false
     compileSdk 36
     ndkVersion '28.1.13356709'
 
     defaultConfig {
         minSdk 28
         targetSdk 36
+
+        // Keep consumers compatible with older compile SDKs under AGP 9+.
+        aarMetadata {
+            minCompileSdk = 28
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
