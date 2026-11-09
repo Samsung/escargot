@@ -280,8 +280,12 @@ void DateObject::setTimeValue(ExecutionState& state, int year, int month,
                                       static_cast<int>(hour), static_cast<int>(minute), static_cast<int64_t>(second), static_cast<int64_t>(millisecond));
     } else {
         time64_t daysMs = daysToMs(yearComputed, monthComputed, date);
-        double time = std::trunc(hour) * TimeConstant::MsPerHour + std::trunc(minute) * TimeConstant::MsPerMinute
-            + std::trunc(second) * TimeConstant::MsPerSecond + std::trunc(millisecond);
+        // MakeTime rounds each product separately. Prevent FMA contraction,
+        // which can leave a residue when large components should cancel.
+        volatile double hoursMs = std::trunc(hour) * TimeConstant::MsPerHour;
+        volatile double minutesMs = std::trunc(minute) * TimeConstant::MsPerMinute;
+        volatile double secondsMs = std::trunc(second) * TimeConstant::MsPerSecond;
+        double time = hoursMs + minutesMs + secondsMs + std::trunc(millisecond);
         double value = daysMs + time;
         // MakeTime allows large components to cancel. Leave room for the
         // int32 timezone offset before converting to time64_t; TimeClip
