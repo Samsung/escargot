@@ -589,6 +589,13 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
     }
 }
 
+// the variable counters are stored in 16-bit fields
+// saturate them above VARIABLE_LIMIT so that the limit check never sees a wrapped count
+static uint16_t saturateVariableCount(size_t count)
+{
+    return static_cast<uint16_t>(std::min(count, static_cast<size_t>(VARIABLE_LIMIT) + 1));
+}
+
 // global block id map
 // [this, ..]
 // function block id map
@@ -655,10 +662,10 @@ void InterpretedCodeBlock::computeVariables()
         size_t currentStackAllocatedVariableIndex = 0;
         size_t maxStackAllocatedVariableDepth = 0;
         computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
-        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+        m_lexicalBlockStackAllocatedIdentifierMaximumDepth = saturateVariableCount(maxStackAllocatedVariableDepth);
 
-        m_identifierOnStackCount = s;
-        m_identifierOnHeapCount = h;
+        m_identifierOnStackCount = saturateVariableCount(s);
+        m_identifierOnHeapCount = saturateVariableCount(h);
     } else if (isGlobalCodeBlock() && script()->isModule()) {
         size_t s = 1;
         size_t h = 0;
@@ -669,7 +676,7 @@ void InterpretedCodeBlock::computeVariables()
         }
 
         m_identifierOnStackCount = s;
-        m_identifierOnHeapCount = h;
+        m_identifierOnHeapCount = saturateVariableCount(h);
 
         m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
 
@@ -697,7 +704,7 @@ void InterpretedCodeBlock::computeVariables()
             size_t currentStackAllocatedVariableIndex = 0;
             size_t maxStackAllocatedVariableDepth = 0;
             computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
-            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = saturateVariableCount(maxStackAllocatedVariableDepth);
         }
 
         InterpretedCodeBlock::BlockInfo* bi = nullptr;
@@ -756,7 +763,7 @@ void InterpretedCodeBlock::computeVariables()
         }
 
         m_identifierOnStackCount = s;
-        m_identifierOnHeapCount = h;
+        m_identifierOnHeapCount = saturateVariableCount(h);
 
         m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
 
@@ -784,7 +791,7 @@ void InterpretedCodeBlock::computeVariables()
             size_t currentStackAllocatedVariableIndex = 0;
             size_t maxStackAllocatedVariableDepth = 0;
             computeBlockVariables(0, currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
-            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = maxStackAllocatedVariableDepth;
+            m_lexicalBlockStackAllocatedIdentifierMaximumDepth = saturateVariableCount(maxStackAllocatedVariableDepth);
         }
 
         if (isGlobalCodeBlock()) {
