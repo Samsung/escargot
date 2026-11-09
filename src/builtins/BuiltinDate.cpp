@@ -63,9 +63,7 @@ bool isInValidRange(double year, double month, double date, double hour, double 
     }
 
     int32_t max32 = std::numeric_limits<int32_t>::max();
-    int64_t max64 = std::numeric_limits<int64_t>::max();
-    if (std::abs(year) > max32 || std::abs(month) > max32 || std::abs(date) > max32
-        || std::abs(hour) > max32 || std::abs(minute) > max32 || std::abs(second) > max64 || std::abs(millisecond) > max64) {
+    if (std::abs(year) > max32 || std::abs(month) > max32 || std::abs(date) > max32) {
         return false;
     }
     return true;
@@ -134,7 +132,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
                 thisObject->setTimeValueAsNaN();
             } else {
-                thisObject->setTimeValue(state, (int)year, (int)month, (int)date, (int)hour, (int)minute, second, millisecond);
+                thisObject->setTimeValue(state, (int)year, (int)month, (int)date, hour, minute, second, millisecond);
             }
         }
         return thisObject;

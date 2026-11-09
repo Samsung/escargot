@@ -315,6 +315,11 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             continuePosition = codeBlock->currentCodeSize();
 
+            // A labelled continue can skip the end of the body. Reset the
+            // completion flag before every step, including the final one.
+            forOfEndCheckRegisterBodyEndPosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this->m_loc.index);
+
             size_t iteratorNextOperationPos;
             if (m_isForAwaitOf) {
                 // Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « »).
@@ -386,9 +391,6 @@ public:
 
             generateBodyByteCode(codeBlock, context, newContext);
 
-            forOfEndCheckRegisterBodyEndPosition = codeBlock->currentCodeSize();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this->m_loc.index);
-
             auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
             iteratorRecordRegisterIndex = std::max(headRequiredRegisterFileSizeInValueSize, bodyRequiredRegisterFileSizeInValueSize);
             iteratorObjectRegisterIndex = iteratorRecordRegisterIndex + 1;
@@ -413,7 +415,7 @@ public:
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), continuePosition), &newContext, this->m_loc.index);
         size_t exitPos = codeBlock->currentCodeSize();
-        ASSERT(codeBlock->peekCode<CheckLastEnumerateKey>(continuePosition)->m_orgOpcode == CheckLastEnumerateKeyOpcode || codeBlock->peekCode<IteratorOperation>(continuePosition)->m_orgOpcode == IteratorOperationOpcode || codeBlock->peekCode<IteratorNextValue>(continuePosition)->m_orgOpcode == IteratorNextValueOpcode);
+        ASSERT(codeBlock->peekCode<ByteCode>(continuePosition)->m_orgOpcode == (m_forIn ? CheckLastEnumerateKeyOpcode : LoadLiteralOpcode));
 
         // we need to add 1 on third parameter because we add try operation manually
         newContext.consumeBreakPositions(codeBlock, exitPos, newContext.tryCatchWithBlockStatementCount());

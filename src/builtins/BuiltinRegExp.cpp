@@ -350,8 +350,8 @@ static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t a
     bool unicodeMatching = false;
 
     String* newFlags;
-    // If flags contains "u", let unicodeMatching be true.
-    if (flags->find("u") != SIZE_MAX) {
+    // Both Unicode modes advance over complete code points.
+    if (flags->find("u") != SIZE_MAX || flags->find("v") != SIZE_MAX) {
         unicodeMatching = true;
     }
 

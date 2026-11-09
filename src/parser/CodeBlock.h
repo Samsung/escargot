@@ -1189,6 +1189,12 @@ protected:
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);
 
+    bool needsParameterEnvironment(LexicalBlockIndex blockIndex) const
+    {
+        return (m_hasEvalInParameter && isArrowFunctionExpression() && blockIndex == 0)
+            || (m_hasEval && m_functionBodyBlockIndex && blockIndex == m_functionBodyBlockIndex);
+    }
+
     void computeBlockVariables(LexicalBlockIndex currentBlockIndex, size_t currentStackAllocatedVariableIndex, size_t& maxStackAllocatedVariableDepth);
     void initBlockScopeInformation(ASTScopeContext* scopeCtx);
 

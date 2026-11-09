@@ -526,7 +526,9 @@ public:
             ASSERT(paramNames[i].length() > 0);
             AtomicString as(this->escargotContext, paramNames[i]);
             this->currentScopeContext->m_parameters[i] = as;
-            this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
+            // With parameter expressions, track body var redeclarations
+            // separately from the original parameter bindings.
+            this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, functionBodyBlockIndex == 0, true);
         }
 
         // Check if any identifier names are duplicated.
@@ -5361,6 +5363,14 @@ public:
         }
 
         if (this->currentScopeContext->m_functionBodyBlockIndex) {
+            // Body vars that redeclare parameters need independent bindings.
+            // Add them after declaration checks, so repeated var declarations
+            // are not mistaken for conflicts with lexical declarations.
+            for (const auto& name : this->currentScopeContext->m_varNames) {
+                if (name.isParameterName() && name.isVarDeclaration()) {
+                    this->currentScopeContext->insertNameAtBlock(name.name(), this->currentScopeContext->m_functionBodyBlockIndex, false, false);
+                }
+            }
             closeBlock(blockContext);
         }
 

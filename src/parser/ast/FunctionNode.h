@@ -85,7 +85,7 @@ public:
 
             addExecutionPauseIfNeeds(codeBlock, context);
 
-            m_body->generateStatementByteCode(codeBlock, context);
+            generateBodyWithParameterCopies(codeBlock, context);
 
             codeBlock->finalizeLexicalBlock(context, blockContext);
 
@@ -115,6 +115,53 @@ public:
             if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
                 codeBlock->finalizeLexicalBlock(context, blockContext);
                 context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+            }
+        }
+    }
+
+    void generateBodyWithParameterCopies(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        auto* bi = codeBlock->m_codeBlock->blockInfo(m_body->lexicalBlockIndex());
+        std::vector<std::pair<AtomicString, ByteCodeRegisterIndex>> copies;
+        bool hasUsingBinding = false;
+        for (const auto& id : bi->identifiers()) {
+            hasUsingBinding |= id.m_isUsing;
+            if (codeBlock->m_codeBlock->isParameterName(id.m_name)) {
+                auto reg = context->getRegister();
+                IdentifierNode parameter(id.m_name);
+                parameter.m_loc = m_loc;
+                parameter.generateExpressionByteCode(codeBlock, context, reg);
+                copies.emplace_back(id.m_name, reg);
+            }
+        }
+        if (copies.empty()) {
+            m_body->generateStatementByteCode(codeBlock, context);
+            return;
+        }
+
+        size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
+        context->m_lexicalBlockIndex = m_body->lexicalBlockIndex();
+        auto bodyContext = codeBlock->pushLexicalBlock(context, bi, this, false);
+        for (const auto& copy : copies) {
+            IdentifierNode binding(copy.first);
+            binding.m_loc = m_loc;
+            context->m_isLexicallyDeclaredBindingInitialization = true;
+            binding.generateStoreByteCode(codeBlock, context, copy.second, true);
+        }
+        // A using accumulator is above the copy registers on the stack.
+        // Keep those registers reserved until finalizeLexicalBlock releases it.
+        if (!hasUsingBinding) {
+            for (size_t i = 0; i < copies.size(); i++) {
+                context->giveUpRegister();
+            }
+        }
+        codeBlock->initFunctionDeclarationWithinBlock(context, bi, this);
+        m_body->container()->generateStatementByteCode(codeBlock, context);
+        codeBlock->finalizeLexicalBlock(context, bodyContext);
+        context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+        if (hasUsingBinding) {
+            for (size_t i = 0; i < copies.size(); i++) {
+                context->giveUpRegister();
             }
         }
     }

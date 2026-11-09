@@ -259,15 +259,41 @@ void DateObject::setTimeValue(ExecutionState& state, const Value& v)
 
 
 void DateObject::setTimeValue(ExecutionState& state, int year, int month,
-                              int date, int hour, int minute, int64_t second,
-                              int64_t millisecond, bool convertToUTC)
+                              int date, double hour, double minute, double second,
+                              double millisecond, bool convertToUTC)
 {
-    int yearComputed = year + floor(month / (double)TimeConstant::MonthsPerYear);
+    int64_t normalizedYear = static_cast<int64_t>(year) + static_cast<int64_t>(floor(month / (double)TimeConstant::MonthsPerYear));
+    if (normalizedYear < std::numeric_limits<int>::min() || normalizedYear > std::numeric_limits<int>::max()) {
+        setTimeValueAsNaN();
+        return;
+    }
+    int yearComputed = static_cast<int>(normalizedYear);
     int monthComputed = month % TimeConstant::MonthsPerYear;
     if (monthComputed < 0)
         monthComputed = (monthComputed + TimeConstant::MonthsPerYear) % TimeConstant::MonthsPerYear;
 
-    time64_t primitiveValue = timeinfoToMs(state, yearComputed, monthComputed, date, hour, minute, second, millisecond);
+    time64_t primitiveValue;
+    const double max32 = std::numeric_limits<int32_t>::max();
+    if (LIKELY(std::abs(hour) <= max32 && std::abs(minute) <= max32 && std::abs(second) <= max32 && std::abs(millisecond) <= max32)) {
+        // Keep ordinary date construction and setters on the integer path.
+        primitiveValue = timeinfoToMs(state, yearComputed, monthComputed, date,
+                                      static_cast<int>(hour), static_cast<int>(minute), static_cast<int64_t>(second), static_cast<int64_t>(millisecond));
+    } else {
+        time64_t daysMs = daysToMs(yearComputed, monthComputed, date);
+        double time = std::trunc(hour) * TimeConstant::MsPerHour + std::trunc(minute) * TimeConstant::MsPerMinute
+            + std::trunc(second) * TimeConstant::MsPerSecond + std::trunc(millisecond);
+        double value = daysMs + time;
+        // MakeTime allows large components to cancel. Leave room for the
+        // int32 timezone offset before converting to time64_t; TimeClip
+        // still runs after the local timezone adjustment below.
+        if (daysMs == TIME64NAN || !std::isfinite(value)
+            || value >= static_cast<double>(std::numeric_limits<time64_t>::max() - std::numeric_limits<int32_t>::max())
+            || value <= static_cast<double>(std::numeric_limits<time64_t>::min() + std::numeric_limits<int32_t>::max())) {
+            setTimeValueAsNaN();
+            return;
+        }
+        primitiveValue = static_cast<time64_t>(value);
+    }
 
     if (convertToUTC) {
         primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
