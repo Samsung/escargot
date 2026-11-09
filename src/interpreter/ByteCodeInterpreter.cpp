@@ -6198,27 +6198,9 @@ NEVER_INLINE size_t InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& s
 
 NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile)
 {
-    EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
-    Value key = registerFile[code->m_keyRegisterIndex];
-    if (UNLIKELY(((EnumerateObjectWithDestruction*)data)->isProxyEnumeration())) {
-        ((EnumerateObjectWithDestruction*)data)->addExcludedKey(key);
-        return;
-    }
-    bool mark = false;
-    for (size_t i = 0; i < data->m_keys.size(); i++) {
-        Value cachedKey = data->m_keys[i];
-        if (!cachedKey.isEmpty()) {
-            if (key.isString() && cachedKey.isString()) {
-                mark = key.asString()->equals(cachedKey.asString());
-            } else if (key.isSymbol() && cachedKey.isSymbol()) {
-                mark = (key.asSymbol() == cachedKey.asSymbol());
-            }
-        }
-        if (mark) {
-            data->m_keys[i] = Value(Value::EmptyValue);
-            break;
-        }
-    }
+    // record a key excluded from the rest element of an object pattern
+    EnumerateObjectWithDestruction* data = (EnumerateObjectWithDestruction*)registerFile[code->m_dataRegisterIndex].asPointerValue();
+    data->addExcludedKey(registerFile[code->m_keyRegisterIndex]);
 }
 
 NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t programCounter, uint8_t* codeBuffer)

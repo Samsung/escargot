@@ -115,10 +115,10 @@ void* EnumerateObjectWithIteration::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-bool EnumerateObjectWithDestruction::isExcludedKey(const Value& key)
+static bool isExcludedKey(const EncodedValueTightVector& excludedKeys, const Value& key)
 {
-    for (size_t i = 0; i < m_keys.size(); i++) {
-        Value excludedKey = m_keys[i];
+    for (size_t i = 0; i < excludedKeys.size(); i++) {
+        Value excludedKey = excludedKeys[i];
         if (key.isString() && excludedKey.isString()) {
             if (key.asString()->equals(excludedKey.asString())) {
                 return true;
@@ -134,13 +134,13 @@ bool EnumerateObjectWithDestruction::isExcludedKey(const Value& key)
 
 // CopyDataProperties(result, m_object, excludedKeys) for a proxy, whose traps are observable
 // https://tc39.es/ecma262/#sec-copydataproperties
-void EnumerateObjectWithDestruction::fillRestElementFromProxy(ExecutionState& state, Object* result)
+void EnumerateObjectWithDestruction::fillRestElementFromProxy(ExecutionState& state, Object* result, const EncodedValueTightVector& excludedKeys)
 {
     ASSERT(m_object->isProxyObject());
     Object::OwnPropertyKeyVector keys = m_object->ownPropertyKeys(state);
     for (size_t i = 0; i < keys.size(); i++) {
         const Value& key = keys[i];
-        if (isExcludedKey(key)) {
+        if (isExcludedKey(excludedKeys, key)) {
             continue;
         }
 
@@ -155,12 +155,15 @@ void EnumerateObjectWithDestruction::fillRestElementFromProxy(ExecutionState& st
 
 void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Object* result)
 {
-    if (UNLIKELY(isProxyEnumeration())) {
-        fillRestElementFromProxy(state, result);
+    // m_keys holds the keys excluded by the pattern; the own keys are read only now
+    EncodedValueTightVector excludedKeys(std::move(m_keys));
+    if (UNLIKELY(m_object->isProxyObject())) {
+        fillRestElementFromProxy(state, result, excludedKeys);
         return;
     }
 
-    ASSERT(m_index == 0);
+    executeEnumeration(state, m_keys);
+    m_index = 0;
 
     Value key, value;
     while (m_index < m_keys.size()) {
@@ -168,10 +171,10 @@ void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Obje
             update(state);
         } else {
             key = m_keys[m_index++];
-            // check unmarked key and put rest properties
-            if (!key.isEmpty()) {
+            if (!isExcludedKey(excludedKeys, key)) {
                 value = m_object->getIndexedProperty(state, key).value(state, m_object);
-                result->setIndexedProperty(state, key, value);
+                // CreateDataProperty: never reach a setter such as Object.prototype.__proto__
+                result->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, key), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
             }
         }
     }
