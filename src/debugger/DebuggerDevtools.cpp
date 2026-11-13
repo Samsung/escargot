@@ -16,6 +16,9 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  *  USA
  */
+
+#ifdef ESCARGOT_DEBUGGER
+
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -47,7 +50,11 @@
 #include "runtime/WeakMapObject.h"
 #include "runtime/WeakSetObject.h"
 
-#ifdef ESCARGOT_DEBUGGER
+#if defined(ENABLE_WASM)
+#include "wasm.h"
+#include "wasm/WASMObject.h"
+#include "wasm/BuiltinWASMUtilInl.h"
+#endif /* defined(ENABLE_WASM) */
 
 namespace Escargot {
 
@@ -299,6 +306,31 @@ ObjectDescription DebuggerDevtools::generateObjectDescription(ExecutionState* st
     ITERATOR_DESCRIPTION(RegExpString);
 #undef ITERATOR_DESCRIPTION
 
+#if defined(ENABLE_WASM)
+    if (object->isWASMMemoryObject()) {
+        WASMMemoryObject* wasmMemObj = object->asWASMMemoryObject();
+        return {
+            .type = "object",
+            .subType = "webassemblymemory",
+            .description = string_format("Memory(%d)", wasm_memory_size(wasmMemObj->memory()))
+        };
+    }
+    if (object->isWASMModuleObject()) {
+        return {
+            .type = "object",
+            .subType = "",
+            .description = "Module"
+        };
+    }
+    if (object->isWASMInstanceObject()) {
+        return {
+            .type = "object",
+            .subType = "",
+            .description = "Instance"
+        };
+    }
+#endif /* defined(ENABLE_WASM) */
+
     return {
         .type = "object",
         .subType = "",
@@ -444,6 +476,38 @@ static AtomicString iteratorTypeToString(ExecutionState* state, T type)
     }
 }
 
+static size_t containerSize(ExecutionState* state, const Value value)
+{
+    if (!value.isObject()) {
+        return 0;
+    }
+    Object* object = value.asObject();
+
+    if (object->isArrayObject()) {
+        return object->asArrayObject()->length(*state);
+    }
+    if (object->isArrayBufferObject()) {
+        return object->asArrayBufferObject()->byteLength();
+    }
+    if (object->isTypedArrayObject()) {
+        return object->asTypedArrayObject()->length(*state);
+    }
+    if (object->isMapObject()) {
+        return object->asMapObject()->size();
+    }
+    if (object->isWeakMapObject()) {
+        return object->asWeakMapObject()->storage().size();
+    }
+    if (object->isSetObject()) {
+        return object->asSetObject()->size();
+    }
+    if (object->isWeakSetObject()) {
+        return object->asWeakSetObject()->storage().size();
+    }
+
+    return 0;
+}
+
 rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const Value& value, const ObjectDescription& description, rapidjson::MemoryPoolAllocator<>& allocator)
 {
     auto result = rapidjson::Value(rapidjson::kObjectType);
@@ -475,7 +539,11 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
             MapObject* mapObj = object->asMapObject();
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
+            size_t i = 0;
             for (const auto& entry_pair : mapObj->storage()) {
+                if (i > m_arrayPreviewListingMaxSize) {
+                    break;
+                }
                 if (!entry_pair.first.isEmpty()) {
                     auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
                     jsonEntry.AddMember("key", encodedValueToJsonEntryItem(state, entry_pair.first, allocator), allocator);
@@ -483,12 +551,17 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
 
                     result["entries"].PushBack(jsonEntry, allocator);
                 }
+                i++;
             }
         } else if (object->isWeakMapObject()) {
             WeakMapObject* mapObj = object->asWeakMapObject();
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
+            size_t i = 0;
             for (const auto& entry : mapObj->storage()) {
+                if (i > m_arrayPreviewListingMaxSize) {
+                    break;
+                }
                 if (entry->key.hasValue()) {
                     auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
                     auto* key = entry->key.value();
@@ -497,22 +570,32 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
 
                     result["entries"].PushBack(jsonEntry, allocator);
                 }
+                i++;
             }
         } else if (object->isSetObject()) {
             SetObject* setObj = object->asSetObject();
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
+            size_t i = 0;
             for (const auto& entry : setObj->storage()) {
+                if (i > m_arrayPreviewListingMaxSize) {
+                    break;
+                }
                 auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
                 jsonEntry.AddMember("value", encodedValueToJsonEntryItem(state, entry, allocator), allocator);
 
                 result["entries"].PushBack(jsonEntry, allocator);
+                i++;
             }
         } else if (object->isWeakSetObject()) {
             WeakSetObject* setObj = object->asWeakSetObject();
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
+            size_t i = 0;
             for (const auto& entry : setObj->storage()) {
+                if (i > m_arrayPreviewListingMaxSize) {
+                    break;
+                }
                 if (entry->key.hasValue()) {
                     auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
                     auto* key = entry->key.value();
@@ -520,6 +603,7 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
 
                     result["entries"].PushBack(jsonEntry, allocator);
                 }
+                i++;
             }
         } else if (object->isArrayBufferObject()) {
             ArrayBufferObject* arrayBufObj = object->asArrayBufferObject();
@@ -555,7 +639,7 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
             if (mapIterObj->map().hasValue()) {
-                for (size_t idx = mapIterObj->iteratorIndex(); idx < mapIterObj->map()->storage().size(); ++idx) {
+                for (size_t idx = mapIterObj->iteratorIndex(); idx < mapIterObj->map()->storage().size() && idx < mapIterObj->iteratorIndex() + m_arrayPreviewListingMaxSize; ++idx) {
                     const auto& entry_pair = mapIterObj->map()->storage()[idx];
                     if (!entry_pair.first.isEmpty()) {
                         auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
@@ -575,7 +659,7 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
             result.AddMember("entries", rapidjson::Value(rapidjson::kArrayType), allocator);
 
             if (setIterObj->set().hasValue()) {
-                for (size_t idx = setIterObj->iteratorIndex(); idx < setIterObj->set()->storage().size(); ++idx) {
+                for (size_t idx = setIterObj->iteratorIndex(); idx < setIterObj->set()->storage().size() && idx < setIterObj->iteratorIndex() + m_arrayPreviewListingMaxSize; ++idx) {
                     const auto& entry = setIterObj->set()->storage()[idx];
                     if (!entry.isEmpty()) {
                         auto jsonEntry = rapidjson::Value(rapidjson::kObjectType);
@@ -587,6 +671,15 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
                     }
                 }
             }
+#if defined(ENABLE_WASM)
+        } else if (object->isWASMMemoryObject()) {
+            WASMMemoryObject* wasmMemObj = object->asWASMMemoryObject();
+            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().buffer, "object", string_format("ArrayBuffer(%d)", wasm_memory_data_size(wasmMemObj->memory())), "arraybuffer", allocator), allocator);
+#endif /* defined(ENABLE_WASM) */
+        }
+
+        if (containerSize(state, value) > m_arrayPreviewListingMaxSize) {
+            return result;
         }
 
         auto* properties = new (GC) PropertyNameValueMap();
@@ -612,6 +705,114 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
 
     return result;
 }
+
+rapidjson::Value DebuggerDevtools::jsValueToJsonValue(ExecutionState* state, const Value& value, rapidjson::MemoryPoolAllocator<>& allocator)
+{
+    rapidjson::Value result;
+
+    if (value.isArrayObject()) {
+        ArrayObject* arrayObj = value.asArrayObject();
+        result = rapidjson::Value(rapidjson::kArrayType);
+
+        for (size_t i = 0; i < arrayObj->length(*state); i++) {
+            auto indexName = String::fromUint32(i);
+            Value v;
+            ObjectGetResult getResult = arrayObj->get(*state, ObjectPropertyName(*state, indexName), v);
+            Value item = getResult.value(*state, v);
+            result.PushBack(jsValueToJsonValue(state, item, allocator), allocator);
+        }
+    } else if (value.isString()) {
+        result = stringToRapidjsonValue(value.asString()->toUTF8StringData().data(), allocator);
+    } else if (value.isNumber()) {
+        result = rapidjson::Value(rapidjson::kNumberType);
+        if (value.isInteger(*state)) {
+            result.SetInt(value.asInt32());
+        } else {
+            result.SetDouble(value.asDouble());
+        }
+    } else if (value.isBoolean()) {
+        if (value.isTrue()) {
+            result = rapidjson::Value(rapidjson::kTrueType);
+        } else {
+            result = rapidjson::Value(rapidjson::kFalseType);
+        }
+    } else if (value.isNull()) {
+        result = rapidjson::Value(rapidjson::kNullType);
+    } else if (value.isUndefined()) {
+        result = rapidjson::Value("undefined");
+    } else {
+        result = rapidjson::Value(rapidjson::kObjectType);
+        auto* properties = new (GC) PropertyNameValueMap();
+        addObjectProperties(state, properties, value.asObject());
+
+        for (auto property : *properties) {
+            auto propertyName = stringToRapidjsonValue(property.first.string()->toUTF8StringData().data(), allocator);
+            result.AddMember(propertyName, jsValueToJsonValue(state, property.second, allocator), allocator);
+        }
+    }
+
+    return result;
+}
+
+#if defined(ENABLE_WASM)
+static AtomicString wasmValTypeToTypeName(ExecutionState* state, wasm_valkind_t kind)
+{
+    switch (kind) {
+    case WASM_I32: {
+        return state->context()->staticStrings().i32;
+    }
+    case WASM_I64: {
+        return state->context()->staticStrings().i64;
+    }
+    case WASM_F32: {
+        return state->context()->staticStrings().f32;
+    }
+    case WASM_F64: {
+        return state->context()->staticStrings().f64;
+    }
+    case WASM_V128: {
+        return state->context()->staticStrings().v128;
+    }
+    case WASM_ANYREF: {
+        return state->context()->staticStrings().anyref;
+    }
+    case WASM_FUNCREF: {
+        return state->context()->staticStrings().funcref;
+    }
+    case WASM_EXNREF: {
+        return state->context()->staticStrings().externref;
+    }
+    default: {
+        return state->context()->staticStrings().unknown;
+    }
+    }
+}
+
+static Value wasmValToValue(wasm_val_t val)
+{
+    switch (val.kind) {
+    case WASM_I32: {
+        return Value(val.of.i32);
+    }
+    case WASM_I64: {
+        return Value(val.of.i64);
+    }
+    case WASM_F32: {
+        return Value(Value::DoubleToIntConvertibleTestNeedsTag::DoubleToIntConvertibleTestNeeds, val.of.f32);
+    }
+    case WASM_F64: {
+        return Value(Value::DoubleToIntConvertibleTestNeedsTag::DoubleToIntConvertibleTestNeeds, val.of.f64);
+    }
+    case WASM_V128:
+    case WASM_ANYREF:
+    case WASM_FUNCREF:
+    case WASM_EXNREF:
+    default: {
+        return Value(val.of.ref);
+    }
+    }
+}
+#endif /* defined(ENABLE_WASM) */
 
 rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, const Value& value, rapidjson::MemoryPoolAllocator<>& allocator)
 {
@@ -663,7 +864,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().message, message));
             properties->insert(std::make_pair(state->context()->staticStrings().stack, Value(stackStraceString)));
         } else {
-            addObjectProperties(state, properties, value.asObject());
+            // Do not add properties if its a container and its size is bigger than `arrayListingMaxSize` (Devtools sets the listing threshold at 100)
+            // Devtools will request them as ranges using `Runtime.callFunctionOn`
+            if (containerSize(state, value) <= m_arrayListingMaxSize) {
+                addObjectProperties(state, properties, value.asObject());
+            }
         }
 
         Object* object = value.asObject();
@@ -692,7 +897,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry_pair : mapObj->storage()) {
                 if (!entry_pair.first.isEmpty()) {
@@ -712,7 +917,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->storage().size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry : mapObj->storage()) {
                 if (entry->key.hasValue()) {
@@ -732,7 +937,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry : setObj->storage()) {
                 auto* entryObj = new Object(*state, Object::PrototypeIsNull);
@@ -749,7 +954,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->storage().size())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry : setObj->storage()) {
                 if (entry->key.hasValue()) {
@@ -788,17 +993,19 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             TypedArrayObject* typedArrayObj = object->asTypedArrayObject();
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, typedArrayObj->getPrototype(*state)));
 
-            for (size_t i = 0; i < typedArrayObj->byteLength() / typedArrayObj->byteLength(); ++i) {
-                auto indexName = String::fromUint32(i);
-                Value v;
-                ObjectGetResult getResult = typedArrayObj->get(*state, ObjectPropertyName(*state, indexName), v);
-                properties->insert(std::make_pair(AtomicString(*state, indexName), getResult.value(*state, v)));
+            const uint64_t length = typedArrayObj->length(*state);
+            if (length < m_arrayListingMaxSize) {
+                for (size_t i = 0; i < length; ++i) {
+                    auto indexName = String::fromUint32(i);
+                    Value v;
+                    ObjectGetResult getResult = typedArrayObj->get(*state, ObjectPropertyName(*state, indexName), v);
+                    properties->insert(std::make_pair(AtomicString(*state, indexName), getResult.value(*state, v)));
+                }
             }
-
             properties->insert(std::make_pair(state->context()->staticStrings().buffer, typedArrayObj->buffer()));
             properties->insert(std::make_pair(state->context()->staticStrings().byteLength, Value(typedArrayObj->byteLength())));
             properties->insert(std::make_pair(state->context()->staticStrings().byteOffset, Value(typedArrayObj->byteOffset())));
-            properties->insert(std::make_pair(state->context()->staticStrings().length, Value(typedArrayObj->byteLength() / typedArrayObj->elementSize())));
+            properties->insert(std::make_pair(state->context()->staticStrings().length, Value(length)));
 
         } else if (object->isDataViewObject()) {
             DataViewObject* dataViewObj = object->asDataViewObject();
@@ -836,7 +1043,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             MapIteratorObject* mapIterObj = object->asIteratorObject()->asMapIteratorObject();
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapIterObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             if (mapIterObj->map().hasValue()) {
                 for (size_t idx = mapIterObj->iteratorIndex(); idx < mapIterObj->map()->storage().size(); ++idx) {
                     const auto& entry_pair = mapIterObj->map()->storage()[idx];
@@ -862,7 +1069,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             SetIteratorObject* setIterObj = object->asIteratorObject()->asSetIteratorObject();
             internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setIterObj->getPrototype(*state)));
 
-            auto* entries = new Object(*state, Object::PrototypeIsNull);
+            auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             if (setIterObj->set().hasValue()) {
                 for (size_t idx = setIterObj->iteratorIndex(); idx < setIterObj->set()->storage().size(); ++idx) {
                     const auto& entry = setIterObj->set()->storage()[idx];
@@ -881,13 +1088,81 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorIndex, Value(setIterObj->iteratorIndex())));
             internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorKind, iteratorTypeToString<SetIteratorObject::Type>(state, setIterObj->type()).string()));
 
+#if defined(ENABLE_WASM)
+        } else if (object->isWASMMemoryObject()) {
+            WASMMemoryObject* wasmMemObj = object->asWASMMemoryObject();
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmMemObj->getPrototype(*state)));
+
+            ArrayBuffer* memBuffer = wasmMemObj->buffer();
+            if (memBuffer->backingStore().hasValue()) {
+                auto* arrayBufObj = new ArrayBufferObject(*state);
+                arrayBufObj->attachBuffer(memBuffer->backingStore().value());
+                properties->insert(std::make_pair(state->context()->staticStrings().buffer, arrayBufObj->asObject()));
+            }
+        } else if (object->isWASMModuleObject()) {
+            WASMModuleObject* wasmModuleObj = object->asWASMModuleObject();
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmModuleObj->getPrototype(*state)));
+
+            Value argv[1] = { wasmModuleObj };
+            auto exports = builtinWASMModuleExports(*state, Value(), 1, argv, nullptr);
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionExports, exports));
+
+            auto imports = builtinWASMModuleImports(*state, Value(), 1, argv, nullptr);
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionImports, imports));
+
+        } else if (object->isWASMInstanceObject()) {
+            WASMInstanceObject* wasmInstObj = object->asWASMInstanceObject();
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmInstObj->getPrototype(*state)));
+
+            auto* exports = new (GC) PropertyNameValueMap();
+            addObjectProperties(state, exports, wasmInstObj->exports());
+
+            auto* fullExports = new Object(*state, Object::PrototypeIsNull);
+            auto* globals = new Object(*state, Object::PrototypeIsNull);
+            auto* functions = new Object(*state, Object::PrototypeIsNull);
+            auto* memories = new Object(*state, Object::PrototypeIsNull);
+
+            for (const auto item : *exports) {
+                const auto nameStr = string_format("$%s", item.first.string()->toUTF8StringData().data());
+                const auto name = AtomicString(*state, nameStr.c_str(), nameStr.length());
+                const Value exportValue = item.second;
+
+                if (exportValue.isObject() && exportValue.asObject()->isWASMGlobalObject()) {
+                    wasm_val_t globalVal;
+                    wasm_global_get(exportValue.asObject()->asWASMGlobalObject()->global(), &globalVal);
+
+                    auto* obj = new Object(*state, Object::PrototypeIsNull);
+                    obj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().type), ObjectPropertyDescriptor(wasmValTypeToTypeName(state, globalVal.kind).string()));
+                    obj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(wasmValToValue(globalVal)));
+
+                    globals->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(obj));
+                    fullExports->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(obj));
+
+                } else if (exportValue.isObject() && exportValue.asObject()->isFunctionObject()) {
+                    FunctionObject* funcObj = exportValue.asObject()->asFunctionObject();
+
+                    functions->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(funcObj));
+                    fullExports->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(funcObj));
+                } else if (exportValue.isObject() && exportValue.asObject()->isWASMMemoryObject()) {
+                    WASMMemoryObject* memObj = exportValue.asObject()->asWASMMemoryObject();
+
+                    memories->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(memObj));
+                    fullExports->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(memObj));
+                }
+            }
+
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionExports, fullExports));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionFunctions, functions));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionGlobals, globals));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionMemories, memories));
+#endif /* defined(ENABLE_WASM) */
         } else {
             if (object->getPrototype(*state) != Value(Value::Null)) {
                 internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, object->getPrototype(*state)));
             }
         }
 
-        result.AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(properties, internalProperties)), allocator), allocator);
+        result.AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(object, properties, internalProperties)), allocator), allocator);
     }
 
     return result;
@@ -973,12 +1248,7 @@ static void computeEndLocation(const char* src, size_t length, uint32_t& endLine
 
 void DebuggerDevtools::parseCompleted(String* source, String* srcName, const size_t originLineOffset, String* error)
 {
-    if (!enabled() || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
-        return;
-    }
-
-    if (!source || !srcName || !source->is8Bit() || !srcName->is8Bit()) {
-        ESCARGOT_LOG_ERROR("Only 8 bit characters are supported right now...");
+    if (!enabled() || m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE || m_silentEvals) {
         return;
     }
 
@@ -1050,9 +1320,10 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
     const uint64_t stopLine = stopByteCode->m_loc.line - 1; // chrome starts line indexes at 0
     const uint64_t stopColumn = stopByteCode->m_loc.column - 1; // chrome starts column indexes at 0
 
-    m_objectIdVectorIndexOffset += m_propertyMapsById.size();
-    m_propertyMapsById.clear();
-
+    if (!m_silentEvals) {
+        m_objectIdVectorIndexOffset += m_propertyMapsById.size();
+        m_propertyMapsById.clear();
+    }
     rapidjson::Document reply;
     reply.SetObject();
 
@@ -1203,7 +1474,7 @@ void DebuggerDevtools::sendPausedEvent(ByteCodeBlock* byteCodeBlock, const uint3
             scopeChain.AddMember("object", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
 
             scopeChain["object"].AddMember("type", stringToRapidjsonValue("object", reply.GetAllocator()), reply.GetAllocator());
-            scopeChain["object"].AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(typedValueMap.first, nullptr)), reply.GetAllocator()), reply.GetAllocator());
+            scopeChain["object"].AddMember("objectId", stringToRapidjsonValue(string_format("%d", registerValuesMap(nullptr, typedValueMap.first, nullptr)), reply.GetAllocator()), reply.GetAllocator());
             scopeChain.AddMember("type", stringToRapidjsonValue(typedValueMap.second, reply.GetAllocator()), reply.GetAllocator());
             callFrameObject["scopeChain"].PushBack(scopeChain, reply.GetAllocator());
         }
@@ -1399,20 +1670,21 @@ bool DebuggerDevtools::setSkipAllPauses(rapidjson::Document& jsonMessage, Execut
     return false;
 }
 
-uint32_t DebuggerDevtools::registerValuesMap(PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap)
+uint32_t DebuggerDevtools::registerValuesMap(Object* object, PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap)
 {
-    m_propertyMapsById.push_back({ newPropertyMap, newInternalPropertyMap });
+    ASSERT(m_propertyMapsById.size() == m_nextObjectId - m_objectIdVectorIndexOffset)
+    m_propertyMapsById.push_back({ object, newPropertyMap, newInternalPropertyMap });
     return m_nextObjectId++;
+}
+
+
+ALWAYS_INLINE PropertyMaps DebuggerDevtools::getObjectPropertyMaps(const uint32_t objectId)
+{
+    return m_propertyMapsById[objectId - m_objectIdVectorIndexOffset];
 }
 
 bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state)
 {
-    if (m_verboseLogging) {
-        if (!jsonMessage["params"]["nonIndexedPropertiesOnly"].GetBool()) {
-            ESCARGOT_LOG_ERROR("Warning: getProperties: sending indexed properties is not supported!");
-        }
-    }
-
     bool sendInternalProperties = !jsonMessage["params"]["accessorPropertiesOnly"].GetBool();
     bool sendOwnProperties = jsonMessage["params"]["ownProperties"].GetBool();
     // NOTE: Devtools requests scope, object and internal properties in separate messages
@@ -1441,7 +1713,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
     reply["result"].AddMember("result", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
 
     if (sendScopeProperties) {
-        PropertyNameValueMap* properties = m_propertyMapsById[objectId - m_objectIdVectorIndexOffset].properties;
+        PropertyNameValueMap* properties = getObjectPropertyMaps(objectId).properties;
         for (const auto& property : *properties) {
             const std::string& propertyName = property.first.string()->toUTF8StringData().data();
             const Value& propertyValue = property.second;
@@ -1461,7 +1733,7 @@ bool DebuggerDevtools::sendProperties(rapidjson::Document& jsonMessage, Executio
             reply["result"]["result"].PushBack(propertyObject, reply.GetAllocator());
         }
 
-        PropertyNameValueMap* internalProperties = m_propertyMapsById[objectId - m_objectIdVectorIndexOffset].internalProperties;
+        PropertyNameValueMap* internalProperties = getObjectPropertyMaps(objectId).internalProperties;
         if (internalProperties != nullptr) {
             reply["result"].AddMember("internalProperties", rapidjson::Value(rapidjson::kArrayType), reply.GetAllocator());
 
@@ -1904,6 +2176,121 @@ bool DebuggerDevtools::evaluate(rapidjson::Document& jsonMessage, ExecutionState
     return true;
 }
 
+static std::string getFunctionName(const std::string& functionDeclaration)
+{
+    // we assume in the declaration string the format is: `function name(args...) {...}` -> `name`
+    const auto firstSpacePos = functionDeclaration.find(' ');
+    const auto firstOpeningParenPos = functionDeclaration.find('(');
+    return functionDeclaration.substr(firstSpacePos + 1, firstOpeningParenPos - firstSpacePos - 1);
+}
+
+bool DebuggerDevtools::evalOnObject(rapidjson::Document& jsonMessage, ExecutionState* state)
+{
+    rapidjson::Document reply;
+    reply.SetObject();
+
+    reply.AddMember("id", jsonMessage["id"], reply.GetAllocator());
+    reply.AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+
+    Object* targetObj = getObjectPropertyMaps(std::stoi(jsonMessage["params"]["objectId"].GetString())).object;
+    if (targetObj == nullptr) {
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_ERROR("Eval on object failed: object reference is null\n");
+        }
+        return true;
+    }
+
+    m_silentEvals = true;
+    const auto functionDeclarationStr = std::string(jsonMessage["params"]["functionDeclaration"].GetString());
+    const auto functionName = getFunctionName(functionDeclarationStr);
+    bool returnByValue = false;
+    if (jsonMessage["params"].HasMember("returnByValue")) {
+        returnByValue = jsonMessage["params"]["returnByValue"].GetBool();
+    }
+
+    std::vector<Value> arguments;
+    for (rapidjson::SizeType i = 0; i < jsonMessage["params"]["arguments"].Size(); i++) {
+        switch (jsonMessage["params"]["arguments"][i]["value"].GetType()) {
+        case rapidjson::kNullType: {
+            arguments.emplace_back(Value::Null);
+            break;
+        }
+        case rapidjson::kFalseType: {
+            arguments.emplace_back(Value::False);
+            break;
+        }
+        case rapidjson::kTrueType: {
+            arguments.emplace_back(Value::True);
+            break;
+        }
+        case rapidjson::kStringType: {
+            auto s = std::string(jsonMessage["params"]["arguments"][i]["value"].GetString());
+            arguments.emplace_back(String::fromUTF8(s.c_str(), s.length()));
+            break;
+        }
+        case rapidjson::kNumberType: {
+            if (jsonMessage["params"]["arguments"][i]["value"].IsInt()) {
+                arguments.emplace_back(jsonMessage["params"]["arguments"][i]["value"].GetInt());
+            } else if (jsonMessage["params"]["arguments"][i]["value"].IsInt64()) {
+                arguments.emplace_back(jsonMessage["params"]["arguments"][i]["value"].GetInt64());
+            } else {
+                arguments.emplace_back(Value::DoubleToIntConvertibleTestNeedsTag::DoubleToIntConvertibleTestNeeds, jsonMessage["params"]["arguments"][i]["value"].GetDouble());
+            }
+            break;
+        }
+        case rapidjson::kObjectType: {
+            if (m_verboseLogging) {
+                ESCARGOT_LOG_ERROR("evalOnObject: Objects as parameters not currently supported!");
+            }
+            break;
+        }
+        case rapidjson::kArrayType: {
+            if (m_verboseLogging) {
+                ESCARGOT_LOG_ERROR("evalOnObject: Arrays as parameters not currently supported!");
+            }
+            break;
+        }
+        }
+    }
+
+    const Value evalExpression(new Latin1String(functionDeclarationStr.c_str(), functionDeclarationStr.length()));
+    Value functionObj(Value::ForceUninitialized);
+
+    if (m_debuggerGlobalObject == nullptr) {
+        m_debuggerGlobalState = new ExecutionState(state->context());
+        m_debuggerGlobalObject = new GlobalObject(*m_debuggerGlobalState);
+    }
+
+    m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
+    try {
+        m_debuggerGlobalObject->eval(*m_debuggerGlobalState, evalExpression);
+        functionObj = m_debuggerGlobalObject->eval(*m_debuggerGlobalState, String::fromASCII(functionName.c_str(), functionName.length()));
+        printf("Eval res: %s\n", functionObj.toStringWithoutException(*state)->toUTF8StringData().data());
+    } catch (const Value& val) {
+        functionObj = val;
+        printf("Eval res: %s\n", functionObj.toStringWithoutException(*state)->toUTF8StringData().data());
+        if (m_verboseLogging) {
+            ESCARGOT_LOG_ERROR("Evaluating function failed: %s", functionObj.toStringWithoutException(*state)->toUTF8StringData().data());
+        }
+    }
+    m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
+
+    const Value callResult = Object::call(*m_debuggerGlobalState, functionObj, targetObj, arguments.size(), arguments.data());
+
+    if (returnByValue) {
+        reply["result"].AddMember("result", rapidjson::Value(rapidjson::kObjectType), reply.GetAllocator());
+        reply["result"]["result"].AddMember("type", stringToRapidjsonValue(objectToStringTypeName(callResult), reply.GetAllocator()), reply.GetAllocator());
+        reply["result"]["result"].AddMember("value", jsValueToJsonValue(state, callResult, reply.GetAllocator()), reply.GetAllocator());
+    } else {
+        reply["result"].AddMember("result", jsValueToJsonValueObj(state, callResult, reply.GetAllocator()), reply.GetAllocator());
+    }
+
+    sendJSONDocument(reply);
+
+    m_silentEvals = false;
+    return true;
+}
+
 #define MESSAGE_TYPE(n)                                                                                            \
     template <size_t N>                                                                                            \
     constexpr MessageTypeArg##n messageTypeArg##n(const char (&methodName)[N], const MessageHandlerArg##n handler) \
@@ -1951,6 +2338,7 @@ bool DebuggerDevtools::processEvents(ExecutionState* state, Optional<ByteCodeBlo
         messageTypeArg2("Debugger.stepOver", &DebuggerDevtools::stepOver),
         messageTypeArg2("HeapProfiler.takeHeapSnapshot", &DebuggerDevtools::takeHeapSnapshot),
         messageTypeArg2("Runtime.getProperties", &DebuggerDevtools::sendProperties),
+        messageTypeArg2("Runtime.callFunctionOn", &DebuggerDevtools::evalOnObject),
     };
 
     static constexpr MessageTypeArg3 messageTypesArg3[] = {

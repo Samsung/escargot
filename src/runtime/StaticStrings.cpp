@@ -157,10 +157,20 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(iteratorHasMore, "[[IteratorHasMore]]");
     INIT_STATIC_STRING(iteratorIndex, "[[IteratorIndex]]");
     INIT_STATIC_STRING(iteratorKind, "[[IteratorKind]]");
+    INIT_STATIC_STRING(sectionModule, "[[Module]]");
+    INIT_STATIC_STRING(sectionFunctions, "[[Functions]]");
+    INIT_STATIC_STRING(sectionGlobals, "[[Globals]]");
+    INIT_STATIC_STRING(sectionMemories, "[[Memories]]");
+    INIT_STATIC_STRING(sectionExports, "[[Exports]]");
+    INIT_STATIC_STRING(sectionImports, "[[Imports]]");
     INIT_STATIC_STRING(pending, "pending");
     INIT_STATIC_STRING(fulfilled, "fulfilled");
     INIT_STATIC_STRING(rejected, "rejected");
     INIT_STATIC_STRING(key, "key");
+    INIT_STATIC_STRING(type, "type");
+    INIT_STATIC_STRING(anyref, "anyRef");
+    INIT_STATIC_STRING(funcref, "funcRef");
+    INIT_STATIC_STRING(unknown, "unknown");
     INIT_STATIC_STRING(keyValue, "key-value");
 #else
 #endif

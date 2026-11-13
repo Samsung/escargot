@@ -1081,10 +1081,20 @@ namespace Escargot {
     F(iteratorHasMore)                     \
     F(iteratorIndex)                       \
     F(iteratorKind)                        \
+    F(sectionModule)                       \
+    F(sectionFunctions)                    \
+    F(sectionGlobals)                      \
+    F(sectionMemories)                     \
+    F(sectionExports)                      \
+    F(sectionImports)                      \
     F(pending)                             \
     F(fulfilled)                           \
     F(rejected)                            \
     F(key)                                 \
+    F(type)                                \
+    F(anyref)                              \
+    F(funcref)                             \
+    F(unknown)                             \
     F(keyValue)
 #else
 #define FOR_EACH_DEBUGGER_STATIC_STRING(F)

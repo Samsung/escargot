@@ -49,9 +49,17 @@ typedef enum StopReason {
 } StopReason;
 
 typedef HashMap<AtomicString, Value, std::hash<AtomicString>, std::equal_to<AtomicString>, GCUtil::gc_malloc_allocator<std::pair<AtomicString const, Value>>> PropertyNameValueMap;
-typedef struct {
-    PropertyNameValueMap* properties;
-    PropertyNameValueMap* internalProperties;
+typedef struct PropertyMaps {
+    Object* object{};
+    PropertyNameValueMap* properties{};
+    PropertyNameValueMap* internalProperties{};
+
+    PropertyMaps(Object* object, PropertyNameValueMap* properties, PropertyNameValueMap* internalProperties)
+        : object(object)
+        , properties(properties)
+        , internalProperties(internalProperties)
+    {
+    }
 } PropertyMaps;
 typedef Vector<PropertyMaps, GCUtil::gc_malloc_allocator<PropertyMaps>> PropertyNameValueMapVector;
 
@@ -91,6 +99,7 @@ protected:
 
 private:
     bool evaluate(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr, Optional<ByteCodeBlock*> byteCodeBlock = nullptr);
+    bool evalOnObject(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool sendProperties(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
     bool resume(rapidjson::Document& jsonMessage);
     bool stepOver(rapidjson::Document& jsonMessage, ExecutionState* state = nullptr);
@@ -114,10 +123,12 @@ private:
     void sendPausedEvent(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state, StopReason stopReason = BREAKPOINT, const Value* exceptionValue = nullptr);
 
 
-    uint32_t registerValuesMap(PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap);
+    uint32_t registerValuesMap(Object* object, PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap);
+    PropertyMaps getObjectPropertyMaps(uint32_t objectId);
     static ObjectDescription generateObjectDescription(ExecutionState* state, Object* object);
     static ObjectDescription generateDescription(ExecutionState* state, const Value& object);
     static rapidjson::Value generatePreview(ExecutionState* state, const Value& value, const ObjectDescription& description, rapidjson::MemoryPoolAllocator<>& allocator);
+    static rapidjson::Value jsValueToJsonValue(ExecutionState* state, const Value& value, rapidjson::MemoryPoolAllocator<>& allocator);
     rapidjson::Value jsValueToJsonValueObj(ExecutionState* state, const Value& value, rapidjson::MemoryPoolAllocator<>& allocator);
 
     static bool compareBreakpointLocations(const BreakpointByteCodeLocation& a, const BreakpointByteCodeLocation& b)
@@ -138,7 +149,13 @@ private:
     bool m_breakpointsActive = false;
     bool m_startBreakpoint = true;
     bool m_processingPauseEvent = false;
+    bool m_silentEvals = false;
 
+    static constexpr size_t m_arrayListingMaxSize = 100;
+    static constexpr size_t m_arrayPreviewListingMaxSize = 10;
+
+    GlobalObject* m_debuggerGlobalObject = nullptr;
+    ExecutionState* m_debuggerGlobalState = nullptr;
     ScriptIDMap m_scriptsById;
     std::unordered_map<std::string, uint8_t> m_scriptIdByUrl;
     uint8_t m_nextScriptId = 1;
