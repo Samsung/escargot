@@ -709,6 +709,7 @@ IteratorHelperObject::IteratorHelperObject(ExecutionState& state, IteratorHelper
     : IteratorObject(state, state.context()->globalObject()->iteratorHelperPrototype())
     , m_isDone(false)
     , m_isRunning(false)
+    , m_hasStarted(false)
     , m_callback(callback)
     , m_underlyingIterators()
     , m_data(data)
@@ -750,8 +751,22 @@ std::pair<Value, bool> IteratorHelperObject::advance(ExecutionState& state)
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "You cannot call Iterator helper function recursively");
     }
 
+    if (m_isDone) {
+        return std::make_pair(Value(), true);
+    }
+
     IteratorHelperObjectRunningStateChanger changeRunningState(*this);
-    return m_callback(state, this, m_data);
+    m_hasStarted = true;
+    try {
+        auto result = m_callback(state, this, m_data);
+        if (result.second) {
+            markIteratorIsDone();
+        }
+        return result;
+    } catch (const Value&) {
+        markIteratorIsDone();
+        throw;
+    }
 }
 
 } // namespace Escargot

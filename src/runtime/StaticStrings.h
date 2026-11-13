@@ -349,6 +349,7 @@ namespace Escargot {
     F(maxByteLength)              \
     F(message)                    \
     F(min)                        \
+    F(mode)                       \
     F(move)                       \
     F(multiline)                  \
     F(name)                       \
@@ -363,6 +364,7 @@ namespace Escargot {
     F(omitPadding)                \
     F(ownKeys)                    \
     F(package)                    \
+    F(padding)                    \
     F(padEnd)                     \
     F(padStart)                   \
     F(parse)                      \
@@ -516,7 +518,9 @@ namespace Escargot {
     F(withResolvers)              \
     F(writable)                   \
     F(written)                    \
-    F(yield)
+    F(yield)                      \
+    F(zip)                        \
+    F(zipKeyed)
 
 #if defined(ENABLE_WASM)
 #define FOR_EACH_STATIC_WASM_STRING(F) \

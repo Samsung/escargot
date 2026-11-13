@@ -637,6 +637,14 @@ public:
     {
     }
 
+    CompressibleHeapTightVector(CompressibleHeapTightVector<T, Allocator>&& src)
+        : m_buffer(src.m_buffer.get())
+        , m_size(src.m_size)
+    {
+        src.m_buffer.reset();
+        src.m_size = 0;
+    }
+
     CompressibleHeapTightVector(const CompressibleHeapTightVector&) = delete;
     CompressibleHeapTightVector& operator=(const CompressibleHeapTightVector&) = delete;
 
@@ -652,6 +660,7 @@ public:
     size_t size() const { return m_size; }
     T& operator[](size_t index) { return m_buffer.value()[index]; }
     const T& operator[](size_t index) const { return m_buffer.value()[index]; }
+    const T& at(size_t index) const { return m_buffer.value()[index]; }
     T* begin() { return m_buffer.raw(); }
     T* end() { return m_size ? m_buffer.value() + m_size : m_buffer.raw(); }
     const T* begin() const { return m_buffer.raw(); }
