@@ -528,6 +528,149 @@ static Value builtinIteratorZip(ExecutionState& state, Value thisValue, size_t a
     return iteratorZip(state, iters, mode, std::move(padding), [](ExecutionState& state, const ValueVector& results, IteratorZipData* data) -> Value { return Object::createArrayFromList(state, results); }, {});
 }
 
+// https://tc39.es/ecma262/#sec-iterator.zipkeyed
+static Value builtinIteratorZipKeyed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const Value& iterables = argv[0];
+    // If iterables is not an Object, throw a TypeError exception.
+    if (!iterables.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator.zipKeyed: iterables must be an object");
+    }
+    // Set options to ? GetOptionsObject(options).
+    Optional<Object*> options;
+    if (argc > 1) {
+        if (argv[1].isObject()) {
+            options = argv[1].asObject();
+        } else if (!argv[1].isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator.zipKeyed: options must be an object or undefined");
+        }
+    }
+    // Let mode be ? Get(options, "mode").
+    // If mode is undefined, set mode to "shortest".
+    // If mode is not one of "shortest", "longest", or "strict", throw a TypeError exception.
+    Optional<String*> mode;
+    if (options) {
+        const auto msg = "Iterator.zipKeyed: mode must be 'shortest', 'longest', or 'strict'";
+        auto m = options->get(state, ObjectPropertyName(state.context()->staticStrings().mode)).value(state, options.value());
+        if (m.isString()) {
+            auto s = m.asString();
+            if (!s->equals("shortest") && !s->equals("longest") && !s->equals("strict")) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+            }
+            mode = s;
+        } else if (!m.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+        }
+    }
+    // Let paddingOption be undefined.
+    Value paddingOption;
+    // If mode is "longest", then
+    if (mode && mode->equals("longest")) {
+        // Set paddingOption to ? Get(options, "padding").
+        if (options) {
+            paddingOption = options->get(state, ObjectPropertyName(state.context()->staticStrings().padding)).value(state, options.value());
+        }
+        // If paddingOption is not undefined and paddingOption is not an Object, throw a TypeError exception.
+        if (!paddingOption.isUndefined() && !paddingOption.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator.zipKeyed: padding must be an object or undefined");
+        }
+    }
+
+    // Let iters be a new empty List.
+    TightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>> iters;
+    // Let padding be a new empty List.
+    ValueVector padding;
+    // Let allKeys be ? iterables.[[OwnPropertyKeys]]().
+    auto allKeys = iterables.asObject()->ownPropertyKeys(state);
+    // Let keys be a new empty List.
+    ValueVector keys;
+    // For each element key of allKeys, do
+    for (size_t i = 0; i < allKeys.size(); i++) {
+        // Let propertyDesc be Completion(iterables.[[GetOwnProperty]](key)).
+        ObjectGetResult propertyDesc;
+        try {
+            propertyDesc = iterables.asObject()->getOwnProperty(state, ObjectPropertyName(state, allKeys[i]));
+        } catch (const Value& e) {
+            // IfAbruptCloseIterators(propertyDesc, iters).
+            iteratorCloseAll(state, iters);
+            throw;
+        }
+        // If propertyDesc is not undefined and propertyDesc.[[Enumerable]] is true, then
+        if (propertyDesc.hasValue() && propertyDesc.isEnumerable()) {
+            // Let value be Completion(Get(iterables, key)).
+            Value value;
+            try {
+                value = iterables.asObject()->get(state, ObjectPropertyName(state, allKeys[i])).value(state, iterables);
+            } catch (const Value& e) {
+                // IfAbruptCloseIterators(value, iters).
+                iteratorCloseAll(state, iters);
+                throw;
+            }
+            // If value is not undefined, then
+            if (!value.isUndefined()) {
+                // Append key to keys.
+                keys.pushBack(allKeys[i]);
+                // Let iter be Completion(GetIteratorFlattenable(value, reject-primitives)).
+                IteratorRecord* iter;
+                try {
+                    iter = IteratorObject::getIteratorFlattenable(state, value, IteratorObject::PrimitiveHandling::RejectPrimitives);
+                } catch (const Value& e) {
+                    // IfAbruptCloseIterators(iter, iters).
+                    iteratorCloseAll(state, iters);
+                    throw;
+                }
+                // Append iter to iters.
+                iters.pushBack(iter);
+            }
+        }
+    }
+
+    // Let iterCount be the number of elements in iters.
+    size_t iterCount = iters.size();
+    // If mode is "longest", then
+    if (mode && mode->equals("longest")) {
+        // If paddingOption is undefined, then
+        if (paddingOption.isUndefined()) {
+            // Repeat iterCount times:
+            for (size_t i = 0; i < iterCount; i++) {
+                // Append undefined to padding.
+                padding.pushBack(Value());
+            }
+        } else {
+            // Else,
+            // For each element key of keys, do
+            for (auto key : keys) {
+                // Let value be Completion(Get(paddingOption, key)).
+                Value value;
+                try {
+                    value = paddingOption.asObject()->get(state, ObjectPropertyName(state, key)).value(state, paddingOption);
+                } catch (const Value& e) {
+                    // IfAbruptCloseIterators(value, iters).
+                    iteratorCloseAll(state, iters);
+                    throw;
+                }
+                // Append value to padding.
+                padding.pushBack(value);
+            }
+        }
+    }
+
+
+    // Let finishResults be a new Abstract Closure with parameters (results) that captures keys and iterCount and performs the following steps when called:
+    //   Let obj be OrdinaryObjectCreate(null).
+    //   For each integer i such that 0 ≤ i < iterCount, in ascending order, do
+    //     Perform ! CreateDataPropertyOrThrow(obj, keys[i], results[i]).
+    //   Return obj.
+    // Return IteratorZip(iters, mode, padding, finishResults).
+    return iteratorZip(state, iters, mode, std::move(padding), [](ExecutionState& state, const ValueVector& results, IteratorZipData* data) -> Value {
+        Object* obj = new Object(state, Object::PrototypeIsNull);
+        for (size_t i = 0; i < data->iterCount; i ++) {
+            obj->defineOwnProperty(state, ObjectPropertyName(state, data->keys[i]), ObjectPropertyDescriptor(
+                results[i], ObjectPropertyDescriptor::AllPresent));
+        }
+        return obj; }, std::move(keys));
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iterator-constructor
 static Value builtinIteratorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1562,6 +1705,8 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iterator->defineBuiltinFunction(state, strings->concat, builtinIteratorConcat, 0);
 
     m_iterator->defineBuiltinFunction(state, strings->zip, builtinIteratorZip, 1);
+
+    m_iterator->defineBuiltinFunction(state, strings->zipKeyed, builtinIteratorZipKeyed, 1);
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
     m_iterator->setFunctionPrototype(state, m_iteratorPrototype);

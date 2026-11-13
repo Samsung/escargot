@@ -519,7 +519,8 @@ namespace Escargot {
     F(writable)                   \
     F(written)                    \
     F(yield)                      \
-    F(zip)
+    F(zip)                        \
+    F(zipKeyed)
 
 #if defined(ENABLE_WASM)
 #define FOR_EACH_STATIC_WASM_STRING(F) \
