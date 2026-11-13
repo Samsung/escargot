@@ -330,7 +330,6 @@
     <test id="built-ins/Iterator/zipKeyed/suspended-start-iterator-close-calls-return"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/zipKeyed/suspended-yield-iterator-close-calls-next"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/zipKeyed/suspended-yield-iterator-close-calls-return"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/parse/reviver-call-order"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/typedarray-backed-by-resizable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
@@ -904,7 +903,6 @@
     <test id="language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference"><reason>TODO</reason></test>
     <test id="language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield"><reason>TODO</reason></test>
     <test id="language/statements/class/definition/fn-name-static-precedence-order"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-class-field-on-nonextensible-objects"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatefieldset-evaluation-order-1"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-field-accessor"><reason>TODO</reason></test>
     <test id="language/statements/class/private-non-static-getter-static-setter-early-error"><reason>TODO</reason></test>
@@ -968,7 +966,6 @@
     <test id="staging/sm/Array/values"><reason>TODO</reason></test>
     <test id="staging/sm/Array/with"><reason>TODO</reason></test>
     <test id="staging/sm/AsyncGenerators/for-await-bad-syntax"><reason>TODO</reason></test>
-    <test id="staging/sm/BigInt/large-bit-length"><reason>TODO</reason></test>
     <test id="staging/sm/Date/dst-offset-caching-1-of-8"><reason>TODO</reason></test>
     <test id="staging/sm/Date/dst-offset-caching-2-of-8"><reason>TODO</reason></test>
     <test id="staging/sm/Date/dst-offset-caching-3-of-8"><reason>TODO</reason></test>
@@ -999,11 +996,8 @@
     <test id="staging/sm/Function/implicit-this-in-parameter-expression"><reason>TODO</reason></test>
     <test id="staging/sm/Function/method-has-duplicated"><reason>TODO</reason></test>
     <test id="staging/sm/Function/rest-parameter-names"><reason>TODO</reason></test>
-    <test id="staging/sm/Function/return-finally"><reason>TODO</reason></test>
     <test id="staging/sm/Function/strict-arguments"><reason>TODO</reason></test>
-    <test id="staging/sm/Iterator/prototype/lazy-methods-proxy-accesses"><reason>TODO</reason></test>
     <test id="staging/sm/Iterator/prototype/map/proxy-accesses"><reason>TODO</reason></test>
-    <test id="staging/sm/Iterator/prototype/take/take-more-than-available"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/parse-number-syntax"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/parse-syntax-errors-03"><reason>TODO</reason></test>
     <test id="staging/sm/JSON/small-codepoints"><reason>TODO</reason></test>
@@ -1013,7 +1007,6 @@
     <test id="staging/sm/Number/20.1.3.2-toExponential"><reason>TODO</reason></test>
     <test id="staging/sm/Number/20.1.3.2-toPrecision"><reason>TODO</reason></test>
     <test id="staging/sm/PrivateName/illegal-in-class-context"><reason>TODO</reason></test>
-    <test id="staging/sm/PrivateName/modify-non-extensible"><reason>TODO</reason></test>
     <test id="staging/sm/PrivateName/nested-class-in-computed-property-key"><reason>TODO</reason></test>
     <test id="staging/sm/Proxy/getPrototypeOf"><reason>TODO</reason></test>
     <test id="staging/sm/Proxy/revoked-get-function-realm-typeerror"><reason>TODO</reason></test>
@@ -1050,7 +1043,6 @@
     <test id="staging/sm/Set/intersection"><reason>TODO</reason></test>
     <test id="staging/sm/Set/is-disjoint-from"><reason>TODO</reason></test>
     <test id="staging/sm/Set/is-superset-of"><reason>TODO</reason></test>
-    <test id="staging/sm/String/AdvanceStringIndex"><reason>TODO</reason></test>
     <test id="staging/sm/String/matchAll"><reason>TODO</reason></test>
     <test id="staging/sm/String/unicode-braced"><reason>TODO</reason></test>
     <test id="staging/sm/Symbol/as-base-value"><reason>TODO</reason></test>
@@ -1066,7 +1058,6 @@
     <test id="staging/sm/async-functions/await-in-arrow-parameters"><reason>TODO</reason></test>
     <test id="staging/sm/async-functions/await-in-parameters-of-async-func"><reason>TODO</reason></test>
     <test id="staging/sm/async-functions/property"><reason>TODO</reason></test>
-    <test id="staging/sm/class/defaultConstructorDerivedSpread"><reason>TODO</reason></test>
     <test id="staging/sm/class/superCallOrder"><reason>TODO</reason></test>
     <test id="staging/sm/class/superElemDelete"><reason>TODO</reason></test>
     <test id="staging/sm/class/superPropDelete"><reason>TODO</reason></test>
@@ -1084,7 +1075,6 @@
     <test id="staging/sm/eval/exhaustive-global-strictcaller-direct-normalcode"><reason>TODO</reason></test>
     <test id="staging/sm/eval/exhaustive-global-strictcaller-direct-strictcode"><reason>TODO</reason></test>
     <test id="staging/sm/eval/exhaustive-global-strictcaller-indirect-strictcode"><reason>TODO</reason></test>
-    <test id="staging/sm/eval/redeclared-arguments-in-param-expression-eval"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/ToPropertyKey-symbols"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/computed-property-side-effects"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/delete-constant-folded-and-or"><reason>TODO</reason></test>
@@ -1094,7 +1084,6 @@
     <test id="staging/sm/expressions/object-literal-__proto__"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/object-literal-computed-property-evaluation"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment"><reason>TODO</reason></test>
-    <test id="staging/sm/expressions/short-circuit-compound-assignment-anon-fns"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/tagged-template-constant-folding"><reason>TODO</reason></test>
     <test id="staging/sm/extensions/8.12.5-01"><reason>TODO</reason></test>
@@ -1120,7 +1109,6 @@
     <test id="staging/sm/fields/await-identifier-module-3"><reason>TODO</reason></test>
     <test id="staging/sm/fields/await-identifier-script"><reason>TODO</reason></test>
     <test id="staging/sm/fields/numeric-fields"><reason>TODO</reason></test>
-    <test id="staging/sm/generators/return-finally"><reason>TODO</reason></test>
     <test id="staging/sm/generators/syntax"><reason>TODO</reason></test>
     <test id="staging/sm/global/adding-global-var-nonextensible-error"><reason>TODO</reason></test>
     <test id="staging/sm/global/delete-global-NaN-property"><reason>TODO</reason></test>
@@ -1144,15 +1132,12 @@
     <test id="staging/sm/misc/global-numeric-properties"><reason>TODO</reason></test>
     <test id="staging/sm/module/duplicate-exported-names-in-single-export-var-declaration"><reason>TODO</reason></test>
     <test id="staging/sm/module/module-export-name-star"><reason>TODO</reason></test>
-    <test id="staging/sm/object/15.2.3.14-01"><reason>TODO</reason></test>
     <test id="staging/sm/object/15.2.3.9"><reason>TODO</reason></test>
     <test id="staging/sm/object/add-property-non-extensible"><reason>TODO</reason></test>
     <test id="staging/sm/object/defineProperties-order"><reason>TODO</reason></test>
     <test id="staging/sm/object/defineProperty-proxy"><reason>TODO</reason></test>
-    <test id="staging/sm/object/entries"><reason>TODO</reason></test>
     <test id="staging/sm/object/extensibility-01"><reason>TODO</reason></test>
     <test id="staging/sm/object/proto-property-change-writability-set"><reason>TODO</reason></test>
-    <test id="staging/sm/object/values"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-383682"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-428366"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-449666"><reason>TODO</reason></test>
@@ -1181,7 +1166,6 @@
     <test id="staging/sm/regress/regress-640075"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-643222"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-672892"><reason>TODO</reason></test>
-    <test id="staging/sm/statements/for-of-iterator-close"><reason>TODO</reason></test>
     <test id="staging/sm/statements/property-reference-self-assignment"><reason>TODO</reason></test>
     <test id="staging/sm/statements/try-completion"><reason>TODO</reason></test>
     <test id="staging/sm/strict/10.4.2"><reason>TODO</reason></test>
