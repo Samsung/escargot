@@ -107,6 +107,8 @@ public:
     inline std::pair<Value, bool> fastAdvance(ExecutionState& state);
 };
 
+using IteratorRecords = CompressibleHeapTightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>>;
+
 class IteratorObject : public DerivedObject {
 public:
     explicit IteratorObject(ExecutionState& state);
@@ -219,15 +221,21 @@ class IteratorHelperObject : public IteratorObject {
 public:
     struct IteratorHelperObjectRunningStateChanger {
         IteratorHelperObject& obj;
-        IteratorHelperObjectRunningStateChanger(IteratorHelperObject& obj)
+        bool active;
+        IteratorHelperObjectRunningStateChanger(IteratorHelperObject& obj, bool active = true)
             : obj(obj)
+            , active(active)
         {
             ASSERT(!obj.m_isRunning);
-            obj.m_isRunning = true;
+            if (active) {
+                obj.m_isRunning = true;
+            }
         }
         ~IteratorHelperObjectRunningStateChanger()
         {
-            obj.m_isRunning = false;
+            if (active) {
+                obj.m_isRunning = false;
+            }
         }
     };
 
@@ -259,7 +267,12 @@ public:
         return m_isRunning;
     }
 
-    using UnderlyingIterators = CompressibleHeapTightVector<IteratorRecord*, GCUtil::gc_malloc_allocator<IteratorRecord*>>;
+    bool hasStarted() const
+    {
+        return m_hasStarted;
+    }
+
+    using UnderlyingIterators = IteratorRecords;
 
     UnderlyingIterators& underlyingIterators()
     {
@@ -270,6 +283,7 @@ private:
     // [[GeneratorState]]
     bool m_isDone;
     bool m_isRunning;
+    bool m_hasStarted;
 
     IteratorHelperObjectCallback m_callback;
     UnderlyingIterators m_underlyingIterators;
