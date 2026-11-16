@@ -802,6 +802,76 @@ static Value builtinIteratorPrototypeJoin(ExecutionState& state, Value thisValue
     }
 }
 
+// https://tc39.es/ecma262/#sec-iterator.prototype.includes
+static Value builtinIteratorPrototypeIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const Value& searchElement = argv[0];
+    Value skippedElements = argc > 1 ? argv[1] : Value();
+
+    // Let obj be the this value.
+    const Value& obj = thisValue;
+    // If obj is not an Object, throw a TypeError exception.
+    if (!obj.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid this value");
+    }
+    // Let iterated be the Iterator Record { [[Iterator]]: obj, [[NextMethod]]: undefined, [[Done]]: false }.
+    IteratorRecord* iterated = new IteratorRecord(obj.asObject(), Value(), false);
+    double toSkip;
+    // If skippedElements is undefined, then
+    if (skippedElements.isUndefined()) {
+        // Let toSkip be +0𝔽.
+        toSkip = 0;
+    } else {
+        // Else,
+        // If skippedElements is not one of +∞𝔽, -∞𝔽, or an integral Number, then
+        double f;
+        if (!skippedElements.isNumber() || (!std::isinf(skippedElements.asNumber()) && std::trunc(skippedElements.asNumber()) != skippedElements.asNumber())) {
+            // Let error be ThrowCompletion(a newly created TypeError object).
+            // Return ? IteratorClose(iterated, error).
+            return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), "skippedElements is not intergral nor infinity", true), true);
+        }
+
+        // Let toSkip be skippedElements.
+        toSkip = skippedElements.asNumber();
+    }
+    // If toSkip < -0𝔽, then
+    if (toSkip < -0.0) {
+        // Let error be ThrowCompletion(a newly created RangeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "invalid toSkip value", true), true);
+    }
+
+    // If toSkip is finite and toSkip > 𝔽(2**53 - 1), then
+    if (!std::isinf(toSkip) && toSkip > ((2LL << 52LL) - 1LL)) {
+        // Let error be ThrowCompletion(a newly created RangeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "invalid toSkip value", true), true);
+    }
+
+    // 8. Let skipped be +0𝔽.
+    double skipped = 0;
+    // Set iterated to ? GetIteratorDirect(obj).
+    iterated = IteratorObject::getIteratorDirect(state, obj.asObject());
+    // Repeat,
+    while (true) {
+        // Let value be ? IteratorStepValue(iterated).
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        // If value is done, return false.
+        if (!value) {
+            return Value(false);
+        }
+        // If skipped < toSkip, then
+        if (skipped < toSkip) {
+            // Set skipped to skipped + 1𝔽.
+            skipped++;
+        } else if (value.value().equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
+            // Else if SameValueZero(value, searchElement) is true, then
+            // Return ? IteratorClose(iterated, NormalCompletion(true)).
+            return IteratorObject::iteratorClose(state, iterated, Value(true), false);
+        }
+    }
+}
+
 #define RESOLVE_THIS_BINDING_TO_WRAP_FOR_VALID_ITERATOR(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
     if (!thisValue.isObject() || !thisValue.asObject()->isWrapForValidIteratorObject()) {                                                                                                                                                              \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -1756,6 +1826,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->join),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->join, builtinIteratorPrototypeJoin, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->includes),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinIteratorPrototypeIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
