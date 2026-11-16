@@ -452,7 +452,15 @@ Value IteratorObject::iteratorClose(ExecutionState& state, IteratorRecord* itera
     }
 
     Value iterator = record->iterator(state);
-    Value returnFunction = Object::getMethod(state, iterator, ObjectPropertyName(strings->stringReturn));
+    Value returnFunction;
+    try {
+        returnFunction = Object::getMethod(state, iterator, ObjectPropertyName(strings->stringReturn));
+    } catch (const Value&) {
+        if (hasThrowOnCompletionType) {
+            state.throwException(completionValue);
+        }
+        throw;
+    }
     if (returnFunction.isUndefined()) {
         if (hasThrowOnCompletionType) {
             state.throwException(completionValue);

@@ -872,6 +872,82 @@ static Value builtinIteratorPrototypeIncludes(ExecutionState& state, Value thisV
     }
 }
 
+struct IteratorChunksData {
+    IteratorRecord* iterated;
+    uint32_t chunkSize;
+    bool exhausted;
+};
+
+static std::pair<Value, bool> iteratorChunksClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    IteratorChunksData* chunksData = reinterpret_cast<IteratorChunksData*>(data);
+    if (chunksData->exhausted) {
+        return std::make_pair(Value(), true);
+    }
+    // Let buffer be a new empty List.
+    ValueVector buffer;
+    // Repeat,
+    while (true) {
+        // Let value be ? IteratorStepValue(iterated).
+        auto value = IteratorObject::iteratorStepValue(state, chunksData->iterated);
+        // If value is done, then
+        if (!value) {
+            chunksData->exhausted = true;
+            chunksData->iterated->m_done = true;
+            // If buffer is not empty, then
+            if (buffer.size()) {
+                // Perform Completion(Yield(CreateArrayFromList(buffer))).
+                return std::make_pair(Object::createArrayFromList(state, buffer), false);
+            }
+            // Return ReturnCompletion(undefined).
+            return std::make_pair(Value(), true);
+        }
+        // Append value to buffer.
+        buffer.pushBack(value.value());
+        // If the number of elements in buffer is ℝ(chunkSize), then
+        if (buffer.size() == chunksData->chunkSize) {
+            // Let completion be Completion(Yield(CreateArrayFromList(buffer))).
+            // IfAbruptCloseIterator(completion, iterated).
+            // Set buffer to a new empty List.
+            return std::make_pair(Object::createArrayFromList(state, buffer), false);
+        }
+    }
+}
+
+// https://tc39.es/ecma262/#sec-iterator.prototype.chunks
+static Value builtinIteratorPrototypeChunks(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const Value& chunkSize = argv[0];
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid this value");
+    }
+    // Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    IteratorRecord* iterated = new IteratorRecord(O.asObject(), Value(), false);
+    // If chunkSize is not an integral Number, then
+    if (!chunkSize.isNumber() || std::isinf(chunkSize.asNumber()) || std::trunc(chunkSize.asNumber()) != chunkSize.asNumber()) {
+        // Let error be ThrowCompletion(a newly created TypeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), "chunkSize is not integral Number", true), true);
+    }
+    // If chunkSize is not in the inclusive interval from 1𝔽 to 𝔽(2**32 - 1), then
+    if (chunkSize.asNumber() < 1 || chunkSize.asNumber() > 4294967295.0) {
+        // Let error be ThrowCompletion(a newly created RangeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "chunkSize should be 1 <= chunkSize <= 2**32 - 1", true), true);
+    }
+    // Set iterated to ? GetIteratorDirect(O).
+    iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+    // Let closure be a new Abstract Closure with no parameters that captures iterated and chunkSize and performs the following steps when called:
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // Set result.[[UnderlyingIterators]] to « iterated ».
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorChunksClosure, iterated, new (GC_MALLOC(sizeof(IteratorChunksData))) IteratorChunksData{iterated, static_cast<uint32_t>(chunkSize.asNumber()), false});
+    // Return result.
+    return result;
+}
+
 #define RESOLVE_THIS_BINDING_TO_WRAP_FOR_VALID_ITERATOR(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
     if (!thisValue.isObject() || !thisValue.asObject()->isWrapForValidIteratorObject()) {                                                                                                                                                              \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -1829,6 +1905,8 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->includes),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinIteratorPrototypeIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "chunks"), builtinIteratorPrototypeChunks, 1);
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
