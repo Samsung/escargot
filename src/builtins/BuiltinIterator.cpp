@@ -737,6 +737,71 @@ static Value builtinIteratorPrototypeToStringTagSetter(ExecutionState& state, Va
     return iteratorPrototypeSetterThatIgnoresPrototypeProperties(state, thisValue, argv[0], ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag));
 }
 
+// https://tc39.es/ecma262/#sec-iterator.prototype.join
+static Value builtinIteratorPrototypeJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const Value& separator = argv[0];
+    // Let obj be the this value.
+    const Value& obj = thisValue;
+    // If obj is not an Object, throw a TypeError exception.
+    if (!obj.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid this value");
+    }
+    // Let iterated be the Iterator Record { [[Iterator]]: obj, [[NextMethod]]: undefined, [[Done]]: false }.
+    IteratorRecord* iterated = new IteratorRecord(obj.asObject(), Value(), false);
+    // If separator is undefined, then
+    String* separatorString = state.context()->staticStrings().asciiTable[','].string();
+    if (separator.isUndefined()) {
+        // Let separatorString be ",".
+    } else {
+        // Else,
+        // Let separatorString be Completion(ToString(separator)).
+        try {
+            separatorString = separator.toString(state);
+        } catch (const Value& e) {
+            // IfAbruptCloseIterator(separatorString, iterated).
+            IteratorObject::iteratorClose(state, iterated, e, true);
+        }
+    }
+    // Set iterated to ? GetIteratorDirect(obj).
+    iterated = IteratorObject::getIteratorDirect(state, obj.asObject());
+    // Let result be the empty String.
+    StringBuilder result;
+    // Let first be true.
+    bool first = true;
+    // Repeat,
+    while (true) {
+        // Let value be ? IteratorStepValue(iterated).
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        // If value is done, return result.
+        if (!value) {
+            return result.finalize(&state);
+        }
+        // If first is true, then
+        if (first) {
+            // Set first to false.
+            first = false;
+        } else {
+            // Else,
+            // Set result to the string-concatenation of result and separatorString.
+            result.appendString(separatorString, &state);
+        }
+        // If value is neither undefined nor null, then
+        if (!value.value().isUndefinedOrNull()) {
+            // Let valueString be Completion(ToString(value)).
+            String* valueString;
+            try {
+                valueString = value.value().toString(state);
+            } catch (const Value& e) {
+                // IfAbruptCloseIterator(valueString, iterated).
+                IteratorObject::iteratorClose(state, iterated, e, true);
+            }
+            // Set result to the string-concatenation of result and valueString.
+            result.appendString(valueString, &state);
+        }
+    }
+}
+
 #define RESOLVE_THIS_BINDING_TO_WRAP_FOR_VALID_ITERATOR(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
     if (!thisValue.isObject() || !thisValue.asObject()->isWrapForValidIteratorObject()) {                                                                                                                                                              \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -1688,6 +1753,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolDispose, builtinIteratorDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->join),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->join, builtinIteratorPrototypeJoin, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
