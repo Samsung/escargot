@@ -943,9 +943,101 @@ static Value builtinIteratorPrototypeChunks(ExecutionState& state, Value thisVal
     // Let closure be a new Abstract Closure with no parameters that captures iterated and chunkSize and performs the following steps when called:
     // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // Set result.[[UnderlyingIterators]] to « iterated ».
-    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorChunksClosure, iterated, new (GC_MALLOC(sizeof(IteratorChunksData))) IteratorChunksData{iterated, static_cast<uint32_t>(chunkSize.asNumber()), false});
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorChunksClosure, iterated, new (GC_MALLOC(sizeof(IteratorChunksData))) IteratorChunksData{ iterated, static_cast<uint32_t>(chunkSize.asNumber()), false });
     // Return result.
     return result;
+}
+
+struct IteratorWindowsData {
+    IteratorRecord* iterated;
+    uint32_t windowSize;
+    bool allowPartial;
+    bool exhausted;
+    // Let buffer be a new empty List.
+    ValueVector buffer;
+};
+
+static std::pair<Value, bool> iteratorWindowsClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    IteratorWindowsData* windowsData = reinterpret_cast<IteratorWindowsData*>(data);
+    if (windowsData->exhausted) {
+        return std::make_pair(Value(), true);
+    }
+
+    // Repeat,
+    while (true) {
+        // Let value be ? IteratorStepValue(iterated).
+        auto value = IteratorObject::iteratorStepValue(state, windowsData->iterated);
+        // If value is done, then
+        if (!value) {
+            windowsData->exhausted = true;
+            windowsData->iterated->m_done = true;
+            // If undersized is "allow-partial", buffer is not empty, and the number of elements in buffer < ℝ(windowSize), then
+            if (windowsData->allowPartial && windowsData->buffer.size() && windowsData->buffer.size() < windowsData->windowSize) {
+                // Perform Completion(Yield(CreateArrayFromList(buffer))).
+                return std::make_pair(Object::createArrayFromList(state, windowsData->buffer), false);
+            }
+            // Return ReturnCompletion(undefined).
+            return std::make_pair(Value(), true);
+        }
+        // If the number of elements in buffer is ℝ(windowSize), then
+        if (windowsData->buffer.size() == windowsData->windowSize) {
+            // Remove the first element from buffer.
+            windowsData->buffer.erase(0);
+        }
+        // Append value to buffer.
+        windowsData->buffer.pushBack(value.value());
+        // If the number of elements in buffer is ℝ(windowSize), then
+        if (windowsData->buffer.size() == windowsData->windowSize) {
+            // Let completion be Completion(Yield(CreateArrayFromList(buffer))).
+            // IfAbruptCloseIterator(completion, iterated).
+            return std::make_pair(Object::createArrayFromList(state, windowsData->buffer), false);
+        }
+    }
+}
+
+// https://tc39.es/ecma262/#sec-iterator.prototype.windows
+static Value builtinIteratorPrototypeWindows(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let obj be the this value.
+    // If obj is not an Object, throw a TypeError exception.
+    if (!thisValue.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid this value");
+    }
+    // Let iterated be the Iterator Record { [[Iterator]]: obj, [[NextMethod]]: undefined, [[Done]]: false }.
+    IteratorRecord* iterated = new IteratorRecord(thisValue.asObject(), Value(), false);
+    const Value& windowSize = argv[0];
+    // If windowSize is not an integral Number, then
+    if (!windowSize.isNumber() || std::isinf(windowSize.asNumber()) || std::trunc(windowSize.asNumber()) != windowSize.asNumber()) {
+        // Let error be ThrowCompletion(a newly created TypeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), "windowSize is not an integral Number", true), true);
+    }
+    // If windowSize is not in the inclusive interval from 1𝔽 to 𝔽(2**32 - 1), then
+    if (windowSize.asNumber() < 1 || windowSize.asNumber() > 4294967295.0) {
+        // Let error be ThrowCompletion(a newly created RangeError object).
+        // Return ? IteratorClose(iterated, error).
+        return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::RangeError, String::emptyString(), false, String::emptyString(), "windowSize is out of range", true), true);
+    }
+    // If undersized is undefined, set undersized to "only-full".
+    bool allowPartial = false;
+    if (argc > 1 && !argv[1].isUndefined()) {
+        // If undersized is neither "only-full" nor "allow-partial", then
+        if (!argv[1].isString() || (!argv[1].asString()->equals("only-full") && !argv[1].asString()->equals("allow-partial"))) {
+            // Let error be ThrowCompletion(a newly created TypeError object).
+            // Return ? IteratorClose(iterated, error).
+            return IteratorObject::iteratorClose(state, iterated, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), "invalid undersized option", true), true);
+        }
+        allowPartial = argv[1].asString()->equals("allow-partial");
+    }
+    // Set iterated to ? GetIteratorDirect(obj).
+    iterated = IteratorObject::getIteratorDirect(state, thisValue.asObject());
+    // Let closure be a new Abstract Closure with no parameters that captures iterated, windowSize, and undersized and performs the following steps when called:
+    auto data = new (GC_MALLOC(sizeof(IteratorWindowsData))) IteratorWindowsData{ iterated, static_cast<uint32_t>(windowSize.asNumber()), allowPartial, false, {} };
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // Set result.[[UnderlyingIterators]] to « iterated ».
+    // Return result.
+    return new IteratorHelperObject(state, iteratorWindowsClosure, iterated, data);
 }
 
 #define RESOLVE_THIS_BINDING_TO_WRAP_FOR_VALID_ITERATOR(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                    \
@@ -1907,6 +1999,7 @@ void GlobalObject::installIterator(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->includes, builtinIteratorPrototypeIncludes, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "chunks"), builtinIteratorPrototypeChunks, 1);
+    m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "windows"), builtinIteratorPrototypeWindows, 1);
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
