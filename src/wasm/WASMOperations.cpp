@@ -217,8 +217,8 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // Let result be the WebAssemblyInstantiatedSource value <<[ "module" -> module, "instance" -> instance ]>>.
     Object* result = new Object(state);
-    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().module), ObjectPropertyDescriptor(moduleObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().instance), ObjectPropertyDescriptor(instanceObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyWASMModule()), ObjectPropertyDescriptor(moduleObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    result->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyWASMInstance()), ObjectPropertyDescriptor(instanceObject, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     return result;
 }
@@ -248,7 +248,7 @@ Value WASMOperations::compileModule(ExecutionState& state, Value thisValue, size
     Value source = argv[0];
     // source should be ArrayBufferObject
     if (!source.isPointerValue() || !source.asPointerValue()->isArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().compile.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssembly().string(), false, state.context()->staticStrings().compile.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     ArrayBufferObject* srcBuffer = source.asPointerValue()->asArrayBufferObject();

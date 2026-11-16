@@ -151,7 +151,7 @@ void GlobalObject::installShadowRealm(ExecutionState& state)
     m_shadowRealmPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                     ObjectPropertyDescriptor(state.context()->staticStrings().ShadowRealm.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_shadowRealmPrototype->defineBuiltinFunction(state, strings->evaluate, builtinShadowRealmEvaluate, 1);
+    m_shadowRealmPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "evaluate"), builtinShadowRealmEvaluate, 1);
 
     m_shadowRealmPrototype->defineBuiltinFunction(state, strings->importValue, builtinShadowRealmImportValue, 2);
 

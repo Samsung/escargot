@@ -59,6 +59,12 @@ public:
     };
 
     AtomicString(AtomicStringMap* map, const char* src, size_t len, FromExternalMemoryTag);
+    // The literal buffer must remain valid for the lifetime of the VM.
+    template <const size_t srcLen>
+    static AtomicString fromLiteral(ExecutionState& ec, const char (&src)[srcLen])
+    {
+        return fromLiteralImpl(ec, src, srcLen - 1);
+    }
     AtomicString(AtomicStringMap* map, const LChar* src, size_t len);
     AtomicString(AtomicStringMap* map, const char16_t* src, size_t len);
     AtomicString(AtomicStringMap* map, String* name);
@@ -124,6 +130,7 @@ public:
     }
 
 private:
+    static AtomicString fromLiteralImpl(ExecutionState& ec, const char* src, size_t len);
     void init(AtomicStringMap* ec, const char* src, size_t len, bool fromExternalMemory = false);
     void init(AtomicStringMap* ec, const LChar* str, size_t len);
     void init(AtomicStringMap* ec, const char16_t* src, size_t len);

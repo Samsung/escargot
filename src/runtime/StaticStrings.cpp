@@ -35,7 +35,6 @@ void StaticStrings::initStaticStrings()
 
 #define INIT_STATIC_STRING(name) initStaticStringImpl(name, #name, sizeof(#name) - 1);
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
-    FOR_EACH_STATIC_WASM_STRING(INIT_STATIC_STRING)
     FOR_EACH_STATIC_THREADING_STRING(INIT_STATIC_STRING)
 #undef INIT_STATIC_STRING
 
@@ -63,7 +62,6 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringPrivate, "private");
     INIT_STATIC_STRING(stringProtected, "protected");
     INIT_STATIC_STRING(stringPublic, "public");
-    INIT_STATIC_STRING(stringRegister, "register");
     INIT_STATIC_STRING(stringReturn, "return");
     INIT_STATIC_STRING(stringStarDefaultStar, "*default*");
     INIT_STATIC_STRING(stringStarNamespaceStar, "*namespace*");
@@ -74,106 +72,21 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringTrue, "true");
     INIT_STATIC_STRING(stringTry, "try");
     INIT_STATIC_STRING(stringTypeof, "typeof");
-    INIT_STATIC_STRING(stringUnion, "union");
     INIT_STATIC_STRING(stringUsing, "using");
     INIT_STATIC_STRING(stringVoid, "void");
     INIT_STATIC_STRING(stringWhile, "while");
-#if defined(ENABLE_THREADING)
-    INIT_STATIC_STRING(stringAnd, "and");
-    INIT_STATIC_STRING(stringOr, "or");
-    INIT_STATIC_STRING(stringXor, "xor");
-#endif
-
-    INIT_STATIC_STRING($Ampersand, "$&");
-    INIT_STATIC_STRING($Apostrophe, "$'");
-    INIT_STATIC_STRING($GraveAccent, "$`");
-    INIT_STATIC_STRING($PlusSign, "$+");
 
     INIT_STATIC_STRING(NegativeInfinity, "-Infinity");
     INIT_STATIC_STRING(defaultRegExpString, "(?:)");
     INIT_STATIC_STRING(getBuffer, "get buffer");
-    INIT_STATIC_STRING(getDetached, "get detached");
-    INIT_STATIC_STRING(getDescription, "get description");
-    INIT_STATIC_STRING(getDotAll, "get dotAll");
-    INIT_STATIC_STRING(getFlags, "get flags");
-    INIT_STATIC_STRING(getGlobal, "get global");
-    INIT_STATIC_STRING(getHasIndices, "get hasIndices");
-    INIT_STATIC_STRING(getIgnoreCase, "get ignoreCase");
     INIT_STATIC_STRING(getLength, "get length");
-    INIT_STATIC_STRING(getMultiline, "get multiline");
-    INIT_STATIC_STRING(getSize, "get size");
-    INIT_STATIC_STRING(getSource, "get source");
-    INIT_STATIC_STRING(getSticky, "get sticky");
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
-    INIT_STATIC_STRING(getUnicode, "get unicode");
-    INIT_STATIC_STRING(getUnicodeSets, "get unicodeSets");
-    INIT_STATIC_STRING(get__proto__, "get __proto__");
     INIT_STATIC_STRING(getbyteLength, "get byteLength");
     INIT_STATIC_STRING(getbyteOffset, "get byteOffset");
-    INIT_STATIC_STRING(getgrowable, "get growable");
     INIT_STATIC_STRING(getmaxByteLength, "get maxByteLength");
-    INIT_STATIC_STRING(getresizable, "get resizable");
     INIT_STATIC_STRING(getdisposed, "get disposed");
-    INIT_STATIC_STRING(set__proto__, "set __proto__");
-    INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
-    INIT_STATIC_STRING(symbolMatchAll, "[Symbol.matchAll]");
-    INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
-    INIT_STATIC_STRING(symbolSearch, "[Symbol.search]");
-    INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
-    INIT_STATIC_STRING(symbolAsyncIterator, "[Symbol.asyncIterator]");
     INIT_STATIC_STRING(symbolIterator, "[Symbol.iterator]");
-    INIT_STATIC_STRING(symbolDispose, "[Symbol.dispose]");
-    INIT_STATIC_STRING(symbolAsyncDispose, "[Symbol.asyncDispose]");
-
-#if defined(ENABLE_WASM)
-    INIT_STATIC_STRING(getExports, "get exports");
-    INIT_STATIC_STRING(getValue, "get value");
-    INIT_STATIC_STRING(setValue, "set value");
-    INIT_STATIC_STRING(WebAssemblyDotGlobal, "WebAssembly.Global");
-    INIT_STATIC_STRING(WebAssemblyDotTag, "WebAssembly.Tag");
-    INIT_STATIC_STRING(WebAssemblyDotInstance, "WebAssembly.Instance");
-    INIT_STATIC_STRING(WebAssemblyDotMemory, "WebAssembly.Memory");
-    INIT_STATIC_STRING(WebAssemblyDotModule, "WebAssembly.Module");
-    INIT_STATIC_STRING(WebAssemblyDotTable, "WebAssembly.Table");
-#endif
-
-#if defined(ESCARGOT_DEBUGGER)
-    INIT_STATIC_STRING(sectionPrototype, "[[Prototype]]");
-    INIT_STATIC_STRING(sectionEntries, "[[Entries]]");
-    INIT_STATIC_STRING(sectionInt8Array, "[[Int8Array]]");
-    INIT_STATIC_STRING(sectionUint8Array, "[[Uint8Array]]");
-    INIT_STATIC_STRING(sectionInt16Array, "[[Int16Array]]");
-    INIT_STATIC_STRING(sectionInt32Array, "[[Int32Array]]");
-    INIT_STATIC_STRING(sectionArrayBufferByteLength, "[[ArrayBufferByteLength]]");
-    INIT_STATIC_STRING(sectionHandler, "[[Handler]]");
-    INIT_STATIC_STRING(sectionTarget, "[[Target]]");
-    INIT_STATIC_STRING(sectionPromiseState, "[[PromiseState]]");
-    INIT_STATIC_STRING(sectionPromiseResult, "[[PromiseResult]]");
-    INIT_STATIC_STRING(sectionGeneratorState, "[[GeneratorState]]");
-    INIT_STATIC_STRING(generatorSuspended, "suspended");
-    INIT_STATIC_STRING(generatorExucuting, "executing");
-    INIT_STATIC_STRING(generatorCompleted, "completed");
-    INIT_STATIC_STRING(iteratorHasMore, "[[IteratorHasMore]]");
-    INIT_STATIC_STRING(iteratorIndex, "[[IteratorIndex]]");
-    INIT_STATIC_STRING(iteratorKind, "[[IteratorKind]]");
-    INIT_STATIC_STRING(sectionModule, "[[Module]]");
-    INIT_STATIC_STRING(sectionFunctions, "[[Functions]]");
-    INIT_STATIC_STRING(sectionGlobals, "[[Globals]]");
-    INIT_STATIC_STRING(sectionMemories, "[[Memories]]");
-    INIT_STATIC_STRING(sectionExports, "[[Exports]]");
-    INIT_STATIC_STRING(sectionImports, "[[Imports]]");
-    INIT_STATIC_STRING(pending, "pending");
-    INIT_STATIC_STRING(fulfilled, "fulfilled");
-    INIT_STATIC_STRING(rejected, "rejected");
-    INIT_STATIC_STRING(key, "key");
-    INIT_STATIC_STRING(type, "type");
-    INIT_STATIC_STRING(anyref, "anyRef");
-    INIT_STATIC_STRING(funcref, "funcRef");
-    INIT_STATIC_STRING(unknown, "unknown");
-    INIT_STATIC_STRING(keyValue, "key-value");
-#else
-#endif
 
 #undef INIT_STATIC_STRING
 
@@ -195,6 +108,8 @@ void StaticStrings::initStaticStrings()
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) m_lazy##Name = AtomicString();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_WASM_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
@@ -210,6 +125,8 @@ void StaticStrings::initStaticStrings()
         return m_lazy##Name;                                                                                                            \
     }
 FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+FOR_EACH_LAZY_WASM_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);

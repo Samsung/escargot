@@ -120,7 +120,7 @@ void GlobalObject::installProxy(ExecutionState& state)
     m_proxy = new NativeFunctionObject(state, NativeFunctionInfo(strings->Proxy, builtinProxyConstructor, 2), NativeFunctionObject::__ForBuiltinProxyConstructor__);
     m_proxy->setGlobalIntrinsicObject(state);
 
-    m_proxy->defineBuiltinFunction(state, strings->revocable, builtinProxyRevocable, 2);
+    m_proxy->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "revocable"), builtinProxyRevocable, 2);
 
     redefineOwnProperty(state, ObjectPropertyName(strings->Proxy),
                         ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

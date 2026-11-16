@@ -147,7 +147,7 @@ void GlobalObject::installSymbol(ExecutionState& state)
                                                ObjectPropertyDescriptor(state.context()->staticStrings().Symbol.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
-        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getDescription, builtinSymbolDescriptionGetter, 0, NativeFunctionInfo::Strict));
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get description"), builtinSymbolDescriptionGetter, 0, NativeFunctionInfo::Strict));
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_symbolPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().description), desc);

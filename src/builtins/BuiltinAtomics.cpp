@@ -646,31 +646,31 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().add, builtinAtomicsAdd, 3);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().stringAnd, builtinAtomicsAnd, 3);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "and"), builtinAtomicsAnd, 3);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().compareExchange, builtinAtomicsCompareExchange, 4);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "compareExchange"), builtinAtomicsCompareExchange, 4);
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().exchange, builtinAtomicsExchange, 3);
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().load, builtinAtomicsLoad, 2);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().stringOr, builtinAtomicsOr, 3);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "or"), builtinAtomicsOr, 3);
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().store, builtinAtomicsStore, 3);
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().sub, builtinAtomicsSub, 3);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().stringXor, builtinAtomicsXor, 3);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "xor"), builtinAtomicsXor, 3);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().isLockFree, builtinAtomicsIsLockFree, 1);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "isLockFree"), builtinAtomicsIsLockFree, 1);
 
     m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().wait, builtinAtomicsWait, 4);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().waitAsync, builtinAtomicsWaitAsync, 4);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "waitAsync"), builtinAtomicsWaitAsync, 4);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().notify, builtinAtomicsNotify, 3);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "notify"), builtinAtomicsNotify, 3);
 
-    m_atomics->defineBuiltinFunction(state, state.context()->staticStrings().pause, builtinAtomicsPause, 0);
+    m_atomics->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "pause"), builtinAtomicsPause, 0);
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
                         ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

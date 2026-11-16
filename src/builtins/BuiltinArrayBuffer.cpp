@@ -72,17 +72,17 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
 }
 
 
-#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer() || thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                              \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
-                                                                                                                                                                                                                                                       \
+#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                         \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer() || thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                       \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                           \
+                                                                                                                                                                                                                                \
     ArrayBuffer* NAME = thisValue.asObject()->asArrayBuffer();
 
 // https://262.ecma-international.org/#sec-get-arraybuffer.prototype.bytelength
 static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getbyteLength);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "get byteLength");
 
     if (obj->isDetachedBuffer()) {
         return Value(0);
@@ -93,7 +93,7 @@ static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thi
 
 static Value builtinArrayBufferMaxByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getmaxByteLength);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "get maxByteLength");
 
     if (obj->isDetachedBuffer()) {
         return Value(0);
@@ -108,21 +108,21 @@ static Value builtinArrayBufferMaxByteLengthGetter(ExecutionState& state, Value 
 
 static Value builtinArrayBufferResizableGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getresizable);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "get resizable");
 
     return Value(obj->isResizableArrayBuffer());
 }
 
 static Value builtinArrayBufferDetachedGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getDetached);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "get detached");
 
     return Value(obj->isDetachedBuffer());
 }
 
 static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, resize);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "resize");
     if (!obj->isResizableArrayBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
@@ -140,7 +140,7 @@ static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, si
 
 static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, transfer);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "transfer");
     obj->throwTypeErrorIfDetached(state);
 
     uint64_t newByteLength = obj->byteLength();
@@ -175,7 +175,7 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
 
 static Value builtinArrayBufferTransferToFixedLength(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, transferToFixedLength);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "transferToFixedLength");
     obj->throwTypeErrorIfDetached(state);
 
     uint64_t newByteLength = obj->byteLength();
@@ -199,7 +199,7 @@ static Value builtinArrayBufferTransferToFixedLength(ExecutionState& state, Valu
 // https://262.ecma-international.org/#sec-arraybuffer.prototype.slice
 static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, slice);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, "slice");
 
     obj->throwTypeErrorIfDetached(state);
 
@@ -279,13 +279,13 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
         m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
 
         JSGetterSetter resizableGS(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getresizable, builtinArrayBufferResizableGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get resizable"), builtinArrayBufferResizableGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor resizableDesc(resizableGS, ObjectPropertyDescriptor::ConfigurablePresent);
         m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resizable), resizableDesc);
 
         JSGetterSetter detachedGS(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getDetached, builtinArrayBufferDetachedGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get detached"), builtinArrayBufferDetachedGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor detachedDesc(detachedGS, ObjectPropertyDescriptor::ConfigurablePresent);
         m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->detached), detachedDesc);

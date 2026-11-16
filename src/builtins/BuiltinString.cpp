@@ -104,15 +104,15 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     ASSERT_UNREACHABLE();
 }
 
-#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
-    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                                      \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
-    }                                                                                                                                                                                                                                         \
+#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                     \
+    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                               \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
+    }                                                                                                                                                                                                                  \
     String* NAME = thisValue.toString(state);
 
 static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "indexOf");
     String* searchStr = argv[0].toString(state);
 
     Value val;
@@ -144,7 +144,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
 static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, lastIndexOf);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "lastIndexOf");
     String* searchStr = argv[0].toString(state);
 
     double numPos;
@@ -172,7 +172,7 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, localeCompare);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "localeCompare");
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     String* That = argv[0].toString(state);
     Value locales, options;
@@ -195,7 +195,7 @@ static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, 
 
 static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, substring);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "substring");
     if (argc == 0) {
         return str;
     } else {
@@ -298,7 +298,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         NFKD
     };
 
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, normalize);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "normalize");
     Value argument = Value();
     if (argc > 0) {
         argument = argv[0];
@@ -368,7 +368,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
 
 static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, repeat);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "repeat");
     Value argument = argv[0];
     int32_t repeatCount;
     double count = argument.toInteger(state);
@@ -1324,7 +1324,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "charCodeAt");
     double position = argv[0].toInteger(state);
     Value ret;
     size_t length = str->length();
@@ -1339,7 +1339,7 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
 // https://www.ecma-international.org/ecma-262/6.0/#sec-string.prototype.codepointat
 static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, codePointAt);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "codePointAt");
     double position = argv[0].toInteger(state);
     Value ret;
     size_t length = str->length();
@@ -1363,7 +1363,7 @@ static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, charAt);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "charAt");
 
     double position = 0;
     if (argc > 0) {
@@ -1423,7 +1423,7 @@ static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, 
 
 static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "concat");
     for (size_t i = 0; i < argc; i++) {
         String* appendStr = argv[i].toString(state);
         str = RopeString::createRopeString(str, appendStr, &state);
@@ -1433,7 +1433,7 @@ static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, slice);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "slice");
     size_t len = str->length();
     double start = argv[0].toInteger(state);
     double end = (argv[1].isUndefined()) ? len : argv[1].toInteger(state);
@@ -1479,7 +1479,7 @@ static String* stringToLocaleConvertCase(ExecutionState& state, String* str, Str
 
 static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "toLowerCase");
     if (str->has8BitContent()) {
         size_t len = str->length();
         LChar* dest;
@@ -1536,7 +1536,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
 
 static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toUpperCase);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "toUpperCase");
     if (str->has8BitContent()) {
         Latin1StringData newStr;
         size_t len = str->length();
@@ -1614,7 +1614,7 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
 static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleLowerCase);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "toLocaleLowerCase");
     Value locales = argc > 0 ? argv[0] : Value();
     String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
     if (str->has8BitContent() && locale->length() == 0) {
@@ -1630,7 +1630,7 @@ static Value builtinStringToLocaleLowerCase(ExecutionState& state, Value thisVal
 static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, toLocaleUpperCase);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "toLocaleUpperCase");
     Value locales = argc > 0 ? argv[0] : Value();
     String* locale = Intl::getLocaleForStringLocaleConvertCase(state, locales);
     if (str->has8BitContent() && locale->length() == 0) {
@@ -1646,7 +1646,7 @@ static Value builtinStringToLocaleUpperCase(ExecutionState& state, Value thisVal
 static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, trim);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "trim");
     // Return ? TrimString(S, "start+end").
     return str->trim(String::TrimBoth);
 }
@@ -1654,7 +1654,7 @@ static Value builtinStringTrim(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, trimStart);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "trimStart");
     // Return ? TrimString(S, "start").
     return str->trim(String::TrimStart);
 }
@@ -1662,7 +1662,7 @@ static Value builtinStringTrimStart(ExecutionState& state, Value thisValue, size
 static Value builtinStringTrimEnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let S be this value.
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, trimEnd);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "trimEnd");
     // Return ? TrimString(S, "end").
     return str->trim(String::TrimEnd);
 }
@@ -1682,7 +1682,7 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, startsWith);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "startsWith");
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
@@ -1726,7 +1726,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, endsWith);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "endsWith");
     Value searchString = argv[0];
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
@@ -1885,7 +1885,7 @@ static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "padStart");
     return stringPad(state, S, argc, argv, true);
 }
 
@@ -1895,7 +1895,7 @@ static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, padEnd);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "padEnd");
     return stringPad(state, S, argc, argv, false);
 }
 
@@ -1968,7 +1968,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
 
 static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "substr");
     if (argc < 1) {
         return str;
     }
@@ -1994,7 +1994,7 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_STRING(str, String, substr);
+    RESOLVE_THIS_BINDING_TO_STRING(str, String, "substr");
     size_t len = str->length();
     double relativeStart = argv[0].toInteger(state);
     if (relativeStart < 0) {
@@ -2058,7 +2058,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, includes);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "includes");
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
@@ -2094,7 +2094,7 @@ static Value builtinStringIsWellFormed(ExecutionState& state, Value thisValue, s
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, isWellFormed);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "isWellFormed");
     // Return IsStringWellFormedUnicode(S)
     return Value(S->isWellFormed());
 }
@@ -2104,7 +2104,7 @@ static Value builtinStringToWellFormed(ExecutionState& state, Value thisValue, s
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, toWellFormed);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "toWellFormed");
     // Let strLen be the length of S.
     // Let k be 0.
     // Let result be the empty String.
@@ -2122,7 +2122,7 @@ static Value builtinStringToWellFormed(ExecutionState& state, Value thisValue, s
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyStringIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
     return iter->next(state);
@@ -2132,7 +2132,7 @@ static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, iterator);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, "iterator");
     // Return CreateStringIterator(S).
     return new StringIteratorObject(state, S);
 }
@@ -2170,7 +2170,7 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineBuiltinFunction(state, strings->lastIndexOf, builtinStringLastIndexOf, 1);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->localeCompare, builtinStringLocaleCompare, 1);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "localeCompare"), builtinStringLocaleCompare, 1);
 
     // $21.1.3.16 String.prototype.slice
     m_stringPrototype->defineBuiltinFunction(state, strings->slice, builtinStringSlice, 2);
@@ -2186,10 +2186,10 @@ void GlobalObject::installString(ExecutionState& state)
 
 #if defined(ENABLE_ICU)
     // The length property of the normalize method is 0.
-    m_stringPrototype->defineBuiltinFunction(state, strings->normalize, builtinStringNormalize, 0);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "normalize"), builtinStringNormalize, 0);
 #endif // ENABLE_ICU
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->repeat, builtinStringRepeat, 1);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "repeat"), builtinStringRepeat, 1);
 
     m_stringPrototype->defineBuiltinFunction(state, strings->replace, builtinStringReplace, 2);
 
@@ -2199,25 +2199,25 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->defineBuiltinFunction(state, strings->split, builtinStringSplit, 2);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->charCodeAt, builtinStringCharCodeAt, 1);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "charCodeAt"), builtinStringCharCodeAt, 1);
 
     m_stringPrototype->defineBuiltinFunction(state, strings->codePointAt, builtinStringCodePointAt, 1);
 
     m_stringPrototype->defineBuiltinFunction(state, strings->charAt, builtinStringCharAt, 1);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->toLowerCase, builtinStringToLowerCase, 0);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toLowerCase"), builtinStringToLowerCase, 0);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->toUpperCase, builtinStringToUpperCase, 0);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toUpperCase"), builtinStringToUpperCase, 0);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->toLocaleLowerCase, builtinStringToLocaleLowerCase, 0);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toLocaleLowerCase"), builtinStringToLocaleLowerCase, 0);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->toLocaleUpperCase, builtinStringToLocaleUpperCase, 0);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toLocaleUpperCase"), builtinStringToLocaleUpperCase, 0);
 
     m_stringPrototype->defineBuiltinFunction(state, strings->trim, builtinStringTrim, 0);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->padStart, builtinStringPadStart, 1);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "padStart"), builtinStringPadStart, 1);
 
-    m_stringPrototype->defineBuiltinFunction(state, strings->padEnd, builtinStringPadEnd, 1);
+    m_stringPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "padEnd"), builtinStringPadEnd, 1);
 
     FunctionObject* trimStart = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimStart, builtinStringTrimStart, 0, NativeFunctionInfo::Strict));
     FunctionObject* trimEnd = new NativeFunctionObject(state, NativeFunctionInfo(strings->trimEnd, builtinStringTrimEnd, 0, NativeFunctionInfo::Strict));
@@ -2228,10 +2228,10 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->trimEnd),
                                                ObjectPropertyDescriptor(trimEnd, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->trimRight),
+    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(AtomicString::fromLiteral(state, "trimRight")),
                                                ObjectPropertyDescriptor(trimEnd, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->trimLeft),
+    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(AtomicString::fromLiteral(state, "trimLeft")),
                                                ObjectPropertyDescriptor(trimStart, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $21.1.3.26 String.prototype.valueOf
@@ -2302,9 +2302,9 @@ void GlobalObject::installString(ExecutionState& state)
 
 #undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
 
-    m_string->defineBuiltinFunction(state, strings->fromCharCode, builtinStringFromCharCode, 1);
+    m_string->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fromCharCode"), builtinStringFromCharCode, 1);
 
-    m_string->defineBuiltinFunction(state, strings->fromCodePoint, builtinStringFromCodePoint, 1);
+    m_string->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fromCodePoint"), builtinStringFromCodePoint, 1);
 
     m_string->defineBuiltinFunction(state, strings->raw, builtinStringRaw, 1);
 

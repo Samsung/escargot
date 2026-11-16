@@ -440,7 +440,7 @@ void GlobalObject::installNumber(ExecutionState& state)
                                                                                                               | ObjectPropertyDescriptor::NonConfigurablePresent);
 
     // $20.1.2.1 Number.EPSILON
-    m_number->directDefineOwnProperty(state, strings->EPSILON, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(std::numeric_limits<double>::epsilon())), allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "EPSILON"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(std::numeric_limits<double>::epsilon())), allFalsePresent));
     // $20.1.2.2 Number.isFinite
     m_number->directDefineOwnProperty(state, strings->isFinite,
                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isFinite, builtinNumberIsFinite, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -463,19 +463,19 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_number->directDefineOwnProperty(state, strings->isSafeInteger,
                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.6 Number.MAX_SAFE_INTEGER
-    m_number->directDefineOwnProperty(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "MAX_SAFE_INTEGER"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.7 Number.MAX_VALUE
-    m_number->directDefineOwnProperty(state, strings->MAX_VALUE, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.7976931348623157E+308)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "MAX_VALUE"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.7976931348623157E+308)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.8 Number.MIN_SAFE_INTEGER
-    m_number->directDefineOwnProperty(state, strings->MIN_SAFE_INTEGER, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(-9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "MIN_SAFE_INTEGER"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(-9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.9 Number.MIN_VALUE
-    m_number->directDefineOwnProperty(state, strings->MIN_VALUE, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(5E-324)), allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "MIN_VALUE"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(5E-324)), allFalsePresent));
     // $20.1.2.10 Number.NaN
     m_number->directDefineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(Value::NanInit), allFalsePresent));
     // $20.1.2.11 Number.NEGATIVE_INFINITY
-    m_number->directDefineOwnProperty(state, strings->NEGATIVE_INFINITY, ObjectPropertyDescriptor(Value(Value::NegativeInfinityInit), allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "NEGATIVE_INFINITY"), ObjectPropertyDescriptor(Value(Value::NegativeInfinityInit), allFalsePresent));
     // $20.1.2.14 Number.POSITIVE_INFINITY
-    m_number->directDefineOwnProperty(state, strings->POSITIVE_INFINITY, ObjectPropertyDescriptor(Value(Value::PostiveInfinityInit), allFalsePresent));
+    m_number->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "POSITIVE_INFINITY"), ObjectPropertyDescriptor(Value(Value::PostiveInfinityInit), allFalsePresent));
 
     m_numberProxyObject = new NumberObject(state);
 

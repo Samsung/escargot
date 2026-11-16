@@ -922,7 +922,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
     if (a->isTypedArrayObject()) {
         // If IsDetachedBuffer(a.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
         if (a->asArrayBufferView()->buffer()->isDetachedBuffer()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyArrayIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return std::make_pair(Value(), false);
         }
         // https://tc39.es/ecma262/#sec-istypedarrayoutofbounds
@@ -937,7 +937,7 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
         auto byteOffsetStart = a->asTypedArrayObject()->byteOffset();
         auto byteOffsetEnd = byteOffsetStart + a->asTypedArrayObject()->byteLength();
         if (byteOffsetStart > bufferByteLength || byteOffsetEnd > bufferByteLength || a->asTypedArrayObject()->wasResetByInvalidByteLength()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyArrayIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return std::make_pair(Value(), false);
         }
         // Let len be a.[[ArrayLength]].

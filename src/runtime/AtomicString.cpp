@@ -25,6 +25,11 @@
 
 namespace Escargot {
 
+AtomicString AtomicString::fromLiteralImpl(ExecutionState& ec, const char* src, size_t len)
+{
+    return AtomicString(ec.context()->atomicStringMap(), src, len, FromExternalMemory);
+}
+
 AtomicString::AtomicString(ExecutionState& ec, const char16_t* src, size_t len)
 {
     init(ec.context()->m_atomicStringMap, src, len);

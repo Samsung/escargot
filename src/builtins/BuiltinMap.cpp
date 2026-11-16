@@ -202,7 +202,7 @@ static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t
 static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isMapIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyMapIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     MapIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asMapIteratorObject();
     return iter->next(state);
@@ -287,7 +287,7 @@ void GlobalObject::installMap(ExecutionState& state)
                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().Map.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
-        new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getSize, builtinMapSizeGetter, 0, NativeFunctionInfo::Strict)),
+        new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get size"), builtinMapSizeGetter, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);

@@ -1803,11 +1803,11 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_asyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asynciteratorprototype-asynciterator
     m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
-                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolAsyncIterator, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "[Symbol.asyncIterator]"), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncDispose),
-                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolAsyncDispose, builtinIteratorAsyncDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "[Symbol.asyncDispose]"), builtinIteratorAsyncDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype = new PrototypeObject(state);
     m_iteratorPrototype->setGlobalIntrinsicObject(state, true);
@@ -1822,7 +1822,7 @@ void GlobalObject::installIterator(ExecutionState& state)
                                                           ObjectPropertyDescriptor(iteratorToStringTag, ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
-                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolDispose, builtinIteratorDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "[Symbol.dispose]"), builtinIteratorDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->join),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->join, builtinIteratorPrototypeJoin, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1845,9 +1845,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iterator->defineBuiltinFunction(state, strings->concat, builtinIteratorConcat, 0);
 
-    m_iterator->defineBuiltinFunction(state, strings->zip, builtinIteratorZip, 1);
+    m_iterator->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "zip"), builtinIteratorZip, 1);
 
-    m_iterator->defineBuiltinFunction(state, strings->zipKeyed, builtinIteratorZipKeyed, 1);
+    m_iterator->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "zipKeyed"), builtinIteratorZipKeyed, 1);
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
     m_iterator->setFunctionPrototype(state, m_iteratorPrototype);
@@ -1888,13 +1888,13 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->defineBuiltinFunction(state, strings->some, builtinIteratorSome, 1);
 
-    m_iteratorPrototype->defineBuiltinFunction(state, strings->take, builtinIteratorTake, 1);
+    m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "take"), builtinIteratorTake, 1);
 
     m_iteratorPrototype->defineBuiltinFunction(state, strings->forEach, builtinIteratorForEach, 1);
 
-    m_iteratorPrototype->defineBuiltinFunction(state, strings->drop, builtinIteratorDrop, 1);
+    m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "drop"), builtinIteratorDrop, 1);
 
-    m_iteratorPrototype->defineBuiltinFunction(state, strings->toArray, builtinIteratorToArray, 0);
+    m_iteratorPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toArray"), builtinIteratorToArray, 0);
 
     m_iteratorPrototype->defineBuiltinFunction(state, strings->flatMap, builtinIteratorFlatMap, 1);
 

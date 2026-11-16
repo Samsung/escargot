@@ -746,97 +746,96 @@ void GlobalObject::installMath(ExecutionState& state)
                                     ObjectPropertyDescriptor(Value(state.context()->staticStrings().Math.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // initialize math object: $20.2.1.6 Math.PI
-    const StaticStrings* strings = &state.context()->staticStrings();
-    m_math->directDefineOwnProperty(state, strings->PI, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(3.1415926535897932)), ObjectPropertyDescriptor::ValuePresent));
-    m_math->directDefineOwnProperty(state, strings->E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.718281828459045)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "PI"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(3.1415926535897932)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "E"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.718281828459045)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.3
-    m_math->directDefineOwnProperty(state, strings->LN2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.6931471805599453)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "LN2"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.6931471805599453)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.2
-    m_math->directDefineOwnProperty(state, strings->LN10, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.302585092994046)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "LN10"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.302585092994046)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.4
-    m_math->directDefineOwnProperty(state, strings->LOG2E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4426950408889634)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "LOG2E"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4426950408889634)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.5
-    m_math->directDefineOwnProperty(state, strings->LOG10E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.4342944819032518)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "LOG10E"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.4342944819032518)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.7
-    m_math->directDefineOwnProperty(state, strings->SQRT1_2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.7071067811865476)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "SQRT1_2"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.7071067811865476)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.8
-    m_math->directDefineOwnProperty(state, strings->SQRT2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4142135623730951)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, AtomicString::fromLiteral(state, "SQRT2"), ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4142135623730951)), ObjectPropertyDescriptor::ValuePresent));
 
     // initialize math object: $20.2.2.1 Math.abs()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().abs, builtinMathAbs, 1);
     // initialize math object: $20.2.2.2 Math.acos()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().acos, builtinMathAcos, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "acos"), builtinMathAcos, 1);
     // initialize math object: $20.2.2.3 Math.acosh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().acosh, builtinMathAcosh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "acosh"), builtinMathAcosh, 1);
     // initialize math object: $20.2.2.4 Math.asin()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().asin, builtinMathAsin, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "asin"), builtinMathAsin, 1);
     // initialize math object: $20.2.2.5 Math.asinh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().asinh, builtinMathAsinh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "asinh"), builtinMathAsinh, 1);
     // initialize math object: $20.2.2.6 Math.atan()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().atan, builtinMathAtan, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "atan"), builtinMathAtan, 1);
     // initialize math object: $20.2.2.7 Math.atanh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().atanh, builtinMathAtanh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "atanh"), builtinMathAtanh, 1);
     // initialize math object: $20.2.2.8 Math.atan2()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().atan2, builtinMathAtan2, 2);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "atan2"), builtinMathAtan2, 2);
     // initialize math object: $20.2.2.9 Math.cbrt()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().cbrt, builtinMathCbrt, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "cbrt"), builtinMathCbrt, 1);
     // initialize math object: $20.2.2.10 Math.ceil()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().ceil, builtinMathCeil, 1);
     // initialize math object: $20.2.2.11 Math.clz32()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().clz32, builtinMathClz32, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "clz32"), builtinMathClz32, 1);
     // initialize math object: $20.2.2.12 Math.cos()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().cos, builtinMathCos, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "cos"), builtinMathCos, 1);
     // initialize math object: $20.2.2.13 Math.cosh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().cosh, builtinMathCosh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "cosh"), builtinMathCosh, 1);
     // initialize math object: $20.2.2.14 Math.exp()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().exp, builtinMathExp, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "exp"), builtinMathExp, 1);
     // initialize math object: $20.2.2.15 Math.expm1()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().expm1, builtinMathExpm1, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "expm1"), builtinMathExpm1, 1);
     // initialize math object: $20.2.2.16 Math.floor()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().floor, builtinMathFloor, 1);
     // initialize math object: $20.2.2.17 Math.fround()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().fround, builtinMathFround, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fround"), builtinMathFround, 1);
     // initialize math object: $20.2.2.18 Math.hypot()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().hypot, builtinMathHypot, 2);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "hypot"), builtinMathHypot, 2);
     // initialize math object: $20.2.2.19 Math.imul()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().imul, builtinMathIMul, 2);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "imul"), builtinMathIMul, 2);
 
     // initialize math object: $20.2.2.20 Math.log()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().log, builtinMathLog, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "log"), builtinMathLog, 1);
     // initialize math object: $20.2.2.21 Math.log1p()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().log1p, builtinMathLog1p, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "log1p"), builtinMathLog1p, 1);
     // initialize math object: $20.2.2.22 Math.log10()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().log10, builtinMathLog10, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "log10"), builtinMathLog10, 1);
     // initialize math object: $20.2.2.23 Math.log2()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().log2, builtinMathLog2, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "log2"), builtinMathLog2, 1);
     // initialize math object: $20.2.2.24 Math.max()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().max, builtinMathMax, 2);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "max"), builtinMathMax, 2);
     // initialize math object: $20.2.2.25 Math.min()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().min, builtinMathMin, 2);
     // initialize math object: $20.2.2.26 Math.pow()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().pow, builtinMathPow, 2);
     // initialize math object: $20.2.2.27 Math.random()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().random, builtinMathRandom, 0);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "random"), builtinMathRandom, 0);
     // initialize math object: $20.2.2.28 Math.round()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().round, builtinMathRound, 1);
     // initialize math object: $20.2.2.29 Math.sign()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().sign, builtinMathSign, 1);
     // initialize math object: $20.2.2.30 Math.sin()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().sin, builtinMathSin, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "sin"), builtinMathSin, 1);
     // initialize math object: $20.2.2.31 Math.sinh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().sinh, builtinMathSinh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "sinh"), builtinMathSinh, 1);
     // initialize math object: $20.2.2.32 Math.sqrt()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().sqrt, builtinMathSqrt, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "sqrt"), builtinMathSqrt, 1);
     // initialize math object: $20.2.2.33 Math.tan()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().tan, builtinMathTan, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "tan"), builtinMathTan, 1);
     // initialize math object: $20.2.2.34 Math.tanh()
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().tanh, builtinMathTanh, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "tanh"), builtinMathTanh, 1);
     // initialize math object: $20.2.2.35 Math.trunc()
     m_math->defineBuiltinFunction(state, state.context()->staticStrings().trunc, builtinMathTrunc, 1);
 
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().sumPrecise, builtinMathSumPrecise, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "sumPrecise"), builtinMathSumPrecise, 1);
 
-    m_math->defineBuiltinFunction(state, state.context()->staticStrings().f16round, builtinMathF16round, 1);
+    m_math->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "f16round"), builtinMathF16round, 1);
 
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),

@@ -180,25 +180,25 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
 
 wasm_valkind_t WASMValueConverter::toValueType(ExecutionState& state, const Value& valTypeValue)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (!valTypeValue.isString()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    if (valTypeValue.asString()->equals(strings->i32.string())) {
+    if (valTypeValue.asString()->equals(strings->lazyWASMI32().string())) {
         return WASM_I32;
-    } else if (valTypeValue.asString()->equals(strings->i64.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMI64().string())) {
         return WASM_I64;
-    } else if (valTypeValue.asString()->equals(strings->f32.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMF32().string())) {
         return WASM_F32;
-    } else if (valTypeValue.asString()->equals(strings->f64.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMF64().string())) {
         return WASM_F64;
-    } else if (valTypeValue.asString()->equals(strings->v128.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMV128().string())) {
         return WASM_V128;
-    } else if (valTypeValue.asString()->equals(strings->anyfunc.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMAnyfunc().string())) {
         return WASM_FUNCREF;
-    } else if (valTypeValue.asString()->equals(strings->externref.string())) {
+    } else if (valTypeValue.asString()->equals(strings->lazyWASMExternref().string())) {
         return WASM_ANYREF;
     }
 

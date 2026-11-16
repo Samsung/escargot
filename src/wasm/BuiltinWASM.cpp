@@ -87,7 +87,7 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
 {
     Value source = argv[0];
     if (!source.isPointerValue() || (!source.asPointerValue()->isTypedArrayObject() && !source.asPointerValue()->isArrayBufferObject())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().validate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssembly().string(), false, state.context()->staticStrings().lazyWASMValidate().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     ArrayBufferObject* srcBuffer = WASMOperations::copyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
@@ -170,7 +170,7 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssembly().string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value source = WASMOperations::copyStableBufferBytes(state, argv[0]);
@@ -180,15 +180,15 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
 
 static Value builtinWASMModuleCustomSections(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotModule().string(), false, strings->lazyWASMCustomSections().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotModule().string(), false, strings->lazyWASMCustomSections().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // TODO wasm-c-api do not support custom sections
@@ -211,11 +211,11 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Instance.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssembly().string(), false, state.context()->staticStrings().lazyWASMCapitalInstance().string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     if (!argv[0].isObject() || !argv[0].asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotModule().string(), false, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be module.[[Module]].
@@ -272,7 +272,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 static Value builtinWASMInstanceExportsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMInstanceObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotInstance.string(), false, state.context()->staticStrings().exports.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotInstance().string(), false, state.context()->staticStrings().lazyWASMExports().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     return thisValue.asObject()->asWASMInstanceObject()->exports();
@@ -282,20 +282,20 @@ static Value builtinWASMInstanceExportsGetter(ExecutionState& state, Value thisV
 
 static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     bool isShared = false;
     Value desc = argv[0];
 
     // check and get 'initial' property from the first argument
-    Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->initial, strings->valueOf).second;
+    Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMInitial(), strings->valueOf).second;
     if (UNLIKELY(!initValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     uint32_t initial = initValue.asUInt32();
 
@@ -304,23 +304,23 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     ASSERT(desc.isObject());
     uint32_t maximum = wasm_limits_max_default;
     {
-        auto maxResult = wasmGetValueFromObjectProperty(state, desc, strings->maximum, strings->valueOf);
-        auto sharedResult = wasmGetValueFromObjectProperty(state, desc, strings->shared, AtomicString());
+        auto maxResult = wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMMaximum(), strings->valueOf);
+        auto sharedResult = wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMShared(), AtomicString());
         isShared = sharedResult.first ? sharedResult.second.toBoolean() : false;
 
         if (maxResult.first) {
             Value maxValue = maxResult.second;
             if (!maxValue.isUInt32()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
             maximum = maxValue.asUInt32();
         } else if (isShared) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     }
 
     if (maximum < initial) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let memtype be { min initial, max maximum }
@@ -336,7 +336,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     }
     wasm_memorytype_delete(memtype);
     if (!memaddr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let map be the surrounding agent's associated Memory object cache.
@@ -363,15 +363,15 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
 
 static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMMemoryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotMemory().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value deltaValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!deltaValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotMemory().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_memory_pages_t delta = deltaValue.asUInt32();
@@ -387,7 +387,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     bool success = wasm_memory_grow(memaddr, delta);
     if (!success) {
         // If store is error, throw a RangeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssemblyDotMemory().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Refresh the memory buffer of memaddr.
@@ -406,7 +406,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
 static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMMemoryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().buffer.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotMemory().string(), false, state.context()->staticStrings().buffer.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
@@ -438,28 +438,28 @@ static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValu
 // WebAssembly.Table
 static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalTable().string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value desc = argv[0];
 
     // Let elementType be ToValueType(descriptor["element"]).
-    wasm_valkind_t elementType = WASMValueConverter::toValueType(state, wasmGetValueFromObjectProperty(state, desc, strings->element, strings->toString).second);
+    wasm_valkind_t elementType = WASMValueConverter::toValueType(state, wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMElement(), strings->toString).second);
     // If elementType is not a reftype,
     if (UNLIKELY(elementType != WASM_FUNCREF && elementType != WASM_ANYREF)) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalTable().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // check and get 'initial' property from the first argument
     ASSERT(desc.isObject());
-    Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->initial, strings->valueOf).second;
+    Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMInitial(), strings->valueOf).second;
     if (UNLIKELY(!initValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalTable().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     uint32_t initial = initValue.asUInt32();
 
@@ -468,18 +468,18 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     ASSERT(desc.isObject());
     uint32_t maximum = wasm_limits_max_default;
     {
-        auto maxResult = wasmGetValueFromObjectProperty(state, desc, strings->maximum, strings->valueOf);
+        auto maxResult = wasmGetValueFromObjectProperty(state, desc, strings->lazyWASMMaximum(), strings->valueOf);
         if (maxResult.first) {
             Value maxValue = maxResult.second;
             if (!maxValue.isUInt32()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalMemory().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
             maximum = maxValue.asUInt32();
         }
     }
 
     if (maximum < initial) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalTable().string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // If value is missing,
@@ -526,15 +526,15 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
 
 static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value deltaValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!deltaValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_table_size_t delta = deltaValue.asUInt32();
@@ -571,7 +571,7 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     bool result = wasm_table_grow(tableaddr, delta, ref);
     // If result is error, throw a RangeError exception.
     if (!result) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Return initialSize,
@@ -580,15 +580,15 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     wasm_table_size_t index = indexValue.asUInt32();
 
@@ -604,7 +604,7 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
 
     // If result is error, throw a RangeError exception.
     if (UNLIKELY(index >= wasm_table_size(tableaddr))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
     // Let result be table_read(store, tableaddr, index).
     std::unique_ptr<wasm_ref_t, decltype(&wasm_ref_delete)> result(wasm_table_get(tableaddr, index), wasm_ref_delete);
@@ -624,15 +624,15 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_table_size_t index = indexValue.asUInt32();
@@ -667,7 +667,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     bool result = wasm_table_set(tableaddr, index, ref);
     // If store is error, throw a RangeError exception.
     if (!result) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->lazyWASMCapitalWebAssemblyDotTable().string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Return undefined.
@@ -677,7 +677,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
 static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotTable().string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     // Let tableaddr be this.[[Table]].
@@ -690,14 +690,14 @@ static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue
 // WebAssembly.Tag
 static Value builtinWASMTagConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Tag.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalTag().string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
     if (!argc || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
-    Value parameters = argv[0].asObject()->get(state, strings->parameters).value(state, argv[0]);
+    Value parameters = argv[0].asObject()->get(state, strings->lazyWASMParameters()).value(state, argv[0]);
     if (!parameters.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
@@ -729,11 +729,11 @@ static Value builtinWASMTagConstructor(ExecutionState& state, Value thisValue, s
 // WebAssembly.Global
 static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalGlobal().string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value desc = argv[0];
@@ -751,7 +751,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     // If valuetype is v128,
     if (!WASMValueConverter::isJSCompatibleType(valuetype)) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssembly().string(), false, strings->lazyWASMCapitalGlobal().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_val_t value;
@@ -792,7 +792,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
 static Value builtinWASMGlobalValueGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotGlobal().string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value value = thisValue.asObject()->asWASMGlobalObject()->getGlobalValue(state);
@@ -802,11 +802,11 @@ static Value builtinWASMGlobalValueGetter(ExecutionState& state, Value thisValue
 static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotGlobal().string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotGlobal().string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let globaladdr be this.[[Global]].
@@ -820,7 +820,7 @@ static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue
 
     // If mut is const, throw a TypeError.
     if (mut == WASM_CONST) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotGlobal().string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
     }
 
     // Let value be ToWebAssemblyValue(the given value, valuetype).
@@ -863,7 +863,7 @@ void GlobalObject::initializeWebAssembly(ExecutionState& state)
                                                                                                     ASSERT(self->isGlobalObject());
                                                                                                     return self->asGlobalObject()->wasm(); }, nullptr);
 
-    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WebAssembly), nativeData, Value(Value::EmptyValue));
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyWASMCapitalWebAssembly()), nativeData, Value(Value::EmptyValue));
 }
 
 void GlobalObject::installWebAssembly(ExecutionState& state)
@@ -878,23 +878,23 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     wasm->setGlobalIntrinsicObject(state);
     m_wasm = wasm;
 
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     wasm->defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                            ObjectPropertyDescriptor(Value(strings->WebAssembly.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+                            ObjectPropertyDescriptor(Value(strings->lazyWASMCapitalWebAssembly().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.validate(bufferSource)
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->validate),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->validate, builtinWASMValidate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMValidate()),
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMValidate(), builtinWASMValidate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     // WebAssembly.compile(bufferSource)
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->compile),
                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compile, builtinWASMCompile, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     // WebAssembly.instantiate()
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->instantiate),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMInstantiate()),
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMInstantiate(), builtinWASMInstantiate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 
     // WebAssembly.Module
@@ -907,16 +907,16 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmModule, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmModulePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotModule.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                             ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotModule().string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
-    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->customSections),
-                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->customSections, builtinWASMModuleCustomSections, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCustomSections()),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCustomSections(), builtinWASMModuleCustomSections, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
-    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->exports),
-                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->exports, builtinWASMModuleExports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMExports()),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMExports(), builtinWASMModuleExports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
-    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->imports),
-                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->imports, builtinWASMModuleImports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    wasmModule->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMImports()),
+                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMImports(), builtinWASMModuleImports, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     wasmModule->setFunctionPrototype(state, m_wasmModulePrototype);
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->Module),
@@ -924,7 +924,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
 
 
     // WebAssembly.Instance
-    FunctionObject* wasmInstance = new NativeFunctionObject(state, NativeFunctionInfo(strings->Instance, builtinWASMInstanceConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    FunctionObject* wasmInstance = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCapitalInstance(), builtinWASMInstanceConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     wasmInstance->setGlobalIntrinsicObject(state);
 
     m_wasmInstancePrototype = new Object(state);
@@ -933,22 +933,22 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmInstance, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                               ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotInstance.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                               ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotInstance().string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     {
         JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getExports, builtinWASMInstanceExportsGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get exports"), builtinWASMInstanceExportsGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor exportsDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
-        m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->exports), exportsDesc);
+        m_wasmInstancePrototype->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMExports()), exportsDesc);
     }
 
     wasmInstance->setFunctionPrototype(state, m_wasmInstancePrototype);
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Instance),
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalInstance()),
                             ObjectPropertyDescriptor(wasmInstance, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.Memory
-    FunctionObject* wasmMemory = new NativeFunctionObject(state, NativeFunctionInfo(strings->Memory, builtinWASMMemoryConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    FunctionObject* wasmMemory = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCapitalMemory(), builtinWASMMemoryConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     wasmMemory->setGlobalIntrinsicObject(state);
 
     m_wasmMemoryPrototype = new Object(state);
@@ -957,7 +957,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     m_wasmMemoryPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmMemory, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmMemoryPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotMemory.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                             ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotMemory().string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_wasmMemoryPrototype->defineOwnProperty(state, ObjectPropertyName(strings->grow),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinWASMMemoryGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
@@ -970,12 +970,12 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     }
 
     wasmMemory->setFunctionPrototype(state, m_wasmMemoryPrototype);
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Memory),
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalMemory()),
                             ObjectPropertyDescriptor(wasmMemory, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.Table
-    FunctionObject* wasmTable = new NativeFunctionObject(state, NativeFunctionInfo(strings->Table, builtinWASMTableConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    FunctionObject* wasmTable = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCapitalTable(), builtinWASMTableConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     wasmTable->setGlobalIntrinsicObject(state);
 
     m_wasmTablePrototype = new Object(state);
@@ -984,7 +984,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmTable, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                            ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotTable.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                            ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotTable().string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->grow),
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinWASMTableGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
@@ -1003,12 +1003,12 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     }
 
     wasmTable->setFunctionPrototype(state, m_wasmTablePrototype);
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Table),
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalTable()),
                             ObjectPropertyDescriptor(wasmTable, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.Global
-    FunctionObject* wasmGlobal = new NativeFunctionObject(state, NativeFunctionInfo(strings->Global, builtinWASMGlobalConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    FunctionObject* wasmGlobal = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCapitalGlobal(), builtinWASMGlobalConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     wasmGlobal->setGlobalIntrinsicObject(state);
 
     m_wasmGlobalPrototype = new Object(state);
@@ -1017,48 +1017,48 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(wasmGlobal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                             ObjectPropertyDescriptor(state.context()->staticStrings().WebAssemblyDotGlobal.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                             ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapitalWebAssemblyDotGlobal().string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->valueOf),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     {
         JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getValue, builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)),
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->setValue, builtinWASMGlobalValueSetter, 1, NativeFunctionInfo::Strict)));
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get value"), builtinWASMGlobalValueGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMSetValue(), builtinWASMGlobalValueSetter, 1, NativeFunctionInfo::Strict)));
         ObjectPropertyDescriptor valueDesc(gs, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
         m_wasmGlobalPrototype->defineOwnProperty(state, ObjectPropertyName(strings->value), valueDesc);
     }
 
     wasmGlobal->setFunctionPrototype(state, m_wasmGlobalPrototype);
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Global),
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalGlobal()),
                             ObjectPropertyDescriptor(wasmGlobal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     // WebAssembly.Tag
-    FunctionObject* wasmTag = new NativeFunctionObject(state, NativeFunctionInfo(strings->Tag, builtinWASMTagConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    FunctionObject* wasmTag = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWASMCapitalTag(), builtinWASMTagConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     wasmTag->setGlobalIntrinsicObject(state);
     m_wasmTagPrototype = new Object(state);
     m_wasmTagPrototype->setGlobalIntrinsicObject(state, true);
     m_wasmTagPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor),
                                           ObjectPropertyDescriptor(wasmTag, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_wasmTagPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                          ObjectPropertyDescriptor(strings->WebAssemblyDotTag.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+                                          ObjectPropertyDescriptor(strings->lazyWASMCapitalWebAssemblyDotTag().string(), ObjectPropertyDescriptor::ConfigurablePresent));
     wasmTag->setFunctionPrototype(state, m_wasmTagPrototype);
-    wasm->defineOwnProperty(state, ObjectPropertyName(strings->Tag),
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalTag()),
                             ObjectPropertyDescriptor(wasmTag, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 // WebAssembly.Error
-#define DEFINE_ERROR(errorname, errorName, bname)                                                                                                                                                                                                                                                                                       \
-    FunctionObject* errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().bname##Error, builtin##errorName##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                    \
-    errorname##Error->setPrototype(state, m_error);                                                                                                                                                                                                                                                                                     \
-    m_##errorname##ErrorPrototype = new Object(state, m_errorPrototype);                                                                                                                                                                                                                                                                \
-    m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                               \
-    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                \
-    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                               \
-    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().bname##Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
-    errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype);                                                                                                                                                                                                                                                       \
-    wasm->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                   \
+#define DEFINE_ERROR(errorname, errorName, bname)                                                                                                                                                                                                                                                                                                          \
+    FunctionObject* errorname##Error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().lazyWASMCapital##bname##Error(), builtin##errorName##ErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);                                                                                                    \
+    errorname##Error->setPrototype(state, m_error);                                                                                                                                                                                                                                                                                                        \
+    m_##errorname##ErrorPrototype = new Object(state, m_errorPrototype);                                                                                                                                                                                                                                                                                   \
+    m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                                                  \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                                   \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                                  \
+    m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().lazyWASMCapital##bname##Error().string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
+    errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype);                                                                                                                                                                                                                                                                          \
+    wasm->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyWASMCapital##bname##Error()),                                                                                                                                                                                                                                   \
                             ObjectPropertyDescriptor(errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
 
     DEFINE_ERROR(wasmCompile, WASMCompile, Compile);
@@ -1066,7 +1066,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     DEFINE_ERROR(wasmRuntime, WASMRuntime, Runtime)
 
 
-    redefineOwnProperty(state, ObjectPropertyName(strings->WebAssembly),
+    redefineOwnProperty(state, ObjectPropertyName(strings->lazyWASMCapitalWebAssembly()),
                         ObjectPropertyDescriptor(wasm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

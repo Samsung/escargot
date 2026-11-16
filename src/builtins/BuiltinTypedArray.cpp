@@ -31,10 +31,10 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                 \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                              \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                          \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                       \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                           \
     TypedArrayObject* NAME = thisValue.asPointerValue()->asTypedArrayObject();
 
 
@@ -215,14 +215,14 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.buffer
 static Value builtinTypedArrayBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getBuffer);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, "get buffer");
     return buffer->buffer();
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.bytelength
 static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteLength);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, "get byteLength");
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -232,7 +232,7 @@ static Value builtinTypedArrayByteLengthGetter(ExecutionState& state, Value this
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.byteoffset
 static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteOffset);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, "get byteOffset");
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -242,7 +242,7 @@ static Value builtinTypedArrayByteOffsetGetter(ExecutionState& state, Value this
 // https://www.ecma-international.org/ecma-262/10.0/#sec-get-%typedarray%.prototype.length
 static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, getbyteOffset);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(buffer, TypedArray, "get byteOffset");
     if (buffer->buffer()->isDetachedBuffer()) {
         return Value(0);
     }
@@ -1138,7 +1138,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     // Let O be the this value.
     // Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
     // Assert: O has a [[ViewedArrayBuffer]] internal slot.
-    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(O, TypedArray, subarray);
+    RESOLVE_THIS_BINDING_TO_TYPEDARRAY(O, TypedArray, "subarray");
     // Let buffer be O.[[ViewedArrayBuffer]].
     auto buffer = O->buffer();
     // Let srcRecord be MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
@@ -2412,7 +2412,7 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     // %TypedArray%.prototype
     Object* typedArrayPrototype = typedArrayFunction->getFunctionPrototype(state).asObject();
     typedArrayPrototype->setGlobalIntrinsicObject(state, true);
-    typedArrayPrototype->defineBuiltinFunction(state, strings->subarray, builtinTypedArraySubArray, 2);
+    typedArrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "subarray"), builtinTypedArraySubArray, 2);
     typedArrayPrototype->defineBuiltinFunction(state, strings->set, builtinTypedArraySet, 1);
     typedArrayPrototype->defineBuiltinFunction(state, strings->some, builtinTypedArraySome, 1);
     typedArrayPrototype->defineBuiltinFunction(state, strings->sort, builtinTypedArraySort, 1);
@@ -2501,16 +2501,16 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
 #undef INSTALL_TYPEDARRAY
 
-    m_uint8Array->defineBuiltinFunction(state, strings->fromHex, builtinUint8ArrayFromHex, 1);
+    m_uint8Array->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fromHex"), builtinUint8ArrayFromHex, 1);
 
-    m_uint8Array->defineBuiltinFunction(state, strings->fromBase64, builtinUint8ArrayFromBase64, 1);
+    m_uint8Array->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fromBase64"), builtinUint8ArrayFromBase64, 1);
 
-    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->toHex, builtinUint8ArrayToHex, 0);
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "toHex"), builtinUint8ArrayToHex, 0);
 
-    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->setFromHex, builtinUint8ArraySetFromHex, 1);
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "setFromHex"), builtinUint8ArraySetFromHex, 1);
 
     m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->toBase64, builtinUint8ArrayToBase64, 0);
 
-    m_uint8ArrayPrototype->defineBuiltinFunction(state, strings->setFromBase64, builtinUint8ArraySetFromBase64, 1);
+    m_uint8ArrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "setFromBase64"), builtinUint8ArraySetFromBase64, 1);
 }
 } // namespace Escargot

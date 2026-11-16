@@ -87,35 +87,35 @@ static Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_
     return set;
 }
 
-#define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                        \
-    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject()) {                                                                                                                                                                               \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_SET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                 \
+    if (!thisValue.isObject() || !thisValue.asObject()->isSetObject()) {                                                                                                                                                        \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                           \
     SetObject* NAME = thisValue.asObject()->asSetObject();
 
 static Value builtinSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, add);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "add");
     S->add(state, argv[0]);
     return S;
 }
 
 static Value builtinSetClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, clear);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "clear");
     S->clear(state);
     return Value();
 }
 
 static Value builtinSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, stringDelete);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "delete");
     return Value(S->deleteOperation(state, argv[0]));
 }
 
 static Value builtinSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, has);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "has");
     return Value(S->has(state, argv[0]));
 }
 
@@ -124,7 +124,7 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
     // Let S be the this value.
     // If Type(S) is not Object, throw a TypeError exception.
     // If S does not have a [[SetData]] internal slot, throw a TypeError exception.
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, forEach);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "forEach");
 
     Value callbackfn = argv[0];
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
@@ -251,7 +251,7 @@ static Value builtinSetUnion(ExecutionState& state, Value thisValue, size_t argc
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, stringUnion);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "union");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. Let keysIter be ? GetIteratorFromMethod(otherRec.[[Set]], otherRec.[[Keys]]).
@@ -289,7 +289,7 @@ static Value builtinSetIntersection(ExecutionState& state, Value thisValue, size
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, intersection);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "intersection");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. Let resultSetData be a new empty List.
@@ -367,7 +367,7 @@ static Value builtinSetIsDisjointFrom(ExecutionState& state, Value thisValue, si
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, isDisjointFrom);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "isDisjointFrom");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
@@ -428,7 +428,7 @@ static Value builtinSetDifference(ExecutionState& state, Value thisValue, size_t
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, difference);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "difference");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. Let resultSetData be a copy of O.[[SetData]].
@@ -493,7 +493,7 @@ static Value builtinSetIsSubsetOf(ExecutionState& state, Value thisValue, size_t
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, isSubsetOf);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "isSubsetOf");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) > otherRec.[[Size]], return false.
@@ -535,7 +535,7 @@ static Value builtinSetIsSupersetOf(ExecutionState& state, Value thisValue, size
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, isSupersetOf);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "isSupersetOf");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. If SetDataSize(O.[[SetData]]) < otherRec.[[Size]], return false.
@@ -570,7 +570,7 @@ static Value builtinSetSymmetricDifference(ExecutionState& state, Value thisValu
 {
     // 1. Let O be the this value.
     // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
-    RESOLVE_THIS_BINDING_TO_SET(O, Set, symmetricDifference);
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, "symmetricDifference");
     // 3. Let otherRec be ? GetSetRecord(other).
     SetRecord otherRec = getSetRecord(state, argv[0]);
     // 4. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
@@ -616,26 +616,26 @@ static Value builtinSetSymmetricDifference(ExecutionState& state, Value thisValu
 
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "values");
     return S->values(state);
 }
 
 static Value builtinSetEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, entries);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "entries");
     return S->entries(state);
 }
 
 static Value builtinSetSizeGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SET(S, Set, size);
+    RESOLVE_THIS_BINDING_TO_SET(S, Set, "size");
     return Value(S->size());
 }
 
 static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isSetIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().SetIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazySetIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     SetIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asSetIteratorObject();
     return iter->next(state);
@@ -678,19 +678,19 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().forEach, builtinSetForEach, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().stringUnion, builtinSetUnion, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "union"), builtinSetUnion, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().intersection, builtinSetIntersection, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "intersection"), builtinSetIntersection, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isDisjointFrom, builtinSetIsDisjointFrom, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "isDisjointFrom"), builtinSetIsDisjointFrom, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().difference, builtinSetDifference, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "difference"), builtinSetDifference, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isSubsetOf, builtinSetIsSubsetOf, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "isSubsetOf"), builtinSetIsSubsetOf, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().isSupersetOf, builtinSetIsSupersetOf, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "isSupersetOf"), builtinSetIsSupersetOf, 1);
 
-    m_setPrototypeObject->defineBuiltinFunction(state, state.context()->staticStrings().symmetricDifference, builtinSetSymmetricDifference, 1);
+    m_setPrototypeObject->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "symmetricDifference"), builtinSetSymmetricDifference, 1);
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     // Well-Known Intrinsic Objects : %SetProto_values%

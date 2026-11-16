@@ -423,13 +423,13 @@ static AtomicString toStateString(ExecutionState* state, PromiseObject* promiseO
 {
     switch (promiseObj->state()) {
     case PromiseObject::Pending: {
-        return state->context()->staticStrings().pending;
+        return state->context()->staticStrings().lazyDebuggerPending();
     }
     case PromiseObject::FulFilled: {
-        return state->context()->staticStrings().fulfilled;
+        return state->context()->staticStrings().lazyDebuggerFulfilled();
     }
     case PromiseObject::Rejected: {
-        return state->context()->staticStrings().rejected;
+        return state->context()->staticStrings().lazyDebuggerRejected();
     }
     default: {
         ASSERT_NOT_REACHED();
@@ -442,14 +442,14 @@ static AtomicString toStateString(ExecutionState* state, const GeneratorObject* 
     switch (generatorObj->generatorState()) {
     case GeneratorObject::CompletedReturn:
     case GeneratorObject::CompletedThrow: {
-        return state->context()->staticStrings().generatorCompleted;
+        return state->context()->staticStrings().lazyDebuggerGeneratorCompleted();
     }
     case GeneratorObject::Executing: {
-        return state->context()->staticStrings().generatorExucuting;
+        return state->context()->staticStrings().lazyDebuggerGeneratorExucuting();
     }
     case GeneratorObject::SuspendedStart:
     case GeneratorObject::SuspendedYield: {
-        return state->context()->staticStrings().generatorSuspended;
+        return state->context()->staticStrings().lazyDebuggerGeneratorSuspended();
     }
     default: {
         ASSERT_NOT_REACHED();
@@ -468,7 +468,7 @@ static AtomicString iteratorTypeToString(ExecutionState* state, T type)
         return state->context()->staticStrings().values;
     }
     case T::TypeKeyValue: {
-        return state->context()->staticStrings().keyValue;
+        return state->context()->staticStrings().lazyDebuggerKeyValue();
     }
     default: {
         ASSERT_NOT_REACHED();
@@ -624,12 +624,12 @@ rapidjson::Value DebuggerDevtools::generatePreview(ExecutionState* state, const 
         } else if (value.asObject()->isPromiseObject()) {
             PromiseObject* promiseObj = value.asObject()->asPromiseObject();
 
-            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().sectionPromiseState, "string", toStateString(state, promiseObj).string()->toUTF8StringData().data(), allocator), allocator);
-            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().sectionPromiseResult, "string", promiseObj->promiseResult().toStringWithoutException(*state)->toUTF8StringData().data(), allocator), allocator);
+            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().lazyDebuggerSectionPromiseState(), "string", toStateString(state, promiseObj).string()->toUTF8StringData().data(), allocator), allocator);
+            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().lazyDebuggerSectionPromiseResult(), "string", promiseObj->promiseResult().toStringWithoutException(*state)->toUTF8StringData().data(), allocator), allocator);
         } else if (value.asObject()->isGeneratorObject()) {
             GeneratorObject* generatorObj = value.asObject()->asGeneratorObject();
 
-            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().sectionGeneratorState, "string", toStateString(state, generatorObj).string()->toUTF8StringData().data(), allocator), allocator);
+            result["properties"].PushBack(formatJsonProperty(state->context()->staticStrings().lazyDebuggerSectionGeneratorState(), "string", toStateString(state, generatorObj).string()->toUTF8StringData().data(), allocator), allocator);
         } else if (object->isProxyObject()) {
             ProxyObject* proxyObj = value.asObject()->asProxyObject();
             auto targetObjectValue = Value(proxyObj->target());
@@ -759,31 +759,31 @@ static AtomicString wasmValTypeToTypeName(ExecutionState* state, wasm_valkind_t 
 {
     switch (kind) {
     case WASM_I32: {
-        return state->context()->staticStrings().i32;
+        return state->context()->staticStrings().lazyWASMI32();
     }
     case WASM_I64: {
-        return state->context()->staticStrings().i64;
+        return state->context()->staticStrings().lazyWASMI64();
     }
     case WASM_F32: {
-        return state->context()->staticStrings().f32;
+        return state->context()->staticStrings().lazyWASMF32();
     }
     case WASM_F64: {
-        return state->context()->staticStrings().f64;
+        return state->context()->staticStrings().lazyWASMF64();
     }
     case WASM_V128: {
-        return state->context()->staticStrings().v128;
+        return state->context()->staticStrings().lazyWASMV128();
     }
     case WASM_ANYREF: {
-        return state->context()->staticStrings().anyref;
+        return state->context()->staticStrings().lazyDebuggerAnyref();
     }
     case WASM_FUNCREF: {
-        return state->context()->staticStrings().funcref;
+        return state->context()->staticStrings().lazyDebuggerFuncref();
     }
     case WASM_EXNREF: {
-        return state->context()->staticStrings().externref;
+        return state->context()->staticStrings().lazyWASMExternref();
     }
     default: {
-        return state->context()->staticStrings().unknown;
+        return state->context()->staticStrings().lazyDebuggerUnknown();
     }
     }
 }
@@ -850,7 +850,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
 
         if (isErrorObject(value)) {
             ErrorObject* errorObject = value.asPointerValue()->asErrorObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, errorObject->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), errorObject->getPrototype(*state)));
 
             StringBuilder stackStraceStringBuilder;
             if (errorObject->stackTraceData().hasValue()) {
@@ -874,7 +874,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
         Object* object = value.asObject();
         if (object->isRegExpObject()) {
             RegExpObject* regExpObj = object->asRegExpObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, regExpObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), regExpObj->getPrototype(*state)));
 
             const uint32_t regexOptions = regExpObj->getOptions(*state);
 
@@ -895,47 +895,47 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             MapObject* mapObj = object->asMapObject();
 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->size())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), mapObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry_pair : mapObj->storage()) {
                 if (!entry_pair.first.isEmpty()) {
                     auto* entryObj = new Object(*state, Object::PrototypeIsNull);
-                    entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().key), ObjectPropertyDescriptor(entry_pair.first.toValue<false>()));
+                    entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().lazyDebuggerKey()), ObjectPropertyDescriptor(entry_pair.first.toValue<false>()));
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_pair.second.toValue<false>()));
 
                     entries->defineOwnProperty(*state, ObjectPropertyName(*state, idx), ObjectPropertyDescriptor(Value(entryObj)));
                     ++idx;
                 }
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
 
         } else if (object->isWeakMapObject()) {
             WeakMapObject* mapObj = object->asWeakMapObject();
 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(mapObj->storage().size())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), mapObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
             for (const auto& entry : mapObj->storage()) {
                 if (entry->key.hasValue()) {
                     auto* entryObj = new Object(*state, Object::PrototypeIsNull);
-                    entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().key), ObjectPropertyDescriptor(entry->key.value()));
+                    entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().lazyDebuggerKey()), ObjectPropertyDescriptor(entry->key.value()));
                     entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry->data.toValue<false>()));
 
                     entries->defineOwnProperty(*state, ObjectPropertyName(*state, idx), ObjectPropertyDescriptor(Value(entryObj)));
                     ++idx;
                 }
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
 
         } else if (object->isSetObject()) {
             SetObject* setObj = object->asSetObject();
 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->size())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), setObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
@@ -946,13 +946,13 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                 entries->defineOwnProperty(*state, ObjectPropertyName(*state, idx), ObjectPropertyDescriptor(Value(entryObj)));
                 ++idx;
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
 
         } else if (object->isWeakSetObject()) {
             WeakSetObject* setObj = object->asWeakSetObject();
 
             properties->insert(std::make_pair(state->context()->staticStrings().size, Value(setObj->storage().size())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), setObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             uint32_t idx = 0;
@@ -965,11 +965,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                     ++idx;
                 }
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
 
         } else if (object->isArrayBufferObject()) {
             ArrayBufferObject* arrayBufObj = object->asArrayBufferObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, arrayBufObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), arrayBufObj->getPrototype(*state)));
 
             properties->insert(std::make_pair(state->context()->staticStrings().byteLength, Value(arrayBufObj->byteLength())));
             properties->insert(std::make_pair(state->context()->staticStrings().detached, Value(arrayBufObj->isDetachedBuffer())));
@@ -979,7 +979,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
 #define PREVIEW_ARRAY(typeArrayType)                                                                                                                       \
     auto* previewObj##typeArrayType = new TypedArrayObject(*state, TypedArrayType::typeArrayType);                                                         \
     previewObj##typeArrayType->setBuffer(arrayBufObj, 0, arrayBufObj->byteLength(), arrayBufObj->byteLength() / previewObj##typeArrayType->elementSize()); \
-    internalProperties->insert(std::make_pair(state->context()->staticStrings().section##typeArrayType##Array, previewObj##typeArrayType->asObject()));
+    internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSection##typeArrayType##Array(), previewObj##typeArrayType->asObject()));
 
             PREVIEW_ARRAY(Int8);
             PREVIEW_ARRAY(Uint8);
@@ -987,11 +987,11 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             PREVIEW_ARRAY(Int32);
 #undef PREVIEW_ARRAY
 
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionArrayBufferByteLength, arrayBufObj->byteLength()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionArrayBufferByteLength(), arrayBufObj->byteLength()));
 
         } else if (object->isTypedArrayObject()) {
             TypedArrayObject* typedArrayObj = object->asTypedArrayObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, typedArrayObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), typedArrayObj->getPrototype(*state)));
 
             const uint64_t length = typedArrayObj->length(*state);
             if (length < m_arrayListingMaxSize) {
@@ -1009,7 +1009,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
 
         } else if (object->isDataViewObject()) {
             DataViewObject* dataViewObj = object->asDataViewObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, dataViewObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), dataViewObj->getPrototype(*state)));
 
             properties->insert(std::make_pair(state->context()->staticStrings().buffer, dataViewObj->buffer()));
             properties->insert(std::make_pair(state->context()->staticStrings().byteLength, Value(dataViewObj->byteLength())));
@@ -1017,31 +1017,31 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
 
         } else if (object->isProxyObject()) {
             ProxyObject* proxyObj = object->asProxyObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, proxyObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), proxyObj->getPrototype(*state)));
 
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionHandler, proxyObj->handler()));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionTarget, proxyObj->target()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionHandler(), proxyObj->handler()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionTarget(), proxyObj->target()));
 
         } else if (object->isPromiseObject()) {
             PromiseObject* promiseObj = object->asPromiseObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, promiseObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), promiseObj->getPrototype(*state)));
 
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPromiseState, toStateString(state, promiseObj).string()));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPromiseResult, promiseObj->promiseResult()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPromiseState(), toStateString(state, promiseObj).string()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPromiseResult(), promiseObj->promiseResult()));
 
         } else if (object->isGeneratorObject()) {
             GeneratorObject* generatorObj = object->asGeneratorObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, generatorObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), generatorObj->getPrototype(*state)));
 
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionGeneratorState, toStateString(state, generatorObj).string()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionGeneratorState(), toStateString(state, generatorObj).string()));
 
         } else if (object->isDateObject()) {
             DateObject* dateObj = object->asDateObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, dateObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), dateObj->getPrototype(*state)));
 
         } else if (object->isMapIteratorObject()) {
             MapIteratorObject* mapIterObj = object->asIteratorObject()->asMapIteratorObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, mapIterObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), mapIterObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             if (mapIterObj->map().hasValue()) {
@@ -1050,7 +1050,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                     if (!entry_pair.first.isEmpty()) {
                         auto* entryObj = new Object(*state, Object::PrototypeIsNull);
                         if (mapIterObj->type() == MapIteratorObject::TypeKey || mapIterObj->type() == MapIteratorObject::TypeKeyValue) {
-                            entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().key), ObjectPropertyDescriptor(entry_pair.first.toValue<false>()));
+                            entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().lazyDebuggerKey()), ObjectPropertyDescriptor(entry_pair.first.toValue<false>()));
                         }
                         if (mapIterObj->type() == MapIteratorObject::TypeValue || mapIterObj->type() == MapIteratorObject::TypeKeyValue) {
                             entryObj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(entry_pair.second.toValue<false>()));
@@ -1060,14 +1060,14 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                     }
                 }
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorHasMore, Value(mapIterObj->map().hasValue() ? mapIterObj->iteratorIndex() < mapIterObj->map()->size() : false)));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorIndex, Value(mapIterObj->iteratorIndex())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorKind, iteratorTypeToString<MapIteratorObject::Type>(state, mapIterObj->type()).string()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorHasMore(), Value(mapIterObj->map().hasValue() ? mapIterObj->iteratorIndex() < mapIterObj->map()->size() : false)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorIndex(), Value(mapIterObj->iteratorIndex())));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorKind(), iteratorTypeToString<MapIteratorObject::Type>(state, mapIterObj->type()).string()));
 
         } else if (object->isSetIteratorObject()) {
             SetIteratorObject* setIterObj = object->asIteratorObject()->asSetIteratorObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, setIterObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), setIterObj->getPrototype(*state)));
 
             auto* entries = new ArrayObject(*state, Object::PrototypeIsNull);
             if (setIterObj->set().hasValue()) {
@@ -1083,15 +1083,15 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                     }
                 }
             }
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionEntries, Value(entries)));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorHasMore, Value(setIterObj->set().hasValue() ? setIterObj->iteratorIndex() < setIterObj->set()->size() : false)));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorIndex, Value(setIterObj->iteratorIndex())));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().iteratorKind, iteratorTypeToString<SetIteratorObject::Type>(state, setIterObj->type()).string()));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionEntries(), Value(entries)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorHasMore(), Value(setIterObj->set().hasValue() ? setIterObj->iteratorIndex() < setIterObj->set()->size() : false)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorIndex(), Value(setIterObj->iteratorIndex())));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerIteratorKind(), iteratorTypeToString<SetIteratorObject::Type>(state, setIterObj->type()).string()));
 
 #if defined(ENABLE_WASM)
         } else if (object->isWASMMemoryObject()) {
             WASMMemoryObject* wasmMemObj = object->asWASMMemoryObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmMemObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), wasmMemObj->getPrototype(*state)));
 
             ArrayBuffer* memBuffer = wasmMemObj->buffer();
             if (memBuffer->backingStore().hasValue()) {
@@ -1101,18 +1101,18 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
             }
         } else if (object->isWASMModuleObject()) {
             WASMModuleObject* wasmModuleObj = object->asWASMModuleObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmModuleObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), wasmModuleObj->getPrototype(*state)));
 
             Value argv[1] = { wasmModuleObj };
             auto exports = builtinWASMModuleExports(*state, Value(), 1, argv, nullptr);
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionExports, exports));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionExports(), exports));
 
             auto imports = builtinWASMModuleImports(*state, Value(), 1, argv, nullptr);
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionImports, imports));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionImports(), imports));
 
         } else if (object->isWASMInstanceObject()) {
             WASMInstanceObject* wasmInstObj = object->asWASMInstanceObject();
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, wasmInstObj->getPrototype(*state)));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), wasmInstObj->getPrototype(*state)));
 
             auto* exports = new (GC) PropertyNameValueMap();
             addObjectProperties(state, exports, wasmInstObj->exports());
@@ -1132,7 +1132,7 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                     wasm_global_get(exportValue.asObject()->asWASMGlobalObject()->global(), &globalVal);
 
                     auto* obj = new Object(*state, Object::PrototypeIsNull);
-                    obj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().type), ObjectPropertyDescriptor(wasmValTypeToTypeName(state, globalVal.kind).string()));
+                    obj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().lazyDebuggerType()), ObjectPropertyDescriptor(wasmValTypeToTypeName(state, globalVal.kind).string()));
                     obj->defineOwnProperty(*state, ObjectPropertyName(state->context()->staticStrings().value), ObjectPropertyDescriptor(wasmValToValue(globalVal)));
 
                     globals->defineOwnProperty(*state, ObjectPropertyName(name), ObjectPropertyDescriptor(obj));
@@ -1151,14 +1151,14 @@ rapidjson::Value DebuggerDevtools::jsValueToJsonValueObj(ExecutionState* state, 
                 }
             }
 
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionExports, fullExports));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionFunctions, functions));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionGlobals, globals));
-            internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionMemories, memories));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionExports(), fullExports));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionFunctions(), functions));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionGlobals(), globals));
+            internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionMemories(), memories));
 #endif /* defined(ENABLE_WASM) */
         } else {
             if (object->getPrototype(*state) != Value(Value::Null)) {
-                internalProperties->insert(std::make_pair(state->context()->staticStrings().sectionPrototype, object->getPrototype(*state)));
+                internalProperties->insert(std::make_pair(state->context()->staticStrings().lazyDebuggerSectionPrototype(), object->getPrototype(*state)));
             }
         }
 
