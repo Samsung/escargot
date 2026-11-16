@@ -944,8 +944,8 @@ void GlobalObject::installObject(ExecutionState& state)
                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
-        new NativeFunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, NativeFunctionInfo::Strict)),
-        new NativeFunctionObject(state, NativeFunctionInfo(strings.set__proto__, builtinObject__proto__Setter, 1, NativeFunctionInfo::Strict)));
+        new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get __proto__"), builtinObject__proto__Getter, 0, NativeFunctionInfo::Strict)),
+        new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "set __proto__"), builtinObject__proto__Setter, 1, NativeFunctionInfo::Strict)));
     ObjectPropertyDescriptor __proto__desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_objectPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings.__proto__), __proto__desc);
 

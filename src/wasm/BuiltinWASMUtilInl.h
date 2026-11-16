@@ -30,7 +30,7 @@ namespace Escargot {
 
 static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkind_t kind)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     String* result = nullptr;
     switch (kind) {
@@ -38,16 +38,16 @@ static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkin
         result = strings->function.string();
         break;
     case WASM_EXTERN_TABLE:
-        result = strings->table.string();
+        result = strings->lazyWASMTable().string();
         break;
     case WASM_EXTERN_MEMORY:
-        result = strings->memory.string();
+        result = strings->lazyWASMMemory().string();
         break;
     case WASM_EXTERN_GLOBAL:
         result = strings->global.string();
         break;
     case WASM_EXTERN_TAG:
-        result = strings->tag.string();
+        result = strings->lazyWASMTag().string();
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -59,11 +59,11 @@ static String* wasmStringValueOfExternType(ExecutionState& state, wasm_externkin
 // WebAssembly.Module
 static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->exports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotModule().string(), false, strings->lazyWASMExports().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be moduleObject.[[Module]].
@@ -88,7 +88,7 @@ static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, si
         // Let obj be ?[ "name" ? name, "kind" ? kind ]?.
         Object* obj = new Object(state);
         obj->defineOwnProperty(state, ObjectPropertyName(strings->name), ObjectPropertyDescriptor(nameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-        obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMKind()), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
         // Append obj to exports.
         exports->setIndexedProperty(state, Value(i), Value(obj), exports);
@@ -101,11 +101,11 @@ static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, si
 
 static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->imports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->lazyWASMCapitalWebAssemblyDotModule().string(), false, strings->lazyWASMImports().string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be moduleObject.[[Module]].
@@ -131,9 +131,9 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
 
         // Let obj be ?[ "module" ? moduleName, "name" ? name, "kind" ? kind ]?.
         Object* obj = new Object(state);
-        obj->defineOwnProperty(state, ObjectPropertyName(strings->module), ObjectPropertyDescriptor(moduleNameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMModule()), ObjectPropertyDescriptor(moduleNameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
         obj->defineOwnProperty(state, ObjectPropertyName(strings->name), ObjectPropertyDescriptor(nameValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
-        obj->defineOwnProperty(state, ObjectPropertyName(strings->kind), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+        obj->defineOwnProperty(state, ObjectPropertyName(strings->lazyWASMKind()), ObjectPropertyDescriptor(kindValue, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
         // Append obj to imports.
         imports->setIndexedProperty(state, Value(i), Value(obj), imports);

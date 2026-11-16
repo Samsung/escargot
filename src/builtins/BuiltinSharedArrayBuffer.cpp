@@ -56,23 +56,23 @@ static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value th
     return SharedArrayBufferObject::allocateSharedArrayBuffer(state, newTarget.value(), byteLength, maxByteLength);
 }
 
-#define RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                          \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                                                       \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
-                                                                                                                                                                                                                                                       \
+#define RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                   \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                                \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                           \
+                                                                                                                                                                                                                                \
     SharedArrayBufferObject* NAME = thisValue.asObject()->asSharedArrayBufferObject();
 
 // https://262.ecma-international.org/#sec-get-sharedarraybuffer.prototype.bytelength
 static Value builtinSharedArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getbyteLength);
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, "get byteLength");
     return Value(obj->byteLength());
 }
 
 static Value builtinSharedArrayBufferMaxByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getmaxByteLength);
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, "get maxByteLength");
 
     if (obj->isResizableArrayBuffer()) {
         return Value(obj->maxByteLength());
@@ -83,13 +83,13 @@ static Value builtinSharedArrayBufferMaxByteLengthGetter(ExecutionState& state, 
 
 static Value builtinSharedArrayBufferGrowableGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getgrowable);
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, "get growable");
     return Value(obj->isResizableArrayBuffer());
 }
 
 static Value builtinSharedArrayBufferGrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, grow);
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, "grow");
 
     if (!O->isResizableArrayBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), "SharedArrayBuffer is not a growable buffer");
@@ -109,7 +109,7 @@ static Value builtinSharedArrayBufferGrow(ExecutionState& state, Value thisValue
 // https://262.ecma-international.org/#sec-sharedarraybuffer.prototype.slice
 static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, slice);
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, "slice");
 
     double len = O->byteLength();
     double relativeStart = argv[0].toInteger(state);
@@ -176,10 +176,10 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
         m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
 
         JSGetterSetter growableGS(
-            new NativeFunctionObject(state, NativeFunctionInfo(strings->getgrowable, builtinSharedArrayBufferGrowableGetter, 0, NativeFunctionInfo::Strict)),
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString::fromLiteral(state, "get growable"), builtinSharedArrayBufferGrowableGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor growableDesc(growableGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
+        m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(AtomicString::fromLiteral(state, "growable")), growableDesc);
     }
 
     m_sharedArrayBufferPrototype->defineBuiltinFunction(state, strings->grow, builtinSharedArrayBufferGrow, 1);

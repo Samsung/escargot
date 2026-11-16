@@ -26,10 +26,10 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(NAME, BUILT_IN_METHOD)                                                                                                                                                                                             \
-    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {                                                                                                                                                                               \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().FinalizationRegistry.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                                   \
+#define RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(NAME, BUILT_IN_METHOD)                                                                                                                                                                      \
+    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {                                                                                                                                                        \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().FinalizationRegistry.string(), true, String::fromASCII(BUILT_IN_METHOD), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                            \
     FinalizationRegistryObject* NAME = thisValue.asObject()->asFinalizationRegistryObject();
 
 static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -52,7 +52,7 @@ static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value
 
 static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, stringRegister);
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, "register");
 
     if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");
@@ -75,7 +75,7 @@ static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value th
 
 static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, unregister);
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, "unregister");
     if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not object");
     }
@@ -84,7 +84,7 @@ static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value 
 
 static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, cleanupSome);
+    RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, "cleanupSome");
 
     // If callback is not undefined and IsCallable(callback) is false, throw a TypeError exception
     Object* callback = nullptr;
@@ -122,10 +122,10 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
                                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().FinalizationRegistry.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // FinalizationRegistry.prototype.unregister
-    m_finalizationRegistryPrototype->defineBuiltinFunction(state, state.context()->staticStrings().unregister, builtinfinalizationRegistryUnregister, 1);
+    m_finalizationRegistryPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "unregister"), builtinfinalizationRegistryUnregister, 1);
 
     // FinalizationRegistry.prototype.register
-    m_finalizationRegistryPrototype->defineBuiltinFunction(state, state.context()->staticStrings().stringRegister, builtinfinalizationRegistryRegister, 2);
+    m_finalizationRegistryPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "register"), builtinfinalizationRegistryRegister, 2);
 
     // https://github.com/tc39/proposal-cleanup-some
     // FinalizationRegistry.prototype.cleanupSome

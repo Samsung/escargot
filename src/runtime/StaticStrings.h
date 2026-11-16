@@ -34,11 +34,9 @@ namespace Escargot {
     F($7)                         \
     F($8)                         \
     F($9)                         \
-    F($_)                         \
     F(AggregateError)             \
     F(Array)                      \
     F(ArrayBuffer)                \
-    F(ArrayIterator)              \
     F(AsyncDisposableStack)       \
     F(AsyncFunction)              \
     F(AsyncGenerator)             \
@@ -51,8 +49,6 @@ namespace Escargot {
     F(DataView)                   \
     F(Date)                       \
     F(DisposableStack)            \
-    F(E)                          \
-    F(EPSILON)                    \
     F(Empty)                      \
     F(Error)                      \
     F(EvalError)                  \
@@ -71,38 +67,21 @@ namespace Escargot {
     F(Intl)                       \
     F(Iterator)                   \
     F(JSON)                       \
-    F(LN10)                       \
-    F(LN2)                        \
-    F(LOG10E)                     \
-    F(LOG2E)                      \
-    F(MAX_SAFE_INTEGER)           \
-    F(MAX_VALUE)                  \
-    F(MIN_SAFE_INTEGER)           \
-    F(MIN_VALUE)                  \
     F(Map)                        \
-    F(MapIterator)                \
     F(Math)                       \
     F(Module)                     \
-    F(NEGATIVE_INFINITY)          \
     F(NaN)                        \
     F(Number)                     \
     F(Object)                     \
-    F(PI)                         \
-    F(POSITIVE_INFINITY)          \
     F(Promise)                    \
     F(Proxy)                      \
     F(RangeError)                 \
     F(ReferenceError)             \
     F(Reflect)                    \
     F(RegExp)                     \
-    F(RegExpStringIterator)       \
-    F(SQRT1_2)                    \
-    F(SQRT2)                      \
     F(Set)                        \
     F(ShadowRealm)                \
-    F(SetIterator)                \
     F(String)                     \
-    F(StringIterator)             \
     F(Symbol)                     \
     F(SuppressedError)            \
     F(SyntaxError)                \
@@ -117,22 +96,17 @@ namespace Escargot {
     F(WeakMap)                    \
     F(WeakRef)                    \
     F(WeakSet)                    \
-    F(WrappedFunction)            \
     F(__defineGetter__)           \
     F(__defineSetter__)           \
     F(__lookupGetter__)           \
     F(__lookupSetter__)           \
     F(__proto__)                  \
     F(abs)                        \
-    F(acos)                       \
-    F(acosh)                      \
     F(add)                        \
     F(adopt)                      \
     F(all)                        \
     F(allSettled)                 \
     F(alphabet)                   \
-    F(alreadyCalled)              \
-    F(alreadyResolved)            \
     F(anchor)                     \
     F(anonymous)                  \
     F(any)                        \
@@ -141,17 +115,11 @@ namespace Escargot {
     F(arguments)                  \
     F(asIntN)                     \
     F(asUintN)                    \
-    F(asin)                       \
-    F(asinh)                      \
-    F(assert)                     \
     F(assign)                     \
     F(async)                      \
     F(asyncDispose)               \
     F(asyncIterator)              \
     F(at)                         \
-    F(atan)                       \
-    F(atan2)                      \
-    F(atanh)                      \
     F(as)                         \
     F(await)                      \
     F(detached)                   \
@@ -168,13 +136,10 @@ namespace Escargot {
     F(callee)                     \
     F(caller)                     \
     F(cause)                      \
-    F(cbrt)                       \
     F(ceil)                       \
     F(charAt)                     \
-    F(charCodeAt)                 \
     F(cleanupSome)                \
     F(clear)                      \
-    F(clz32)                      \
     F(codePointAt)                \
     F(compile)                    \
     F(concat)                     \
@@ -182,8 +147,6 @@ namespace Escargot {
     F(construct)                  \
     F(constructor)                \
     F(copyWithin)                 \
-    F(cos)                        \
-    F(cosh)                       \
     F(create)                     \
     F(debugger)                   \
     F(decodeURI)                  \
@@ -196,11 +159,9 @@ namespace Escargot {
     F(description)                \
     F(done)                       \
     F(dotAll)                     \
-    F(difference)                 \
     F(dispose)                    \
     F(disposeAsync)               \
     F(disposed)                   \
-    F(drop)                       \
     F(encodeURI)                  \
     F(encodeURIComponent)         \
     F(endsWith)                   \
@@ -209,12 +170,9 @@ namespace Escargot {
     F(error)                      \
     F(escape)                     \
     F(eval)                       \
-    F(evaluate)                   \
     F(every)                      \
     F(exec)                       \
-    F(exp)                        \
     F(extends)                    \
-    F(expm1)                      \
     F(fill)                       \
     F(filter)                     \
     F(finally)                    \
@@ -232,16 +190,8 @@ namespace Escargot {
     F(forEach)                    \
     F(freeze)                     \
     F(from)                       \
-    F(fromAsync)                  \
-    F(fromBase64)                 \
-    F(fromCharCode)               \
-    F(fromCodePoint)              \
     F(fromEntries)                \
-    F(fromHex)                    \
-    F(fround)                     \
     F(function)                   \
-    F(f16round)                   \
-    F(gc)                         \
     F(get)                        \
     F(getBigInt64)                \
     F(getBigUint64)               \
@@ -285,17 +235,14 @@ namespace Escargot {
     F(groups)                     \
     F(groupBy)                    \
     F(grow)                       \
-    F(growable)                   \
     F(has)                        \
     F(hasIndices)                 \
     F(hasInstance)                \
     F(hasOwn)                     \
     F(hasOwnProperty)             \
-    F(hypot)                      \
     F(ignoreCase)                 \
     F(implements)                 \
     F(importValue)                \
-    F(imul)                       \
     F(includes)                   \
     F(indices)                    \
     F(index)                      \
@@ -303,11 +250,9 @@ namespace Escargot {
     F(input)                      \
     F(instanceof)                 \
     F(interface)                  \
-    F(intersection)               \
     F(is)                         \
     F(isArray)                    \
     F(isConcatSpreadable)         \
-    F(isDisjointFrom)             \
     F(isError)                    \
     F(isExtensible)               \
     F(isFinite)                   \
@@ -318,8 +263,6 @@ namespace Escargot {
     F(isPrototypeOf)              \
     F(isSafeInteger)              \
     F(isSealed)                   \
-    F(isSubsetOf)                 \
-    F(isSupersetOf)               \
     F(isWellFormed)               \
     F(isView)                     \
     F(italics)                    \
@@ -330,22 +273,13 @@ namespace Escargot {
     F(lastChunkHandling)          \
     F(lastIndex)                  \
     F(lastIndexOf)                \
-    F(lastMatch)                  \
-    F(lastParen)                  \
-    F(leftContext)                \
     F(length)                     \
     F(let)                        \
     F(link)                       \
     F(load)                       \
-    F(localeCompare)              \
-    F(log)                        \
-    F(log10)                      \
-    F(log1p)                      \
-    F(log2)                       \
     F(map)                        \
     F(match)                      \
     F(matchAll)                   \
-    F(max)                        \
     F(maxByteLength)              \
     F(message)                    \
     F(min)                        \
@@ -355,7 +289,6 @@ namespace Escargot {
     F(name)                       \
     F(next)                       \
     F(nextMethod)                 \
-    F(normalize)                  \
     F(now)                        \
     F(null)                       \
     F(number)                     \
@@ -365,39 +298,30 @@ namespace Escargot {
     F(ownKeys)                    \
     F(package)                    \
     F(padding)                    \
-    F(padEnd)                     \
-    F(padStart)                   \
     F(parse)                      \
     F(parseFloat)                 \
     F(parseInt)                   \
-    F(pause)                      \
     F(pop)                        \
     F(pow)                        \
     F(preventExtensions)          \
-    F(print)                      \
     F(propertyIsEnumerable)       \
     F(prototype)                  \
     F(proxy)                      \
     F(push)                       \
     F(race)                       \
-    F(random)                     \
     F(raw)                        \
     F(rawJSON)                    \
     F(read)                       \
     F(reduce)                     \
     F(reduceRight)                \
     F(reject)                     \
-    F(remainingElements)          \
-    F(repeat)                     \
     F(replace)                    \
     F(replaceAll)                 \
     F(resizable)                  \
     F(resize)                     \
     F(resolve)                    \
     F(reverse)                    \
-    F(revocable)                  \
     F(revoke)                     \
-    F(rightContext)               \
     F(round)                      \
     F(run)                        \
     F(seal)                       \
@@ -409,8 +333,6 @@ namespace Escargot {
     F(setFloat16)                 \
     F(setFloat32)                 \
     F(setFloat64)                 \
-    F(setFromBase64)              \
-    F(setFromHex)                 \
     F(setFullYear)                \
     F(setHours)                   \
     F(setInt16)                   \
@@ -433,10 +355,7 @@ namespace Escargot {
     F(setUint32)                  \
     F(setUint8)                   \
     F(setYear)                    \
-    F(shift)                      \
     F(sign)                       \
-    F(sin)                        \
-    F(sinh)                       \
     F(size)                       \
     F(slice)                      \
     F(small)                      \
@@ -444,9 +363,7 @@ namespace Escargot {
     F(sort)                       \
     F(source)                     \
     F(species)                    \
-    F(splice)                     \
     F(split)                      \
-    F(sqrt)                       \
     F(stack)                      \
     F(startsWith)                 \
     F(sticky)                     \
@@ -454,35 +371,23 @@ namespace Escargot {
     F(string)                     \
     F(stringify)                  \
     F(sub)                        \
-    F(subarray)                   \
     F(substr)                     \
     F(substring)                  \
-    F(sumPrecise)                 \
     F(sup)                        \
     F(super)                      \
     F(suppressed)                 \
     F(symbol)                     \
-    F(symmetricDifference)        \
-    F(take)                       \
-    F(tan)                        \
-    F(tanh)                       \
     F(test)                       \
     F(then)                       \
-    F(toArray)                    \
     F(toDateString)               \
     F(toBase64)                   \
     F(toExponential)              \
     F(toFixed)                    \
-    F(toGMTString)                \
-    F(toHex)                      \
     F(toISOString)                \
     F(toJSON)                     \
     F(toLocaleDateString)         \
-    F(toLocaleLowerCase)          \
     F(toLocaleString)             \
     F(toLocaleTimeString)         \
-    F(toLocaleUpperCase)          \
-    F(toLowerCase)                \
     F(toPrecision)                \
     F(toPrimitive)                \
     F(toReversed)                 \
@@ -492,23 +397,18 @@ namespace Escargot {
     F(toStringTag)                \
     F(toTimeString)               \
     F(toUTCString)                \
-    F(toUpperCase)                \
     F(toWellFormed)               \
     F(transfer)                   \
     F(transferToFixedLength)      \
     F(trim)                       \
     F(trimEnd)                    \
-    F(trimLeft)                   \
-    F(trimRight)                  \
     F(trimStart)                  \
     F(trunc)                      \
     F(undefined)                  \
     F(unescape)                   \
     F(unicode)                    \
     F(unicodeSets)                \
-    F(unregister)                 \
     F(unscopables)                \
-    F(unshift)                    \
     F(use)                        \
     F(value)                      \
     F(valueOf)                    \
@@ -518,59 +418,60 @@ namespace Escargot {
     F(withResolvers)              \
     F(writable)                   \
     F(written)                    \
-    F(yield)                      \
-    F(zip)                        \
-    F(zipKeyed)
+    F(yield)
 
 #if defined(ENABLE_WASM)
-#define FOR_EACH_STATIC_WASM_STRING(F) \
-    F(Tag)                             \
-    F(tag)                             \
-    F(parameters)                      \
-    F(CompileError)                    \
-    F(Global)                          \
-    F(Instance)                        \
-    F(LinkError)                       \
-    F(Memory)                          \
-    F(RuntimeError)                    \
-    F(Table)                           \
-    F(WebAssembly)                     \
-    F(anyfunc)                         \
-    F(customSections)                  \
-    F(element)                         \
-    F(exports)                         \
-    F(externref)                       \
-    F(f32)                             \
-    F(f64)                             \
-    F(i32)                             \
-    F(i64)                             \
-    F(imports)                         \
-    F(initial)                         \
-    F(instance)                        \
-    F(instantiate)                     \
-    F(kind)                            \
-    F(maximum)                         \
-    F(memory)                          \
-    F(module)                          \
-    F(table)                           \
-    F(shared)                          \
-    F(v128)                            \
-    F(validate)
+#define FOR_EACH_LAZY_WASM_STATIC_STRING(F)                      \
+    F(WASMCapitalCompileError, "CompileError")                   \
+    F(WASMCapitalGlobal, "Global")                               \
+    F(WASMCapitalInstance, "Instance")                           \
+    F(WASMCapitalLinkError, "LinkError")                         \
+    F(WASMCapitalMemory, "Memory")                               \
+    F(WASMCapitalRuntimeError, "RuntimeError")                   \
+    F(WASMCapitalTable, "Table")                                 \
+    F(WASMCapitalTag, "Tag")                                     \
+    F(WASMCapitalWebAssembly, "WebAssembly")                     \
+    F(WASMCapitalWebAssemblyDotGlobal, "WebAssembly.Global")     \
+    F(WASMCapitalWebAssemblyDotInstance, "WebAssembly.Instance") \
+    F(WASMCapitalWebAssemblyDotMemory, "WebAssembly.Memory")     \
+    F(WASMCapitalWebAssemblyDotModule, "WebAssembly.Module")     \
+    F(WASMCapitalWebAssemblyDotTable, "WebAssembly.Table")       \
+    F(WASMCapitalWebAssemblyDotTag, "WebAssembly.Tag")           \
+    F(WASMAnyfunc, "anyfunc")                                    \
+    F(WASMCustomSections, "customSections")                      \
+    F(WASMElement, "element")                                    \
+    F(WASMExports, "exports")                                    \
+    F(WASMExternref, "externref")                                \
+    F(WASMF32, "f32")                                            \
+    F(WASMF64, "f64")                                            \
+    F(WASMI32, "i32")                                            \
+    F(WASMI64, "i64")                                            \
+    F(WASMImports, "imports")                                    \
+    F(WASMInitial, "initial")                                    \
+    F(WASMInstance, "instance")                                  \
+    F(WASMInstantiate, "instantiate")                            \
+    F(WASMKind, "kind")                                          \
+    F(WASMMaximum, "maximum")                                    \
+    F(WASMMemory, "memory")                                      \
+    F(WASMModule, "module")                                      \
+    F(WASMParameters, "parameters")                              \
+    F(WASMSetValue, "set value")                                 \
+    F(WASMShared, "shared")                                      \
+    F(WASMTable, "table")                                        \
+    F(WASMTag, "tag")                                            \
+    F(WASMV128, "v128")                                          \
+    F(WASMValidate, "validate")
 #else
-#define FOR_EACH_STATIC_WASM_STRING(F)
+#define FOR_EACH_LAZY_WASM_STATIC_STRING(F)
 #endif
 
 #if defined(ENABLE_THREADING)
 #define FOR_EACH_STATIC_THREADING_STRING(F) \
     F(Atomics)                              \
     F(SharedArrayBuffer)                    \
-    F(compareExchange)                      \
     F(exchange)                             \
-    F(isLockFree)                           \
-    F(notify)                               \
     F(store)                                \
-    F(wait)                                 \
-    F(waitAsync)
+    F(wait)
 #else
 #define FOR_EACH_STATIC_THREADING_STRING(F)
 #endif
@@ -727,7 +628,12 @@ namespace Escargot {
     F(Rejected, "rejected")                          \
     F(Status, "status")                              \
     F(SuperDotDotDotArgs, "super(...args)")          \
-    F(URL, "url")
+    F(URL, "url")                                    \
+    F(ArrayIterator, "ArrayIterator")                \
+    F(MapIterator, "MapIterator")                    \
+    F(RegExpStringIterator, "RegExpStringIterator")  \
+    F(SetIterator, "SetIterator")                    \
+    F(StringIterator, "StringIterator")
 
 #if defined(ENABLE_INTL)
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)                 \
@@ -1066,42 +972,41 @@ namespace Escargot {
 #endif
 
 #if defined(ESCARGOT_DEBUGGER)
-#define FOR_EACH_DEBUGGER_STATIC_STRING(F) \
-    F(sectionPrototype)                    \
-    F(sectionEntries)                      \
-    F(sectionInt8Array)                    \
-    F(sectionUint8Array)                   \
-    F(sectionInt16Array)                   \
-    F(sectionInt32Array)                   \
-    F(sectionArrayBufferByteLength)        \
-    F(sectionHandler)                      \
-    F(sectionTarget)                       \
-    F(sectionPromiseState)                 \
-    F(sectionPromiseResult)                \
-    F(sectionGeneratorState)               \
-    F(generatorSuspended)                  \
-    F(generatorExucuting)                  \
-    F(generatorCompleted)                  \
-    F(iteratorHasMore)                     \
-    F(iteratorIndex)                       \
-    F(iteratorKind)                        \
-    F(sectionModule)                       \
-    F(sectionFunctions)                    \
-    F(sectionGlobals)                      \
-    F(sectionMemories)                     \
-    F(sectionExports)                      \
-    F(sectionImports)                      \
-    F(pending)                             \
-    F(fulfilled)                           \
-    F(rejected)                            \
-    F(key)                                 \
-    F(type)                                \
-    F(anyref)                              \
-    F(funcref)                             \
-    F(unknown)                             \
-    F(keyValue)
+#define FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(F)                          \
+    F(DebuggerSectionPrototype, "[[Prototype]]")                         \
+    F(DebuggerSectionEntries, "[[Entries]]")                             \
+    F(DebuggerSectionInt8Array, "[[Int8Array]]")                         \
+    F(DebuggerSectionUint8Array, "[[Uint8Array]]")                       \
+    F(DebuggerSectionInt16Array, "[[Int16Array]]")                       \
+    F(DebuggerSectionInt32Array, "[[Int32Array]]")                       \
+    F(DebuggerSectionArrayBufferByteLength, "[[ArrayBufferByteLength]]") \
+    F(DebuggerSectionHandler, "[[Handler]]")                             \
+    F(DebuggerSectionTarget, "[[Target]]")                               \
+    F(DebuggerSectionPromiseState, "[[PromiseState]]")                   \
+    F(DebuggerSectionPromiseResult, "[[PromiseResult]]")                 \
+    F(DebuggerSectionGeneratorState, "[[GeneratorState]]")               \
+    F(DebuggerGeneratorSuspended, "suspended")                           \
+    F(DebuggerGeneratorExucuting, "executing")                           \
+    F(DebuggerGeneratorCompleted, "completed")                           \
+    F(DebuggerIteratorHasMore, "[[IteratorHasMore]]")                    \
+    F(DebuggerIteratorIndex, "[[IteratorIndex]]")                        \
+    F(DebuggerIteratorKind, "[[IteratorKind]]")                          \
+    F(DebuggerSectionFunctions, "[[Functions]]")                         \
+    F(DebuggerSectionGlobals, "[[Globals]]")                             \
+    F(DebuggerSectionMemories, "[[Memories]]")                           \
+    F(DebuggerSectionExports, "[[Exports]]")                             \
+    F(DebuggerSectionImports, "[[Imports]]")                             \
+    F(DebuggerPending, "pending")                                        \
+    F(DebuggerFulfilled, "fulfilled")                                    \
+    F(DebuggerRejected, "rejected")                                      \
+    F(DebuggerKey, "key")                                                \
+    F(DebuggerType, "type")                                              \
+    F(DebuggerAnyref, "anyRef")                                          \
+    F(DebuggerFuncref, "funcRef")                                        \
+    F(DebuggerUnknown, "unknown")                                        \
+    F(DebuggerKeyValue, "key-value")
 #else
-#define FOR_EACH_DEBUGGER_STATIC_STRING(F)
+#define FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(F)
 #endif
 
 #define ESCARGOT_ASCII_TABLE_MAX 256
@@ -1153,7 +1058,6 @@ public:
     AtomicString stringPrivate;
     AtomicString stringProtected;
     AtomicString stringPublic;
-    AtomicString stringRegister;
     AtomicString stringReturn;
     AtomicString stringStarDefaultStar;
     AtomicString stringStarNamespaceStar;
@@ -1164,83 +1068,34 @@ public:
     AtomicString stringTrue;
     AtomicString stringTry;
     AtomicString stringTypeof;
-    AtomicString stringUnion;
     AtomicString stringUsing;
     AtomicString stringVoid;
     AtomicString stringWhile;
-#if defined(ENABLE_THREADING)
-    AtomicString stringAnd;
-    AtomicString stringOr;
-    AtomicString stringXor;
-#endif
-
-    AtomicString $Ampersand;
-    AtomicString $Apostrophe;
-    AtomicString $GraveAccent;
-    AtomicString $PlusSign;
 
     AtomicString NegativeInfinity;
     AtomicString defaultRegExpString;
     AtomicString getBuffer;
-    AtomicString getDescription;
-    AtomicString getDetached;
-    AtomicString getDotAll;
-    AtomicString getFlags;
-    AtomicString getGlobal;
-    AtomicString getHasIndices;
-    AtomicString getIgnoreCase;
-    AtomicString getMultiline;
     AtomicString getLength;
-    AtomicString getSize;
-    AtomicString getSource;
-    AtomicString getSticky;
     AtomicString getSymbolSpecies;
     AtomicString getSymbolToStringTag;
-    AtomicString getUnicode;
-    AtomicString getUnicodeSets;
-    AtomicString get__proto__;
     AtomicString getbyteLength;
     AtomicString getbyteOffset;
-    AtomicString getgrowable;
     AtomicString getmaxByteLength;
-    AtomicString getresizable;
     AtomicString getdisposed;
-    AtomicString set__proto__;
-    AtomicString symbolAsyncIterator;
     AtomicString symbolIterator;
-    AtomicString symbolMatch;
-    AtomicString symbolMatchAll;
-    AtomicString symbolReplace;
-    AtomicString symbolSearch;
-    AtomicString symbolSplit;
-    AtomicString symbolDispose;
-    AtomicString symbolAsyncDispose;
-
-#if defined(ENABLE_WASM)
-    AtomicString getExports;
-    AtomicString getValue;
-    AtomicString setValue;
-    AtomicString WebAssemblyDotGlobal;
-    AtomicString WebAssemblyDotTag;
-    AtomicString WebAssemblyDotInstance;
-    AtomicString WebAssemblyDotMemory;
-    AtomicString WebAssemblyDotModule;
-    AtomicString WebAssemblyDotTable;
-#endif
-
 
     AtomicString* asciiTable;
     AtomicString* numbers;
 
 #define DECLARE_STATIC_STRING(name) AtomicString name;
     FOR_EACH_STATIC_STRING(DECLARE_STATIC_STRING);
-    FOR_EACH_STATIC_WASM_STRING(DECLARE_STATIC_STRING);
     FOR_EACH_STATIC_THREADING_STRING(DECLARE_STATIC_STRING);
-    FOR_EACH_DEBUGGER_STATIC_STRING(DECLARE_STATIC_STRING);
 #undef DECLARE_STATIC_STRING
 
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_WASM_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
@@ -1255,8 +1110,11 @@ public:
 protected:
     AtomicStringMap* m_atomicStringMap;
 
-#define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString m_lazy##Name;
+// The intern map owns these strings, so cached lazy slots can use offsets.
+#define DECLARE_LAZY_STATIC_STRING(Name, unused) CompressibleAtomicString m_lazy##Name;
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_WASM_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_DEBUGGER_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);

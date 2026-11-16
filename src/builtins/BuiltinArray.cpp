@@ -2584,7 +2584,7 @@ static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t 
 static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isArrayIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyArrayIterator().string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     ArrayIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asArrayIteratorObject();
@@ -2710,7 +2710,7 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->defineBuiltinFunction(state, state.context()->staticStrings().from, builtinArrayFrom, 1);
 
-    m_array->defineBuiltinFunction(state, state.context()->staticStrings().fromAsync, builtinArrayFromAsync, 1);
+    m_array->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "fromAsync"), builtinArrayFromAsync, 1);
 
     m_array->defineBuiltinFunction(state, state.context()->staticStrings().of, builtinArrayOf, 0);
 
@@ -2720,7 +2720,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().lastIndexOf, builtinArrayLastIndexOf, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().join, builtinArrayJoin, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().sort, builtinArraySort, 1);
-    m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().splice, builtinArraySplice, 2);
+    m_arrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "splice"), builtinArraySplice, 2);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().slice, builtinArraySlice, 2);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().toReversed, builtinArrayToReversed, 0);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().toSorted, builtinArrayToSorted, 1);
@@ -2733,7 +2733,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().reduceRight, builtinArrayReduceRight, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().pop, builtinArrayPop, 0);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().push, builtinArrayPush, 1);
-    m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().shift, builtinArrayShift, 0);
+    m_arrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "shift"), builtinArrayShift, 0);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().reverse, builtinArrayReverse, 0);
 
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
@@ -2741,7 +2741,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().map, builtinArrayMap, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().some, builtinArraySome, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().toLocaleString, builtinArrayToLocaleString, 0);
-    m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().unshift, builtinArrayUnshift, 1);
+    m_arrayPrototype->defineBuiltinFunction(state, AtomicString::fromLiteral(state, "unshift"), builtinArrayUnshift, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().keys, builtinArrayKeys, 0);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().find, builtinArrayFind, 1);
     m_arrayPrototype->defineBuiltinFunction(state, state.context()->staticStrings().findIndex, builtinArrayFindIndex, 1);

@@ -612,7 +612,7 @@ void GlobalObject::installDate(ExecutionState& state)
     FunctionObject* toUTCString = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUTCString, builtinDateToUTCString, 0, NativeFunctionInfo::Strict));
     m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toUTCString),
                                              ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toGMTString),
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(AtomicString::fromLiteral(state, "toGMTString")),
                                              ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getYear),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getYear, builtinDateGetYear, 0, NativeFunctionInfo::Strict)),
