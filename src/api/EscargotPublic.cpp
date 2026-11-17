@@ -1465,9 +1465,9 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
     return toEvaluatorResultRef(result);
 }
 
-Evaluator::EvaluatorResult Evaluator::executeFunction(ExecutionStateRef* parentState, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2)
+Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ExecutionStateRef* parentState, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2)
 {
-    SandBox sb(toImpl(parentState)->context());
+    SandBox sb(toImpl(ctx));
 
     struct DataSender {
         void* fn;
@@ -1479,11 +1479,19 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ExecutionStateRef* parentS
     sender.data = data;
     sender.data2 = data2;
 
-    auto result = sb.run(*toImpl(parentState), [](ExecutionState& state, void* data) -> Value {
+    auto run = [](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
         ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
-        return toImpl(runner(toRef(&state), sender->data, sender->data2)); }, &sender);
+        return toImpl(runner(toRef(&state), sender->data, sender->data2)); };
+    auto result = parentState->context()->vmInstance() == ctx->vmInstance()
+        ? sb.run(*toImpl(parentState), run, &sender)
+        : sb.run(run, &sender);
     return toEvaluatorResultRef(result);
+}
+
+Evaluator::EvaluatorResult Evaluator::executeFunction(ExecutionStateRef* parentState, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2)
+{
+    return executeFunction(parentState->context(), parentState, runner, data, data2);
 }
 
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Init == (int)VMInstance::PromiseHookType::Init, "");

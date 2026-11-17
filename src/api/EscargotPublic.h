@@ -692,6 +692,8 @@ public:
         return executeImpl(parent, Closure(closure), args...);
     }
 
+    // Keep the requested realm while linking a synchronous call in the same VM.
+    static EvaluatorResult executeFunction(ContextRef* ctx, ExecutionStateRef* parent, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
     static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData), void* data);
     static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
     static EvaluatorResult executeFunction(ExecutionStateRef* parent, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
