@@ -20,7 +20,6 @@
 
 JavaVM* g_jvm;
 size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
-thread_local std::vector<ExecutionStateRef*> ExecutionStateRefTracker::g_lastExecutionStateVector;
 
 jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
 {
@@ -28,7 +27,7 @@ jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
     if (!value->isStoredInHeap()) {
         valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(JZ)V"), reinterpret_cast<jlong>(value), jboolean(false));
     } else {
-        PersistentRefHolder<ValueRef>* pRef = new PersistentRefHolder<ValueRef>(value);
+        CAPI::Persistent<ValueRef>* pRef = new CAPI::Persistent<ValueRef>(value);
         jlong ptr = reinterpret_cast<size_t>(pRef);
         valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), ptr);
     }
@@ -46,7 +45,7 @@ ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject object)
     if (static_cast<size_t>(ptr) <= g_nonPointerValueLast || (static_cast<size_t>(ptr) & 1)) {
         return reinterpret_cast<ValueRef*>(ptr);
     } else {
-        PersistentRefHolder<ValueRef>* ref = reinterpret_cast<PersistentRefHolder<ValueRef>*>(ptr);
+        CAPI::Persistent<ValueRef>* ref = reinterpret_cast<CAPI::Persistent<ValueRef>*>(ptr);
         return ref->get();
     }
 }
@@ -88,7 +87,7 @@ jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
 
 jobject createJavaObject(JNIEnv* env, VMInstanceRef* value)
 {
-    PersistentRefHolder<VMInstanceRef>* pRef = new PersistentRefHolder<VMInstanceRef>(value);
+    CAPI::Persistent<VMInstanceRef>* pRef = new CAPI::Persistent<VMInstanceRef>(value);
     jlong ptr = reinterpret_cast<size_t>(pRef);
     jclass clazz = env->FindClass("com/samsung/lwe/escargot/VMInstance");
     return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), ptr);
@@ -96,7 +95,7 @@ jobject createJavaObject(JNIEnv* env, VMInstanceRef* value)
 
 jobject createJavaObject(JNIEnv* env, ContextRef* value)
 {
-    PersistentRefHolder<ContextRef>* pRef = new PersistentRefHolder<ContextRef>(value);
+    CAPI::Persistent<ContextRef>* pRef = new CAPI::Persistent<ContextRef>(value);
     jlong ptr = reinterpret_cast<size_t>(pRef);
     jclass clazz = env->FindClass("com/samsung/lwe/escargot/Context");
     return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), ptr);

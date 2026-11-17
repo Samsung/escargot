@@ -27,9 +27,9 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_create(JNIEnv* env, jclass
     THROW_NPE_RETURN_NULL(context, "Context");
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
-        return PromiseObjectRef::create(state);
-    });
+    escargot_result executed = nullptr;
+    auto status = escargot_promise_create(CAPI::toC(contextRef->get()), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
 
     assert(evaluatorResult.isSuccessful());
     return createJavaObjectFromValue(env, evaluatorResult.result->asPromiseObject());
@@ -77,7 +77,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_esc
     ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
         return promiseObject->then(state, handlerRef);
     }, thisValueRef, handlerRef);
 
@@ -99,7 +99,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_esc
     ValueRef* onRejectedRef = unwrapValueRefFromValue(env, env->GetObjectClass(onRejected), onRejected);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* onFulfilledRef, ValueRef* onRejectedRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* onFulfilledRef, ValueRef* onRejectedRef) -> ValueRef* {
         return promiseObject->then(state, onFulfilledRef, onRejectedRef);
     }, thisValueRef, onFulfilledRef, onRejectedRef);
 
@@ -119,7 +119,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_catchOperation(JNIEnv* env
     ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
         return promiseObject->catchOperation(state, handlerRef);
     }, thisValueRef, handlerRef);
 
@@ -138,10 +138,9 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_fulfill(JNIEnv* env, jobje
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* valueRef) -> ValueRef* {
-        promiseObject->fulfill(state, valueRef);
-        return ValueRef::createUndefined();
-    }, thisValueRef, valueRef);
+    escargot_result executed = nullptr;
+    auto status = escargot_promise_resolve(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), CAPI::toC(valueRef), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
     assert(evaluatorResult.isSuccessful());
 }
 
@@ -156,10 +155,9 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_reject(JNIEnv* env, jobjec
     ValueRef* reasonRef = unwrapValueRefFromValue(env, env->GetObjectClass(reason), reason);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* reasonRef) -> ValueRef* {
-        promiseObject->reject(state, reasonRef);
-        return ValueRef::createUndefined();
-    }, thisValueRef, reasonRef);
+    escargot_result executed = nullptr;
+    auto status = escargot_promise_reject(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), CAPI::toC(reasonRef), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
     assert(evaluatorResult.isSuccessful());
 }
 

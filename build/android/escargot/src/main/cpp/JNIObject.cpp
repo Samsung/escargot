@@ -26,9 +26,9 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_create(JNIEnv* env, jclass clazz,
     THROW_NPE_RETURN_NULL(context, "Context");
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
-        return ObjectRef::create(state);
-    });
+    escargot_result executed = nullptr;
+    auto status = escargot_object_create(CAPI::toC(contextRef->get()), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
 
     assert(evaluatorResult.isSuccessful());
     return createJavaObjectFromValue(env, evaluatorResult.result->asObject());
@@ -46,9 +46,9 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_get(JNIEnv* env, jobject thiz, jo
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
-        return thisValueRef->get(state, propertyNameValueRef);
-    }, thisValueRef, propertyNameValueRef);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_get_property(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), CAPI::toC(propertyNameValueRef), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
 
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
@@ -68,9 +68,9 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_set(JNIEnv* env, jobject thiz, jo
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->set(state, propertyNameValueRef, valueRef));
-    }, thisValueRef, propertyNameValueRef, valueRef);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_set_property(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), CAPI::toC(propertyNameValueRef), CAPI::toC(valueRef), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
 
     return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
                                                          evaluatorResult);
@@ -95,7 +95,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_defineDataProperty(JNIEnv* env, j
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
                                                                     jboolean isWritable,
                                                                     jboolean isEnumerable,
                                                                     jboolean isConfigurable) -> ValueRef* {
@@ -119,7 +119,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobje
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
         return thisValueRef->getOwnProperty(state, propertyNameValueRef);
     }, thisValueRef, propertyNameValueRef);
 

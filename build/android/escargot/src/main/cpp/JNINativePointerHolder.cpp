@@ -26,7 +26,7 @@ jclass clazz, jlong pointer)
 {
     uint64_t ptrInNumber = (uint64_t)(pointer);
     if (ptrInNumber > g_nonPointerValueLast && !(pointer & 1)) {
-        PersistentRefHolder<void>* pRef = reinterpret_cast<PersistentRefHolder<void>*>(pointer);
+        CAPI::Persistent<void>* pRef = reinterpret_cast<CAPI::Persistent<void>*>(pointer);
         delete pRef;
     }
 }

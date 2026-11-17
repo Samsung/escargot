@@ -281,7 +281,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toString(JNIEnv* env, jobject thiz
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return thisValueRef->toString(state);
     }, thisValueRef);
 
@@ -298,7 +298,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toNumber(JNIEnv* env, jobject thiz
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->toNumber(state));
     }, thisValueRef);
 
@@ -315,7 +315,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toInteger(JNIEnv* env, jobject thi
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->toInteger(state));
     }, thisValueRef);
 
@@ -332,7 +332,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toInt32(JNIEnv* env, jobject thiz,
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->toInt32(state));
     }, thisValueRef);
 
@@ -349,7 +349,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toBoolean(JNIEnv* env, jobject thi
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->toBoolean(state));
     }, thisValueRef);
 
@@ -366,7 +366,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toObject(JNIEnv* env, jobject thiz
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
         return thisValueRef->toObject(state);
     }, thisValueRef);
 
@@ -386,7 +386,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_abstractEqualsTo(JNIEnv* env, jobj
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->abstractEqualsTo(state, otherValueRef));
     }, thisValueRef, otherValueRef);
 
@@ -406,7 +406,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_equalsTo(JNIEnv* env, jobject thiz
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->equalsTo(state, otherValueRef));
     }, thisValueRef, otherValueRef);
 
@@ -426,7 +426,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_instanceOf(JNIEnv* env, jobject th
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->instanceOf(state, otherValueRef));
     }, thisValueRef, otherValueRef);
 
@@ -456,11 +456,11 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_call(JNIEnv* env, jobject thiz, jo
         env->DeleteLocalRef(e);
     }
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(),
-                                              [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* receiverValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
-                                                  return thisValueRef->call(state, receiverValueRef, argvLength, argVector);
-                                              }, thisValueRef, receiverValueRef, argVector, argvLength);
-
+    std::vector<escargot_value> converted(argvLength);
+    for (jsize i = 0; i < argvLength; ++i) converted[i] = CAPI::toC(argVector[i]);
+    escargot_result executed = nullptr;
+    auto status = escargot_function_call(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), CAPI::toC(receiverValueRef), argvLength, converted.data(), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
     Memory::gcFree(argVector);
 
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
@@ -488,11 +488,11 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thi
         env->DeleteLocalRef(e);
     }
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(),
-                                              [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
-                                                  return thisValueRef->construct(state, argvLength, argVector);
-                                              }, thisValueRef, argVector, argvLength);
-
+    std::vector<escargot_value> converted(argvLength);
+    for (jsize i = 0; i < argvLength; ++i) converted[i] = CAPI::toC(argVector[i]);
+    escargot_result executed = nullptr;
+    auto status = escargot_function_construct(CAPI::toC(contextRef->get()), CAPI::toC(thisValueRef), argvLength, converted.data(), &executed);
+    auto evaluatorResult = CAPI::takeResult(status, executed);
     Memory::gcFree(argVector);
 
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),

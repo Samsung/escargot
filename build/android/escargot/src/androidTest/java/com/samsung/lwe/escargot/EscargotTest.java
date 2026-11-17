@@ -1796,6 +1796,45 @@ public class EscargotTest {
     }
 
     @Test
+    public void callbackReentryUsesRequestedContext() {
+        Globals.initializeGlobals();
+        try {
+            VMInstance vm = VMInstance.create(Optional.empty(), Optional.empty());
+            Context caller = Context.create(vm);
+            Context sameVM = Context.create(vm);
+            VMInstance otherVM = VMInstance.create(Optional.empty(), Optional.empty());
+            Context isolated = Context.create(otherVM);
+            Evaluator.evalScript(caller, "globalThis.marker = 'caller'", "setup.js");
+            Evaluator.evalScript(sameVM, "globalThis.marker = 'target'", "setup.js");
+            Evaluator.evalScript(isolated, "globalThis.marker = 'isolated'", "setup.js");
+            Bridge.register(caller, "Native", "check", new Bridge.Adapter() {
+                @Override
+                public Optional<JavaScriptValue> callback(Context ignored, Optional<JavaScriptValue> data) {
+                    assertEquals("target", Evaluator.evalScript(sameVM, "marker", "target.js")
+                            .get().asScriptString().toJavaString());
+                    JavaScriptObject object = JavaScriptObject.create(sameVM);
+                    sameVM.getGlobalObject().set(sameVM, JavaScriptString.create("created"), object);
+                    assertTrue(Evaluator.evalScript(sameVM,
+                            "Object.getPrototypeOf(created) === Object.prototype", "target.js").get().asBoolean());
+                    String stack = JavaScriptErrorObject.create(sameVM,
+                            JavaScriptErrorObject.ErrorKind.None, "target").stack(sameVM).get().toJavaString();
+                    assertTrue(stack.contains("outer.js"));
+                    assertEquals("isolated", Evaluator.evalScript(isolated, "marker", "isolated.js")
+                            .get().asScriptString().toJavaString());
+                    String isolatedStack = JavaScriptErrorObject.create(isolated,
+                            JavaScriptErrorObject.ErrorKind.None, "isolated").stack(isolated).get().toJavaString();
+                    assertFalse(isolatedStack.contains("outer.js"));
+                    return Optional.of(JavaScriptValue.create(true));
+                }
+            });
+            assertTrue(Evaluator.evalScript(caller,
+                    "function outer() { return Native.check(); } outer()", "outer.js").get().asBoolean());
+        } finally {
+            Globals.finalizeGlobals();
+        }
+    }
+
+    @Test
     public void errorObjectTest()
     {
         Globals.initializeGlobals();
