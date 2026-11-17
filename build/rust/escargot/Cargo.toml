@@ -1,0 +1,12 @@
+[package]
+name = "escargot"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Thread-confined, rooted Rust bindings for Escargot"
+publish = false
+
+[dependencies]
+escargot-sys = { path = "../escargot-sys" }

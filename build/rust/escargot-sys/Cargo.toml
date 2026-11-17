@@ -1,0 +1,10 @@
+[package]
+name = "escargot-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Raw bindings to the Escargot C embedding API"
+links = "escargot"
+publish = false
