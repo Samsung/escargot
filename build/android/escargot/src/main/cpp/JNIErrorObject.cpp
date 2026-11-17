@@ -53,7 +53,7 @@ Java_com_samsung_lwe_escargot_JavaScriptErrorObject_create(JNIEnv* env, jclass c
     StringRef* jsMessage = createJSStringFromJava(env, message);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state,
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state,
                                                                     ErrorObjectRef::Code code, StringRef* jsMessage) -> ValueRef* {
         return ErrorObjectRef::create(state, code, jsMessage);
     }, code, jsMessage);
@@ -72,7 +72,7 @@ Java_com_samsung_lwe_escargot_JavaScriptErrorObject_stack(JNIEnv* env, jobject t
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ErrorObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asErrorObject();
 
-    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ErrorObjectRef* thisValueRef) -> ValueRef* {
+    auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ErrorObjectRef* thisValueRef) -> ValueRef* {
         return thisValueRef->getOwnProperty(state, StringRef::createFromASCII("stack"))->toString(state);
     }, thisValueRef);
 

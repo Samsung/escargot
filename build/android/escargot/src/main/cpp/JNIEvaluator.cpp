@@ -61,7 +61,7 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
         return evalResult;
     }
 
-    auto evalResult = ScriptEvaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
+    auto evalResult = CAPI::Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
                                              return script->execute(state);
                                          },
                                          scriptInitializeResult.script.get());

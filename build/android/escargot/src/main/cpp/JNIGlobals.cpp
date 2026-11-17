@@ -143,7 +143,7 @@ public:
     virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc, ModuleType type) override
     {
         std::string referrerPath = whereRequestFrom->src()->toStdUTF8String();
-        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
+        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, CAPI::Persistent<ScriptRef>>>*>(threadLocalCustomData());
 
         for (size_t i = 0; i < loadedModules.size(); i++) {
             if (std::get<2>(loadedModules[i]) == whereRequestFrom) {
@@ -194,8 +194,8 @@ public:
         } else {
             path = absolutePath(loadedModule->src()->toStdUTF8String());
         }
-        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
-        loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
+        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, CAPI::Persistent<ScriptRef>>>*>(threadLocalCustomData());
+        loadedModules.push_back(std::make_tuple(path, relatedContext, CAPI::Persistent<ScriptRef>(loadedModule)));
     }
 
     virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, ModuleType type, PromiseObjectRef* promise) override
@@ -211,12 +211,12 @@ public:
 
     virtual void* allocateThreadLocalCustomData() override
     {
-        return new std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>>();
+        return new std::vector<std::tuple<std::string /* abs path */, ContextRef*, CAPI::Persistent<ScriptRef>>>();
     }
 
     virtual void deallocateThreadLocalCustomData() override
     {
-        delete reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
+        delete reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, CAPI::Persistent<ScriptRef>>>*>(threadLocalCustomData());
     }
 
 private:

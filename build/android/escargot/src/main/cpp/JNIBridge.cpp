@@ -39,7 +39,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
 
     adapter = env->NewGlobalRef(adapter);
 
-    auto evalResult = ScriptEvaluator::execute(contextPtr->get(),
+    auto evalResult = CAPI::Evaluator::execute(contextPtr->get(),
                                          [](ExecutionStateRef* state, JNIEnv* env, jobject adapter,
                                             StringRef* jsObjectName,
                                             StringRef* jsPropertyName) -> ValueRef* {
@@ -64,7 +64,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                         ValueRef* thisValue, size_t argc,
                                                         ValueRef** argv,
                                                         bool isConstructorCall) -> ValueRef* {
-                                                         ExecutionStateRefTracker tracker(state);
+                                                         CAPI::ExecutionScope tracker(state);
                                                          FunctionObjectRef* callee = state->resolveCallee().get();
 
                                                          jobject jo = ensureScriptObjectExtraData(

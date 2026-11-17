@@ -48,7 +48,7 @@ Java_com_samsung_lwe_escargot_Context_throwException(JNIEnv* env, jobject thiz, 
     if (contextRef->get()->canThrowException()) {
         ValueRef* exceptionRef = unwrapValueRefFromValue(env, env->GetObjectClass(exception), exception);
         if (exceptionRef->isErrorObject()) {
-            auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* exceptionRef) -> ValueRef* {
+            auto evaluatorResult = CAPI::Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* exceptionRef) -> ValueRef* {
                 exceptionRef->asErrorObject()->updateStackTraceData(state);
                 return ValueRef::createUndefined();
             }, exceptionRef);

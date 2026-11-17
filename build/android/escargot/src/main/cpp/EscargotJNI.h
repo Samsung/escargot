@@ -21,6 +21,7 @@
 
 #include <jni.h>
 #include <EscargotPublic.h>
+#include <internal/CBinding.h>
 #include <vector>
 #include <set>
 #include <cassert>
@@ -139,47 +140,11 @@ jobject nativeOptionalValueIntoJavaOptionalValue(JNIEnv* env, OptionalRef<T> ref
 }
 
 template<typename NativeType>
-PersistentRefHolder<NativeType>* getPersistentPointerFromJava(JNIEnv *env, jclass clazz, jobject object)
+CAPI::Persistent<NativeType>* getPersistentPointerFromJava(JNIEnv *env, jclass clazz, jobject object)
 {
     auto ptr = env->GetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"));
-    PersistentRefHolder<NativeType>* pVMRef = reinterpret_cast<PersistentRefHolder<NativeType>*>(ptr);
+    CAPI::Persistent<NativeType>* pVMRef = reinterpret_cast<CAPI::Persistent<NativeType>*>(ptr);
     return pVMRef;
 }
-
-class ExecutionStateRefTracker {
-public:
-    ExecutionStateRefTracker(ExecutionStateRef* newValue)
-    {
-        g_lastExecutionStateVector.push_back(newValue);
-    }
-
-    ~ExecutionStateRefTracker()
-    {
-        g_lastExecutionStateVector.pop_back();
-    }
-private:
-    friend class ScriptEvaluator;
-    static thread_local std::vector<ExecutionStateRef*> g_lastExecutionStateVector;
-};
-
-class ScriptEvaluator {
-public:
-    template <typename... Args, typename F>
-    static Evaluator::EvaluatorResult execute(ContextRef* ctx, F&& closure, Args... args)
-    {
-        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
-        if (ExecutionStateRefTracker::g_lastExecutionStateVector.size()) {
-            return Evaluator::execute(ExecutionStateRefTracker::g_lastExecutionStateVector.back(), [](ExecutionStateRef * state, Closure closure, Args... args) -> ValueRef* {
-                ExecutionStateRefTracker tracker(state);
-                return closure(state, args...);
-            }, Closure(closure), args...);
-        } else {
-            return Evaluator::execute(ctx, [](ExecutionStateRef * state, Closure closure, Args... args) -> ValueRef* {
-                ExecutionStateRefTracker tracker(state);
-                return closure(state, args...);
-            }, Closure(closure), args...);
-        }
-    }
-};
 
 #endif //ESCARGOT_ANDROID_ESCARGOTJNI_H
