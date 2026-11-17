@@ -194,7 +194,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_int32(napi_env env, napi_value v
         return SetLastError(env, napi_number_expected);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
             return ValueRef::create(value->toInt32(state));
         },
@@ -230,7 +230,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_int64(napi_env env, napi_value v
 
     // ToInteger on an already-numeric value never runs user code / throws,
     // but it still requires a call-scoped ExecutionStateRef.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
             return ValueRef::create(value->toInteger(state));
         },
@@ -391,7 +391,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_bool(napi_env env, napi_value va
     // ToBoolean never runs user code / never throws, unlike its
     // to_number/to_object/to_string siblings below, but it still requires a
     // call-scoped ExecutionStateRef.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
             return ValueRef::create(value->toBoolean(state));
         },
@@ -411,7 +411,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_number(napi_env env, napi_value 
     // ToNumber can invoke a user-defined valueOf/Symbol.toPrimitive/toString,
     // or throw (e.g. for a Symbol) - must not let that C++ exception cross
     // this function's own stack frame (see napi_call_function above)
-    Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
+    Evaluator::EvaluatorResult coerceResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return ValueRef::create(v->toNumber(state));
         },
@@ -439,7 +439,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_object(napi_env env, napi_value 
     // ToObject throws for null/undefined, so this needs the same
     // exception-catching wrapper as the other coercions here even though it
     // never runs arbitrary user code itself
-    Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
+    Evaluator::EvaluatorResult coerceResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return v->toObject(state);
         },
@@ -466,7 +466,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_coerce_to_string(napi_env env, napi_value 
 
     // ToString can invoke a user-defined toString/Symbol.toPrimitive, or
     // throw (e.g. for a Symbol) - same reasoning as napi_coerce_to_number
-    Evaluator::EvaluatorResult coerceResult = Evaluator::execute(
+    Evaluator::EvaluatorResult coerceResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* v) -> ValueRef* {
             return v->toString(state);
         },
@@ -489,7 +489,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_strict_equals(napi_env env, napi_value lhs
 
     // === never runs user code / never throws, so this can be called
     // without exception concerns, but it still needs scoped state.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* lhs, ValueRef* rhs) -> ValueRef* {
             return ValueRef::create(lhs->equalsTo(state, rhs));
         },

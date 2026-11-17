@@ -286,7 +286,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_all_property_names(napi_env env, napi_
     // enumerateObjectOwnProperties on that Proxy silently produced zero
     // properties (reading straight through to the underlying, empty `{}`
     // target) instead of propagating the ownKeys trap's exception.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, napi_key_collection_mode key_mode, napi_key_filter key_filter, napi_key_conversion key_conversion) -> ValueRef* {
             bool skipStrings = (key_filter & napi_key_skip_strings) != 0;
             bool skipSymbols = (key_filter & napi_key_skip_symbols) != 0;
@@ -407,7 +407,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_object_with_properties(napi_env
     // omitted") can invoke a Proxy's setPrototypeOf trap and throw, so the
     // whole thing is sandboxed the same way napi_call_function is
     // (NapiFunctions.cpp).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, napi_value prototypeNapi, const napi_value* names, const napi_value* values, size_t property_count) -> ValueRef* {
             ObjectRef* obj = ObjectRef::create(state);
             if (prototypeNapi != nullptr) {
@@ -446,7 +446,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_sharedarraybuffer(napi_env env,
 
     // SharedArrayBufferObjectRef::create allocates the SharedDataBlock backing
     // store itself (unlike ArrayBufferObjectRef::create + allocateBuffer).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, size_t byteLength, void** data) -> ValueRef* {
             SharedArrayBufferObjectRef* buffer = SharedArrayBufferObjectRef::create(state, byteLength);
             if (data != nullptr) {
@@ -474,7 +474,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_set_prototype(napi_env env, napi_value
 
     // ObjectRef::setPrototype can invoke a Proxy's setPrototypeOf trap and
     // throw - same rationale as node_api_create_object_with_properties above.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* proto) -> ValueRef* {
             obj->setPrototype(state, proto);
             return ValueRef::createUndefined();

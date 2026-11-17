@@ -261,7 +261,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_make_callback(napi_env env, napi_async_con
     // Sandboxed exactly like napi_call_function (NapiFunctions.cpp): ->call()
     // throws a raw C++ exception on an uncaught JS exception, which must not
     // be allowed to cross this function's own stack frame.
-    Evaluator::EvaluatorResult callResult = Evaluator::execute(
+    Evaluator::EvaluatorResult callResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
             return fn->call(state, thisArg, argc, argv);
         },
@@ -314,7 +314,7 @@ ESCARGOT_NAPI_EXPORT napi_status node_api_create_buffer_from_arraybuffer(napi_en
     // Node's Buffer is a Uint8Array subclass - see napi_create_buffer's own
     // comment (NapiArrayBuffer.cpp) for why a plain Uint8ArrayObjectRef
     // stands in for it here.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ArrayBufferRef* buffer, size_t byteOffset, size_t byteLength) -> ValueRef* {
             Uint8ArrayObjectRef* view = Uint8ArrayObjectRef::create(state);
             view->setBuffer(buffer, byteOffset, byteLength, byteLength);

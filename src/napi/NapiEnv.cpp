@@ -59,19 +59,19 @@ void NapiEnv::threadFinalize()
 
 NapiEnv* NapiEnv::create(const char* locale, const char* timezone)
 {
-    PersistentRefHolder<VMInstanceRef> vmInstance = VMInstanceRef::create(locale, timezone);
-    PersistentRefHolder<ContextRef> context = ContextRef::create(vmInstance.get());
+    CAPI::Persistent<VMInstanceRef> vmInstance(VMInstanceRef::create(locale, timezone).get());
+    CAPI::Persistent<ContextRef> context(ContextRef::create(vmInstance.get()).get());
     return new NapiEnv(std::move(vmInstance), std::move(context));
 }
 
 NapiEnv* NapiEnv::create(VMInstanceRef* sharedVMInstance)
 {
-    PersistentRefHolder<VMInstanceRef> vmInstance(sharedVMInstance);
-    PersistentRefHolder<ContextRef> context = ContextRef::create(sharedVMInstance);
+    CAPI::Persistent<VMInstanceRef> vmInstance(sharedVMInstance);
+    CAPI::Persistent<ContextRef> context(ContextRef::create(sharedVMInstance).get());
     return new NapiEnv(std::move(vmInstance), std::move(context));
 }
 
-NapiEnv::NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context)
+NapiEnv::NapiEnv(CAPI::Persistent<VMInstanceRef>&& vmInstance, CAPI::Persistent<ContextRef>&& context)
     : m_vmInstance(std::move(vmInstance))
     , m_context(std::move(context))
 {
@@ -188,11 +188,11 @@ NapiEnv::~NapiEnv()
     // Must run before NapiEnv::globalFinalize() (Globals::finalize()) tears
     // down the GC itself; callers are expected to destroy every NapiEnv first.
     ContextRef* ctx = m_context.get();
-    Evaluator::execute(ctx, [](ExecutionStateRef* state) -> ValueRef* {
+    CAPI::Evaluator::execute(ctx, [](ExecutionStateRef* state) -> ValueRef* {
         return ValueRef::create(100);
     });
     for (size_t i = 0; i < 100; i++) {
-        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+        CAPI::Persistent<StringRef> dummy = StringRef::createFromUTF8("asdf");
     }
     Memory::gc();
     Memory::gc();

@@ -23,6 +23,7 @@
 
 #include "Escargot.h"
 #include "api/EscargotPublic.h"
+#include "api/internal/CBinding.h"
 
 #include <node_api.h>
 #include <uv.h>
@@ -53,37 +54,7 @@ class NapiEnv;
 // are outside Escargot's root set, so values retained there across an API
 // boundary must be held persistently.
 template <typename T>
-class PersistentOptionalRef {
-public:
-    PersistentOptionalRef() = default;
-    PersistentOptionalRef(const PersistentOptionalRef&) = delete;
-    PersistentOptionalRef& operator=(const PersistentOptionalRef&) = delete;
-
-    PersistentOptionalRef& operator=(T* value)
-    {
-        m_value.reset(value);
-        return *this;
-    }
-
-    PersistentOptionalRef& operator=(std::nullptr_t)
-    {
-        m_value.reset(nullptr);
-        return *this;
-    }
-
-    bool hasValue()
-    {
-        return m_value.get() != nullptr;
-    }
-
-    T* value()
-    {
-        return m_value.get();
-    }
-
-private:
-    PersistentRefHolder<T> m_value;
-};
+using PersistentOptionalRef = CAPI::PendingReference<T>;
 
 // the real napi_env__ definition (only forward-declared by node_api.h).
 // Owned directly by NapiEnv (see NapiEnv::m_env below) instead of being
@@ -301,7 +272,7 @@ public:
     // Side storage for napi_wrap. This registry lives in native memory, so a
     // raw ObjectRef* key would neither root the object nor be cleared by GC.
     struct WrapFinalizerEntry {
-        PersistentRefHolder<ObjectRef> target;
+        CAPI::Persistent<ObjectRef> target;
         void* data;
     };
 
@@ -313,7 +284,7 @@ public:
     std::vector<std::pair<ObjectRef*, void*>> snapshotWrapFinalizerData() const;
 
     struct EnvFinalizerEntry {
-        PersistentRefHolder<ValueRef> target;
+        CAPI::Persistent<ValueRef> target;
         Memory::GCAllocatedMemoryFinalizer callback;
         void* data;
     };
@@ -386,12 +357,12 @@ public:
     std::vector<NativeFinalizerEntry> m_nativeFinalizers;
 
 private:
-    NapiEnv(PersistentRefHolder<VMInstanceRef>&& vmInstance, PersistentRefHolder<ContextRef>&& context);
+    NapiEnv(CAPI::Persistent<VMInstanceRef>&& vmInstance, CAPI::Persistent<ContextRef>&& context);
 
     std::mutex m_asyncWorksMutex;
     std::vector<napi_async_work> m_asyncWorks;
-    PersistentRefHolder<VMInstanceRef> m_vmInstance;
-    PersistentRefHolder<ContextRef> m_context;
+    CAPI::Persistent<VMInstanceRef> m_vmInstance;
+    CAPI::Persistent<ContextRef> m_context;
     std::mutex m_threadsafeFunctionsMutex;
     std::vector<napi_threadsafe_function> m_threadsafeFunctions;
     std::vector<WrapFinalizerEntry*> m_wrapFinalizerData;

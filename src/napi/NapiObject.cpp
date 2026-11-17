@@ -34,120 +34,60 @@ extern "C" {
 
 ESCARGOT_NAPI_EXPORT napi_status napi_get_property(napi_env env, napi_value object, napi_value key, napi_value* result)
 {
-    ValueRef* val_object = FromNapi(object);
-    if (!val_object->isObject()) {
-        return SetLastError(env, napi_object_expected);
-    }
-    ObjectRef* obj = val_object->asObject();
-    ValueRef* propertyKey = FromNapi(key);
-
-    // ObjectRef::get can invoke a user getter (or a Proxy `get` trap), either
-    // of which may throw a raw C++ exception that must not cross this
-    // function's own stack frame - see napi_call_function's comment on the
-    // same Evaluator::execute pattern.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* key) -> ValueRef* {
-            return obj->get(state, key);
-        },
-        obj, propertyKey);
-
-    if (!evalResult.isSuccessful()) {
-        env->pendingException = evalResult.error.value();
-        return SetLastError(env, napi_pending_exception);
-    }
-
-    *result = ToNapi(evalResult.result);
-    return napi_ok;
+    CHECK_ENV(env);
+    CHECK_ARG(env, object);
+    CHECK_ARG(env, key);
+    CHECK_ARG(env, result);
+    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_get_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
+    return SetCResult(env, status, executed, result);
 }
+
 
 ESCARGOT_NAPI_EXPORT napi_status napi_set_property(napi_env env, napi_value object, napi_value key, napi_value value)
 {
-    ValueRef* val_object = FromNapi(object);
-    if (!val_object->isObject()) {
-        return SetLastError(env, napi_object_expected);
-    }
-    ObjectRef* obj = val_object->asObject();
-    ValueRef* propertyKey = FromNapi(key);
-    ValueRef* propertyValue = FromNapi(value);
-
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* key, ValueRef* value) -> ValueRef* {
-            obj->set(state, key, value);
-            return ValueRef::createUndefined();
-        },
-        obj, propertyKey, propertyValue);
-
-    if (!evalResult.isSuccessful()) {
-        env->pendingException = evalResult.error.value();
-        return SetLastError(env, napi_pending_exception);
-    }
-
-    return napi_ok;
+    CHECK_ENV(env);
+    CHECK_ARG(env, object);
+    CHECK_ARG(env, key);
+    CHECK_ARG(env, value);
+    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_set_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), reinterpret_cast<escargot_value>(value), &executed);
+    return SetCResult(env, status, executed, nullptr);
 }
+
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
-    ValueRef* val_object = FromNapi(object);
-    if (!val_object->isObject()) {
-        return SetLastError(env, napi_object_expected);
-    }
-    ObjectRef* obj = val_object->asObject();
-    ValueRef* propertyKey = FromNapi(key);
-
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* key) -> ValueRef* {
-            return ValueRef::create(obj->hasProperty(state, key));
-        },
-        obj, propertyKey);
-
-    if (!evalResult.isSuccessful()) {
-        env->pendingException = evalResult.error.value();
-        return SetLastError(env, napi_pending_exception);
-    }
-
-    *result = evalResult.result->asBoolean();
-    return napi_ok;
+    CHECK_ENV(env);
+    CHECK_ARG(env, object);
+    CHECK_ARG(env, key);
+    CHECK_ARG(env, result);
+    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_has_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
+    napi_value boolean = nullptr;
+    auto converted = SetCResult(env, status, executed, &boolean);
+    if (converted == napi_ok && result) *result = FromNapi(boolean)->asBoolean();
+    return converted;
 }
+
 
 ESCARGOT_NAPI_EXPORT napi_status napi_delete_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
-    ValueRef* val_object = FromNapi(object);
-    if (!val_object->isObject()) {
-        return SetLastError(env, napi_object_expected);
-    }
-    ObjectRef* obj = val_object->asObject();
-    ValueRef* propertyKey = FromNapi(key);
-
-    // deleteOwnProperty (ECMA-262's [[Delete]]), not deleteProperty: the
-    // latter (ObjectRef::deleteProperty, see its own deletePropertyOperation
-    // helper in EscargotPublic.cpp) additionally pre-checks
-    // hasOwnProperty(), then falls back to walking the prototype chain if
-    // the key isn't found - neither of which the JS `delete` operator /
-    // real Node-API's napi_delete_property ever do (delete is always an
-    // own-property-only [[Delete]] call, no prototype walk, and no separate
-    // existence pre-check trap on an exotic object). That pre-check trap
-    // firing (and, in this test, throwing) before the *actual* delete ever
-    // happens meant a Proxy's own `deleteProperty` trap - which
-    // ProxyObject::deleteOwnProperty correctly invokes - was never reached
-    // at all (found via test_object/test_exceptions.js, whose Proxy's
-    // `deleteProperty` trap always throws but was never observed to be
-    // called).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* key) -> ValueRef* {
-            return ValueRef::create(obj->deleteOwnProperty(state, key));
-        },
-        obj, propertyKey);
-
-    if (!evalResult.isSuccessful()) {
-        env->pendingException = evalResult.error.value();
-        return SetLastError(env, napi_pending_exception);
-    }
-
-    if (result != nullptr) {
-        *result = evalResult.result->asBoolean();
-    }
-    return napi_ok;
+    CHECK_ENV(env);
+    CHECK_ARG(env, object);
+    CHECK_ARG(env, key);
+    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    escargot_result executed = nullptr;
+    auto status = escargot_object_delete_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
+    napi_value boolean = nullptr;
+    auto converted = SetCResult(env, status, executed, &boolean);
+    if (converted == napi_ok && result) *result = FromNapi(boolean)->asBoolean();
+    return converted;
 }
+
 
 ESCARGOT_NAPI_EXPORT napi_status napi_has_own_property(napi_env env, napi_value object, napi_value key, bool* result)
 {
@@ -158,7 +98,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_own_property(napi_env env, napi_value 
     ObjectRef* obj = val_object->asObject();
     ValueRef* propertyKey = FromNapi(key);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, ValueRef* key) -> ValueRef* {
             return ValueRef::create(obj->hasOwnProperty(state, key));
         },
@@ -182,7 +122,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_named_property(napi_env env, napi_valu
     ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, StringRef* name) -> ValueRef* {
             return obj->get(state, name);
         },
@@ -206,7 +146,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_named_property(napi_env env, napi_valu
     ObjectRef* obj = val_object->asObject();
     StringRef* propertyName = StringRef::createFromUTF8(utf8name, strlen(utf8name));
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, StringRef* name) -> ValueRef* {
             return ValueRef::create(obj->hasProperty(state, name));
         },
@@ -229,7 +169,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_element(napi_env env, napi_value objec
     }
     ObjectRef* obj = val_object->asObject();
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, uint32_t index) -> ValueRef* {
             return obj->getIndexedProperty(state, ValueRef::create(index));
         },
@@ -253,7 +193,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_element(napi_env env, napi_value objec
     ObjectRef* obj = val_object->asObject();
     ValueRef* propertyValue = FromNapi(value);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, uint32_t index, ValueRef* value) -> ValueRef* {
             obj->setIndexedProperty(state, ValueRef::create(index), value);
             return ValueRef::createUndefined();
@@ -276,7 +216,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_element(napi_env env, napi_value objec
     }
     ObjectRef* obj = val_object->asObject();
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, uint32_t index) -> ValueRef* {
             return ValueRef::create(obj->hasProperty(state, ValueRef::create(index)));
         },
@@ -301,7 +241,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_element(napi_env env, napi_value ob
 
     // see napi_delete_property's identical deleteOwnProperty-not-
     // deleteProperty reasoning just above.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, uint32_t index) -> ValueRef* {
             return ValueRef::create(obj->deleteOwnProperty(state, ValueRef::create(index)));
         },
@@ -335,7 +275,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_property_names(napi_env env, napi_valu
     // properly overridden to invoke the real traps - see
     // napi_get_all_property_names's identical rationale (NapiExtras.cpp),
     // found via the same test (test_object/test_exceptions.js).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
             ValueVectorRef* names = ValueVectorRef::create();
             ValueVectorRef* ownKeys = obj->ownPropertyKeys(state);
@@ -375,7 +315,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_prototype(napi_env env, napi_value obj
     ObjectRef* obj = val_object->asObject();
 
     // getPrototype can invoke a Proxy's getPrototypeOf trap.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
             return obj->getPrototype(state);
         },
@@ -402,7 +342,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_object_freeze(napi_env env, napi_value obj
     // Object::setIntegrityLevel(state, O, false), which is exactly what
     // Object.freeze's builtin uses (BuiltinObject.cpp's builtinObjectFreeze) -
     // isSealed=false there means "frozen", not "not sealed".
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
             return ValueRef::create(obj->setIntegrityLevel(state, false));
         },
@@ -427,7 +367,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_object_seal(napi_env env, napi_value objec
     }
     ObjectRef* obj = val_object->asObject();
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
             return ValueRef::create(obj->setIntegrityLevel(state, true));
         },
@@ -450,7 +390,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_array(napi_env env, napi_value* res
         return SetLastError(env, napi_invalid_arg);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state) -> ValueRef* {
             return ArrayObjectRef::create(state);
         });
@@ -478,7 +418,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_array_with_length(napi_env env, siz
     // instead of producing the (perfectly valid) 2^32-1-length array the
     // caller asked for (see test_array/test.js's `NewWithLength(4294967295)`).
     uint64_t arrayLength = static_cast<uint64_t>(static_cast<uint32_t>(length));
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, uint64_t length) -> ValueRef* {
             return ArrayObjectRef::create(state, length);
         },
@@ -506,7 +446,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_array_length(napi_env env, napi_value 
     // ObjectRef::length() reads the "length" property (ToLength(Get(obj,
     // "length"))), which - like any other property get - could run through a
     // user-defined accessor.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
             return ValueRef::create(static_cast<double>(obj->length(state)));
         },
@@ -549,7 +489,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_instanceof(napi_env env, napi_value object
 
     // instanceOf can throw (e.g. `constructor` is not callable, or a custom
     // Symbol.hasInstance implementation throws).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* obj, ValueRef* ctor) -> ValueRef* {
             return ValueRef::create(obj->instanceOf(state, ctor));
         },

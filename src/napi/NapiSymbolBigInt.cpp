@@ -151,7 +151,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_bigint_words(napi_env env, int sign
         return napi_ok;
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, BigIntRef* magnitude) -> ValueRef* {
             return magnitude->negativeValue(state);
         },

@@ -177,7 +177,7 @@ void InvokeThreadsafeFunctionCall(napi_threadsafe_function func, void* data)
     ContextRef* ctx = env->context();
     // Establish a scoped execution boundary from the env's ContextRef; see
     // this file's header comment.
-    Evaluator::execute(
+    CAPI::Evaluator::execute(
         ctx, [](ExecutionStateRef* state, napi_threadsafe_function func, napi_env env, void* data) -> ValueRef* {
             napi_value jsFunc = nullptr;
             if (func->funcRef != nullptr) {
@@ -328,7 +328,7 @@ void AfterWork(uv_work_t* req, int status)
     // from the env's ContextRef, as InvokeThreadsafeFunctionCall does above.
     napi_env env = work->env;
     ContextRef* ctx = env->context();
-    Evaluator::execute(
+    CAPI::Evaluator::execute(
         ctx, [](ExecutionStateRef* state, napi_async_work work, napi_status status) -> ValueRef* {
             work->complete(work->env, status, work->data);
             return ValueRef::createUndefined();

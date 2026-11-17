@@ -47,7 +47,7 @@ static napi_status CreateErrorWithCode(napi_env env, napi_value codeValue, napi_
         codeString = valCode->asString();
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* message, StringRef* codeString) -> ValueRef* {
             ErrorObjectRef* error = ErrorObjectRef::create(state, code, message);
             if (codeString != nullptr) {
@@ -71,7 +71,7 @@ static napi_status CreateErrorWithCode(napi_env env, napi_value codeValue, napi_
 static napi_status ThrowErrorWithCode(napi_env env, const char* code, const char* msg, ErrorObjectRef::Code errorCode)
 {
     StringRef* message = StringRef::createFromUTF8(msg, strlen(msg));
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ErrorObjectRef::Code errorCode, StringRef* message, const char* code) -> ValueRef* {
             ErrorObjectRef* error = ErrorObjectRef::create(state, errorCode, message);
             if (code != nullptr) {
