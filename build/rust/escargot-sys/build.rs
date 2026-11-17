@@ -1,7 +1,7 @@
 // Copyright (c) 2026-present Samsung Electronics Co., Ltd
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-use std::{env, path::PathBuf, process::Command};
+use std::{env, fs, path::PathBuf, process::Command};
 
 fn run(command: &mut Command) {
     let status = command.status().expect("could not run CMake");
@@ -37,6 +37,8 @@ fn main() {
         "build/config.cmake",
         "build/target.cmake",
         "build/escargot.cmake",
+        "build/VendoredICU.cmake",
+        "build/icu-filters",
         "third_party",
     ] {
         println!("cargo:rerun-if-changed={}", root.join(path).display());
@@ -51,7 +53,11 @@ fn main() {
     ] {
         println!("cargo:rerun-if-env-changed={name}");
     }
-    run(Command::new("cmake")
+    let icu = env::var_os("CARGO_FEATURE_ICU").is_some();
+    let temporal = env::var_os("CARGO_FEATURE_TEMPORAL").is_some();
+    let bundled = env::var_os("CARGO_FEATURE_ICU_BUNDLED").is_some();
+    let mut configure = Command::new("cmake");
+    configure
         .arg("-S")
         .arg(&root)
         .arg("-B")
@@ -64,13 +70,33 @@ fn main() {
             "-DESCARGOT_ENABLE_SHELL=OFF",
             "-DESCARGOT_BUILD_CCTEST=OFF",
             "-DESCARGOT_NAPI=OFF",
-            "-DESCARGOT_LIBICU_SUPPORT=OFF",
-            "-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF",
-            "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
-            "-DESCARGOT_TEMPORAL=OFF",
+            // Restore platform defaults when reconfiguring a prior cache.
+            "-UESCARGOT_LIBICU_SUPPORT_VENDORED",
+            "-UESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN",
             "-DESCARGOT_WASM=OFF",
             "-DESCARGOT_THREADING=ON",
-        ]));
+        ])
+        .arg(format!(
+            "-DESCARGOT_LIBICU_SUPPORT={}",
+            if icu { "ON" } else { "OFF" }
+        ))
+        .arg(format!(
+            "-DESCARGOT_TEMPORAL={}",
+            if temporal { "ON" } else { "OFF" }
+        ))
+        .arg(format!(
+            "-DESCARGOT_VENDORED_ICU_BUILD_DIR={}",
+            output.join("vendored-icu").display()
+        ));
+    if bundled {
+        configure.arg("-DESCARGOT_LIBICU_SUPPORT_VENDORED=ON");
+    } else if !icu {
+        configure.args([
+            "-DESCARGOT_LIBICU_SUPPORT_VENDORED=OFF",
+            "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
+        ]);
+    }
+    run(&mut configure);
     run(Command::new("cmake")
         .arg("--build")
         .arg(&output)
@@ -86,6 +112,29 @@ fn main() {
     }
     for library in ["escargot", "gc-lib", "libsimdutf", "libbf"] {
         println!("cargo:rustc-link-lib=static={library}");
+    }
+    let cache = fs::read_to_string(output.join("CMakeCache.txt")).unwrap();
+    let vendored = cache
+        .lines()
+        .any(|line| line == "ESCARGOT_ICU_MODE:INTERNAL=vendored");
+    if icu && vendored {
+        println!(
+            "cargo:rustc-link-search=native={}",
+            output.join("vendored-icu/install/lib").display()
+        );
+        // rustc bundles these static archives into the sys rlib, retaining ICU
+        // data along with the implementation for downstream Rust executables.
+        for library in ["icui18n", "icuuc", "icudata"] {
+            println!("cargo:rustc-link-lib=static={library}");
+        }
+    } else if icu {
+        for directory in [
+            output.join("third_party/runtime_icu_binder"),
+            output.join("third_party/runtime_icu_binder/Release"),
+        ] {
+            println!("cargo:rustc-link-search=native={}", directory.display());
+        }
+        println!("cargo:rustc-link-lib=static=runtime-icu-binder-static");
     }
     println!(
         "cargo:rustc-link-lib={}",

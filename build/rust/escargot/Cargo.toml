@@ -8,5 +8,11 @@ repository.workspace = true
 description = "Thread-confined, rooted Rust bindings for Escargot"
 publish = false
 
+[features]
+default = ["icu", "temporal"]
+icu = ["escargot-sys/icu"]
+temporal = ["icu", "escargot-sys/temporal"]
+icu-bundled = ["icu", "escargot-sys/icu-bundled"]
+
 [dependencies]
-escargot-sys = { path = "../escargot-sys" }
+escargot-sys = { path = "../escargot-sys", default-features = false }

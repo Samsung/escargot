@@ -48,6 +48,8 @@ typedef int32_t escargot_status;
 #define ESCARGOT_INTERNAL_ERROR 6
 #define ESCARGOT_BUFFER_TOO_SMALL 7
 #define ESCARGOT_SCOPE_MISMATCH 8
+/* A native dependency failed outside a JavaScript exception boundary. */
+#define ESCARGOT_DEPENDENCY_UNAVAILABLE 9
 
 typedef int32_t escargot_value_type;
 #define ESCARGOT_UNDEFINED 0

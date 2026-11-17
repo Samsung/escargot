@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "SandBox.h"
 #include "runtime/Context.h"
+#include "runtime/ErrorObject.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/NativeFunctionObject.h"
@@ -113,12 +114,28 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
+static Value runWithDependencyErrors(ExecutionState& state, Value (*runner)(ExecutionState&, void*), void* data)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    try {
+#endif
+        return runner(state, data);
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    } catch (const RuntimeICUBinder::LoadError& error) {
+        // Parsing and direct embedding operations can use ICU without going
+        // through a native JS function. Keep them inside the Evaluator result.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::fromUTF8(error.what(), strlen(error.what())));
+        return Value();
+    }
+#endif
+}
+
 SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*), void* data)
 {
     SandBox::SandBoxResult result;
     try {
         ExecutionState state(m_context);
-        result.result = scriptRunner(state, data);
+        result.result = runWithDependencyErrors(state, scriptRunner, data);
     } catch (const Value& err) {
         processCatch(err, result);
     }
@@ -130,7 +147,7 @@ SandBox::SandBoxResult SandBox::run(ExecutionState& parentState, Value (*runner)
     SandBox::SandBoxResult result;
     try {
         ExecutionState state(m_context, &parentState, reinterpret_cast<LexicalEnvironment*>(NULL), 0, nullptr, false);
-        result.result = runner(state, data);
+        result.result = runWithDependencyErrors(state, runner, data);
     } catch (const Value& err) {
         processCatch(err, result);
     }

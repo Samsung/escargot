@@ -303,6 +303,9 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     }
 
     Value result;
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    try {
+#endif
     if (isConstruct) {
         result = nativeFunc(newState, receiver, argc, argv, newTarget);
         if (shouldReturnsObjectOnConstructCall && UNLIKELY(!result.isObject())) {
@@ -312,6 +315,13 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
         ASSERT(!newTarget);
         result = nativeFunc(newState, receiver, argc, argv, nullptr);
     }
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    } catch (const RuntimeICUBinder::LoadError& error) {
+        // Convert before unwinding the native frame so JS try/catch and the
+        // usual exception stack capture apply to dependency failures too.
+        ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, String::fromUTF8(error.what(), strlen(error.what())));
+    }
+#endif
 
 #ifdef ESCARGOT_DEBUGGER
     Debugger::updateStopState(state.context()->debugger(), &newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);

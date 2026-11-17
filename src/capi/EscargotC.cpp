@@ -72,6 +72,10 @@ escargot_status guard(F function)
         return function();
     } catch (const std::bad_alloc&) {
         return ESCARGOT_OUT_OF_MEMORY;
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    } catch (const RuntimeICUBinder::LoadError&) {
+        return ESCARGOT_DEPENDENCY_UNAVAILABLE;
+#endif
     } catch (...) {
         return ESCARGOT_INTERNAL_ERROR;
     }

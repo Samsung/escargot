@@ -257,6 +257,19 @@ IF (ESCARGOT_LIBICU_SUPPORT)
     ENDIF()
 ENDIF()
 
+# Record the resolved mode for embedding build drivers. Platform defaults and
+# the Windows fallback can differ from the caller's cache option values.
+IF (NOT ESCARGOT_LIBICU_SUPPORT)
+    SET (_escargot_icu_mode "disabled")
+ELSEIF (ESCARGOT_LIBICU_SUPPORT_VENDORED)
+    SET (_escargot_icu_mode "vendored")
+ELSEIF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
+    SET (_escargot_icu_mode "runtime")
+ELSE()
+    SET (_escargot_icu_mode "linked")
+ENDIF()
+SET (ESCARGOT_ICU_MODE "${_escargot_icu_mode}" CACHE INTERNAL "Resolved ICU linkage mode" FORCE)
+
 # napi_define_class needs FunctionTemplateRef, which is gated behind
 # ENABLE_EXTENDED_API; default it on for NAPI unless the caller already chose
 IF ((ESCARGOT_NAPI OR ESCARGOT_C_API) AND NOT DEFINED ESCARGOT_USE_EXTENDED_API)
