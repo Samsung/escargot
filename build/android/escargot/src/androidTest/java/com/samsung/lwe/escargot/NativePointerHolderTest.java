@@ -112,4 +112,68 @@ public class NativePointerHolderTest {
             Globals.finalizeGlobals();
         }
     }
+    @Test
+    public void cleanupReleasesOnlyQueuedAlias() {
+        Globals.initializeGlobals();
+        try {
+            VMInstance vm = VMInstance.create(Optional.empty(), Optional.empty());
+            Context context = Context.create(vm);
+            JavaScriptObject original = JavaScriptObject.create(context);
+            assertTrue(original.set(context, JavaScriptString.create("value"), JavaScriptValue.create(42)).get());
+            assertTrue(context.getGlobalObject().set(context, JavaScriptString.create("shared"), original).get());
+            JavaScriptValue alias = context.getGlobalObject().get(context, JavaScriptString.create("shared")).get();
+            assertTrue(original.equalsTo(context, alias).get());
+            assertTrue(original.m_nativePointer != alias.m_nativePointer);
+            NativePointerHolder.NativePointerHolderPhantomReference queued = null;
+            for (NativePointerHolder.NativePointerHolderPhantomReference reference : NativePointerHolder.s_referenceSet.get()) {
+                if (reference.m_nativePointer == alias.m_nativePointer) {
+                    queued = reference;
+                    break;
+                }
+            }
+            assertNotNull(queued);
+            // Simulate a queued wrapper deterministically. Do not use alias
+            // again after its native root has been explicitly released.
+            assertTrue(queued.enqueue());
+            NativePointerHolder.cleanUp();
+            assertEquals(0, queued.m_nativePointer);
+            assertFalse(NativePointerHolder.s_referenceSet.get().contains(queued));
+            NativePointerHolder.cleanUp();
+            queued.release();
+            Memory.gc();
+            assertEquals(42, original.get(context, JavaScriptString.create("value")).get().asInt32());
+            assertTrue(context.getGlobalObject().get(context, JavaScriptString.create("shared"))
+                    .get().equalsTo(context, original).get());
+        } finally {
+            Globals.finalizeGlobals();
+        }
+    }
+
+    @Test
+    public void liveObjectsSurviveRepeatedJavaAndNativeGC() {
+        Globals.initializeGlobals();
+        try {
+            VMInstance vm = VMInstance.create(Optional.empty(), Optional.empty());
+            Context context = Context.create(vm);
+            // The IIFE leaves no JS global owning the result. Its Java wrapper
+            // must retain the typed array and its backing store by itself.
+            JavaScriptObject bytes = Evaluator.evalScript(context,
+                    "(() => { const b = new Uint8Array(1024 * 1024); "
+                    + "b[0] = 17; b[b.length - 1] = 91; return b; })()", "retained-buffer.js")
+                    .get().asScriptObject();
+            JavaScriptString first = JavaScriptString.create("0");
+            JavaScriptString last = JavaScriptString.create("1048575");
+            JavaScriptString length = JavaScriptString.create("length");
+            for (int i = 0; i < 25; i++) {
+                System.gc();
+                NativePointerHolder.cleanUp();
+                Memory.gc();
+                assertEquals(17, bytes.get(context, first).get().asInt32());
+                assertEquals(91, bytes.get(context, last).get().asInt32());
+                assertEquals(1024 * 1024, bytes.get(context, length).get().asInt32());
+            }
+        } finally {
+            Globals.finalizeGlobals();
+        }
+    }
 }

@@ -1834,6 +1834,368 @@ public class EscargotTest {
         }
     }
 
+    private static void withBindingContext(java.util.function.BiConsumer<VMInstance, Context> test) {
+        Globals.initializeGlobals();
+        try {
+            VMInstance vm = VMInstance.create(Optional.empty(), Optional.empty());
+            test.accept(vm, Context.create(vm));
+        } finally {
+            Globals.finalizeGlobals();
+        }
+    }
+
+    private static JavaScriptValue bindingEval(Context context, String source) {
+        Optional<JavaScriptValue> result = Evaluator.evalScript(
+                context, source, "binding-test.js", false, false);
+        assertTrue("Evaluation failed: " + source, result.isPresent());
+        return result.get();
+    }
+
+    private static void assertBindingException(Context context, JavaScriptValue expected) {
+        assertTrue(context.exceptionWasThrown());
+        JavaScriptValue actual = context.lastThrownException().get();
+        assertTrue(expected.equalsTo(context, actual).get());
+        assertFalse(context.exceptionWasThrown());
+    }
+
+    @Test
+    public void nestedCallbackRestoresRequestedContext() {
+        withBindingContext((vm, caller) -> {
+            Context target = Context.create(vm);
+            bindingEval(caller, "globalThis.marker = 10");
+            bindingEval(target, "globalThis.marker = 20");
+            Bridge.register(target, "Native", "back", new Bridge.Adapter() {
+                @Override
+                public Optional<JavaScriptValue> callback(Context ignored, Optional<JavaScriptValue> data) {
+                    String stack = JavaScriptErrorObject.create(caller,
+                            JavaScriptErrorObject.ErrorKind.None, "nested").stack(caller).get().toJavaString();
+                    assertTrue(stack.contains("outer.js"));
+                    assertTrue(stack.contains("middle.js"));
+                    return Optional.of(bindingEval(caller, "marker"));
+                }
+            });
+            Bridge.register(caller, "Native", "enter", new Bridge.Adapter() {
+                @Override
+                public Optional<JavaScriptValue> callback(Context ignored, Optional<JavaScriptValue> data) {
+                    int nested = Evaluator.evalScript(target,
+                            "Native.back() + marker", "middle.js", false, false).get().asInt32();
+                    String stack = JavaScriptErrorObject.create(caller,
+                            JavaScriptErrorObject.ErrorKind.None, "restored").stack(caller).get().toJavaString();
+                    assertTrue(stack.contains("outer.js"));
+                    assertFalse(stack.contains("middle.js"));
+                    return Optional.of(JavaScriptValue.create(nested + bindingEval(caller, "marker").asInt32()));
+                }
+            });
+            for (int i = 0; i < 20; i++) {
+                assertEquals(40, Evaluator.evalScript(caller,
+                        "Native.enter()", "outer.js", false, false).get().asInt32());
+            }
+        });
+    }
+
+    @Test
+    public void callbackExceptionRestoresExecutionState() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "({kind: 'callback'})");
+            Bridge.register(context, "Native", "fail", new Bridge.Adapter() {
+                @Override
+                public Optional<JavaScriptValue> callback(Context ignored, Optional<JavaScriptValue> data) {
+                    context.throwException(sentinel);
+                    throw new AssertionError("throwException must leave the callback");
+                }
+            });
+            for (int i = 0; i < 20; i++) {
+                assertFalse(Evaluator.evalScript(context, "Native.fail()", "throwing-callback.js").isPresent());
+                assertBindingException(context, sentinel);
+                assertEquals("", JavaScriptErrorObject.create(context,
+                        JavaScriptErrorObject.ErrorKind.None, "outside").stack(context).get().toJavaString());
+                assertEquals(42, bindingEval(context, "6 * 7").asInt32());
+            }
+        });
+    }
+
+    @Test
+    public void crossVMExceptionDoesNotPoisonCaller() {
+        withBindingContext((vm, caller) -> {
+            VMInstance otherVM = VMInstance.create(Optional.empty(), Optional.empty());
+            Context target = Context.create(otherVM);
+            Bridge.register(caller, "Native", "check", new Bridge.Adapter() {
+                @Override
+                public Optional<JavaScriptValue> callback(Context ignored, Optional<JavaScriptValue> data) {
+                    assertFalse(Evaluator.evalScript(target,
+                            "throw new Error('other VM')", "isolated.js", false, false).isPresent());
+                    JavaScriptErrorObject error = target.lastThrownException().get().asScriptErrorObject();
+                    String stack = error.stack(target).get().toJavaString();
+                    assertTrue(stack.contains("isolated.js"));
+                    assertFalse(stack.contains("caller.js"));
+                    assertFalse(caller.exceptionWasThrown());
+                    String callerStack = JavaScriptErrorObject.create(caller,
+                            JavaScriptErrorObject.ErrorKind.None, "caller").stack(caller).get().toJavaString();
+                    assertTrue(callerStack.contains("caller.js"));
+                    assertFalse(callerStack.contains("isolated.js"));
+                    return Optional.of(JavaScriptValue.create(42));
+                }
+            });
+            assertEquals(42, Evaluator.evalScript(caller, "Native.check()", "caller.js").get().asInt32());
+            assertFalse(caller.exceptionWasThrown());
+            assertFalse(target.exceptionWasThrown());
+        });
+    }
+
+    @Test
+    public void contextExceptionsRemainIndependentAfterGC() {
+        withBindingContext((vm, first) -> {
+            Context second = Context.create(vm);
+            JavaScriptValue firstError = bindingEval(first, "globalThis.failure = {id: 1}");
+            JavaScriptValue secondError = bindingEval(second, "globalThis.failure = {id: 2}");
+            assertFalse(Evaluator.evalScript(first, "throw failure", "first.js").isPresent());
+            assertFalse(Evaluator.evalScript(second, "throw failure", "second.js").isPresent());
+            Memory.gc();
+            assertBindingException(first, firstError);
+            assertTrue(second.exceptionWasThrown());
+            assertBindingException(second, secondError);
+        });
+    }
+
+    @Test
+    public void getterExceptionKeepsThrownObject() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'get'}");
+            JavaScriptObject target = bindingEval(context,
+                    "({get value() { throw failure; }})").asScriptObject();
+            assertFalse(target.get(context, JavaScriptString.create("value")).isPresent());
+            Memory.gc();
+            assertBindingException(context, sentinel);
+            assertTrue(target.set(context, JavaScriptString.create("other"), JavaScriptValue.create(42)).get());
+            assertEquals(42, target.get(context, JavaScriptString.create("other")).get().asInt32());
+        });
+    }
+
+    @Test
+    public void setterExceptionLeavesTargetUnchanged() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'set'}");
+            JavaScriptObject target = bindingEval(context,
+                    "({stored: 7, set value(v) { throw failure; }})").asScriptObject();
+            assertFalse(target.set(context, JavaScriptString.create("value"), JavaScriptValue.create(99)).isPresent());
+            assertBindingException(context, sentinel);
+            assertEquals(7, target.get(context, JavaScriptString.create("stored")).get().asInt32());
+        });
+    }
+
+    @Test
+    public void proxyGetExceptionIsReported() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'proxy get'}");
+            JavaScriptObject target = bindingEval(context,
+                    "new Proxy({}, {get() { throw failure; }})").asScriptObject();
+            assertFalse(target.get(context, JavaScriptString.create("missing")).isPresent());
+            assertBindingException(context, sentinel);
+        });
+    }
+
+    @Test
+    public void proxySetExceptionIsReported() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'proxy set'}");
+            JavaScriptObject target = bindingEval(context,
+                    "new Proxy({}, {set() { throw failure; }})").asScriptObject();
+            assertFalse(target.set(context, JavaScriptString.create("key"), JavaScriptValue.create(1)).isPresent());
+            assertBindingException(context, sentinel);
+        });
+    }
+
+    @Test
+    public void functionCallExceptionKeepsThrownObject() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'call'}");
+            JavaScriptValue function = bindingEval(context, "(function () { throw failure; })");
+            assertFalse(function.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[0]).isPresent());
+            assertBindingException(context, sentinel);
+            JavaScriptValue working = bindingEval(context, "(function (x) { return this.base + x; })");
+            JavaScriptValue receiver = bindingEval(context, "({base: 40})");
+            assertEquals(42, working.call(context, receiver,
+                    new JavaScriptValue[] {JavaScriptValue.create(2)}).get().asInt32());
+        });
+    }
+
+    @Test
+    public void constructorExceptionCanBeConsumedAndRetried() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue constructor = bindingEval(context,
+                    "(function Example(fail) { if (fail) throw 'constructor failure'; this.value = 42; })");
+            assertFalse(constructor.construct(context, new JavaScriptValue[] {JavaScriptValue.create(true)}).isPresent());
+            assertBindingException(context, JavaScriptString.create("constructor failure"));
+            JavaScriptObject instance = constructor.construct(context,
+                    new JavaScriptValue[] {JavaScriptValue.create(false)}).get().asScriptObject();
+            assertEquals(42, instance.get(context, JavaScriptString.create("value")).get().asInt32());
+            assertTrue(instance.instanceOf(context, constructor).get());
+        });
+    }
+
+    @Test
+    public void coercionExceptionIsReported() {
+        withBindingContext((vm, context) -> {
+            JavaScriptValue sentinel = bindingEval(context, "globalThis.failure = {id: 'coerce'}");
+            JavaScriptValue target = bindingEval(context,
+                    "({[Symbol.toPrimitive]() { throw failure; }})");
+            assertFalse(target.toNumber(context).isPresent());
+            assertBindingException(context, sentinel);
+            assertFalse(target.toString(context).isPresent());
+            assertBindingException(context, sentinel);
+        });
+    }
+
+    @Test
+    public void primitiveThrowsRemainDistinctFromEmptyResult() {
+        withBindingContext((vm, context) -> {
+            String[] expressions = {"undefined", "null", "false", "0", "''", "123n", "Symbol.for('failure')"};
+            for (String expression : expressions) {
+                JavaScriptValue expected = bindingEval(context, expression);
+                assertFalse(Evaluator.evalScript(context, "throw " + expression, "primitive.js").isPresent());
+                assertBindingException(context, expected);
+                assertFalse(context.lastThrownException().isPresent());
+                assertTrue(bindingEval(context, "undefined").isUndefined());
+            }
+        });
+    }
+
+    @Test
+    public void nonWritablePropertyReturnsFalse() {
+        withBindingContext((vm, context) -> {
+            JavaScriptObject target = bindingEval(context,
+                    "Object.defineProperty({}, 'value', {value: 7, writable: false})").asScriptObject();
+            Optional<Boolean> set = target.set(context, JavaScriptString.create("value"), JavaScriptValue.create(99));
+            assertTrue(set.isPresent());
+            assertFalse(set.get());
+            assertFalse(context.exceptionWasThrown());
+            assertEquals(7, target.get(context, JavaScriptString.create("value")).get().asInt32());
+        });
+    }
+
+    @Test
+    public void returnedStringsPreserveUTF16CodeUnits() {
+        withBindingContext((vm, context) -> {
+            String expected = new String(new char[] {'a', 0, '\uD83D', '\uDC0C', '\uD800', 'z'});
+            JavaScriptString text = bindingEval(context,
+                    "String.fromCharCode(97, 0, 0xd83d, 0xdc0c, 0xd800, 122)").asScriptString();
+            for (int i = 0; i < 10; i++) {
+                Memory.gc();
+                assertEquals(expected, text.toJavaString());
+            }
+        });
+    }
+
+    @Test
+    public void callbackArgumentsSurviveNativeGC() {
+        withBindingContext((vm, context) -> {
+            JavaScriptJavaCallbackFunctionObject function = JavaScriptJavaCallbackFunctionObject.create(
+                    context, "collect", 3, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                        @Override
+                        public Optional<JavaScriptValue> callback(Context callbackContext, JavaScriptValue receiver,
+                                                                  JavaScriptValue[] arguments) {
+                            Memory.gc();
+                            assertEquals(3, arguments.length);
+                            assertEquals(42, receiver.asScriptObject().get(callbackContext, JavaScriptString.create("base")).get().asInt32());
+                            assertEquals("payload", arguments[0].asScriptString().toJavaString());
+                            assertEquals(7, arguments[1].asScriptObject().get(callbackContext, JavaScriptString.create("id")).get().asInt32());
+                            assertTrue(arguments[2].isUndefined());
+                            return Optional.of(arguments[1]);
+                        }
+                    });
+            JavaScriptValue receiver = bindingEval(context, "({base: 42})");
+            JavaScriptValue payload = bindingEval(context, "({id: 7})");
+            for (int i = 0; i < 25; i++) {
+                JavaScriptValue result = function.call(context, receiver,
+                        new JavaScriptValue[] {JavaScriptString.create("payload"), payload, JavaScriptValue.createUndefined()}).get();
+                assertTrue(payload.equalsTo(context, result).get());
+            }
+        });
+    }
+
+    @Test
+    public void promiseFulfillmentWaitsForJobPump() {
+        withBindingContext((vm, context) -> {
+            JavaScriptPromiseObject promise = JavaScriptPromiseObject.create(context);
+            int[] calls = {0};
+            JavaScriptObject chained = promise.then(context, JavaScriptJavaCallbackFunctionObject.create(
+                    context, "fulfilled", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                        @Override
+                        public Optional<JavaScriptValue> callback(Context callbackContext, JavaScriptValue receiver,
+                                                                  JavaScriptValue[] arguments) {
+                            assertEquals(42, arguments[0].asInt32());
+                            calls[0]++;
+                            return Optional.of(JavaScriptValue.create(43));
+                        }
+                    })).get();
+            assertEquals(JavaScriptPromiseObject.PromiseState.Pending, promise.state());
+            promise.fulfill(context, JavaScriptValue.create(42));
+            assertEquals(0, calls[0]);
+            assertEquals(JavaScriptPromiseObject.PromiseState.Pending, chained.asScriptPromiseObject().state());
+            Memory.gc();
+            vm.executeEveryPendingJobIfExists();
+            assertEquals(1, calls[0]);
+            assertEquals(43, chained.asScriptPromiseObject().promiseResult().asInt32());
+            vm.executeEveryPendingJobIfExists();
+            assertEquals(1, calls[0]);
+        });
+    }
+
+    @Test
+    public void promiseRejectionRetainsReasonUntilJobPump() {
+        withBindingContext((vm, context) -> {
+            JavaScriptPromiseObject promise = JavaScriptPromiseObject.create(context);
+            JavaScriptValue reason = bindingEval(context, "({id: 'rejection'})");
+            int[] calls = {0};
+            JavaScriptObject chained = promise.catchOperation(context, JavaScriptJavaCallbackFunctionObject.create(
+                    context, "rejected", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                        @Override
+                        public Optional<JavaScriptValue> callback(Context callbackContext, JavaScriptValue receiver,
+                                                                  JavaScriptValue[] arguments) {
+                            assertTrue(reason.equalsTo(callbackContext, arguments[0]).get());
+                            calls[0]++;
+                            return Optional.of(JavaScriptValue.create(42));
+                        }
+                    })).get();
+            promise.reject(context, reason);
+            assertEquals(JavaScriptPromiseObject.PromiseState.Rejected, promise.state());
+            assertEquals(0, calls[0]);
+            Memory.gc();
+            vm.executeEveryPendingJobIfExists();
+            assertEquals(1, calls[0]);
+            assertEquals(JavaScriptPromiseObject.PromiseState.FulFilled, chained.asScriptPromiseObject().state());
+            assertEquals(42, chained.asScriptPromiseObject().promiseResult().asInt32());
+            assertFalse(context.exceptionWasThrown());
+        });
+    }
+
+    private static void installRetainedCallback(Context context, int[] calls) {
+        JavaScriptJavaCallbackFunctionObject callback = JavaScriptJavaCallbackFunctionObject.create(
+                context, "retained", 0, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context callbackContext, JavaScriptValue receiver,
+                                                              JavaScriptValue[] arguments) {
+                        return Optional.of(JavaScriptValue.create(++calls[0]));
+                    }
+                });
+        assertTrue(context.getGlobalObject().set(context, JavaScriptString.create("retained"), callback).get());
+    }
+
+    @Test
+    public void javascriptKeepsJavaCallbackAliveAfterCleanup() {
+        withBindingContext((vm, context) -> {
+            int[] calls = {0};
+            installRetainedCallback(context, calls);
+            for (int i = 1; i <= 20; i++) {
+                System.gc();
+                NativePointerHolder.cleanUp();
+                Memory.gc();
+                assertEquals(i, bindingEval(context, "retained()").asInt32());
+            }
+            assertEquals(20, calls[0]);
+        });
+    }
+
     @Test
     public void errorObjectTest()
     {
