@@ -90,7 +90,11 @@ IF (ESCARGOT_HOST STREQUAL "linux")
     # one build+install instead of redoing the whole configure+make from
     # scratch per binary dir. Keyed on arch (not build type) so switching
     # target arch in the same checkout doesn't reuse a stale/mismatched one.
-    SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    IF (ESCARGOT_VENDORED_ICU_BUILD_DIR)
+        SET (VENDORED_ICU_PREFIX ${ESCARGOT_VENDORED_ICU_BUILD_DIR})
+    ELSE()
+        SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    ENDIF()
     SET (VENDORED_ICU_INSTALL_DIR ${VENDORED_ICU_PREFIX}/install)
     SET (VENDORED_ICU_DATA_FILTER_FILE ${ESCARGOT_ROOT}/build/icu-filters/escargot.json)
 
@@ -172,7 +176,11 @@ ELSEIF (ESCARGOT_HOST STREQUAL "darwin")
     # outside CMAKE_BINARY_DIR, keyed on ESCARGOT_ARCH, so build-on-macos's
     # debug + release configs in es-actions.yml don't each rebuild this from
     # source (this ICU build never varies with CMAKE_BUILD_TYPE).
-    SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    IF (ESCARGOT_VENDORED_ICU_BUILD_DIR)
+        SET (VENDORED_ICU_PREFIX ${ESCARGOT_VENDORED_ICU_BUILD_DIR})
+    ELSE()
+        SET (VENDORED_ICU_PREFIX ${ESCARGOT_ROOT}/out/vendored-icu-build-${ESCARGOT_ARCH})
+    ENDIF()
     SET (VENDORED_ICU_INSTALL_DIR ${VENDORED_ICU_PREFIX}/install)
     SET (VENDORED_ICU_DATA_FILTER_FILE ${ESCARGOT_ROOT}/build/icu-filters/escargot.json)
 

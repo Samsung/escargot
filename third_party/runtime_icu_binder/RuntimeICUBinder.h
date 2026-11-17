@@ -20,6 +20,7 @@
 #define RUNTIME_ICU_BINDER
 
 #include <string>
+#include <stdexcept>
 #include <type_traits>
 #include <thread>
 #include <mutex>
@@ -28,6 +29,16 @@
 #include "ICUTypes.h"
 
 namespace RuntimeICUBinder {
+
+// Embedders can report an unavailable runtime dependency at their API boundary
+// instead of terminating the process. Failed lookups remain retryable.
+class LoadError : public std::runtime_error {
+public:
+    explicit LoadError(const std::string& message)
+        : std::runtime_error("ICU unavailable: " + message)
+    {
+    }
+};
 
 #if defined(_WIN32) || defined(_WIN64)
 #define CALLCONV __cdecl
@@ -430,6 +441,8 @@ private:
     void loadSo(Soname name);
     void* loadFunction(Soname soname, Function kind);
 
+    void ensureResourceCleanup(const char* returnType);
+
     template <Soname soname, typename FunctionPrototype, typename FunctionReturnType, typename... Args>
     FunctionReturnType invokeICU(Function kind, Args... args)
     {
@@ -450,8 +463,8 @@ private:
     void invokeICUWithoutReturn(Function kind, Args... args)
     {
         {
-            ensureLoadSo(soname);
             std::lock_guard<std::mutex> guard(m_dataMutex);
+            ensureLoadSo(soname);
             if (!m_functions[kind]) {
                 loadFunction(soname, kind);
             }

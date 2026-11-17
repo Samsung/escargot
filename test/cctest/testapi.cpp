@@ -24,6 +24,9 @@ using namespace Escargot;
 #include "gtest/gtest.h"
 #include "gc/gc_mark.h"
 #include "gc/gc_disclaim.h"
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+#include "RuntimeICUBinder.h"
+#endif
 
 #include <algorithm>
 #include <vector>
@@ -430,6 +433,52 @@ int main(int argc, char* argv[])
 
     return testResult;
 }
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+TEST(Evaluator, ICULoadFailuresBecomeExceptions)
+{
+    auto result = Evaluator::execute(g_context.get(), [](ExecutionStateRef*) -> ValueRef* {
+        throw RuntimeICUBinder::LoadError("missing test dependency");
+    });
+    ASSERT_FALSE(result.isSuccessful());
+    EXPECT_NE(result.resultOrErrorToString(g_context.get())->toStdUTF8String().find("ICU unavailable"), std::string::npos);
+
+    auto outer = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto nested = Evaluator::execute(state, [](ExecutionStateRef*) -> ValueRef* {
+            throw RuntimeICUBinder::LoadError("nested dependency");
+        });
+        EXPECT_FALSE(nested.isSuccessful());
+        return ValueRef::create(42);
+    });
+    ASSERT_TRUE(outer.isSuccessful());
+    EXPECT_EQ(outer.result->asInt32(), 42);
+}
+
+TEST(Evaluator, ICUFailureIsCatchableInsideJavaScript)
+{
+    auto context = createEscargotContext(g_instance.get());
+    auto installed = Evaluator::execute(context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        FunctionObjectRef::NativeFunctionInfo info(AtomicStringRef::create(state->context(), "missingICU"),
+            [](ExecutionStateRef*, ValueRef*, size_t, ValueRef**, bool) -> ValueRef* {
+                throw RuntimeICUBinder::LoadError("missing native symbol");
+            }, 0, true, false);
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("missingICU"),
+            FunctionObjectRef::create(state, info), true, true, true);
+        return ValueRef::createUndefined();
+    });
+    ASSERT_TRUE(installed.isSuccessful());
+    const char source[] = R"JS(
+        var finalized = false;
+        var caught = false;
+        try { missingICU(); }
+        catch (error) {
+            caught = error instanceof TypeError && error.message.includes('ICU unavailable');
+        } finally { finalized = true; }
+        caught && finalized;
+    )JS";
+    EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("icu-failure.js"), false), "true");
+}
+#endif
 
 TEST(IteratorObject, CloseCompletionSurvivesGC)
 {

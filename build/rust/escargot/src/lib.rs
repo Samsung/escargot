@@ -22,9 +22,13 @@
 //! std::thread::spawn(move || drop(runtime));
 //! ```
 //!
-//! The default source build requires CMake and a C++ compiler, and disables
-//! ICU, Temporal, and WebAssembly. Set `ESCARGOT_LIB_DIR` to use a shared C API
-//! build with your chosen engine features; its directory must also be on the
+//! The default source build requires CMake and a C++ compiler, and enables ICU
+//! and Temporal. ICU follows the engine's platform policy: runtime system
+//! loading on Linux, bundled ICU on macOS. `icu-bundled` explicitly builds the
+//! repository's ICU sources; `default-features = false` disables ICU and Temporal.
+//! `temporal` implies `icu`. WebAssembly remains disabled in source builds.
+//! Set `ESCARGOT_LIB_DIR` to use a shared C API build configured with the selected
+//! features; Cargo cannot change a prebuilt engine. Its directory must be on the
 //! platform's runtime library search path. `escargot-sys` exposes the complete
 //! unsafe ABI, including callbacks, templates, scopes, and backing stores.
 
@@ -52,6 +56,9 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Api(ffi::ESCARGOT_DEPENDENCY_UNAVAILABLE) => {
+                f.write_str("ICU runtime dependency unavailable")
+            }
             Self::Api(status) => write!(f, "Escargot C API status {status}"),
             Self::JavaScript(_) => f.write_str("JavaScript exception"),
             Self::WrongVm => f.write_str("value belongs to a different VM"),
@@ -689,6 +696,103 @@ mod tests {
                 .as_number()
                 .unwrap(),
             42.0
+        );
+    }
+
+    #[cfg(feature = "icu")]
+    #[test]
+    fn icu_supports_intl_and_unicode_operations() {
+        let (_lock, _runtime, context) = session();
+        assert!(context
+            .eval(
+                "new Intl.Collator('en').compare('a', 'b') < 0",
+                "collator.js"
+            )
+            .unwrap()
+            .as_boolean()
+            .unwrap());
+        assert_eq!(
+            context
+                .eval(
+                    "new Intl.NumberFormat('en-US').format(1234.5)",
+                    "number-format.js"
+                )
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "1,234.5"
+        );
+        assert_eq!(
+            context
+                .eval("'e\\u0301'.normalize('NFC')", "normalize.js")
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "é"
+        );
+        assert_eq!(
+            context
+                .eval("'i'.toLocaleUpperCase('tr')", "case.js")
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "İ"
+        );
+    }
+
+    #[cfg(feature = "temporal")]
+    #[test]
+    fn temporal_feature_enables_dates_and_named_time_zones() {
+        let (_lock, _runtime, context) = session();
+        assert_eq!(
+            context
+                .eval(
+                    "Temporal.PlainDate.from('2024-02-28').add({days: 1}).toString()",
+                    "date.js"
+                )
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "2024-02-29"
+        );
+        assert_eq!(
+            context
+                .eval(
+                    "Temporal.ZonedDateTime.from('2024-01-01T00:00:00[Asia/Seoul]').offset",
+                    "timezone.js"
+                )
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "+09:00"
+        );
+    }
+
+    #[cfg(not(feature = "temporal"))]
+    #[test]
+    fn temporal_is_absent_when_disabled() {
+        let (_lock, _runtime, context) = session();
+        assert_eq!(
+            context
+                .eval("typeof Temporal", "features.js")
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "undefined"
+        );
+    }
+
+    #[cfg(not(feature = "icu"))]
+    #[test]
+    fn minimal_build_does_not_expose_intl() {
+        let (_lock, _runtime, context) = session();
+        assert_eq!(
+            context
+                .eval("typeof Intl", "features.js")
+                .unwrap()
+                .to_utf8()
+                .unwrap(),
+            "undefined"
         );
     }
 

@@ -66,12 +66,6 @@ ICU &ICU::instance()
     return instance;
 }
 
-static void die(const char *message)
-{
-    fputs(message, stderr);
-    abort();
-}
-
 static constexpr int s_icuMinVersion = 49; // icu 4.9 was released on 2012-06-06
 static constexpr int s_icuMaxVersion = 2048;
 
@@ -90,7 +84,7 @@ static void *findSo(ICU::Soname name)
         soPath = "libicuio.so";
         break;
     default:
-        die("invalid soname");
+        throw LoadError("invalid library name");
     }
 
     void *handle = dlopen(soPath.data(), RTLD_LAZY);
@@ -107,8 +101,7 @@ static void *findSo(ICU::Soname name)
     }
 
     // will fail. reopen with original name to set dlerror
-    dlopen(soPath.data(), RTLD_LAZY);
-    return nullptr;
+    return dlopen(soPath.data(), RTLD_LAZY);
 }
 #endif
 
@@ -120,25 +113,77 @@ void ICU::loadSo(ICU::Soname name)
     handle = findSo(name);
     if (!handle) {
         char *error = dlerror();
-        if (error) {
-            fputs(error, stderr);
-        }
-        die("failed to open so");
+        throw LoadError(error ? error : "failed to open shared library");
     }
 #else
     handle = LoadLibraryA("icu.dll");
+    if (!handle) {
+        throw LoadError("failed to open icu.dll (Windows error " + std::to_string(GetLastError()) + ")");
+    }
 #endif
     m_soHandles[name] = handle;
+}
+
+void ICU::ensureResourceCleanup(const char* returnType)
+{
+    // Resolve cleanup before returning an owned resource. Missing close symbols
+    // must fail here, not in a noexcept destructor while another error unwinds.
+    // Use the declared ICU type names: several opaque types alias void*.
+    struct Cleanup {
+        const char* type;
+        Soname library;
+        Function function;
+    };
+    static const Cleanup cleanup[] = {
+        { "UConverter*", Soname::uc, Function::functionucnv_close },
+        { "UBiDi*", Soname::uc, Function::functionubidi_close },
+        { "ULocaleDisplayNames*", Soname::uc, Function::functionuldn_close },
+        { "USet*", Soname::uc, Function::functionuset_close },
+        { "UDateFormat*", Soname::i18n, Function::functionudat_close },
+        { "VZone*", Soname::i18n, Function::functionvzone_close },
+        { "UEnumeration*", Soname::i18n, Function::functionuenum_close },
+        { "UCollator*", Soname::i18n, Function::functionucol_close },
+        { "UNumberingSystem*", Soname::i18n, Function::functionunumsys_close },
+        { "UCalendar*", Soname::i18n, Function::functionucal_close },
+        { "UDateTimePatternGenerator*", Soname::i18n, Function::functionudatpg_close },
+        { "UNumberFormat*", Soname::i18n, Function::functionunum_close },
+        { "UBreakIterator*", Soname::i18n, Function::functionubrk_close },
+        { "UCharsetDetector*", Soname::i18n, Function::functionucsdet_close },
+        { "UPluralRules*", Soname::i18n, Function::functionuplrules_close },
+        { "UResourceBundle*", Soname::i18n, Function::functionures_close },
+        { "UNumberFormatter*", Soname::i18n, Function::functionunumf_close },
+        { "UFormattedNumber*", Soname::i18n, Function::functionunumf_closeResult },
+        { "UNumberRangeFormatter*", Soname::i18n, Function::functionunumrf_close },
+        { "UFormattedNumberRange*", Soname::i18n, Function::functionunumrf_closeResult },
+        { "UFieldPositionIterator*", Soname::i18n, Function::functionufieldpositer_close },
+        { "URelativeDateTimeFormatter*", Soname::i18n, Function::functionureldatefmt_close },
+        { "UFormattedRelativeDateTime*", Soname::i18n, Function::functionureldatefmt_closeResult },
+        { "UConstrainedFieldPosition*", Soname::i18n, Function::functionucfpos_close },
+        { "UListFormatter*", Soname::i18n, Function::functionulistfmt_close },
+        { "UFormattedList*", Soname::i18n, Function::functionulistfmt_closeResult },
+        { "UDateIntervalFormat*", Soname::i18n, Function::functionudtitvfmt_close },
+        { "UFormattedDateInterval*", Soname::i18n, Function::functionudtitvfmt_closeResult },
+    };
+    for (const auto& entry : cleanup) {
+        if (!strcmp(returnType, entry.type)) {
+            if (!m_functions[entry.function]) {
+                loadFunction(entry.library, entry.function);
+            }
+            return;
+        }
+    }
 }
 
 void *ICU::loadFunction(Soname soname, Function kind)
 {
     assert(m_functions[kind] == nullptr);
     const char *name = "";
+    const char *returnType = "void";
     switch (kind) {
 #define DECLARE_CASE(fnName, fnType, fnReturnType) \
     case function##fnName:                         \
         name = #fnName;                            \
+        returnType = #fnReturnType;                 \
         break;
         FOR_EACH_UC_OP(DECLARE_CASE)
         FOR_EACH_UC_VOID_OP(DECLARE_CASE)
@@ -153,7 +198,7 @@ void *ICU::loadFunction(Soname soname, Function kind)
         FOR_EACH_I18N_STICKY_OP(DECLARE_CASE_STICKY)
 #undef DECLARE_CASE_STICKY
     default:
-        die("failed to load function");
+        throw LoadError("invalid function identifier");
     }
 
     void *fn;
@@ -167,26 +212,17 @@ void *ICU::loadFunction(Soname soname, Function kind)
     }
 
     if (!fn) {
-        fputs("failed to load", stderr);
-        char *error = dlerror();
-        if (error) {
-            fputs(error, stderr);
-        }
-        if (m_icuVersion == -1) {
-            die(name);
-        } else {
-            die(nameBuffer);
-        }
+        throw LoadError(std::string("missing symbol ") + (m_icuVersion == -1 ? name : nameBuffer));
     }
 #else
     fn = GetProcAddress((HMODULE)ensureLoadSo(soname), name);
 
     if (!fn) {
-        fputs("failed to load", stderr);
-        die(name);
+        throw LoadError(std::string("missing symbol ") + name);
     }
 #endif
 
+    ensureResourceCleanup(returnType);
     m_functions[kind] = fn;
     return fn;
 }
@@ -214,10 +250,7 @@ bool ICU::isNumberRangeFormatterSupported()
 #endif
 
     m_numberRangeFormatterSupported = fn ? 1 : 0;
-    if (fn) {
-        // cache it so the real call below doesn't need to look it up again
-        m_functions[functionunumrf_openForSkeletonWithCollapseAndIdentityFallback] = fn;
-    }
+    // The actual call resolves both the opening and cleanup symbols together.
     return m_numberRangeFormatterSupported;
 }
 
@@ -388,37 +421,49 @@ std::string ICU::findSystemTimezoneName()
 }
 
 ICU::ICU()
-    : m_numberRangeFormatterSupported(-1)
+    : m_icuVersion(-1)
+    , m_numberRangeFormatterSupported(-1)
 {
     memset(m_soHandles, 0, sizeof(void *) * ICU::Soname::SonameMax);
     memset(m_functions, 0, sizeof(void *) * ICU::Function::FunctionMax);
 #if defined(OS_POSIX)
-    // load first so
-    ensureLoadSo(Soname::uc);
+    try {
+        // load first so
+        ensureLoadSo(Soname::uc);
 
-    // try to load without version
-    void *ptr = dlsym(so(Soname::uc), "u_tolower");
-    if (ptr) {
-        m_icuVersion = -1;
-    } else {
-        // find version
-        int ver = s_icuMinVersion;
-        bool found = false;
-        while (ver < s_icuMaxVersion) {
-            std::string fn = "u_tolower_";
-            fn += std::to_string(ver);
-            void *ptr = dlsym(so(Soname::uc), fn.data());
-            if (ptr) {
-                found = true;
-                m_icuVersion = ver;
-                break;
+        // try to load without version
+        void *ptr = dlsym(so(Soname::uc), "u_tolower");
+        if (ptr) {
+            m_icuVersion = -1;
+        } else {
+            // find version
+            int ver = s_icuMinVersion;
+            bool found = false;
+            while (ver < s_icuMaxVersion) {
+                std::string fn = "u_tolower_";
+                fn += std::to_string(ver);
+                void *ptr = dlsym(so(Soname::uc), fn.data());
+                if (ptr) {
+                    found = true;
+                    m_icuVersion = ver;
+                    break;
+                }
+                ver++;
             }
-            ver++;
-        }
 
-        if (!found) {
-            die("failed to read version from so");
+            if (!found) {
+                throw LoadError("failed to detect the shared library's symbol version");
+            }
         }
+    } catch (...) {
+        // A throwing singleton constructor is retried on the next call. Its
+        // destructor will not run, so release handles acquired by this attempt.
+        for (size_t i = 0; i < SonameMax; ++i) {
+            if (m_soHandles[i]) {
+                dlclose(m_soHandles[i]);
+            }
+        }
+        throw;
     }
 #endif
 }

@@ -8,3 +8,9 @@ repository.workspace = true
 description = "Raw bindings to the Escargot C embedding API"
 links = "escargot"
 publish = false
+
+[features]
+default = ["icu", "temporal"]
+icu = []
+temporal = ["icu"]
+icu-bundled = ["icu"]
