@@ -5809,3 +5809,174 @@ TEST(GlobalObject, CrossRealmVirtualIdentifier)
     callerContext.release();
     instance.release();
 }
+
+#if defined(ENABLE_C_API)
+#include "api/EscargotC.h"
+#include "api/internal/CBinding.h"
+
+TEST(CAPI, ContextReentryPreservesRealmAndVMIsolation)
+{
+    auto first = ContextRef::create(g_instance.get());
+    auto second = ContextRef::create(g_instance.get());
+    auto otherVM = VMInstanceRef::create();
+    auto third = ContextRef::create(otherVM.get());
+    auto result = CAPI::Evaluator::execute(first.get(), [](ExecutionStateRef* parent, ContextRef* sameVM, ContextRef* otherVM) -> ValueRef* {
+        auto nested = CAPI::Evaluator::execute(sameVM, [](ExecutionStateRef* state, ExecutionStateRef* expectedParent, ContextRef* expectedContext) -> ValueRef* {
+            EXPECT_EQ(state->context(), expectedContext);
+            EXPECT_TRUE(state->parent().hasValue());
+            EXPECT_EQ(state->parent().get(), expectedParent);
+            // Object creation must use the requested realm's prototype.
+            auto* object = ObjectRef::create(state);
+            auto* prototype = expectedContext->globalObject()->get(state, StringRef::createFromASCII("Object"))->asObject()->get(state, StringRef::createFromASCII("prototype"));
+            EXPECT_EQ(object->getPrototype(state), prototype);
+            return ValueRef::createUndefined();
+        }, parent, sameVM);
+        EXPECT_TRUE(nested.isSuccessful());
+        auto isolated = CAPI::Evaluator::execute(otherVM, [](ExecutionStateRef* state, ContextRef* expectedContext) -> ValueRef* {
+            EXPECT_EQ(state->context(), expectedContext);
+            EXPECT_FALSE(state->parent().hasValue());
+            return ValueRef::createUndefined();
+        }, otherVM);
+        EXPECT_TRUE(isolated.isSuccessful());
+        return ValueRef::createUndefined();
+    }, second.get(), third.get());
+    EXPECT_TRUE(result.isSuccessful());
+}
+
+TEST(CAPI, ResultsRootExceptionsAndRemainIndependent)
+{
+    auto ctx = CAPI::toC(g_context.get());
+    escargot_result first = nullptr;
+    const char* source = "function fail() { throw { message: 'retained' }; } fail()";
+    ASSERT_EQ(escargot_context_eval(ctx, source, strlen(source), "first.js", 8, &first), ESCARGOT_PENDING_EXCEPTION);
+    ASSERT_NE(escargot_result_exception(first), nullptr);
+    EXPECT_GT(escargot_result_stack_size(first), 0u);
+    escargot_result second = nullptr;
+    ASSERT_EQ(escargot_context_eval(ctx, "throw 7", 7, "second.js", 9, &second), ESCARGOT_PENDING_EXCEPTION);
+    Memory::gc();
+    escargot_value key = nullptr;
+    ASSERT_EQ(escargot_string_create_utf8("message", 7, &key), ESCARGOT_OK);
+    escargot_result property = nullptr;
+    ASSERT_EQ(escargot_object_get_property(ctx, escargot_result_exception(first), key, &property), ESCARGOT_OK);
+    char buffer[8];
+    size_t length = 0;
+    ASSERT_EQ(escargot_string_copy_utf8(escargot_result_value(property), buffer, sizeof(buffer), &length), ESCARGOT_OK);
+    EXPECT_EQ(std::string(buffer, length), "retained");
+    double number = 0;
+    EXPECT_EQ(escargot_value_get_number(escargot_result_exception(second), &number), ESCARGOT_OK);
+    EXPECT_EQ(number, 7);
+    escargot_result_release(property);
+    escargot_result_release(second);
+    escargot_result_release(first);
+}
+
+TEST(CAPI, ReferencesScopesAndStrings)
+{
+    escargot_handle_scope outer = nullptr, inner = nullptr;
+    ASSERT_EQ(escargot_handle_scope_open(&outer), ESCARGOT_OK);
+    ASSERT_EQ(escargot_handle_scope_open(&inner), ESCARGOT_OK);
+    escargot_value text = nullptr;
+    const uint16_t units[] = { 'a', 0, 0xd800, 'z' };
+    ASSERT_EQ(escargot_string_create_utf16(units, 4, &text), ESCARGOT_OK);
+    ASSERT_EQ(escargot_handle_scope_add(inner, text), ESCARGOT_OK);
+    EXPECT_EQ(escargot_handle_scope_close(outer), ESCARGOT_SCOPE_MISMATCH);
+    EXPECT_EQ(escargot_handle_scope_escape(inner, text), ESCARGOT_OK);
+    EXPECT_EQ(escargot_handle_scope_escape(inner, text), ESCARGOT_SCOPE_MISMATCH);
+    ASSERT_EQ(escargot_handle_scope_close(inner), ESCARGOT_OK);
+    Memory::gc();
+    size_t length = 0;
+    uint16_t copied[4] = {};
+    EXPECT_EQ(escargot_string_copy_utf16(text, copied, 3, &length), ESCARGOT_BUFFER_TOO_SMALL);
+    EXPECT_EQ(length, 4u);
+    EXPECT_EQ(copied[0], 0);
+    EXPECT_EQ(escargot_string_copy_utf16(text, copied, 4, &length), ESCARGOT_OK);
+    EXPECT_TRUE(std::equal(units, units + 4, copied));
+    escargot_reference reference = nullptr;
+    ASSERT_EQ(escargot_reference_create(text, &reference), ESCARGOT_OK);
+    EXPECT_EQ(escargot_reference_retain(reference), ESCARGOT_OK);
+    escargot_reference_release(reference);
+    ASSERT_EQ(escargot_handle_scope_close(outer), ESCARGOT_OK);
+    Memory::gc();
+    EXPECT_EQ(escargot_reference_get(reference), text);
+    escargot_reference_release(reference);
+    escargot_value failed = text;
+    EXPECT_EQ(escargot_string_create_utf8(nullptr, 2, &failed), ESCARGOT_INVALID_ARGUMENT);
+    EXPECT_EQ(failed, nullptr);
+}
+
+TEST(CAPI, CallbackReentryAndLifetime)
+{
+    escargot_vm instance = nullptr;
+    escargot_context ctx = nullptr;
+    ASSERT_EQ(escargot_vm_create(nullptr, nullptr, &instance), ESCARGOT_OK);
+    ASSERT_EQ(escargot_context_create(instance, &ctx), ESCARGOT_OK);
+    EXPECT_EQ(escargot_vm_destroy(instance), ESCARGOT_INVALID_STATE);
+    escargot_result fn = nullptr;
+    ASSERT_EQ(escargot_function_create(ctx, "reenter", 7, 0, 0,
+        [](escargot_context ctx, escargot_value, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
+            escargot_result nested = nullptr;
+            const char* source = "new Error('inside').stack";
+            auto status = escargot_context_eval(ctx, source, strlen(source), "inner.js", 8, &nested);
+            EXPECT_EQ(status, ESCARGOT_OK);
+            *out = escargot_result_value(nested);
+            // The returned value remains in this active native stack until
+            // the caller acquires it. No collection occurs in result_release.
+            escargot_result_release(nested);
+            return status;
+        }, nullptr, &fn), ESCARGOT_OK);
+    escargot_value key = nullptr;
+    ASSERT_EQ(escargot_string_create_utf8("reenter", 7, &key), ESCARGOT_OK);
+    escargot_result set = nullptr;
+    ASSERT_EQ(escargot_object_set_property(ctx, escargot_context_get_global(ctx), key, escargot_result_value(fn), &set), ESCARGOT_OK);
+    escargot_result_release(set);
+    escargot_result_release(fn);
+    escargot_result call = nullptr;
+    const char* source = "function outer() { return reenter(); } outer()";
+    ASSERT_EQ(escargot_context_eval(ctx, source, strlen(source), "outer.js", 8, &call), ESCARGOT_OK);
+    size_t length = 0;
+    EXPECT_EQ(escargot_string_copy_utf8(escargot_result_value(call), nullptr, 0, &length), ESCARGOT_OK);
+    std::string stack(length, '\0');
+    EXPECT_EQ(escargot_string_copy_utf8(escargot_result_value(call), &stack[0], length, &length), ESCARGOT_OK);
+    EXPECT_NE(stack.find("inner.js"), std::string::npos);
+    EXPECT_NE(stack.find("outer.js"), std::string::npos);
+    escargot_result_release(call);
+    EXPECT_EQ(escargot_context_destroy(ctx), ESCARGOT_OK);
+    EXPECT_EQ(escargot_vm_destroy(instance), ESCARGOT_OK);
+}
+TEST(CAPI, TemplatesAndBackingStores)
+{
+    escargot_template templ = nullptr;
+    auto ctx = CAPI::toC(g_context.get());
+    ASSERT_EQ(escargot_function_template_create(ctx, "sample", 6, 0, 1,
+        [](escargot_context, escargot_value receiver, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
+            *out = receiver;
+            return ESCARGOT_OK;
+        }, nullptr, &templ), ESCARGOT_OK);
+    escargot_result first = nullptr, second = nullptr;
+    ASSERT_EQ(escargot_template_instantiate(ctx, templ, &first), ESCARGOT_OK);
+    ASSERT_EQ(escargot_template_instantiate(ctx, templ, &second), ESCARGOT_OK);
+    EXPECT_EQ(escargot_result_value(first), escargot_result_value(second));
+    escargot_result constructed = nullptr;
+    EXPECT_EQ(escargot_function_construct(ctx, escargot_result_value(first), 0, nullptr, &constructed), ESCARGOT_OK);
+    escargot_result_release(constructed);
+    escargot_template_release(templ);
+    escargot_result_release(first);
+    escargot_result_release(second);
+
+    escargot_backing_store store = nullptr;
+    ASSERT_EQ(escargot_backing_store_create(16, &store), ESCARGOT_OK);
+    static_cast<unsigned char*>(escargot_backing_store_data(store))[0] = 42;
+    escargot_result buffer = nullptr;
+    ASSERT_EQ(escargot_array_buffer_create(ctx, store, &buffer), ESCARGOT_OK);
+    escargot_backing_store_release(store);
+    Memory::gc();
+    ASSERT_EQ(escargot_array_buffer_get_backing_store(escargot_result_value(buffer), &store), ESCARGOT_OK);
+    EXPECT_EQ(escargot_backing_store_size(store), 16u);
+    EXPECT_EQ(static_cast<unsigned char*>(escargot_backing_store_data(store))[0], 42);
+    EXPECT_EQ(escargot_array_buffer_detach(escargot_result_value(buffer)), ESCARGOT_OK);
+    EXPECT_EQ(static_cast<unsigned char*>(escargot_backing_store_data(store))[0], 42);
+    escargot_result_release(buffer);
+    escargot_backing_store_release(store);
+}
+
+#endif
