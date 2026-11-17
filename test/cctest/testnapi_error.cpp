@@ -197,4 +197,38 @@ TEST(Napi, ErrorThrowSetsPendingException)
     EXPECT_EQ(result.result->asString()->toStdUTF8String(), "OK");
 }
 
+TEST(Napi, CallbackReentryKeepsContextAndStack)
+{
+    std::unique_ptr<NapiEnv> caller(NapiEnv::create());
+    std::unique_ptr<NapiEnv> target(NapiEnv::create(caller->vmInstance()));
+    std::unique_ptr<NapiEnv> isolated(NapiEnv::create());
+    struct Targets { napi_env sameVM; napi_env otherVM; } targets = { target->env(), isolated->env() };
+    napi_value callback = nullptr;
+    ASSERT_EQ(napi_create_function(caller->env(), "check", NAPI_AUTO_LENGTH,
+        [](napi_env env, napi_callback_info info) -> napi_value {
+            void* data = nullptr;
+            napi_get_cb_info(env, info, nullptr, nullptr, nullptr, &data);
+            auto* targets = static_cast<Targets*>(data);
+            for (int i = 0; i < 2; ++i) {
+                napi_env target = i ? targets->otherVM : targets->sameVM;
+                napi_value message = nullptr, error = nullptr, stack = nullptr;
+                EXPECT_EQ(napi_create_string_utf8(target, "nested", NAPI_AUTO_LENGTH, &message), napi_ok);
+                EXPECT_EQ(napi_create_error(target, nullptr, message, &error), napi_ok);
+                EXPECT_EQ(FromNapi(error)->asObject()->creationContext().get(), target->context());
+                EXPECT_EQ(napi_get_named_property(target, error, "stack", &stack), napi_ok);
+                auto text = FromNapi(stack)->asString()->toStdUTF8String();
+                if (i) EXPECT_EQ(text.find("outer"), std::string::npos);
+                else EXPECT_NE(text.find("outer"), std::string::npos);
+            }
+            napi_value result = nullptr;
+            napi_get_boolean(env, true, &result);
+            return result;
+        }, &targets, &callback), napi_ok);
+    napi_value global = nullptr, script = nullptr, result = nullptr;
+    ASSERT_EQ(napi_get_global(caller->env(), &global), napi_ok);
+    ASSERT_EQ(napi_set_named_property(caller->env(), global, "check", callback), napi_ok);
+    ASSERT_EQ(napi_create_string_utf8(caller->env(), "function outer() { return check(); } outer()", NAPI_AUTO_LENGTH, &script), napi_ok);
+    EXPECT_EQ(napi_run_script(caller->env(), script, &result), napi_ok);
+}
+
 #endif // ENABLE_NAPI

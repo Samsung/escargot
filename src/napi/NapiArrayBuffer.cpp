@@ -96,7 +96,7 @@ static void NapiExternalObjectFinalizer(void* self, void* data)
 // persistent holder. The entry itself is the GC finalizer identity; by the
 // time the callback runs its disappearing link may already be null.
 struct NapiTypeTagData {
-    PersistentRefHolder<ObjectRef> target;
+    CAPI::Persistent<ObjectRef> target;
     uint64_t lower;
     uint64_t upper;
 };
@@ -155,7 +155,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_arraybuffer(napi_env env, size_t by
         return SetLastError(env, napi_invalid_arg);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, size_t byteLength, void** data) -> ValueRef* {
             ArrayBufferObjectRef* buffer = ArrayBufferObjectRef::create(state);
             buffer->allocateBuffer(state, byteLength);
@@ -184,7 +184,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_external_arraybuffer(napi_env env, 
 
     BackingStoreRef* backingStore = BackingStoreRef::createNonSharedBackingStore(external_data, byte_length, NapiExternalBackingStoreDeleter, finalizeData);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, BackingStoreRef* backingStore) -> ValueRef* {
             ArrayBufferObjectRef* buffer = ArrayBufferObjectRef::create(state);
             buffer->attachBuffer(backingStore);
@@ -293,7 +293,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_typedarray(napi_env env, napi_typed
         return SetLastError(env, napi_pending_exception);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, napi_typedarray_type type, ArrayBufferRef* buffer, size_t byteOffset, size_t byteLength, size_t length) -> ValueRef* {
             ArrayBufferViewRef* view;
             switch (type) {
@@ -436,7 +436,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_dataview(napi_env env, size_t lengt
         return SetLastError(env, napi_pending_exception);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ArrayBufferRef* buffer, size_t byteOffset, size_t byteLength) -> ValueRef* {
             DataViewObjectRef* view = DataViewObjectRef::create(state);
             view->setBuffer(buffer, byteOffset, byteLength);
@@ -485,7 +485,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_dataview_info(napi_env env, napi_value
 // external/opaque ValueRef kind in EscargotPublic.h to check against).
 ESCARGOT_NAPI_EXPORT napi_status napi_create_external(napi_env env, void* data, node_api_basic_finalize finalize_cb, void* finalize_hint, napi_value* result)
 {
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, napi_env env, void* data, node_api_basic_finalize finalizeCb, void* finalizeHint) -> ValueRef* {
             ObjectRef* object = ObjectRef::create(state);
             object->setExtraData(data);
@@ -580,7 +580,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_buffer(napi_env env, size_t length,
         return SetLastError(env, napi_invalid_arg);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, size_t length, void** data) -> ValueRef* {
             ArrayBufferObjectRef* buffer = ArrayBufferObjectRef::create(state);
             buffer->allocateBuffer(state, length);
@@ -611,7 +611,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_external_buffer(napi_env env, size_
 
     BackingStoreRef* backingStore = BackingStoreRef::createNonSharedBackingStore(data, length, NapiExternalBackingStoreDeleter, finalizeData);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, BackingStoreRef* backingStore, size_t length) -> ValueRef* {
             ArrayBufferObjectRef* buffer = ArrayBufferObjectRef::create(state);
             buffer->attachBuffer(backingStore);
@@ -634,7 +634,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_buffer_copy(napi_env env, size_t le
         return SetLastError(env, napi_invalid_arg);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, size_t length, const void* data, void** resultData) -> ValueRef* {
             ArrayBufferObjectRef* buffer = ArrayBufferObjectRef::create(state);
             buffer->allocateBuffer(state, length);

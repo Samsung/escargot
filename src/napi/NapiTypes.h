@@ -44,18 +44,11 @@
 namespace Escargot {
 namespace Napi {
 
-// napi_value/napi_ref/etc are opaque pointer types for ABI stability
-// (`struct napi_value__*` and friends); nothing ever dereferences the
-// pointee, so we punn them directly onto Escargot's own GC pointers instead
-// of allocating a wrapper per value. This is safe because Escargot's GC
-// (Boehm) never moves objects, and Boehm conservatively scans the native
-// stack/registers, so a napi_value sitting in a native local variable is
-// already a GC root on its own - no V8-style handle buffer is needed to keep
-// it alive. napi_open_handle_scope/napi_close_handle_scope and friends
-// (NapiFunctions.cpp) exist purely to satisfy the js_native_api.h API
-// contract (nesting order, escape-once semantics), not to root anything.
+// Values retain the engine's non-moving representation. Explicit handle
+// scopes root every value returned through ToNapi using the shared C API.
 inline napi_value ToNapi(ValueRef* value)
 {
+    if (value) CAPI::trackLocal(value);
     return reinterpret_cast<napi_value>(value);
 }
 
@@ -89,6 +82,22 @@ inline napi_status SetPendingExceptionFromEvaluatorResult(napi_env env, Evaluato
 
     env->pendingException = result.error.value();
     return SetLastError(env, napi_pending_exception);
+}
+
+// Consume a C execution result after transferring its value or exception to
+// the N-API adapter. C API errors have no JavaScript exception payload.
+inline napi_status SetCResult(napi_env env, escargot_status status, escargot_result result, napi_value* output)
+{
+    std::unique_ptr<escargot_result__, decltype(&escargot_result_release)> owner(result, escargot_result_release);
+    if (status == ESCARGOT_PENDING_EXCEPTION) {
+        env->pendingException = CAPI::fromC(escargot_result_exception(result));
+        return SetLastError(env, napi_pending_exception);
+    }
+    if (status != ESCARGOT_OK) {
+        return SetLastError(env, status == ESCARGOT_INVALID_ARGUMENT ? napi_invalid_arg : napi_generic_failure);
+    }
+    if (output) *output = ToNapi(CAPI::fromC(escargot_result_value(result)));
+    return napi_ok;
 }
 
 #define CHECK_ENV(env)               \
@@ -138,7 +147,7 @@ struct napi_callback_info__ {
 // handle's storage and lifetime in one place instead of relying on a raw
 // pointer plus an independently ordered GC finalizer.
 struct napi_ref__ {
-    Escargot::PersistentRefHolder<Escargot::ValueRef> value;
+    Escargot::CAPI::Persistent<Escargot::ValueRef> value;
     uint32_t refcount = 0;
 };
 
@@ -172,22 +181,16 @@ struct napi_platform__ {
 };
 typedef struct napi_platform__* napi_platform;
 
-// the opaque types node_api.h forward-declares for napi_open_handle_scope/
-// napi_open_escapable_handle_scope et al (NapiFunctions.cpp). `parent` forms
-// (NapiEnv.h), enforcing LIFO close order the same way V8's real handle
-// scope stack does - napi_close_handle_scope/napi_close_escapable_handle_scope
-// return napi_handle_scope_mismatch if `scope` isn't currently the innermost
-// open one. No handle buffer is needed here: napi_value is already the GC
-// pointer itself (see ToNapi/FromNapi above), so unlike V8 there's nothing
-// for napi_escape_handle to copy between scopes - it just enforces the
-// "at most once per scope" rule (napi_escape_called_twice) that
-// js_native_api.h's contract requires.
+// N-API keeps its per-environment ordering checks; C API scopes own the roots.
 struct napi_handle_scope__ {
-    napi_handle_scope__* parent = nullptr;
+    Escargot::Optional<napi_handle_scope__*> parent;
+    escargot_handle_scope roots;
+    explicit napi_handle_scope__(escargot_handle_scope roots) : roots(roots) { }
 };
 
 struct napi_escapable_handle_scope__ : public napi_handle_scope__ {
     bool escapeCalled = false;
+    explicit napi_escapable_handle_scope__(escargot_handle_scope roots) : napi_handle_scope__(roots) { }
 };
 
 // the opaque type node_api.h forward-declares for napi_open_callback_scope/

@@ -31,7 +31,7 @@
 // holder for the promise. Deleting the deferred after settlement releases the
 // root together with the native handle.
 struct napi_deferred__ {
-    Escargot::PersistentRefHolder<Escargot::PromiseObjectRef> promise;
+    Escargot::CAPI::Persistent<Escargot::PromiseObjectRef> promise;
 };
 
 namespace Escargot {
@@ -48,7 +48,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_date(napi_env env, double time, nap
     // DateObjectRef only exposes an int64_t setter; `time` (already
     // milliseconds since epoch, per the napi_create_date contract) is
     // truncated to fit.
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, double time) -> ValueRef* {
             DateObjectRef* date = DateObjectRef::create(state);
             date->setTimeValue(static_cast<int64_t>(time));
@@ -89,10 +89,9 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_promise(napi_env env, napi_deferred
         return SetLastError(env, napi_invalid_arg);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state) -> ValueRef* {
-            return PromiseObjectRef::create(state);
-        });
+    escargot_result executed = nullptr;
+    auto callStatus = escargot_promise_create(CAPI::toC(env->context()), &executed);
+    auto evalResult = CAPI::takeResult(callStatus, executed);
     napi_status status = SetPendingExceptionFromEvaluatorResult(env, evalResult);
     if (status != napi_ok) {
         return status;
@@ -116,24 +115,11 @@ static napi_status SettleDeferred(napi_env env, napi_deferred deferred, napi_val
     PromiseObjectRef* promiseObj = deferred->promise.get();
     ValueRef* value = FromNapi(resolution);
 
-    // PromiseObjectRef::fulfill/reject only enqueue reaction jobs (see
-    // PromiseObject::fulfill/reject) rather than running any reaction
-    // synchronously, so neither can currently throw a JS exception - but we
-    // still route the call through Evaluator::execute, exactly like
-    // napi_call_function (NapiFunctions.cpp), so this boundary stays safe
-    // even if that internal behavior ever changes (e.g. a registered
-    // PromiseHook), instead of ever letting a raw C++ exception unwind past
-    // this function.
-    Evaluator::EvaluatorResult settleResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObj, ValueRef* value, bool isFulfill) -> ValueRef* {
-            if (isFulfill) {
-                promiseObj->fulfill(state, value);
-            } else {
-                promiseObj->reject(state, value);
-            }
-            return ValueRef::createUndefined();
-        },
-        promiseObj, value, isFulfill);
+    escargot_result executed = nullptr;
+    auto status = isFulfill
+        ? escargot_promise_resolve(CAPI::toC(env->context()), CAPI::toC(promiseObj), CAPI::toC(value), &executed)
+        : escargot_promise_reject(CAPI::toC(env->context()), CAPI::toC(promiseObj), CAPI::toC(value), &executed);
+    auto settleResult = CAPI::takeResult(status, executed);
 
     delete deferred;
 
@@ -169,7 +155,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_run_script(napi_env env, napi_value script
     ContextRef* context = env->context();
     StringRef* source = scriptValue->toStringWithoutException(context);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         context, [](ExecutionStateRef* state, ContextRef* context, StringRef* source) -> ValueRef* {
             ScriptRef* parsedScript = context->scriptParser()->initializeScript(source, StringRef::createFromASCII("napi_run_script"), false).fetchScriptThrowsExceptionIfParseError(state);
             return parsedScript->execute(state);

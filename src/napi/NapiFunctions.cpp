@@ -34,6 +34,7 @@ namespace Napi {
 
 static ValueRef* NapiCallbackTrampoline(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall)
 {
+    CAPI::ExecutionScope executionScope(state);
     FunctionObjectRef* callee = state->resolveCallee().value();
     CallbackData* callbackData = reinterpret_cast<CallbackData*>(callee->extraData());
     napi_env env = callbackData->env;
@@ -62,6 +63,7 @@ static void NapiFunctionCallbackDataFinalizer(void* self, void* data)
 // native data to `this` the same way a user's constructor callback expects.
 static ValueRef* NapiClassConstructorTrampoline(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget)
 {
+    CAPI::ExecutionScope executionScope(state);
     FunctionObjectRef* callee = state->resolveCallee().value();
     CallbackData* callbackData = reinterpret_cast<CallbackData*>(callee->extraData());
     napi_env env = callbackData->env;
@@ -264,7 +266,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_create_object(napi_env env, napi_value* re
         napi_fatal_error(nullptr, 0, "Finalizer is calling a function that may affect GC state.", NAPI_AUTO_LENGTH);
     }
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state) -> ValueRef* {
             return ObjectRef::create(state);
         });
@@ -331,7 +333,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_valu
     // surface as a raw uncaught top-level exception instead of
     // napi_pending_exception (found via test_object/test_exceptions.js, whose
     // Proxy's `set` trap always throws).
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ObjectRef* obj, StringRef* name, ValueRef* value) -> ValueRef* {
             obj->set(state, name, value);
             return ValueRef::createUndefined();
@@ -347,35 +349,15 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_named_property(napi_env env, napi_valu
 
 ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value recv, napi_value func, size_t argc, const napi_value* argv, napi_value* result)
 {
-    ValueRef* fn = FromNapi(func);
-    ValueRef* thisArg = FromNapi(recv);
-
-    std::vector<ValueRef*> args(argc);
-    for (size_t i = 0; i < argc; i++) {
-        args[i] = FromNapi(argv[i]);
-    }
-
-    // ValueRef::call() throws a raw C++ exception (Escargot::Value, by
-    // value) on an uncaught JS exception, with nothing in between catching
-    // it - it must not be allowed to cross this function's own stack frame,
-    // or N-API's "exceptions never cross an API call boundary" contract
-    // breaks. Evaluator::execute's ExecutionStateRef* overload runs the call
-    // in a nested SandBox that catches it for us.
-    Evaluator::EvaluatorResult callResult = Evaluator::execute(
-        env->context(), [](ExecutionStateRef* state, ValueRef* fn, ValueRef* thisArg, size_t argc, ValueRef** argv) -> ValueRef* {
-            return fn->call(state, thisArg, argc, argv);
-        },
-        fn, thisArg, argc, args.data());
-
-    if (!callResult.isSuccessful()) {
-        env->pendingException = callResult.error.value();
-        return SetLastError(env, napi_pending_exception);
-    }
-
-    if (result != nullptr) {
-        *result = ToNapi(callResult.result);
-    }
-    return napi_ok;
+    CHECK_ENV(env);
+    CHECK_ARG(env, recv);
+    CHECK_ARG(env, func);
+    if (argc && !argv) return SetLastError(env, napi_invalid_arg);
+    std::vector<escargot_value> args(argc);
+    for (size_t i = 0; i < argc; ++i) args[i] = reinterpret_cast<escargot_value>(argv[i]);
+    escargot_result executed = nullptr;
+    auto status = escargot_function_call(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(func), reinterpret_cast<escargot_value>(recv), argc, args.data(), &executed);
+    return SetCResult(env, status, executed, result);
 }
 
 ESCARGOT_NAPI_EXPORT napi_status napi_typeof(napi_env env, napi_value value, napi_valuetype* result)
@@ -432,7 +414,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_value_uint32(napi_env env, napi_value 
     if (!v->isNumber()) {
         return SetLastError(env, napi_number_expected);
     }
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* value) -> ValueRef* {
             return ValueRef::create(value->toUint32(state));
         },
@@ -561,7 +543,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_properties(napi_env env, napi_value
     }
     ObjectRef* obj = val_object->asObject();
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, napi_env env, ObjectRef* obj, size_t property_count, const napi_property_descriptor* properties) -> ValueRef* {
             for (size_t i = 0; i < property_count; i++) {
                 ApplyPropertyDescriptor(state, env, obj, properties[i]);
@@ -620,7 +602,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_define_class(napi_env env, const char* utf
     cons->setExtraData(callbackData);
     Memory::gcRegisterFinalizer(cons, NapiFunctionCallbackDataFinalizer, callbackData);
 
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, napi_env env, FunctionObjectRef* cons, size_t property_count, const napi_property_descriptor* properties) -> ValueRef* {
             ObjectRef* proto = cons->getFunctionPrototype(state)->asObject();
             for (size_t i = 0; i < property_count; i++) {
@@ -762,7 +744,9 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref
 
 ESCARGOT_NAPI_EXPORT napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result)
 {
-    napi_handle_scope__* scope = new napi_handle_scope__();
+    escargot_handle_scope roots = nullptr;
+    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK) return SetLastError(env, napi_generic_failure);
+    napi_handle_scope__* scope = new napi_handle_scope__(roots);
     scope->parent = env->topHandleScope;
     env->topHandleScope = scope;
     *result = scope;
@@ -774,14 +758,17 @@ ESCARGOT_NAPI_EXPORT napi_status napi_close_handle_scope(napi_env env, napi_hand
     if (scope == nullptr || scope != env->topHandleScope) {
         return SetLastError(env, napi_handle_scope_mismatch);
     }
-    env->topHandleScope = scope->parent;
+    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK) return SetLastError(env, napi_handle_scope_mismatch);
+    env->topHandleScope = scope->parent.unwrap();
     delete scope;
     return napi_ok;
 }
 
 ESCARGOT_NAPI_EXPORT napi_status napi_open_escapable_handle_scope(napi_env env, napi_escapable_handle_scope* result)
 {
-    napi_escapable_handle_scope__* scope = new napi_escapable_handle_scope__();
+    escargot_handle_scope roots = nullptr;
+    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK) return SetLastError(env, napi_generic_failure);
+    napi_escapable_handle_scope__* scope = new napi_escapable_handle_scope__(roots);
     scope->parent = env->topHandleScope;
     env->topHandleScope = scope;
     *result = scope;
@@ -793,7 +780,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_close_escapable_handle_scope(napi_env env,
     if (scope == nullptr || scope != env->topHandleScope) {
         return SetLastError(env, napi_handle_scope_mismatch);
     }
-    env->topHandleScope = scope->parent;
+    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK) return SetLastError(env, napi_handle_scope_mismatch);
+    env->topHandleScope = scope->parent.unwrap();
     delete scope;
     return napi_ok;
 }
@@ -803,11 +791,10 @@ ESCARGOT_NAPI_EXPORT napi_status napi_escape_handle(napi_env env, napi_escapable
     if (scope->escapeCalled) {
         return SetLastError(env, napi_escape_called_twice);
     }
+    if (scope->parent && escargot_handle_scope_escape(scope->roots, reinterpret_cast<escargot_value>(escapee)) != ESCARGOT_OK) {
+        return SetLastError(env, napi_handle_scope_mismatch);
+    }
     scope->escapeCalled = true;
-    // napi_value is already the GC pointer itself (see ToNapi/FromNapi in
-    // NapiTypes.h), so there is nothing to actually copy into an outer
-    // scope's buffer - `escapee` is already reachable however the caller is
-    // holding it.
     *result = escapee;
     return napi_ok;
 }
@@ -836,7 +823,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_new_instance(napi_env env, napi_value cons
     // returned status instead of expecting a raw throw across the API
     // boundary (found via test_exception/test.js's constructReturnException/
     // constructAllowException, which do exactly that).
-    Evaluator::EvaluatorResult constructResult = Evaluator::execute(
+    Evaluator::EvaluatorResult constructResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, ValueRef* ctor, size_t argc, ValueRef** argv) -> ValueRef* {
             return ctor->construct(state, argc, argv);
         },
@@ -920,7 +907,7 @@ ESCARGOT_NAPI_EXPORT napi_status napi_throw(napi_env env, napi_value error)
 ESCARGOT_NAPI_EXPORT napi_status napi_throw_error(napi_env env, const char* code, const char* msg)
 {
     StringRef* message = StringRef::createFromUTF8(msg, strlen(msg));
-    Evaluator::EvaluatorResult evalResult = Evaluator::execute(
+    Evaluator::EvaluatorResult evalResult = CAPI::Evaluator::execute(
         env->context(), [](ExecutionStateRef* state, StringRef* message, const char* code) -> ValueRef* {
             ErrorObjectRef* error = ErrorObjectRef::create(state, ErrorObjectRef::Code::None, message);
             if (code != nullptr) {
