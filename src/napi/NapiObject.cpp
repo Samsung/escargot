@@ -38,7 +38,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_property(napi_env env, napi_value obje
     CHECK_ARG(env, object);
     CHECK_ARG(env, key);
     CHECK_ARG(env, result);
-    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    if (!FromNapi(object)->isObject())
+        return SetLastError(env, napi_object_expected);
     escargot_result executed = nullptr;
     auto status = escargot_object_get_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
     return SetCResult(env, status, executed, result);
@@ -51,7 +52,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_set_property(napi_env env, napi_value obje
     CHECK_ARG(env, object);
     CHECK_ARG(env, key);
     CHECK_ARG(env, value);
-    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    if (!FromNapi(object)->isObject())
+        return SetLastError(env, napi_object_expected);
     escargot_result executed = nullptr;
     auto status = escargot_object_set_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), reinterpret_cast<escargot_value>(value), &executed);
     return SetCResult(env, status, executed, nullptr);
@@ -64,12 +66,14 @@ ESCARGOT_NAPI_EXPORT napi_status napi_has_property(napi_env env, napi_value obje
     CHECK_ARG(env, object);
     CHECK_ARG(env, key);
     CHECK_ARG(env, result);
-    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    if (!FromNapi(object)->isObject())
+        return SetLastError(env, napi_object_expected);
     escargot_result executed = nullptr;
     auto status = escargot_object_has_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
     napi_value boolean = nullptr;
     auto converted = SetCResult(env, status, executed, &boolean);
-    if (converted == napi_ok && result) *result = FromNapi(boolean)->asBoolean();
+    if (converted == napi_ok && result)
+        *result = FromNapi(boolean)->asBoolean();
     return converted;
 }
 
@@ -79,12 +83,14 @@ ESCARGOT_NAPI_EXPORT napi_status napi_delete_property(napi_env env, napi_value o
     CHECK_ENV(env);
     CHECK_ARG(env, object);
     CHECK_ARG(env, key);
-    if (!FromNapi(object)->isObject()) return SetLastError(env, napi_object_expected);
+    if (!FromNapi(object)->isObject())
+        return SetLastError(env, napi_object_expected);
     escargot_result executed = nullptr;
     auto status = escargot_object_delete_property(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(object), reinterpret_cast<escargot_value>(key), &executed);
     napi_value boolean = nullptr;
     auto converted = SetCResult(env, status, executed, &boolean);
-    if (converted == napi_ok && result) *result = FromNapi(boolean)->asBoolean();
+    if (converted == napi_ok && result)
+        *result = FromNapi(boolean)->asBoolean();
     return converted;
 }
 

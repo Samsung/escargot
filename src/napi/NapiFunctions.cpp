@@ -352,9 +352,11 @@ ESCARGOT_NAPI_EXPORT napi_status napi_call_function(napi_env env, napi_value rec
     CHECK_ENV(env);
     CHECK_ARG(env, recv);
     CHECK_ARG(env, func);
-    if (argc && !argv) return SetLastError(env, napi_invalid_arg);
+    if (argc && !argv)
+        return SetLastError(env, napi_invalid_arg);
     std::vector<escargot_value> args(argc);
-    for (size_t i = 0; i < argc; ++i) args[i] = reinterpret_cast<escargot_value>(argv[i]);
+    for (size_t i = 0; i < argc; ++i)
+        args[i] = reinterpret_cast<escargot_value>(argv[i]);
     escargot_result executed = nullptr;
     auto status = escargot_function_call(CAPI::toC(env->context()), reinterpret_cast<escargot_value>(func), reinterpret_cast<escargot_value>(recv), argc, args.data(), &executed);
     return SetCResult(env, status, executed, result);
@@ -745,7 +747,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_get_reference_value(napi_env env, napi_ref
 ESCARGOT_NAPI_EXPORT napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result)
 {
     escargot_handle_scope roots = nullptr;
-    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK) return SetLastError(env, napi_generic_failure);
+    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK)
+        return SetLastError(env, napi_generic_failure);
     napi_handle_scope__* scope = new napi_handle_scope__(roots);
     scope->parent = env->topHandleScope;
     env->topHandleScope = scope;
@@ -758,7 +761,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_close_handle_scope(napi_env env, napi_hand
     if (scope == nullptr || scope != env->topHandleScope) {
         return SetLastError(env, napi_handle_scope_mismatch);
     }
-    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK) return SetLastError(env, napi_handle_scope_mismatch);
+    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK)
+        return SetLastError(env, napi_handle_scope_mismatch);
     env->topHandleScope = scope->parent.unwrap();
     delete scope;
     return napi_ok;
@@ -767,7 +771,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_close_handle_scope(napi_env env, napi_hand
 ESCARGOT_NAPI_EXPORT napi_status napi_open_escapable_handle_scope(napi_env env, napi_escapable_handle_scope* result)
 {
     escargot_handle_scope roots = nullptr;
-    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK) return SetLastError(env, napi_generic_failure);
+    if (escargot_handle_scope_open(&roots) != ESCARGOT_OK)
+        return SetLastError(env, napi_generic_failure);
     napi_escapable_handle_scope__* scope = new napi_escapable_handle_scope__(roots);
     scope->parent = env->topHandleScope;
     env->topHandleScope = scope;
@@ -780,7 +785,8 @@ ESCARGOT_NAPI_EXPORT napi_status napi_close_escapable_handle_scope(napi_env env,
     if (scope == nullptr || scope != env->topHandleScope) {
         return SetLastError(env, napi_handle_scope_mismatch);
     }
-    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK) return SetLastError(env, napi_handle_scope_mismatch);
+    if (escargot_handle_scope_close(scope->roots) != ESCARGOT_OK)
+        return SetLastError(env, napi_handle_scope_mismatch);
     env->topHandleScope = scope->parent.unwrap();
     delete scope;
     return napi_ok;

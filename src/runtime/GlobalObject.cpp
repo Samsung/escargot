@@ -86,7 +86,7 @@ FunctionObject* Object::defineBuiltinFunction(ExecutionState& state, const Atomi
 }
 
 GlobalObject::GlobalObject(ExecutionState& state)
-#if defined(ENABLE_EXTENDED_API)
+#if defined(ENABLE_MUTABLE_GLOBAL_PROTOTYPE)
     : PrototypeObject(state, Object::createBuiltinObjectPrototype(state))
 #else
     : ImmutablePrototypeObject(state, Object::createBuiltinObjectPrototype(state))

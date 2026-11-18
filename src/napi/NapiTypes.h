@@ -48,7 +48,8 @@ namespace Napi {
 // scopes root every value returned through ToNapi using the shared C API.
 inline napi_value ToNapi(ValueRef* value)
 {
-    if (value) CAPI::trackLocal(value);
+    if (value)
+        CAPI::trackLocal(value);
     return reinterpret_cast<napi_value>(value);
 }
 
@@ -96,7 +97,8 @@ inline napi_status SetCResult(napi_env env, escargot_status status, escargot_res
     if (status != ESCARGOT_OK) {
         return SetLastError(env, status == ESCARGOT_INVALID_ARGUMENT ? napi_invalid_arg : napi_generic_failure);
     }
-    if (output) *output = ToNapi(CAPI::fromC(escargot_result_value(result)));
+    if (output)
+        *output = ToNapi(CAPI::fromC(escargot_result_value(result)));
     return napi_ok;
 }
 
@@ -185,12 +187,18 @@ typedef struct napi_platform__* napi_platform;
 struct napi_handle_scope__ {
     Escargot::Optional<napi_handle_scope__*> parent;
     escargot_handle_scope roots;
-    explicit napi_handle_scope__(escargot_handle_scope roots) : roots(roots) { }
+    explicit napi_handle_scope__(escargot_handle_scope roots)
+        : roots(roots)
+    {
+    }
 };
 
 struct napi_escapable_handle_scope__ : public napi_handle_scope__ {
     bool escapeCalled = false;
-    explicit napi_escapable_handle_scope__(escargot_handle_scope roots) : napi_handle_scope__(roots) { }
+    explicit napi_escapable_handle_scope__(escargot_handle_scope roots)
+        : napi_handle_scope__(roots)
+    {
+    }
 };
 
 // the opaque type node_api.h forward-declares for napi_open_callback_scope/

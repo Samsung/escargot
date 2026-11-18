@@ -393,8 +393,8 @@ Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, 
 class IntlDateTimeFormatObject;
 class Symbol;
 
-#if defined(ENABLE_EXTENDED_API)
-// for certain third-party cases, GlobalObject's prototype can be modified
+#if defined(ENABLE_MUTABLE_GLOBAL_PROTOTYPE)
+// Embedders can explicitly allow changes to the global object's prototype.
 class GlobalObject : public PrototypeObject {
 #else
 class GlobalObject : public ImmutablePrototypeObject {

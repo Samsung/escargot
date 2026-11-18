@@ -306,15 +306,15 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     try {
 #endif
-    if (isConstruct) {
-        result = nativeFunc(newState, receiver, argc, argv, newTarget);
-        if (shouldReturnsObjectOnConstructCall && UNLIKELY(!result.isObject())) {
-            ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Native Constructor must returns constructed new object");
+        if (isConstruct) {
+            result = nativeFunc(newState, receiver, argc, argv, newTarget);
+            if (shouldReturnsObjectOnConstructCall && UNLIKELY(!result.isObject())) {
+                ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Native Constructor must returns constructed new object");
+            }
+        } else {
+            ASSERT(!newTarget);
+            result = nativeFunc(newState, receiver, argc, argv, nullptr);
         }
-    } else {
-        ASSERT(!newTarget);
-        result = nativeFunc(newState, receiver, argc, argv, nullptr);
-    }
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     } catch (const RuntimeICUBinder::LoadError& error) {
         // Convert before unwinding the native frame so JS try/catch and the
