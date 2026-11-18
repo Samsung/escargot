@@ -21,6 +21,7 @@
 #include "parser/Lexer.h"
 #include "parser/esprima_cpp/ParserContext.h"
 #include "runtime/Context.h"
+#include "util/PowerOfTwoInteger.h"
 // These two must be the last because they overwrite the ASSERT macro.
 #include "double-conversion.h"
 #include "ieee.h"
@@ -1447,12 +1448,14 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
 {
     ASSERT(token != nullptr);
     uint64_t number = 0;
+    bool overflow = false;
     bool scanned = false;
     bool seenUnderscore = false;
 
     while (!this->eof()) {
         char16_t ch = this->peekCharWithoutEOF();
         if (ch == '0' || ch == '1') {
+            overflow |= number > (std::numeric_limits<uint64_t>::max() >> 1);
             number = (number << 1) + ch - '0';
             this->index++;
             scanned = true;
@@ -1484,13 +1487,25 @@ void Scanner::scanBinaryLiteral(Scanner::ScannerResult* token, size_t start)
         testNumericSeparator(start, isBigInt, false, true, false);
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
+    if (UNLIKELY(overflow && !isBigInt)) {
+        PowerOfTwoInteger integer;
+        for (size_t i = start + 2; i < this->index; ++i) {
+            char16_t ch = this->sourceCharAt(i);
+            if (ch != '_') {
+                integer.append(ch - '0', 1);
+            }
+        }
+        token->setNumericLiteralResult(integer.toDouble(), this->lineNumber, this->lineStart, start, this->index, false, seenUnderscore);
+    } else {
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
+    }
 }
 
 void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, size_t start, bool isLegacyOctal)
 {
     ASSERT(token != nullptr);
     uint64_t number = 0;
+    bool overflow = false;
     bool scanned = false;
     bool octal = isOctalDigit(prefix);
     bool seenUnderscore = false;
@@ -1509,6 +1524,7 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
             break;
         }
 
+        overflow |= number > (std::numeric_limits<uint64_t>::max() >> 3);
         number = (number << 3) + ch - '0';
         this->index++;
         scanned = true;
@@ -1535,7 +1551,18 @@ void Scanner::scanOctalLiteral(Scanner::ScannerResult* token, char16_t prefix, s
         testNumericSeparator(start, isBigInt, false, false, true);
     }
 
-    token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
+    if (UNLIKELY(overflow && !isBigInt)) {
+        PowerOfTwoInteger integer;
+        for (size_t i = start + (isLegacyOctal ? 1 : 2); i < this->index; ++i) {
+            char16_t digit = this->sourceCharAt(i);
+            if (digit != '_') {
+                integer.append(digit - '0', 3);
+            }
+        }
+        token->setNumericLiteralResult(integer.toDouble(), this->lineNumber, this->lineStart, start, this->index, false, seenUnderscore);
+    } else {
+        token->setNumericLiteralResult(number, this->lineNumber, this->lineStart, start, this->index, isBigInt, seenUnderscore);
+    }
     token->octal = octal;
 }
 

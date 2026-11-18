@@ -32,6 +32,7 @@
 #include "BigIntObject.h"
 #include "BooleanObject.h"
 #include "ErrorObject.h"
+#include "util/PowerOfTwoInteger.h"
 
 // dtoa
 #include "ieee.h"
@@ -761,8 +762,11 @@ double Value::toNumberSlowCase(ExecutionState& state) const
                 if (static_cast<size_t>(end) != ptr) {
                     bool ok = true;
                     uint64_t number = 0;
+                    bool overflow = false;
+                    unsigned bitsPerDigit = 0;
                     if (ptr >= 3 && buf[0] == '0' && (buf[1] == 'b' || buf[1] == 'B')) {
                         // scan binary literal
+                        bitsPerDigit = 1;
                         unsigned scan = 2;
 
                         while (scan != ptr) {
@@ -771,11 +775,13 @@ double Value::toNumberSlowCase(ExecutionState& state) const
                                 ok = false;
                                 break;
                             }
+                            overflow |= number > (std::numeric_limits<uint64_t>::max() >> 1);
                             number = (number << 1) + ch - '0';
                             scan++;
                         }
                     } else if (ptr >= 3 && buf[0] == '0' && (buf[1] == 'o' || buf[1] == 'O')) {
                         // scan octal literal
+                        bitsPerDigit = 3;
                         unsigned scan = 2;
 
                         while (scan != ptr) {
@@ -784,6 +790,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const
                                 ok = false;
                                 break;
                             } else {
+                                overflow |= number > (std::numeric_limits<uint64_t>::max() >> 3);
                                 number = (number << 3) + ch - '0';
                                 scan++;
                             }
@@ -793,7 +800,15 @@ double Value::toNumberSlowCase(ExecutionState& state) const
                     }
 
                     if (ok) {
-                        val = number;
+                        if (UNLIKELY(overflow)) {
+                            PowerOfTwoInteger integer;
+                            for (unsigned i = 2; i < ptr; ++i) {
+                                integer.append(buf[i] - '0', bitsPerDigit);
+                            }
+                            val = integer.toDouble();
+                        } else {
+                            val = number;
+                        }
                     } else {
                         val = std::numeric_limits<double>::quiet_NaN();
                     }
