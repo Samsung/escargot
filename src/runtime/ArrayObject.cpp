@@ -561,6 +561,12 @@ bool ArrayObject::pushIntoFastModeElements(ExecutionState& state, Value* values,
 
 bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
 {
+    // Assignment to an already non-writable length fails before converting
+    // the value, even if it equals the current length.
+    if (UNLIKELY(!isLengthPropertyWritable())) {
+        return false;
+    }
+
     bool isPrimitiveValue;
     if (LIKELY(newLength.isPrimitive())) {
         isPrimitiveValue = true;
@@ -576,7 +582,9 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
 
     bool ret;
     if (UNLIKELY(!isPrimitiveValue && !isLengthPropertyWritable())) {
-        ret = false;
+        // Conversion may have made length non-writable. The assignment had
+        // already passed its writable check, so defining the same length succeeds.
+        ret = m_arrayLength == newLen;
     } else {
         ret = setArrayLength(state, newLen, true);
     }
