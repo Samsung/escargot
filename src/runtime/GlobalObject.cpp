@@ -44,6 +44,7 @@
 #include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "heap/LeakCheckerBridge.h"
+#include "double-conversion.h"
 
 namespace Escargot {
 
@@ -465,21 +466,6 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
     return arg;
 }
 
-static const int SizeOfInfinity = 8;
-
-static bool isInfinity(String* str, unsigned p, unsigned length)
-{
-    return (length - p) >= SizeOfInfinity
-        && str->charAt(p) == 'I'
-        && str->charAt(p + 1) == 'n'
-        && str->charAt(p + 2) == 'f'
-        && str->charAt(p + 3) == 'i'
-        && str->charAt(p + 4) == 'n'
-        && str->charAt(p + 5) == 'i'
-        && str->charAt(p + 6) == 't'
-        && str->charAt(p + 7) == 'y';
-}
-
 // there is optimizer bug on arm64-gcc :(
 #if defined(CPU_ARM64) && defined(COMPILER_GCC)
 #define ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC ATTRIBUTE_NO_OPTIMIZE
@@ -577,7 +563,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     size_t strLen = s->length();
 
     if (strLen == 1) {
-        if (isdigit(s->charAt(0)))
+        if (s->charAt(0) >= '0' && s->charAt(0) <= '9')
             return Value(s->charAt(0) - '0');
         return Value(Value::NanInit);
     }
@@ -597,36 +583,16 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     if (p == len)
         return Value(Value::NanInit);
 
-    char16_t ch = s->charAt(p);
-    // HexIntegerLiteral
-    if (len - p > 1 && ch == '0' && toupper(s->charAt(p + 1)) == 'X')
-        return Value(0);
-
     // 3. If neither trimmedString nor any prefix of trimmedString satisfies the syntax of
     //    a StrDecimalLiteral (see 9.3.1), return NaN.
     // 4. Let numberString be the longest prefix of trimmedString, which might be trimmedString itself,
     //    that satisfies the syntax of a StrDecimalLiteral.
-    // Check the syntax of StrDecimalLiteral
-    switch (ch) {
-    case 'I':
-        if (isInfinity(s, p, len))
-            return Value(Value::PostiveInfinityInit);
-        break;
-    case '+':
-        if (isInfinity(s, p + 1, len))
-            return Value(Value::PostiveInfinityInit);
-        break;
-    case '-':
-        if (isInfinity(s, p + 1, len))
-            return Value(Value::NegativeInfinityInit);
-        break;
-    }
     auto u8Str = s->substring(p, len)->toNonGCUTF8StringData();
-    double number = atof(u8Str.data());
-    if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && (ch == '.' || ch == '+') && isdigit(s->charAt(p + 1))))
-        return Value(Value::NanInit);
-    if (number == std::numeric_limits<double>::infinity())
-        return Value(Value::NanInit);
+    double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::ALLOW_TRAILING_JUNK,
+                                                         std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(),
+                                                         "Infinity", nullptr);
+    int processedCharacters = 0;
+    double number = converter.StringToDouble(u8Str.data(), static_cast<int>(u8Str.size()), &processedCharacters);
 
     // 5. Return the Number value for the MV of numberString.
     return Value(Value::DoubleToIntConvertibleTestNeeds, number);
