@@ -4815,7 +4815,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             data->m_bigFilter = new (PointerFreeGC) CreateObjectPrepare::CreateObjectBigPropertyFilter();
         }
     } else {
-        ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter);
+        ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter || code->m_stage == CreateObjectPrepare::SetPrototype);
         CreateObjectPrepare::CreateObjectData* data;
         if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].asOpaquePointer());
@@ -4823,17 +4823,17 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
         }
 
+        if (UNLIKELY(code->m_stage == CreateObjectPrepare::SetPrototype)) {
+            const Value& v = registerFile[code->m_valueIndex];
+            if (v.isObject() || v.isNull()) {
+                data->m_target->setPrototype(state, v);
+            }
+            return;
+        }
+
         ObjectStructurePropertyName propertyName;
         if (code->m_hasPrecomputedKey) {
             propertyName = ObjectStructurePropertyName(AtomicString::fromPayload(registerFile[code->m_keyIndex].asString()));
-            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-            if (UNLIKELY(propertyName.asAtomicString() == state.context()->staticStrings().__proto__ && code->m_stage == CreateObjectPrepare::FillKeyValue)) {
-                const Value& v = registerFile[code->m_valueIndex];
-                if (v.isObject() || v.isNull()) {
-                    data->m_target->setPrototype(state, v);
-                }
-                return;
-            }
         } else {
             propertyName = ObjectStructurePropertyName(state, registerFile[code->m_keyIndex]);
         }
@@ -6360,44 +6360,37 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(
     publishProgramCounter(state, code);
     Object* object = registerFile[code->m_objectRegisterIndex].asObject();
     const Value& v = registerFile[code->m_loadRegisterIndex];
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-    if (!object->isScriptClassConstructorPrototypeObject() && (code->m_propertyName == state.context()->staticStrings().__proto__)) {
-        if (v.isObject() || v.isNull()) {
-            object->setPrototype(state, v);
-        }
+    const size_t minCacheFillCount = 2;
+    if (object->structure() == code->m_inlineCachedStructureBefore) {
+        ObjectStructure* previousStructure = object->m_structure;
+        size_t previousPropertyCount = previousStructure->propertyCount();
+        object->m_structure = code->m_inlineCachedStructureAfter;
+        size_t newPropertyIndex = object->m_structure->findProperty(code->m_propertyName).first;
+        ASSERT(newPropertyIndex != SIZE_MAX);
+        object->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, v);
+    } else if (code->m_missCount > minCacheFillCount) {
+        // cache miss
+        object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
     } else {
-        const size_t minCacheFillCount = 2;
-        if (object->structure() == code->m_inlineCachedStructureBefore) {
-            ObjectStructure* previousStructure = object->m_structure;
-            size_t previousPropertyCount = previousStructure->propertyCount();
-            object->m_structure = code->m_inlineCachedStructureAfter;
-            size_t newPropertyIndex = object->m_structure->findProperty(code->m_propertyName).first;
-            ASSERT(newPropertyIndex != SIZE_MAX);
-            object->addValueForNewProperty(previousStructure, previousPropertyCount, newPropertyIndex, v);
-        } else if (code->m_missCount > minCacheFillCount) {
-            // cache miss
+        code->m_missCount++;
+        // should we fill cache?
+        if (minCacheFillCount == code->m_missCount) {
+            // try to fill cache
+            auto oldStructure = object->structure();
             object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
-        } else {
-            code->m_missCount++;
-            // should we fill cache?
-            if (minCacheFillCount == code->m_missCount) {
-                // try to fill cache
-                auto oldStructure = object->structure();
-                object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
-                auto newStructure = object->structure();
-                if (object->isInlineCacheable() && oldStructure != newStructure) {
-                    byteCodeBlock->m_otherLiteralData.push_back(oldStructure);
-                    byteCodeBlock->m_otherLiteralData.push_back(newStructure);
-                    code->m_inlineCachedStructureBefore = oldStructure;
-                    code->m_inlineCachedStructureAfter = newStructure;
-                    oldStructure->markReferencedByInlineCache();
-                    newStructure->markReferencedByInlineCache();
-                } else {
-                    // failed to cache
-                }
+            auto newStructure = object->structure();
+            if (object->isInlineCacheable() && oldStructure != newStructure) {
+                byteCodeBlock->m_otherLiteralData.push_back(oldStructure);
+                byteCodeBlock->m_otherLiteralData.push_back(newStructure);
+                code->m_inlineCachedStructureBefore = oldStructure;
+                code->m_inlineCachedStructureAfter = newStructure;
+                oldStructure->markReferencedByInlineCache();
+                newStructure->markReferencedByInlineCache();
             } else {
-                object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
+                // failed to cache
             }
+        } else {
+            object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
         }
     }
 }

@@ -202,7 +202,7 @@ public:
                 if (p->kind() == PropertyNode::Kind::Init) {
                     bool hasFunctionOnRightSide = p->value()->type() == ASTNodeType::FunctionExpression || p->value()->type() == ASTNodeType::ArrowFunctionExpression;
                     bool hasClassOnRightSide = p->value()->type() == ASTNodeType::ClassExpression && !p->value()->asClassExpression()->classNode().classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name);
-                    codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, objectCreationDataIndex, propertyIndex, valueIndex, !hasKeyName && (hasFunctionOnRightSide | hasClassOnRightSide)), context, this->m_loc.index);
+                    codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, objectCreationDataIndex, propertyIndex, valueIndex, !p->isProtoSetter() && !hasKeyName && (hasFunctionOnRightSide | hasClassOnRightSide), p->isProtoSetter()), context, this->m_loc.index);
                 } else {
                     ASSERT(p->kind() == PropertyNode::Kind::Get || p->kind() == PropertyNode::Kind::Set);
                     codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, p->kind() == PropertyNode::Kind::Get, objectCreationDataIndex, propertyIndex, valueIndex), context, this->m_loc.index);

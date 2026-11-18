@@ -1124,6 +1124,7 @@ public:
         Init,
         FillKeyValue,
         DefineGetterSetter,
+        SetPrototype,
     };
 
     typedef BloomFilter<1024> CreateObjectPropertyFilter;
@@ -1183,9 +1184,9 @@ public:
     {
     }
 
-    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex, const bool needsToUpdateFunctionName)
+    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex, const bool needsToUpdateFunctionName, const bool isProtoSetter = false)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
-        , m_stage(Stage::FillKeyValue)
+        , m_stage(isProtoSetter ? Stage::SetPrototype : Stage::FillKeyValue)
         , m_allPrecomputed(false)
         , m_needsToUsePropertyFilterOnInterpreter(false)
         , m_needsToUseBigPropertyFilterOnInterpreter(false)
