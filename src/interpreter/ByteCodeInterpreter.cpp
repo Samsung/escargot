@@ -72,9 +72,7 @@ asm(".pushsection .escargot.thumb_dispatch,\"\",%progbits\n"
 #endif
 
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) && !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
-// Keep the entry label assembler-local so profilers do not split interpret() at this point.
-extern char FillOpcodeTableAsmLbl[] asm(".LFillOpcodeTableAsmLbl");
-const void* FillOpcodeTableAddress[] = { &FillOpcodeTableAsmLbl[0] };
+extern "C" void* escargotOpcodeTableBootstrap __attribute__((visibility("hidden")));
 #endif
 
 namespace Escargot {
@@ -335,17 +333,14 @@ OpcodeTable::OpcodeTable()
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
     size_t dummyCode = 0;
 #else
-    size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAddress[0]);
-#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
-    dummyCode |= 1;
-#endif
+    size_t dummyCode = reinterpret_cast<size_t>(escargotOpcodeTableBootstrap);
 #endif
     Interpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
 #if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
     // ByteCode::assignOpcodeInAddress() and changeOpcode() copy these entries
     // verbatim. Tag every target before the constructor returns, including the
     // reverse map used by the code cache. Keep this outside interpret() so its
-    // dispatch layout is unchanged; the dummy entry above is tagged separately.
+    // dispatch layout is unchanged.
 #if defined(ENABLE_CODE_CACHE)
     m_opcodeMap.clear();
 #endif
@@ -800,8 +795,7 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
 
     NextInstruction:
         /* Execute first instruction. */
-        // With ESCARGOT_ARM32_THUMB_DISPATCH every target, including the dummy
-        // initialization instruction, already carries the Thumb state bit.
+        // With ESCARGOT_ARM32_THUMB_DISPATCH every target already carries the Thumb state bit.
         // The build tool can remove GCC's redundant OR before BX and preserve
         // subsequent code addresses with unreachable space after the branch.
         goto*(programCounter.code()->m_opcodeInAddress);
@@ -3069,15 +3063,26 @@ ATTRIBUTE_NO_JUMP_TABLES Value Interpreter::interpret(ExecutionState* state, Byt
             __attribute__((cold));
 #endif
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
-
 #if !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
-#if defined(ESCARGOT_ARM32_THUMB_DISPATCH)
-            // Enter at the C++ label, including any register setup GCC places
-            // before this asm statement.
-            asm volatile(".set .LFillOpcodeTableAsmLbl, %l0" : : "X"(&&FillOpcodeTableOpcodeLbl));
+#if __SIZEOF_POINTER__ == 8
+#define BOOTSTRAP_ADDRESS_DIRECTIVE ".balign 8\nescargotOpcodeTableBootstrap: .quad "
 #else
-            asm volatile(".LFillOpcodeTableAsmLbl:");
+#define BOOTSTRAP_ADDRESS_DIRECTIVE ".balign 4\nescargotOpcodeTableBootstrap: .long "
 #endif
+#if defined(__thumb__)
+#define BOOTSTRAP_THUMB_BIT "+1"
+#else
+#define BOOTSTRAP_THUMB_BIT ""
+#endif
+            // Emit a data relocation to the compiler's label. The constructor
+            // reads the relocated address before calling interpret(), including
+            // when LTO assigns the final name and location of the label.
+            asm volatile(".pushsection .data.rel.ro,\"aw\"\n"
+                         ".globl escargotOpcodeTableBootstrap\n"
+                         ".hidden escargotOpcodeTableBootstrap\n" BOOTSTRAP_ADDRESS_DIRECTIVE "%l0" BOOTSTRAP_THUMB_BIT "\n"
+                         ".popsection\n" : : "X"(&&FillOpcodeTableOpcodeLbl));
+#undef BOOTSTRAP_ADDRESS_DIRECTIVE
+#undef BOOTSTRAP_THUMB_BIT
 #endif
 
             // The label addresses must be computed here, in this cold block. Passing each
