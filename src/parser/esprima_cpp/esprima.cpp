@@ -1981,9 +1981,18 @@ public:
                             v = token->valueStringLiteralToValue(this->scanner);
                         }
                     }
+#if defined(ESCARGOT_SMALL_CONFIG)
+                    else if (token->type == Token::StringLiteralToken && token->valueStringLiteral(this->scanner).equals("__proto__")) {
+                        // SMALL_CONFIG uses NodeGenerator for syntax-only parsing.
+                        // Keep this key available for duplicate prototype checks.
+                        v = Value(escargotContext->staticStrings().__proto__.string());
+                    }
+#endif
                 } else {
                     if (token->type == Token::StringLiteralToken) {
                         builder.setValueStringLiteral(token->valueStringLiteral(this->scanner));
+                    } else {
+                        builder.setValueStringLiteral(ParserStringView());
                     }
                 }
                 key = this->finalize(node, builder.createLiteralNode(v));
@@ -2102,9 +2111,8 @@ public:
             }
             kind = PropertyNode::Kind::Init;
             if (this->match(PunctuatorKind::Colon) && !isAsync) {
-                // FIXME check !this->isParsingSingleFunction
-                isProto = !this->isParsingSingleFunction && builder.isPropertyKey(keyNode, "__proto__");
-                if (!computed && isProto) {
+                isProto = !computed && builder.isPropertyKey(keyNode, "__proto__");
+                if (isProto) {
                     propertyNameIs__proto__ = true;
                 }
                 this->nextToken();
@@ -2175,7 +2183,7 @@ public:
             this->lastPoppedScopeContext->m_isObjectMethod = true;
         }
 
-        return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand));
+        return this->finalize(node, builder.createPropertyNode(keyNode, valueNode, kind, computed, shorthand, isProto));
     }
 
     template <class ASTBuilder>

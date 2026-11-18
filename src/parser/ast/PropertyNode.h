@@ -33,11 +33,12 @@ public:
         Set
     };
 
-    PropertyNode(Node* key, Node* value, Kind kind, bool computed, bool shorthand)
+    PropertyNode(Node* key, Node* value, Kind kind, bool computed, bool shorthand, bool isProtoSetter = false)
         : Node()
         , m_kind(kind)
         , m_computed(computed)
         , m_shorthand(shorthand)
+        , m_isProtoSetter(isProtoSetter)
         , m_key(key)
         , m_value(value)
     {
@@ -67,6 +68,11 @@ public:
     bool computed()
     {
         return m_computed;
+    }
+
+    bool isProtoSetter()
+    {
+        return m_isProtoSetter;
     }
 
     bool isValidPropertyNode()
@@ -135,6 +141,7 @@ private:
     Kind m_kind; // kind: "init" | "get" | "set";
     bool m_computed : 1;
     bool m_shorthand : 1;
+    bool m_isProtoSetter : 1;
     Node* m_key; // key: Literal | Identifier;
     Node* m_value; // value: Expression;
 };

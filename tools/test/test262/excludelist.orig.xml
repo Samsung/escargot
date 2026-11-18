@@ -526,7 +526,6 @@
     <test id="language/expressions/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/object/__proto__-permitted-dup-shorthand"><reason>TODO</reason></test>
     <test id="language/expressions/object/computed-property-name-topropertykey-before-value-evaluation"><reason>TODO</reason></test>
     <test id="language/expressions/object/identifier-shorthand-yield-invalid-strict-mode"><reason>TODO</reason></test>
     <test id="language/expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err"><reason>TODO</reason></test>
@@ -879,7 +878,6 @@
     <test id="staging/sm/expressions/destructuring-pattern-parenthesized"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/exponentiation-unparenthesised-unary"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/nested-delete-name-in-evalcode"><reason>TODO</reason></test>
-    <test id="staging/sm/expressions/object-literal-__proto__"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/object-literal-computed-property-evaluation"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment"><reason>TODO</reason></test>
     <test id="staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation"><reason>TODO</reason></test>
