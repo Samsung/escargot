@@ -80,8 +80,28 @@ public:
             while (regIndex < ARRAY_DEFINE_OPERATION_MERGE_COUNT && element != m_elements.end()) {
                 ByteCodeRegisterIndex valueIndex = REGISTER_LIMIT;
                 if (element->astNode()) {
+                    bool canSkipCopy = context->m_canSkipCopyToRegister;
+                    Node* value = element->astNode();
+                    if (canSkipCopy && (value->isIdentifier() || (value->isAssignmentOperation() && !value->isAssignmentExpressionSimple()))) {
+                        std::vector<AtomicString> names;
+                        value->iterateChildrenIdentifier([&](AtomicString name, bool) { names.push_back(name); });
+                        SentinelNode* later = element->next();
+                        for (size_t i = regIndex + 1; canSkipCopy && i < ARRAY_DEFINE_OPERATION_MERGE_COUNT && later != m_elements.end(); i++, later = later->next()) {
+                            if (later->astNode()) {
+                                later->astNode()->iterateChildrenIdentifier([&](AtomicString name, bool isAssignment) {
+                                    if (isAssignment && std::find(names.begin(), names.end(), name) != names.end()) {
+                                        canSkipCopy = false;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    // The batched write uses this value after later elements run.
+                    bool previousCanSkipCopy = context->m_canSkipCopyToRegister;
+                    context->m_canSkipCopyToRegister = canSkipCopy;
                     valueIndex = element->astNode()->getRegister(codeBlock, context);
                     element->astNode()->generateExpressionByteCode(codeBlock, context, valueIndex);
+                    context->m_canSkipCopyToRegister = previousCanSkipCopy;
                     regCount++;
                 }
                 regs[regIndex] = valueIndex;

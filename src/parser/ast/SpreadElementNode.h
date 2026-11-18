@@ -46,6 +46,11 @@ public:
         context->giveUpRegister();
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
+    {
+        m_argument->iterateChildrenIdentifier(fn);
+    }
+
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);

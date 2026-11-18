@@ -475,6 +475,13 @@ public:
         codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this->m_loc.index);
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
+    {
+        if (m_argument) {
+            m_argument->iterateChildrenIdentifier(fn);
+        }
+    }
+
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);

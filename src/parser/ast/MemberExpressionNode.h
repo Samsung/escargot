@@ -271,8 +271,15 @@ public:
             size_t propertyIndex;
             if (needToReferenceSelf) {
                 valueIndex = src;
+                bool previousCanSkipCopy = context->m_canSkipCopyToRegister;
+                if (m_object->isIdentifier()) {
+                    context->m_canSkipCopyToRegister = canUseDirectRegister(context, m_object, m_property);
+                } else if (m_object->isAssignmentOperation() && !m_object->isAssignmentExpressionSimple()) {
+                    context->m_canSkipCopyToRegister = false;
+                }
                 objectIndex = m_object->getRegister(codeBlock, context);
                 m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+                context->m_canSkipCopyToRegister = previousCanSkipCopy;
                 propertyIndex = m_property->getRegister(codeBlock, context);
                 m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
                 propertyIndex = context->getLastRegisterIndex();
@@ -300,8 +307,18 @@ public:
             context->giveUpRegister();
         }
 
+        bool previousCanSkipCopy = context->m_canSkipCopyToRegister;
+        if (!m_isPreComputedCase) {
+            // Preserve the base if evaluating the key can change its local.
+            if (m_object->isIdentifier()) {
+                context->m_canSkipCopyToRegister = canUseDirectRegister(context, m_object, m_property);
+            } else if (m_object->isAssignmentOperation() && !m_object->isAssignmentExpressionSimple()) {
+                context->m_canSkipCopyToRegister = false;
+            }
+        }
         ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
+        context->m_canSkipCopyToRegister = previousCanSkipCopy;
 
         if (!m_isPreComputedCase) {
             ByteCodeRegisterIndex propertyIndex = m_property->getRegister(codeBlock, context);
