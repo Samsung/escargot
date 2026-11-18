@@ -536,6 +536,7 @@ ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC static Value builtinParseInt(ExecutionState& 
     //     that is represented by Z in radix-R notation.)
     // 14. Let number be the Number value for mathInt.
     bool sawDigit = false;
+    unsigned digitStart = p;
     double number = 0.0;
     while (p < strLen) {
         int digit = parseDigit(s->charAt(p), radix);
@@ -550,6 +551,21 @@ ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC static Value builtinParseInt(ExecutionState& 
     // 12. If Z is empty, return NaN.
     if (!sawDigit)
         return Value(Value::NanInit);
+
+    if (radix == 10 && p - digitStart > 15) {
+        while (digitStart < p && s->charAt(digitStart) == '0') {
+            digitStart++;
+        }
+    }
+    if (radix == 10 && p - digitStart > 15) {
+        // The per-digit double operations can round more than once. Convert
+        // the complete decimal integer and round only at the end instead.
+        auto digits = s->substring(digitStart, p)->toNonGCUTF8StringData();
+        double_conversion::StringToDoubleConverter converter(double_conversion::StringToDoubleConverter::NO_FLAGS,
+                                                             0.0, std::numeric_limits<double>::quiet_NaN(), nullptr, nullptr);
+        int processedCharacters = 0;
+        number = converter.StringToDouble(digits.data(), static_cast<int>(digits.size()), &processedCharacters);
+    }
 
     // 15. Return sign × number.
     return Value(Value::DoubleToIntConvertibleTestNeeds, sign * number);
