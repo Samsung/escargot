@@ -1973,7 +1973,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
     if (!callbackfn.isCallable()) // 4
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
 
-    if (len == 0 && (initialValue.isUndefined() || initialValue.isEmpty())) // 5
+    if (len == 0 && initialValue.isEmpty()) // 5
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_ReduceError);
 
     int64_t k = 0; // 6
