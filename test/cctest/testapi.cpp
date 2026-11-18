@@ -434,6 +434,49 @@ int main(int argc, char* argv[])
     return testResult;
 }
 
+TEST(GlobalObject, PrototypePolicy)
+{
+    for (bool useProxy : { false, true }) {
+        auto context = createEscargotContext(g_instance.get());
+        if (useProxy) {
+            auto installed = Evaluator::execute(context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+                auto* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(),
+                                                                 [](ExecutionStateRef*, GlobalObjectProxyObjectRef*, GlobalObjectRef*, GlobalObjectProxyObjectRef::AccessOperationType, OptionalRef<AtomicStringRef>) {});
+                state->context()->setGlobalObjectProxy(proxy);
+                return ValueRef::createUndefined();
+            });
+            ASSERT_TRUE(installed.isSuccessful());
+        }
+        EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII("!Reflect.setPrototypeOf(Object.prototype, {}) && "
+                                                                       "Reflect.setPrototypeOf(globalThis, Object.getPrototypeOf(globalThis))"),
+                             StringRef::createFromASCII("global-prototype-invariants.js"), false),
+                  "true");
+        const char source[] = R"JS(
+            (() => {
+                const original = Object.getPrototypeOf(globalThis);
+                const replacement = {};
+                const changed = Reflect.setPrototypeOf(globalThis, replacement);
+                let threw = false;
+                try { globalThis.__proto__ = replacement; }
+                catch (error) {
+                    if (!(error instanceof TypeError)) throw error;
+                    threw = true;
+                }
+                if (changed === threw) throw new Error('inconsistent prototype operations');
+                if (Object.getPrototypeOf(globalThis) !== (changed ? replacement : original))
+                    throw new Error('unexpected global prototype');
+                return changed;
+            })();
+        )JS";
+#if defined(ENABLE_MUTABLE_GLOBAL_PROTOTYPE)
+        const char* expected = "true";
+#else
+        const char* expected = "false";
+#endif
+        EXPECT_EQ(evalScript(context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("global-prototype-policy.js"), false), expected);
+    }
+}
+
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
 TEST(Evaluator, ICULoadFailuresBecomeExceptions)
 {
@@ -458,12 +501,9 @@ TEST(Evaluator, ICUFailureIsCatchableInsideJavaScript)
 {
     auto context = createEscargotContext(g_instance.get());
     auto installed = Evaluator::execute(context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-        FunctionObjectRef::NativeFunctionInfo info(AtomicStringRef::create(state->context(), "missingICU"),
-            [](ExecutionStateRef*, ValueRef*, size_t, ValueRef**, bool) -> ValueRef* {
-                throw RuntimeICUBinder::LoadError("missing native symbol");
-            }, 0, true, false);
+        FunctionObjectRef::NativeFunctionInfo info(AtomicStringRef::create(state->context(), "missingICU"), [](ExecutionStateRef*, ValueRef*, size_t, ValueRef**, bool) -> ValueRef* { throw RuntimeICUBinder::LoadError("missing native symbol"); }, 0, true, false);
         state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("missingICU"),
-            FunctionObjectRef::create(state, info), true, true, true);
+                                                             FunctionObjectRef::create(state, info), true, true, true);
         return ValueRef::createUndefined();
     });
     ASSERT_TRUE(installed.isSuccessful());
@@ -5887,8 +5927,7 @@ TEST(CAPI, ContextReentryPreservesRealmAndVMIsolation)
             return ValueRef::createUndefined();
         }, otherVM);
         EXPECT_TRUE(isolated.isSuccessful());
-        return ValueRef::createUndefined();
-    }, second.get(), third.get());
+        return ValueRef::createUndefined(); }, second.get(), third.get());
     EXPECT_TRUE(result.isSuccessful());
 }
 
@@ -5961,8 +6000,7 @@ TEST(CAPI, CallbackReentryAndLifetime)
     ASSERT_EQ(escargot_context_create(instance, &ctx), ESCARGOT_OK);
     EXPECT_EQ(escargot_vm_destroy(instance), ESCARGOT_INVALID_STATE);
     escargot_result fn = nullptr;
-    ASSERT_EQ(escargot_function_create(ctx, "reenter", 7, 0, 0,
-        [](escargot_context ctx, escargot_value, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
+    ASSERT_EQ(escargot_function_create(ctx, "reenter", 7, 0, 0, [](escargot_context ctx, escargot_value, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
             escargot_result nested = nullptr;
             const char* source = "new Error('inside').stack";
             auto status = escargot_context_eval(ctx, source, strlen(source), "inner.js", 8, &nested);
@@ -5971,8 +6009,7 @@ TEST(CAPI, CallbackReentryAndLifetime)
             // The returned value remains in this active native stack until
             // the caller acquires it. No collection occurs in result_release.
             escargot_result_release(nested);
-            return status;
-        }, nullptr, &fn), ESCARGOT_OK);
+            return status; }, nullptr, &fn), ESCARGOT_OK);
     escargot_value key = nullptr;
     ASSERT_EQ(escargot_string_create_utf8("reenter", 7, &key), ESCARGOT_OK);
     escargot_result set = nullptr;
@@ -5996,11 +6033,9 @@ TEST(CAPI, TemplatesAndBackingStores)
 {
     escargot_template templ = nullptr;
     auto ctx = CAPI::toC(g_context.get());
-    ASSERT_EQ(escargot_function_template_create(ctx, "sample", 6, 0, 1,
-        [](escargot_context, escargot_value receiver, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
+    ASSERT_EQ(escargot_function_template_create(ctx, "sample", 6, 0, 1, [](escargot_context, escargot_value receiver, size_t, const escargot_value*, escargot_value, void*, escargot_value* out) -> escargot_status {
             *out = receiver;
-            return ESCARGOT_OK;
-        }, nullptr, &templ), ESCARGOT_OK);
+            return ESCARGOT_OK; }, nullptr, &templ), ESCARGOT_OK);
     escargot_result first = nullptr, second = nullptr;
     ASSERT_EQ(escargot_template_instantiate(ctx, templ, &first), ESCARGOT_OK);
     ASSERT_EQ(escargot_template_instantiate(ctx, templ, &second), ESCARGOT_OK);

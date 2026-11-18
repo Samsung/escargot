@@ -202,10 +202,12 @@ TEST(Napi, CallbackReentryKeepsContextAndStack)
     std::unique_ptr<NapiEnv> caller(NapiEnv::create());
     std::unique_ptr<NapiEnv> target(NapiEnv::create(caller->vmInstance()));
     std::unique_ptr<NapiEnv> isolated(NapiEnv::create());
-    struct Targets { napi_env sameVM; napi_env otherVM; } targets = { target->env(), isolated->env() };
+    struct Targets {
+        napi_env sameVM;
+        napi_env otherVM;
+    } targets = { target->env(), isolated->env() };
     napi_value callback = nullptr;
-    ASSERT_EQ(napi_create_function(caller->env(), "check", NAPI_AUTO_LENGTH,
-        [](napi_env env, napi_callback_info info) -> napi_value {
+    ASSERT_EQ(napi_create_function(caller->env(), "check", NAPI_AUTO_LENGTH, [](napi_env env, napi_callback_info info) -> napi_value {
             void* data = nullptr;
             napi_get_cb_info(env, info, nullptr, nullptr, nullptr, &data);
             auto* targets = static_cast<Targets*>(data);
@@ -222,8 +224,7 @@ TEST(Napi, CallbackReentryKeepsContextAndStack)
             }
             napi_value result = nullptr;
             napi_get_boolean(env, true, &result);
-            return result;
-        }, &targets, &callback), napi_ok);
+            return result; }, &targets, &callback), napi_ok);
     napi_value global = nullptr, script = nullptr, result = nullptr;
     ASSERT_EQ(napi_get_global(caller->env(), &global), napi_ok);
     ASSERT_EQ(napi_set_named_property(caller->env(), global, "check", callback), napi_ok);

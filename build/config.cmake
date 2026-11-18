@@ -270,8 +270,8 @@ ELSE()
 ENDIF()
 SET (ESCARGOT_ICU_MODE "${_escargot_icu_mode}" CACHE INTERNAL "Resolved ICU linkage mode" FORCE)
 
-# napi_define_class needs FunctionTemplateRef, which is gated behind
-# ENABLE_EXTENDED_API; default it on for NAPI unless the caller already chose
+# Native bindings need FunctionTemplateRef, which is gated behind
+# ENABLE_EXTENDED_API; default it on unless the caller already chose.
 IF ((ESCARGOT_NAPI OR ESCARGOT_C_API) AND NOT DEFINED ESCARGOT_USE_EXTENDED_API)
     SET (ESCARGOT_USE_EXTENDED_API ON)
 ENDIF()
@@ -283,6 +283,12 @@ ENDIF()
 
 IF (ESCARGOT_USE_EXTENDED_API)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_EXTENDED_API)
+ENDIF()
+
+# API availability must not change JavaScript global object semantics.
+option(ESCARGOT_MUTABLE_GLOBAL_PROTOTYPE "Allow JavaScript to change the global object's prototype" OFF)
+IF (ESCARGOT_MUTABLE_GLOBAL_PROTOTYPE)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_MUTABLE_GLOBAL_PROTOTYPE)
 ENDIF()
 
 option(ESCARGOT_USE_CUSTOM_LOGGING "Use a custom logging backend instead of the host's native log (e.g. dlog on Tizen)" OFF)
