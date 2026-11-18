@@ -115,5 +115,15 @@ target_include_directories(escargot-rtos PRIVATE
 target_compile_definitions(escargot-rtos PRIVATE ${ESCARGOT_ENGINE_DEFS})
 target_compile_options(escargot-rtos PRIVATE -fexceptions)
 target_link_libraries(escargot-rtos escargot gc-lib freertos -lc -lstdc++)
+# Newlib can reference these hooks from archive members selected after LTO.
+# Keep the startup definitions visible even when LTO sees no earlier callers.
+target_link_options(escargot-rtos PRIVATE
+    -Wl,--undefined=_write
+    -Wl,--undefined=_sbrk
+    -Wl,--undefined=_close
+    -Wl,--undefined=_fstat
+    -Wl,--undefined=_isatty
+    -Wl,--undefined=_lseek
+    -Wl,--undefined=_read)
 
 set_target_properties(escargot-rtos PROPERTIES SUFFIX ".elf")
