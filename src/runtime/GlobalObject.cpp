@@ -44,6 +44,7 @@
 #include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "heap/LeakCheckerBridge.h"
+#include "util/PowerOfTwoInteger.h"
 #include "double-conversion.h"
 
 namespace Escargot {
@@ -565,6 +566,37 @@ ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC static Value builtinParseInt(ExecutionState& 
                                                              0.0, std::numeric_limits<double>::quiet_NaN(), nullptr, nullptr);
         int processedCharacters = 0;
         number = converter.StringToDouble(digits.data(), static_cast<int>(digits.size()), &processedCharacters);
+    }
+
+    if (radix != 10 && p - digitStart > 10) {
+        unsigned bitsPerDigit = 0;
+        switch (radix) {
+        case 2:
+            bitsPerDigit = 1;
+            break;
+        case 4:
+            bitsPerDigit = 2;
+            break;
+        case 8:
+            bitsPerDigit = 3;
+            break;
+        case 16:
+            bitsPerDigit = 4;
+            break;
+        case 32:
+            bitsPerDigit = 5;
+            break;
+        default:
+            break;
+        }
+        if (bitsPerDigit && p - digitStart > 53 / bitsPerDigit) {
+            // Power-of-two radices require correctly rounded mathematical integers.
+            PowerOfTwoInteger integer;
+            for (unsigned i = digitStart; i < p; ++i) {
+                integer.append(parseDigit(s->charAt(i), radix), bitsPerDigit);
+            }
+            number = integer.toDouble();
+        }
     }
 
     // 15. Return sign × number.
