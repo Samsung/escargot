@@ -660,8 +660,6 @@
     <test id="language/module-code/early-import-as-eval"><reason>TODO</reason></test>
     <test id="language/module-code/early-import-eval"><reason>TODO</reason></test>
     <test id="language/module-code/eval-rqstd-once"><reason>TODO</reason></test>
-    <test id="language/module-code/export-default-asyncfunction-declaration-binding"><reason>TODO</reason></test>
-    <test id="language/module-code/export-default-asyncgenerator-declaration-binding"><reason>TODO</reason></test>
     <test id="language/module-code/export-expname-binding-index"><reason>TODO</reason></test>
     <test id="language/module-code/export-expname-binding-string"><reason>TODO</reason></test>
     <test id="language/module-code/export-expname-from-binding-string"><reason>TODO</reason></test>
