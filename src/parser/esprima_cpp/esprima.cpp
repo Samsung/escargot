@@ -6913,9 +6913,11 @@ public:
             }
 
             this->nextToken();
-            if (this->matchKeyword(KeywordKind::FunctionKeyword)) {
+            if (this->matchKeyword(KeywordKind::FunctionKeyword) || this->matchAsyncFunction()) {
                 // export default function foo () {}
                 // export default function () {}
+                // export default async function foo () {}
+                // export default async function () {}
                 ASTNode declaration = this->parseFunctionDeclaration<ASTBuilder, true>(builder);
 
                 if (builder.willGenerateByteCode()) {
@@ -6943,9 +6945,6 @@ public:
 
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(classNode, entry.m_exportName.value(), entry.m_localName.value()));
                 }
-            } else if (this->matchContextualKeyword(AsyncKeyword)) {
-                // TODO
-                this->throwUnexpectedToken(this->lookahead, "async keyword in export is not supported yet");
             } else {
                 if (this->matchContextualKeyword(FromKeyword)) {
                     this->throwUnexpectedToken(this->lookahead);
