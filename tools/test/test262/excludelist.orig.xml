@@ -773,7 +773,6 @@
     <test id="staging/sm/Date/dst-offset-caching-8-of-8"><reason>TODO</reason></test>
     <test id="staging/sm/Date/non-iso"><reason>TODO</reason></test>
     <test id="staging/sm/Date/two-digit-years"><reason>TODO</reason></test>
-    <test id="staging/sm/Error/AggregateError"><reason>TODO</reason></test>
     <test id="staging/sm/Function/10.2.1.1.6"><reason>TODO</reason></test>
     <test id="staging/sm/Function/15.3.4.3-01"><reason>TODO</reason></test>
     <test id="staging/sm/Function/arguments-caller-callee"><reason>TODO</reason></test>
