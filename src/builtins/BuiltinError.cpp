@@ -22,6 +22,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ErrorObject.h"
+#include "runtime/ArrayObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ToStringRecursionPreventer.h"
 
