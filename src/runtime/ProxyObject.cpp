@@ -872,7 +872,7 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 9. Let trapResult be Call(trap, handler, «target, P, Receiver»).
     // 10. ReturnIfAbrupt(trapResult).
     Value trapResult;
-    Value arguments[] = { target, propertyName.toPropertyKeyValue(state), Value(this) };
+    Value arguments[] = { target, propertyName.toPropertyKeyValue(state), receiver };
     trapResult = Object::call(state, trap, handler, 3, arguments);
 
     // 11. Let targetDesc be target.[[GetOwnProperty]](P).

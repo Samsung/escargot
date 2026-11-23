@@ -810,7 +810,6 @@
     <test id="staging/sm/Reflect/construct"><reason>TODO</reason></test>
     <test id="staging/sm/Reflect/defineProperty"><reason>TODO</reason></test>
     <test id="staging/sm/Reflect/deleteProperty"><reason>TODO</reason></test>
-    <test id="staging/sm/Reflect/get"><reason>TODO</reason></test>
     <test id="staging/sm/Reflect/isExtensible"><reason>TODO</reason></test>
     <test id="staging/sm/Reflect/preventExtensions"><reason>TODO</reason></test>
     <test id="staging/sm/Reflect/propertyKeys"><reason>TODO</reason></test>
