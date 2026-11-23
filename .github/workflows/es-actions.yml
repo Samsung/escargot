@@ -2473,8 +2473,21 @@ jobs:
           -DESCARGOT_BUILD_64BIT_FORCE_LARGE=${{ matrix.large }} \
           "-DGCUTIL_CFLAGS_FROM_EXTERNAL=${{ matrix.gc_flags }}"
         cmake --build out/unload --target shared_library_unload_test --parallel 4
-    - name: Verify host-thread unload and fresh reload
+    - name: Verify repeated unload and bound post-unload heap growth
+      env:
+        # Keep freed thread-cache chunks out of glibc's allocated-heap count.
+        GLIBC_TUNABLES: glibc.malloc.tcache_count=0
       run: xvfb-run -s '-screen 0 1920x1080x24' -a out/unload/shared_library_unload_test "$GITHUB_WORKSPACE/out/unload/libescargot_unload_test_runtime.so"
+    - name: Check unload allocations with Memcheck
+      if: matrix.gc_flags != ''
+      run: |
+        sudo apt-get install -y valgrind
+        # Conservative GC reads the native stack. Check allocation errors and leaks here.
+        valgrind --tool=memcheck --undef-value-errors=no --child-silent-after-fork=yes \
+          --keep-debuginfo=yes --leak-check=full --show-leak-kinds=definite,indirect,possible \
+          --errors-for-leak-kinds=definite,indirect,possible --error-exitcode=1 \
+          out/unload/shared_library_unload_test \
+          "$GITHUB_WORKSPACE/out/unload/libescargot_unload_test_runtime.so" --single-cycle
 
   build-test-asan:
     runs-on: ubuntu-latest
