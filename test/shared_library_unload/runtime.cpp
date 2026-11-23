@@ -28,6 +28,10 @@ extern "C" __attribute__((visibility("default"))) bool unloadTestExercise()
     auto parsed = context->scriptParser()->initializeScript(StringRef::createFromASCII(
                                                                 "(() => { const a = Array.from({length: 4096}, (_, i) => ({x: i}));"
                                                                 "const m = new Map(a.map(v => [v, v.x]));"
+                                                                "if (!/./s.test('\\n') || /./.test('\\n') ||"
+                                                                "!/[\\d][\\D][\\s][\\S][\\w][\\W]/.test('1a xz!') ||"
+                                                                "!/[\\w][\\W]/iu.test('\\u212a!'))"
+                                                                "    throw new Error('built-in character class mismatch');"
                                                                 "return m.get(a[42]) + Number(1n << 5n) - 32; })()"),
                                                             StringRef::createFromASCII("unload-test.js"), false);
     if (!parsed.script) {

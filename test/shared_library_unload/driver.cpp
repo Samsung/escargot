@@ -19,6 +19,13 @@
 #include <thread>
 #include <unistd.h>
 
+#ifdef __GLIBC__
+#if __GLIBC_PREREQ(2, 33)
+#include <malloc.h>
+#define ESCARGOT_UNLOAD_HAS_MALLINFO2
+#endif
+#endif
+
 static void require(bool condition, const char* message)
 {
     if (!condition) {
@@ -90,10 +97,20 @@ static pthread_key_t nextKey()
     return key;
 }
 
+#ifdef ESCARGOT_UNLOAD_HAS_MALLINFO2
+static size_t allocatedHeapBytes()
+{
+    const auto heap = mallinfo2();
+    return heap.uordblks + heap.hblkhd;
+}
+#endif
+
 int main(int argc, char** argv)
 {
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
-    require(argc == 2, "expected embedding shared library path");
+    require(argc == 2 || (argc == 3 && std::strcmp(argv[2], "--single-cycle") == 0),
+            "expected embedding shared library path and optional --single-cycle");
+    const int cycleCount = argc == 3 ? 1 : 40;
     const long tid = syscall(SYS_gettid);
     const auto initialThreads = entries("/proc/self/task");
     const auto initialFDs = entries("/proc/self/fd");
@@ -102,7 +119,13 @@ int main(int argc, char** argv)
     require(sigaction(SIGSEGV, nullptr, &initialSegv) == 0, "read SIGSEGV handler");
     require(sigaction(SIGBUS, nullptr, &initialBus) == 0, "read SIGBUS handler");
 
-    for (int cycle = 0; cycle < 40; ++cycle) {
+#ifdef ESCARGOT_UNLOAD_HAS_MALLINFO2
+    constexpr int warmupCycles = 8;
+    // Allow small one-time allocator and loader bookkeeping after warm-up.
+    constexpr size_t maxRetainedHeapGrowth = 16 * 1024;
+    size_t warmedHeapBytes = 0;
+#endif
+    for (int cycle = 0; cycle < cycleCount; ++cycle) {
         void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
         if (!library) {
             std::fprintf(stderr, "dlopen: %s\n", dlerror());
@@ -197,6 +220,19 @@ int main(int argc, char** argv)
         struct sigaction segv, bus;
         require(sigaction(SIGSEGV, nullptr, &segv) == 0 && sigaction(SIGBUS, nullptr, &bus) == 0, "read signal handlers after unload");
         require(segv.sa_sigaction == initialSegv.sa_sigaction && bus.sa_sigaction == initialBus.sa_sigaction, "GC signal handler survived unload");
+#ifdef ESCARGOT_UNLOAD_HAS_MALLINFO2
+        if (cycleCount > 1) {
+            const size_t heapBytes = allocatedHeapBytes();
+            std::printf("Post-unload allocated heap after cycle %d: %zu bytes\n", cycle + 1, heapBytes);
+            if (cycle + 1 == warmupCycles) {
+                warmedHeapBytes = heapBytes;
+            } else if (cycle + 1 > warmupCycles && heapBytes > warmedHeapBytes + maxRetainedHeapGrowth) {
+                std::fprintf(stderr, "FAIL: post-unload heap grew by %zu bytes since cycle %d (limit %zu)\n",
+                             heapBytes - warmedHeapBytes, warmupCycles, maxRetainedHeapGrowth);
+                return 1;
+            }
+        }
+#endif
         std::printf("PASS cycle %d: tid=%ld, JS and normal restart succeeded, embedding and runtime unmapped\n", cycle + 1, tid);
     }
 }
