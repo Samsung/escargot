@@ -323,6 +323,9 @@ void Globals::destroyRuntimeForSharedLibraryUnload()
     RELEASE_ASSERT(!g_runtimeDestroyedForSharedLibraryUnload);
     RELEASE_ASSERT(g_globalsFinalized && !g_globalsInited && !Global::isInitialized());
     ThreadLocal::destroyRuntimeForSharedLibraryUnload();
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    RegExpObject::destroySharedCharacterClassesForUnload();
+#endif
     g_runtimeDestroyedForSharedLibraryUnload = true;
 }
 

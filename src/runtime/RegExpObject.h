@@ -150,6 +150,10 @@ class RegExpObject : public DerivedObject {
     void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:
+#if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    static void destroySharedCharacterClassesForUnload();
+#endif
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
     enum Option : unsigned int {

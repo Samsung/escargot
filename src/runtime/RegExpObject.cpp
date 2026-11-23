@@ -66,6 +66,11 @@
 namespace Escargot {
 
 #if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+void RegExpObject::destroySharedCharacterClassesForUnload()
+{
+    JSC::Yarr::YarrPattern::destroySharedCharacterClassesForUnload();
+}
+
 LiteralMatchIndices::LiteralMatchIndices(VMInstance* vmInstance)
     : m_vmInstance(vmInstance)
 {

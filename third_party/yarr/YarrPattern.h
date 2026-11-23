@@ -663,6 +663,7 @@ private:
 
 public:
 #if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+    static void destroySharedCharacterClassesForUnload();
     static const CharacterClass* anyCharacterClass();
     static const CharacterClass* newlineCharacterClass();
     static const CharacterClass* digitsCharacterClass();
