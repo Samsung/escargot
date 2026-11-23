@@ -28,6 +28,7 @@
 #include "parser/ASTAllocator.h"
 #include "api/EscargotPublic.h"
 #include "BumpPointerAllocator.h"
+#include <cstdlib>
 #include <gc/gc_mark.h>
 #if defined(ENABLE_WASM)
 #include "wasm.h"
@@ -773,7 +774,15 @@ void ThreadLocal::initialize(uint32_t optionFromGlobal)
     g_randEngine = new std::mt19937(static_cast<unsigned int>(time(NULL)));
 
     // g_bfContext
-    bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* { return realloc(ptr, size); }, nullptr);
+    auto reallocate = [](void*, void* ptr, size_t size) -> void* {
+        // libbf uses a zero size to free the allocation.
+        if (size == 0) {
+            std::free(ptr);
+            return nullptr;
+        }
+        return std::realloc(ptr, size);
+    };
+    bf_context_init(&g_bfContext, reallocate, nullptr);
 
 #if defined(ENABLE_WASM)
     // g_wasmContext
