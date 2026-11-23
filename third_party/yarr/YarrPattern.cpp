@@ -63,6 +63,7 @@
 #include "Yarr.h"
 #include "YarrCanonicalize.h"
 #include "YarrParser.h"
+#include <atomic>
 #include <limits>
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
@@ -992,18 +993,47 @@ private:
 };
 
 #if defined(ENABLE_REGEXP_OPTIMIZATIONS)
+namespace {
+
+struct SharedCharacterClass;
+std::atomic<SharedCharacterClass*> sharedCharacterClasses{ nullptr };
+
+struct SharedCharacterClass {
+    explicit SharedCharacterClass(std::unique_ptr<CharacterClass> value)
+        : characterClass(value.get())
+        , next(sharedCharacterClasses.load(std::memory_order_relaxed))
+    {
+        value->initializeLatin1Bitmap();
+        value.release();
+        while (!sharedCharacterClasses.compare_exchange_weak(next, this,
+            std::memory_order_release, std::memory_order_relaxed)) {
+        }
+    }
+
+    const CharacterClass* characterClass;
+    SharedCharacterClass* next;
+};
+
+} // anonymous namespace
+
 template<std::unique_ptr<CharacterClass> (*create)()>
 const CharacterClass* YarrPattern::sharedCharacterClass()
 {
-    // C++11 initializes the cache once, including with concurrent isolates.
-    // Keep the class alive for the process lifetime: GC finalizers may still
-    // reference it after ordinary static destructors have run.
-    static const CharacterClass* const characterClass = [] {
-        auto result = create();
-        result->initializeLatin1Bitmap();
-        return result.release();
-    }();
-    return characterClass;
+    // Keep lazy initialization thread-safe and leave the cache alone during
+    // ordinary static destruction, when GC finalizers may still use it.
+    static SharedCharacterClass entry(create());
+    return entry.characterClass;
+}
+
+void YarrPattern::destroySharedCharacterClassesForUnload()
+{
+    // The terminal shutdown caller has destroyed GC and joined all workers.
+    auto* entry = sharedCharacterClasses.exchange(nullptr, std::memory_order_acquire);
+    while (entry) {
+        delete entry->characterClass;
+        entry->characterClass = nullptr;
+        entry = entry->next;
+    }
 }
 
 const CharacterClass* YarrPattern::anyCharacterClass() { return sharedCharacterClass<anycharCreate>(); }
