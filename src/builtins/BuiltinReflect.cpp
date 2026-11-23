@@ -135,7 +135,7 @@ static Value builtinReflectGet(ExecutionState& state, Value thisValue, size_t ar
     Value receiver = argc > 2 ? argv[2] : target;
 
     // 5. Return target.[[Get]](key, receiver).
-    return target.asObject()->get(state, key).value(state, receiver);
+    return target.asObject()->get(state, key, receiver).value(state, receiver);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.getownpropertydescriptor
