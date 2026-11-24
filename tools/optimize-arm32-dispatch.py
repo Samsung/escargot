@@ -8,7 +8,8 @@ Only ByteCodeInterpreter.cpp is changed. It must opt in with an ELF marker and
 pretag every computed-goto target. Remove the redundant state-bit OR and leave
 its space after the unconditional BX, where it is never executed. Assemble the
 modified source normally so instruction relocations and debug info stay valid.
-Leave dispatches across PC-relative instructions intact rather than move them.
+Keep the compiler's BX sequence when a redundant in-place OR cannot be
+verified or when moving instructions would change a PC-relative operand.
 This translation unit is compiled without LTO so the linker cannot regenerate
 its dispatch. Other translation units keep their original compiler options.
 Unexpected compiler output fails the build without leaving an output file.
@@ -133,9 +134,8 @@ def dispatch_sites(path, data, objdump):
             # intact; the pretagged address remains valid with its OR present.
             pc_relative_dispatches += 1
             continue
-        if found is None and target == 14:
-            continue  # BX LR is an interworking return, not opcode dispatch.
-        require(found is not None, "unrecognized dispatch before BX at 0x%x" % address)
+        if found is None:
+            continue
         require(found not in patches, "dispatch OR is shared by multiple branches")
         patches[found] = branch_offset
     require(patches, "no redundant Thumb dispatch ORs found")
@@ -180,12 +180,10 @@ def rewrite_assembly(source, name, count):
         require(REGISTER.fullmatch(operands), "unexpected assembler BX operand")
         target = register_number(operands)
         found = None
-        reads_pc = False
         for at, previous, arguments in reversed(instructions[max(0, index - 16):index]):
             if previous.startswith(("b", ".", "it", "cb", "tb")):
                 break
             if "pc" in REGISTER.findall(arguments):
-                reads_pc = True
                 break
             used = [register_number(r) for r in REGISTER.findall(arguments)]
             if target not in used:
@@ -195,9 +193,9 @@ def rewrite_assembly(source, name, count):
                     and used == [target, target] and fields[2] in ("#1", "#0x1")):
                 found = at
             break
-        if reads_pc or (found is None and target == 14):
+        if found is None:
             continue
-        require(found is not None and found not in pairs, "unrecognized assembler dispatch")
+        require(found not in pairs, "assembler dispatch OR is shared by multiple branches")
         pairs[found] = branch
     require(len(pairs) == count, "assembler/object dispatch counts differ")
     for at, branch in pairs.items():
