@@ -673,8 +673,9 @@ extern "C" NO_RETURN NEVER_INLINE void reportReleaseAssertNotReachedAndAbort(con
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
-// The opcode table bootstrap address uses ELF assembler directives.
-#if !defined(__ELF__)
+// The opcode table bootstrap needs ELF directives and a printable label
+// operand. Clang 9 (Android NDK r21) rejects %l0 for a label address.
+#if !defined(__ELF__) || (defined(COMPILER_CLANG) && __clang_major__ <= 9)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif
