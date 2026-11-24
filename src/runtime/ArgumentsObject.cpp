@@ -285,7 +285,7 @@ Value ArgumentsObject::getIndexedPropertyValue(ExecutionState& state, const Valu
     if (isMatchedArgument(index)) {
         return getIndexedPropertyValueQuickly(state, index);
     }
-    return get(state, ObjectPropertyName(state, property), receiver).value(state, property);
+    return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);
 }
 
 ObjectHasPropertyResult ArgumentsObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)

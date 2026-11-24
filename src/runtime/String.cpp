@@ -1464,7 +1464,7 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
     size_t m = captures.size();
     StringBuilder builder;
     bool twodigit = false;
-    Object* namedCaptureObj = nullptr;
+    Optional<Object*> namedCaptureObj;
     if (!namedCapture.isUndefined()) {
         namedCaptureObj = namedCapture.toObject(state);
     }
@@ -1520,7 +1520,7 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                 }
                 if (ValidNamedCapturedGroup && namedCaptureObj) {
                     String* groupName = replacement->substring((i + 2), (namedCaptureEnd), &state);
-                    Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
+                    Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, namedCaptureObj.value());
                     if (!capture.isUndefined()) {
                         builder.appendString(capture.toString(state), &state);
                     }
