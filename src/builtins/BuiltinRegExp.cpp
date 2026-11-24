@@ -330,7 +330,7 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
         return result;
     }
 #endif
-    return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, thisValue);
+    return result.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().index)).value(state, result);
 }
 
 // $21.2.5.11 RegExp.prototype[@@split]
