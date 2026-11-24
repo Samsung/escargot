@@ -7177,6 +7177,8 @@ public:
         ASSERT(this->isParsingSingleFunction);
 
         size_t squareBraketCount = 0;
+        // Brace depth inside each open template substitution of a computed key, innermost last
+        std::vector<size_t> templateBraceDepth;
         while (true) {
             bool isPunctuator = this->lookahead.type == Token::PunctuatorToken;
             if (isPunctuator) {
@@ -7186,7 +7188,23 @@ public:
                     squareBraketCount++;
                 } else if (this->lookahead.valuePunctuatorKind == PunctuatorKind::RightSquareBracket) {
                     squareBraketCount--;
+                } else if (!templateBraceDepth.empty()) {
+                    if (this->lookahead.valuePunctuatorKind == PunctuatorKind::LeftBrace) {
+                        templateBraceDepth.back()++;
+                    } else if (this->lookahead.valuePunctuatorKind == PunctuatorKind::RightBrace) {
+                        if (templateBraceDepth.back() == 0) {
+                            // This brace closes a substitution, so re-scan it as the rest of the template (see parseTemplateElement)
+                            this->scanner->scanTemplate(&this->lookahead);
+                            if (this->lookahead.valueTemplate->tail) {
+                                templateBraceDepth.pop_back();
+                            }
+                        } else {
+                            templateBraceDepth.back()--;
+                        }
+                    }
                 }
+            } else if (this->lookahead.type == Token::TemplateToken && !this->lookahead.valueTemplate->tail) {
+                templateBraceDepth.push_back(0);
             }
             this->nextToken();
         }

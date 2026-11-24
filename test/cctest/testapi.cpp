@@ -642,6 +642,19 @@ TEST(ScriptParser, ChainedTaggedTemplates)
     EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source.c_str(), source.length()), StringRef::createFromASCII("chained-tagged-templates.js"), false), "128");
 }
 
+TEST(ScriptParser, TemplateLiteralMethodKeys)
+{
+    // The method bodies are parsed when they are first called, which has to skip the template literal in the key
+    const char* source = "(function() { var r = [];"
+                         "class C { [`m${1}`]() { return 1; } static [`s${2}`]() { return 2; }"
+                         "get [`g${3}`]() { return 3; } set [`t${4}`](v) { r.push(v); } *[`y${5}`]() { yield 5; } }"
+                         "var c = new C(); c.t4 = 4;"
+                         "var o = { [`a${1}b${2}c`]() { return 6; }, [`n${`i${7}`}`]() { return 7; }, [`b${ { x: 8 }.x }`]() { return 8; } };"
+                         "r.push(c.m1(), C.s2(), c.g3, c.y5().next().value, o.a1b2c(), o.ni7(), o.b8());"
+                         "return r.join(); })()";
+    EXPECT_EQ(evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("template-literal-method-keys.js"), false), "4,1,2,3,5,6,7,8");
+}
+
 TEST(ValueRef, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
