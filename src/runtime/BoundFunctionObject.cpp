@@ -44,7 +44,7 @@ void* BoundFunctionObject::operator new(size_t size)
 #endif
 }
 
-BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
+BoundFunctionObject::BoundFunctionObject(ExecutionState& state, const Value& proto, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
     : DerivedObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
     , m_boundTargetFunction(targetFunction)
     , m_boundThis(boundThis)
@@ -53,7 +53,6 @@ BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFu
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = length;
     m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = name;
 
-    Value proto = m_boundTargetFunction->getPrototype(state);
     Object::setPrototype(state, proto);
 
     if (boundArgc > 0) {

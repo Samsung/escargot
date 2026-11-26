@@ -155,7 +155,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value boundThis = argv[0];
     size_t boundArgc = (argc > 0) ? argc - 1 : 0;
     Value* boundArgv = (boundArgc > 0) ? argv + 1 : nullptr;
-    // BoundFunctionObject* F = new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv);
+    Value proto = target->getPrototype(state);
 
     // Let targetHasLength be HasOwnProperty(Target, "length").
     bool targetHasLength = target->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length));
@@ -172,9 +172,6 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
         }
     }
 
-    // F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length),
-    //                                    ObjectPropertyDescriptor(Value(length), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
-
     // Let targetName be Get(Target, "name").
     Value targetName = target->get(state, ObjectPropertyName(state.context()->staticStrings().name)).value(state, target);
     // If Type(targetName) is not String, let targetName be the empty string.
@@ -185,14 +182,8 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     StringBuilder builder;
     builder.appendString("bound ");
     builder.appendString(targetName.asString());
-    // F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().name),
-    //                                     ObjectPropertyDescriptor(Value(builder.finalize(&state)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    // Let F be BoundFunctionCreate(Target, thisArg, args).
-    // Let status be DefinePropertyOrThrow(F, "length", PropertyDescriptor {[[Value]]: L, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true}).
-    // Perform SetFunctionName(F, targetName, "bound").
-    // Return F.
-    return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(Value::DoubleToIntConvertibleTestNeeds, length), Value(builder.finalize(&state)));
+    return new BoundFunctionObject(state, proto, target, boundThis, boundArgc, boundArgv, Value(Value::DoubleToIntConvertibleTestNeeds, length), Value(builder.finalize(&state)));
 }
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
