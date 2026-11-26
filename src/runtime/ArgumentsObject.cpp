@@ -259,48 +259,14 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
-{
-    size_t index = property.tryToUseAsIndexProperty(state);
-    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
-        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
-    }
-
-    ObjectGetResult result = get(state, ObjectPropertyName(state, property), receiver);
-
-    if (isMatchedArgument(index)) {
-        ASSERT(result.hasValue());
-        return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), result.isWritable(), result.isEnumerable(), result.isConfigurable());
-    }
-    return result;
-}
-
 Value ArgumentsObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
 {
-    size_t index = property.tryToUseAsIndexProperty(state);
-    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+    ObjectPropertyName name(state, property);
+    size_t index = name.tryToUseAsIndexProperty();
+    if (LIKELY(isMatchedArgument(index))) {
         return getIndexedPropertyValueQuickly(state, index);
     }
-
-    if (isMatchedArgument(index)) {
-        return getIndexedPropertyValueQuickly(state, index);
-    }
-    return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);
-}
-
-ObjectHasPropertyResult ArgumentsObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
-{
-    size_t index = propertyName.tryToUseAsIndexProperty(state);
-    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
-        return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true));
-    }
-
-    if (isMatchedArgument(index)) {
-        ObjectGetResult result = Object::getOwnProperty(state, ObjectPropertyName(state, propertyName));
-        ASSERT(result.hasValue());
-        return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), result.isWritable(), result.isEnumerable(), result.isConfigurable()));
-    }
-    return hasProperty(state, ObjectPropertyName(state, propertyName));
+    return get(state, name, receiver).value(state, receiver);
 }
 
 bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
@@ -316,17 +282,6 @@ bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& prope
     }
 
     return Object::set(state, propertyName, v, receiver);
-}
-
-bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)
-{
-    size_t index = property.tryToUseAsIndexProperty(state);
-    if (LIKELY(isMatchedArgument(index))) {
-        setIndexedPropertyValueQuickly(state, index, value);
-        return true;
-    }
-
-    return Object::set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
 Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, size_t index)
