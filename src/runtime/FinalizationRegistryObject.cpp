@@ -216,6 +216,12 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
         }
     }
 
+    // A cleanup callback can change registrations and reuse the detached cell.
+    Context* realm = item->source->m_realm;
+    EncodedValue heldValue = item->heldValue;
+    bool deleteResult = item->source->deleteCellOnly(item);
+    ASSERT(deleteResult);
+
     if (!wasCallbackDeleted && Globals::isInitialized()) {
         if (UNLIKELY(GC_is_disabled())) {
             // GC is disabled around the engine's own non-reentrant work -- most notably
@@ -226,24 +232,18 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
             // those, and calling the cleanup callback here would re-enter JS right there:
             // a lazily compiled callee alone is enough to start that nested parse.
             // Run the callback from a job instead, which is where the spec puts it anyway
-            // (HostEnqueueFinalizationRegistryCleanupJob). Only the call is deferred; the
-            // item is unregistered below exactly as in the immediate case.
-            Context* realm = item->source->m_realm;
-            realm->vmInstance()->enqueueJob(new FinalizationRegistryCleanupJob(realm, callback, item->heldValue));
+            // (HostEnqueueFinalizationRegistryCleanupJob).
+            realm->vmInstance()->enqueueJob(new FinalizationRegistryCleanupJob(realm, callback, heldValue));
         } else {
             try {
-                ExecutionState tempState(item->source->m_realm);
-                Value argv = item->heldValue;
+                ExecutionState tempState(realm);
+                Value argv = heldValue;
                 Object::call(tempState, callback, Value(), 1, &argv);
             } catch (const Value& v) {
                 // do nothing
             }
         }
     }
-
-    // remove item from FinalizationRegistryObject
-    bool deleteResult = item->source->deleteCellOnly(item);
-    ASSERT(deleteResult);
 }
 
 void FinalizationRegistryObject::finalizerUnregisterToken(PointerValue* self, void* data)
