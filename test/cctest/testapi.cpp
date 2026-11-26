@@ -733,7 +733,8 @@ TEST(ObjectRef, IsHTMLDDA)
 
     EXPECT_TRUE(run("[hostObject, hostFunction].every(x => "
                     "typeof x === 'undefined' && !x && x == null && null == x && "
-                    "x == undefined && undefined == x && x !== null && x !== undefined && (x ?? 1) === x)")->asBoolean());
+                    "x == undefined && undefined == x && x !== null && x !== undefined && (x ?? 1) === x)")
+                    ->asBoolean());
     EXPECT_TRUE(run("[{}, function() {}].every(x => x && x != null && undefined != x)")->asBoolean());
 }
 
