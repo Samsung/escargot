@@ -48,6 +48,9 @@ public:
     // for binary expressions
     static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* left, Node* right)
     {
+        // Short-circuit expressions can emit both operands into the same register.
+        // Check even when no temporary register will be allocated.
+        context->checkStack();
         if (!context->m_canSkipCopyToRegister) {
             return false;
         }

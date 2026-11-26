@@ -348,7 +348,7 @@ struct ByteCodeGenerateContext {
     }
 #endif
 
-    ALWAYS_INLINE void checkStack()
+    static ALWAYS_INLINE void checkStack()
     {
 #ifdef STACK_GROWS_DOWN
         if (UNLIKELY(ThreadLocal::stackLimit() > (size_t)currentStackPointer())) {

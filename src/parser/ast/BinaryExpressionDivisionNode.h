@@ -20,18 +20,13 @@
 #ifndef BinaryExpressionDivisionNode_h
 #define BinaryExpressionDivisionNode_h
 
-#include "ExpressionNode.h"
+#include "BinaryExpressionNode.h"
 
 namespace Escargot {
 
-class BinaryExpressionDivisionNode : public ExpressionNode {
+class BinaryExpressionDivisionNode : public BinaryExpressionNode {
 public:
-    BinaryExpressionDivisionNode(Node* left, Node* right)
-        : ExpressionNode()
-        , m_left(left)
-        , m_right(right)
-    {
-    }
+    using BinaryExpressionNode::BinaryExpressionNode;
 
     virtual ASTNodeType type() override { return ASTNodeType::BinaryExpressionDivision; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
@@ -53,24 +48,6 @@ public:
 
         context->m_canSkipCopyToRegister = directBefore;
     }
-
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
-    {
-        m_left->iterateChildrenIdentifier(fn);
-        m_right->iterateChildrenIdentifier(fn);
-    }
-
-    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
-    {
-        fn(this);
-
-        m_left->iterateChildren(fn);
-        m_right->iterateChildren(fn);
-    }
-
-private:
-    Node* m_left;
-    Node* m_right;
 };
 } // namespace Escargot
 
