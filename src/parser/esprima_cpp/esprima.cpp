@@ -1742,7 +1742,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder, const AtomicString& className, size_t debuggerLineStart)
+    ASTNode parseClassFieldInitializer(ASTBuilder& builder, const AtomicString& className, const AtomicString& fieldName, size_t debuggerLineStart)
     {
         ASSERT(this->match(Substitution));
 
@@ -1754,8 +1754,7 @@ public:
         this->context->allowArguments = false;
         this->context->allowSuperProperty = true;
 
-        MetaNode node = this->createNode();
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, className, debuggerLineStart);
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, className, fieldName, debuggerLineStart);
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
@@ -1850,28 +1849,6 @@ public:
         }
 
         return result;
-    }
-
-    template <class ASTBuilder>
-    ASTNode parseClassFieldInitializer(ASTBuilder& builder, size_t debuggerLineStart)
-    {
-        ASSERT(this->match(Substitution));
-
-        this->nextToken();
-
-        const bool previousAllowArguments = this->context->allowArguments;
-        const bool previousAllowSuperProperty = this->context->allowSuperProperty;
-
-        this->context->allowArguments = false;
-        this->context->allowSuperProperty = true;
-
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, AtomicString(), debuggerLineStart);
-        this->consumeSemicolon();
-
-        this->context->allowArguments = previousAllowArguments;
-        this->context->allowSuperProperty = previousAllowSuperProperty;
-
-        return expr;
     }
 
     template <class ASTBuilder>
@@ -3637,7 +3614,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder, const AtomicString& paramName, size_t debuggerLineStart)
+    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder, const AtomicString& paramName, const AtomicString& fieldName, size_t debuggerLineStart)
     {
         UNUSED_VARIABLE(debuggerLineStart);
 
@@ -3666,8 +3643,15 @@ public:
             this->currentScopeContext->m_debuggerLineStart = debuggerLineStart;
 #endif /* ESCARGOT_DEBUGGER */
 
-            this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-            auto lastContext = this->lastPoppedScopeContext;
+            ASTNode initializer = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            if (fieldName != AtomicString()) {
+                if (initializer->type() == ASTNodeType::ClassExpression) {
+                    // The class AST is rebuilt when the initializer is compiled.
+                    this->currentScopeContext->m_functionName = fieldName;
+                } else {
+                    this->addImplicitName(initializer, fieldName);
+                }
+            }
 
             this->currentScopeContext->m_isArrowFunctionExpression = true;
             this->currentScopeContext->m_isOneExpressionOnlyVirtualArrowFunctionExpression = true;
@@ -3679,8 +3663,6 @@ public:
             this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
 #endif
             END_FUNCTION_SCANNING();
-
-            this->lastPoppedScopeContext = lastContext;
 
             // wrap right expression with arrow function
             result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
@@ -6181,13 +6163,9 @@ public:
                 }
                 value = this->parsePropertyMethodFunction(builder, allowSuperCall, isGenerator, isAsync, mayMethodStartNode);
             } else if (this->match(Substitution)) {
-                if (isStatic) {
-                    kind = ClassElementNode::Kind::Field;
-                    value = this->parseClassStaticFieldInitializer(builder, className, debuggerLineStart);
-                } else {
-                    kind = ClassElementNode::Kind::Field;
-                    value = this->parseClassFieldInitializer(builder, debuggerLineStart);
-                }
+                kind = ClassElementNode::Kind::Field;
+                AtomicString fieldName = !computed && keyNode->isIdentifier() ? keyNode->asIdentifier()->name() : AtomicString();
+                value = this->parseClassFieldInitializer(builder, isStatic ? className : AtomicString(), fieldName, debuggerLineStart);
             } else if (this->match(SemiColon) || this->match(RightBrace)) {
                 auto metaNode = this->createNode();
                 if (this->match(SemiColon)) {
@@ -6306,7 +6284,7 @@ public:
             }
         }
 
-        if (!computed && keyNode->isIdentifier()) {
+        if (kind != ClassElementNode::Kind::Field && !computed && keyNode->isIdentifier()) {
             ASSERT(!!value);
             this->addImplicitName(value, keyNode->asIdentifier()->name());
         }
@@ -7245,6 +7223,9 @@ public:
             } else {
                 MetaNode nodeStart = this->createNode();
                 Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
+                if (expr->type() == ASTNodeType::ClassExpression) {
+                    expr->asClassExpression()->tryToSetImplicitName(this->codeBlock->functionName());
+                }
 
                 StatementContainer* container = builder.createStatementContainer();
                 Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
