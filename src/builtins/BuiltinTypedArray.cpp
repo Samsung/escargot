@@ -1919,7 +1919,6 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     // Let k be 0.
     size_t k = 0;
 
-    Value* toLocaleStringArgv = ALLOCA(sizeof(Value) * argc, Value);
     // Repeat, while k < len
     while (k < len) {
         // If k > 0, then
@@ -1934,10 +1933,13 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
         Value nextElement = array->getIndexedPropertyValue(state, Value(k), array);
         // If nextElement is not undefined or null, then
         if (!nextElement.isUndefinedOrNull()) {
-            // Let S be ? ToString(? Invoke(nextElement, "toLocaleString")).
+            // Let S be ? ToString(? Invoke(nextElement, "toLocaleString", « locales, options »)).
             Value func = nextElement.toObject(state)->get(state, state.context()->staticStrings().toLocaleString).value(state, nextElement);
-            memcpy(toLocaleStringArgv, argv, sizeof(Value) * argc);
-            String* S = Object::call(state, func, nextElement, argc, toLocaleStringArgv).toString(state);
+            Value callArgv[2] = {
+                argc > 0 ? argv[0] : Value(),
+                argc > 1 ? argv[1] : Value()
+            };
+            String* S = Object::call(state, func, nextElement, 2, callArgv).toString(state);
             // Set R to the string-concatenation of R and S.
             StringBuilder builder2;
             builder2.appendString(R, &state);
