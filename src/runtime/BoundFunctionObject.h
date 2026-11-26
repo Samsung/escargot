@@ -26,7 +26,7 @@ namespace Escargot {
 
 class BoundFunctionObject : public DerivedObject {
 public:
-    BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name);
+    BoundFunctionObject(ExecutionState& state, const Value& proto, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name);
 
     virtual bool isBoundFunctionObject() const override
     {
