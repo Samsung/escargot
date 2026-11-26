@@ -95,11 +95,11 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
     // 6. Perform CreateDataProperty(result, "proxy", p).
     result->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->proxy),
-                                             ObjectPropertyDescriptor(proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                             ObjectPropertyDescriptor(proxy, ObjectPropertyDescriptor::AllPresent));
 
     // 7. Perform CreateDataProperty(result, "revoke", revoker).
     result->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revoke),
-                                             ObjectPropertyDescriptor(revoker, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                             ObjectPropertyDescriptor(revoker, ObjectPropertyDescriptor::AllPresent));
 
     // 8. Return result.
     return result;
