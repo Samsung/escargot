@@ -801,7 +801,7 @@ static Value builtinArrayFromAsync(ExecutionState& state, Value thisValue, size_
             }
 
             auto record = new ArrayFromAsyncSyncRecord(mapping, mapper, thisArg, A, len, arrayLike, promiseCapability);
-            arrayFromAsyncSyncAwaitOperation(state, Value(), record, 0);
+            builtinArrayFromSyncAsyncWorker(state, record);
             return record->m_promiseCapability.m_promise;
         }
     } catch (const Value& error) {
