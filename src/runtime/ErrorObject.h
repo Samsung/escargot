@@ -80,7 +80,6 @@ public:
         static constexpr const char* Set_ToNull = "Cannot set property '%s' of null";
         static constexpr const char* New_Target_Is_Undefined = "NewTarget is undefined";
         static constexpr const char* Class_Prototype_Is_Not_Object_Nor_Null = "Class extends object prototype property is not object nor null";
-        static constexpr const char* Class_Prototype_Is_Not_Static_Generator = "Classes may not have a static property named 'prototype'";
         static constexpr const char* Class_Extends_Value_Is_Not_Object_Nor_Null = "Class extends value is not object nor null";
         static constexpr const char* Initialized_This_Binding = "Super constructor may only be called once";
         static constexpr const char* UnInitialized_This_Binding = "Must call super constructor in derived class before accessing 'this' or returning from derived constructor";

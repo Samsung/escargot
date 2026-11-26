@@ -5389,7 +5389,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
         } else if (code->m_stage == InitializeClass::SetPrivateFieldData) {
             std::get<1>(classConstructor->m_instanceFieldInitData[code->m_setPrivateFieldIndex]) = registerFile[code->m_privatePropertySetRegisterIndex];
         } else if (code->m_stage == InitializeClass::InitStaticField) {
-            std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticFieldInitIndex]) = registerFile[code->m_staticPropertyInitRegisterIndex];
+            std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticFieldInitIndex]) = registerFile[code->m_staticPropertyInitRegisterIndex].toPropertyKey(state);
         } else if (code->m_stage == InitializeClass::InitStaticPrivateField) {
             std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldInitIndex]) = registerFile[code->m_staticPrivatePropertyInitRegisterIndex];
             std::get<1>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldInitIndex]) = ScriptClassConstructorFunctionObject::PrivateFieldValue;
@@ -6357,7 +6357,7 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(Executio
         value.asFunctionObject()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     }
 
-    willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
+    willBeObject.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
 }
 
 NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
