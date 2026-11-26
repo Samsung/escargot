@@ -207,8 +207,8 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
     double relativeStart = argv[0].toInteger(state);
     size_t first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
     double relativeEnd = argv[1].isUndefined() ? len : argv[1].toInteger(state);
-    double final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
-    size_t newLen = std::max((int)final_ - (int)first, 0);
+    size_t finalIndex = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    size_t newLen = finalIndex > first ? finalIndex - first : 0;
 
     Value constructor = obj->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
     Value arguments[] = { Value(newLen) };
@@ -229,7 +229,11 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
     }
     obj->throwTypeErrorIfDetached(state);
 
-    newObject->fillData(obj->data() + first, newLen);
+    // The species constructor may have resized the source buffer.
+    size_t currentLength = obj->byteLength();
+    if (newLen > 0 && first < currentLength) {
+        newObject->fillData(obj->data() + first, std::min(newLen, currentLength - first));
+    }
     return newObject;
 }
 
