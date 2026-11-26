@@ -185,9 +185,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isFinalizerRegistered : 1;
     bool m_isInlineCacheable : 1;
     bool m_hasExtendedExtraData : 1;
-#if defined(ESCARGOT_ENABLE_TEST)
     bool m_isHTMLDDA : 1;
-#endif
     uint8_t m_arrayObjectFastModeBufferExpandCount : 8;
     union {
         Optional<void*> m_extraData;
@@ -1243,17 +1241,15 @@ public:
         }
     }
 
-#if defined(ESCARGOT_ENABLE_TEST)
-    bool isHTMLDDA()
+    bool isHTMLDDA() const
     {
-        return hasRareData() ? rareData()->m_isHTMLDDA : false;
+        return hasRareData() && rareData()->m_isHTMLDDA;
     }
 
     void setIsHTMLDDA()
     {
         ensureRareData()->m_isHTMLDDA = true;
     }
-#endif
 
     Object* ensureInternalSlot(ExecutionState& state)
     {
@@ -1673,6 +1669,11 @@ protected:
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 COMPILE_ASSERT(sizeof(Object) == 24, "Object should use three 4-byte pointer slots");
 #endif
+
+inline bool Value::isHTMLDDAObject() const
+{
+    return isObject() && asObject()->isHTMLDDA();
+}
 
 class DerivedObject : public Object {
     // DerivedObject is a pure virtual class for sub classes of `Object`

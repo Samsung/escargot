@@ -2923,17 +2923,10 @@ void ObjectRef::setExtraData(void* e)
     toImpl(this)->setExtraData(e);
 }
 
-#if defined(ESCARGOT_ENABLE_TEST)
 void ObjectRef::setIsHTMLDDA()
 {
     toImpl(this)->setIsHTMLDDA();
 }
-#else
-void ObjectRef::setIsHTMLDDA()
-{
-    // do nothing
-}
-#endif
 
 void ObjectRef::removeFromHiddenClassChain()
 {

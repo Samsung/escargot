@@ -722,6 +722,21 @@ TEST(ValueRef, Basic2)
     });
 }
 
+TEST(ObjectRef, IsHTMLDDA)
+{
+    auto context = createEscargotContext(g_instance.get());
+    auto run = [&](const char* source) {
+        return eval(context.get(), StringRef::createFromASCII(source, strlen(source)));
+    };
+    run("var hostObject = {}; hostObject")->asObject()->setIsHTMLDDA();
+    run("function hostFunction() {} hostFunction")->asObject()->setIsHTMLDDA();
+
+    EXPECT_TRUE(run("[hostObject, hostFunction].every(x => "
+                    "typeof x === 'undefined' && !x && x == null && null == x && "
+                    "x == undefined && undefined == x && x !== null && x !== undefined && (x ?? 1) === x)")->asBoolean());
+    EXPECT_TRUE(run("[{}, function() {}].every(x => x && x != null && undefined != x)")->asBoolean());
+}
+
 TEST(Evaluator, Basic)
 {
     auto result = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
