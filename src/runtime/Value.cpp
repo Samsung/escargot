@@ -310,11 +310,6 @@ bool Value::toBooleanSlowCase() const
         return !asBigInt()->isZero();
     }
 
-#if defined(ESCARGOT_ENABLE_TEST)
-    if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
-        return false;
-    }
-#endif
     // Symbol, Objects..
     return true;
 }
@@ -337,11 +332,7 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             return true;
         }
 
-        bool selfIsUndefinedOrNull = isUndefinedOrNull();
-        bool valIsUndefinedOrNull = val.isUndefinedOrNull();
-        if (selfIsUndefinedOrNull && valIsUndefinedOrNull)
-            return true;
-
+        ASSERT(!isUndefinedOrNull() && !val.isUndefinedOrNull());
         bool selfIsPointerValue = isPointerValue();
         bool valIsPointerValue = val.isPointerValue();
 
@@ -430,15 +421,6 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
                 return o->asString()->equals(comp->asString());
             return equalsTo(state, val);
         }
-
-#if defined(ESCARGOT_ENABLE_TEST)
-        if (UNLIKELY(selfIsUndefinedOrNull && val.isObject() && val.asObject()->isHTMLDDA())) {
-            return true;
-        }
-        if (UNLIKELY(valIsUndefinedOrNull && isObject() && asObject()->isHTMLDDA())) {
-            return true;
-        }
-#endif
     }
     return false;
 }
@@ -951,10 +933,4 @@ int64_t Value::toPostiveIntegerWithTruncation(ExecutionState& state) const
     return integer;
 }
 
-#if defined(ESCARGOT_ENABLE_TEST)
-bool Value::checkIfObjectWithIsHTMLDDA() const
-{
-    return isObject() && asObject()->isHTMLDDA();
-}
-#endif
 } // namespace Escargot

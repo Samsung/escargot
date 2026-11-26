@@ -1066,19 +1066,12 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
         return numberEqualsToSlowCase(val);
     }
 
-    if (isUndefinedOrNull() || val.isUndefinedOrNull()) {
-        // Two nullish Values would have shared OtherPointerTag, so the other
-        // side is of some other type here.
-#if defined(ESCARGOT_ENABLE_TEST)
-        // Under spec compliance test environments (like test262), we must support historical
-        // quirks such as IsHTMLDDA objects (e.g. document.all), where document.all == null/undefined
-        // must observably evaluate to true. Since document.all is an Object, we fall back to
-        // the out-of-line slow case handler to resolve this specific spec exception.
-        if (UNLIKELY(isObject() || val.isObject())) {
-            return abstractEqualsToSlowCase(state, val);
-        }
-#endif
-        return false;
+    // Two nullish operands would have shared OtherPointerTag above.
+    if (isUndefinedOrNull()) {
+        return val.isHTMLDDAObject();
+    }
+    if (val.isUndefinedOrNull()) {
+        return isHTMLDDAObject();
     }
 
     return abstractEqualsToSlowCase(state, val);
@@ -1123,17 +1116,11 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
         return numberEqualsToSlowCase(val);
     }
 
-    if (isUndefinedOrNull() || val.isUndefinedOrNull()) {
-#if defined(ESCARGOT_ENABLE_TEST)
-        // Under spec compliance test environments (like test262), we must support historical
-        // quirks such as IsHTMLDDA objects (e.g. document.all), where document.all == null/undefined
-        // must observably evaluate to true. Since document.all is an Object, we fall back to
-        // the out-of-line slow case handler to resolve this specific spec exception.
-        if (UNLIKELY(isObject() || val.isObject())) {
-            return abstractEqualsToSlowCase(state, val);
-        }
-#endif
-        return isUndefinedOrNull() && val.isUndefinedOrNull();
+    if (isUndefinedOrNull()) {
+        return val.isUndefinedOrNull() || val.isHTMLDDAObject();
+    }
+    if (val.isUndefinedOrNull()) {
+        return isHTMLDDAObject();
     }
 
     if (isObject() && val.isObject()) {
@@ -1194,12 +1181,7 @@ inline bool Value::toBoolean() const // $7.1.2 ToBoolean
         return false;
 
     if (isObject()) {
-#if defined(ESCARGOT_ENABLE_TEST)
-        if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
-            return false;
-        }
-#endif
-        return true;
+        return !isHTMLDDAObject();
     }
 
     return toBooleanSlowCase();

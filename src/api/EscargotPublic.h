@@ -1570,7 +1570,7 @@ public:
 
     void* extraData();
     void setExtraData(void* e);
-    // this function is used only for test purpose
+    // Give this object the ECMAScript [[IsHTMLDDA]] internal slot.
     void setIsHTMLDDA();
 
     void removeFromHiddenClassChain();

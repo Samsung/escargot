@@ -6909,14 +6909,13 @@ NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryT
             val = state.context()->staticStrings().bigint.string();
         } else {
             ASSERT(p->isObject());
-            if (!p->asObject()->isCallable()) {
-                val = state.context()->staticStrings().object.string();
-#if defined(ESCARGOT_ENABLE_TEST)
-            } else if (UNLIKELY(p->asObject()->isHTMLDDA())) {
+            Object* object = p->asObject();
+            if (UNLIKELY(object->isHTMLDDA())) {
                 val = state.context()->staticStrings().undefined.string();
-#endif
-            } else {
+            } else if (object->isCallable()) {
                 val = state.context()->staticStrings().function.string();
+            } else {
+                val = state.context()->staticStrings().object.string();
             }
         }
     }
