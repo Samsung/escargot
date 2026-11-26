@@ -7175,12 +7175,13 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
         // String and symbol keys can both reuse structure transitions.
         obj->markThisObjectDontNeedStructureTransitionTable();
     }
-    bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
+    Value key = UNLIKELY(property.isObject()) ? property.toPropertyKey(state) : property;
+    bool result = obj->setIndexedProperty(state, key, registerFile[code->m_loadRegisterIndex]);
 
     if (UNLIKELY(!result) && state.inStrictMode()) {
-        String* propertyNameString = property.toString(state);
-        bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, obj, ObjectPropertyName(state, propertyNameString));
-        Object::throwCannotWriteError(state, obj, ObjectStructurePropertyName(state, propertyNameString), isGetterOnlyAccessor);
+        ObjectPropertyName name(state, key);
+        bool isGetterOnlyAccessor = Object::isGetterOnlyAccessorProperty(state, obj, name);
+        Object::throwCannotWriteError(state, obj, name.toObjectStructurePropertyName(state), isGetterOnlyAccessor);
     }
 }
 
