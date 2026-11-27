@@ -397,7 +397,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         UCollator* ucollator = ucol_open(locale->toUTF8StringData().data(), &status);
         if (U_FAILURE(status)) {
-            return;
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to open ICU collator");
         }
 
         ucol_setAttribute(ucollator, UCOL_STRENGTH, strength, &status);
@@ -409,7 +409,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         if (U_FAILURE(status)) {
             ucol_close(ucollator);
-            return;
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to configure ICU collator");
         }
 
         internalSlot->setExtraData(ucollator);
@@ -431,17 +431,45 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Return collator.
 }
 
+class CollationBuffer {
+public:
+    const char16_t* dataFor(const StringBufferAccessData& data)
+    {
+        if (!data.has8BitContent) {
+            return data.bufferAs16Bit;
+        }
+
+        char16_t* buffer = m_inline;
+        if (data.length > sizeof(m_inline) / sizeof(m_inline[0])) {
+            m_wide.resizeWithUninitializedValues(data.length);
+            buffer = m_wide.data();
+        }
+        for (size_t i = 0; i < data.length; ++i) {
+            buffer[i] = data.uncheckedCharAtFor8Bit(i);
+        }
+        return buffer;
+    }
+
+private:
+    char16_t m_inline[32];
+    UTF16StringData m_wide;
+};
+
 int IntlCollator::compare(ExecutionState& state, Object* collator, String* a, String* b)
 {
     if (a->equals(b)) {
         return 0;
     }
 
-    auto utf16A = a->toUTF16StringData();
-    auto utf16B = b->toUTF16StringData();
+    auto dataA = a->bufferAccessData();
+    auto dataB = b->bufferAccessData();
+    CollationBuffer bufferA, bufferB;
 
+    const char16_t* utf16A = bufferA.dataFor(dataA);
+    const char16_t* utf16B = bufferB.dataFor(dataB);
+    // Conversion may allocate. Read the native handle from its owner afterwards.
     UCollator* ucol = (UCollator*)collator->internalSlot()->extraData();
-    UCollationResult result = ucol_strcoll(ucol, utf16A.data(), utf16A.length(), utf16B.data(), utf16B.length());
+    UCollationResult result = ucol_strcoll(ucol, utf16A, a->length(), utf16B, b->length());
 
     switch (result) {
     case UCOL_LESS:

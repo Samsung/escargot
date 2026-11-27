@@ -457,6 +457,7 @@ public:
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     Symbol* intlLegacyConstructedSymbol();
+    Object* defaultCollator(ExecutionState& state);
 
     // cache for argument-less Date.prototype.toLocale{,Date,Time}String():
     // building an Intl formatter per call dominates those calls otherwise
@@ -554,6 +555,10 @@ private:
 
     GLOBALOBJECT_BUILTIN_OBJECT_LIST(DECLARE_BUILTIN_MEMBER_FUNC, )
 #undef DECLARE_BUILTIN_MEMBER_FUNC
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+    CompressibleHeapPointer<Object> m_defaultCollator;
+#endif
 
     template <TypedArrayType type, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, CompressibleHeapPointer<Object>* proto, FunctionObject* typedArrayFunction);
