@@ -751,8 +751,7 @@ TEST(TypedArray, NormalizesFloatReadsAndPreservesCopyBytes)
     return true;
 })()
 )JS";
-    EXPECT_EQ("true", evalScript(g_context.get(), StringRef::createFromASCII(source),
-                                 StringRef::createFromASCII("float-buffer-reads.js"), false));
+    EXPECT_EQ("true", evalScript(g_context.get(), StringRef::createFromASCII(source), StringRef::createFromASCII("float-buffer-reads.js"), false));
 }
 
 TEST(ValueRef, Basic2)
