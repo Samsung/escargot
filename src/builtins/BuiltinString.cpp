@@ -184,7 +184,9 @@ static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, 
         options = argv[2];
     }
 
-    Object* collator = IntlCollator::create(state, state.context(), locales, options);
+    Object* collator = locales.isUndefined() && options.isUndefined()
+        ? state.context()->globalObject()->defaultCollator(state)
+        : IntlCollator::create(state, state.context(), locales, options);
 
     return Value(IntlCollator::compare(state, collator, S, That));
 #else

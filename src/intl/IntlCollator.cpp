@@ -397,7 +397,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         UCollator* ucollator = ucol_open(locale->toUTF8StringData().data(), &status);
         if (U_FAILURE(status)) {
-            return;
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to open ICU collator");
         }
 
         ucol_setAttribute(ucollator, UCOL_STRENGTH, strength, &status);
@@ -409,7 +409,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         if (U_FAILURE(status)) {
             ucol_close(ucollator);
-            return;
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to configure ICU collator");
         }
 
         internalSlot->setExtraData(ucollator);

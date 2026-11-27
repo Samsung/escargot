@@ -44,6 +44,9 @@
 #include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "heap/LeakCheckerBridge.h"
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#include "intl/IntlCollator.h"
+#endif
 #include "util/PowerOfTwoInteger.h"
 #include "double-conversion.h"
 
@@ -59,6 +62,7 @@ void* GlobalObject::operator new(size_t size)
         GC_set_bit(bitmap, offsetof(GlobalObject, m_regexpPrototypePristineStructure) / 4);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
         GC_set_bit(bitmap, offsetof(GlobalObject, m_intlLegacyConstructedSymbol) / 4);
+        GC_set_bit(bitmap, offsetof(GlobalObject, m_defaultCollator) / 4);
         for (size_t i = 0; i < 3; ++i) {
             GC_set_bit(bitmap, offsetof(GlobalObject, m_defaultDateTimeFormat) / 4 + i);
         }
@@ -111,6 +115,16 @@ GlobalObject::GlobalObject(ExecutionState& state)
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+Object* GlobalObject::defaultCollator(ExecutionState& state)
+{
+    if (auto cached = m_defaultCollator.get()) {
+        return cached.value();
+    }
+    Object* collator = IntlCollator::create(state, state.context(), Value(), Value());
+    m_defaultCollator = collator;
+    return collator;
+}
+
 Symbol* GlobalObject::intlLegacyConstructedSymbol()
 {
     if (!m_intlLegacyConstructedSymbol) {
