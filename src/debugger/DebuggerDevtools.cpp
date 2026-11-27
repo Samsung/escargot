@@ -798,10 +798,10 @@ static Value wasmValToValue(wasm_val_t val)
         return Value(val.of.i64);
     }
     case WASM_F32: {
-        return Value(Value::DoubleToIntConvertibleTestNeedsTag::DoubleToIntConvertibleTestNeeds, val.of.f32);
+        return Value::fromExternalDouble(val.of.f32);
     }
     case WASM_F64: {
-        return Value(Value::DoubleToIntConvertibleTestNeedsTag::DoubleToIntConvertibleTestNeeds, val.of.f64);
+        return Value::fromExternalDouble(val.of.f64);
     }
     case WASM_V128:
     case WASM_ANYREF:
@@ -1672,7 +1672,7 @@ bool DebuggerDevtools::setSkipAllPauses(rapidjson::Document& jsonMessage, Execut
 
 uint32_t DebuggerDevtools::registerValuesMap(Object* object, PropertyNameValueMap* newPropertyMap, PropertyNameValueMap* newInternalPropertyMap)
 {
-    ASSERT(m_propertyMapsById.size() == m_nextObjectId - m_objectIdVectorIndexOffset)
+    ASSERT(m_propertyMapsById.size() == m_nextObjectId - m_objectIdVectorIndexOffset);
     m_propertyMapsById.push_back({ object, newPropertyMap, newInternalPropertyMap });
     return m_nextObjectId++;
 }

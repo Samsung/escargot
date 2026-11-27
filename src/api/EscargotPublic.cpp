@@ -4079,12 +4079,12 @@ ValueRef* ValueRef::create(unsigned value)
 
 ValueRef* ValueRef::create(float value)
 {
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::DoubleToIntConvertibleTestNeeds, value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value::fromExternalDouble(value)).payload());
 }
 
 ValueRef* ValueRef::create(double value)
 {
-    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::DoubleToIntConvertibleTestNeeds, value)).payload());
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value::fromExternalDouble(value)).payload());
 }
 
 ValueRef* ValueRef::create(long value)
