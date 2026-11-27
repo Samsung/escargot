@@ -4282,7 +4282,7 @@ TEST(WebAssembly, NormalizesFloatingPointGlobals)
     for (const char* member : { ".f.value", ".d.value" }) {
         SCOPED_TRACE(member);
         std::string expression = std::string(source) + member;
-        expectCanonicalNaN(eval(g_context.get(), StringRef::createFromASCII(expression.c_str())));
+        expectCanonicalNaN(eval(g_context.get(), StringRef::createFromASCII(expression.data(), expression.size())));
     }
 }
 
