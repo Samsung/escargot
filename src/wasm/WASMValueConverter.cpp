@@ -122,11 +122,11 @@ Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& val
         break;
     }
     case WASM_F32: {
-        result = Value(Value::DoubleToIntConvertibleTestNeeds, (double)value.of.f32);
+        result = Value::fromExternalDouble(value.of.f32);
         break;
     }
     case WASM_F64: {
-        result = Value(Value::DoubleToIntConvertibleTestNeeds, value.of.f64);
+        result = Value::fromExternalDouble(value.of.f64);
         break;
     }
     case WASM_I64: {

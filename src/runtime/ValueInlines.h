@@ -767,6 +767,19 @@ ALWAYS_INLINE Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
 #endif
 }
 
+ALWAYS_INLINE Value Value::fromExternalDouble(double value)
+{
+    if (value >= std::numeric_limits<int32_t>::min() && value <= std::numeric_limits<int32_t>::max()) {
+        int32_t asInt32;
+        if (isInt32ConvertibleDouble(value, asInt32)) {
+            return Value(asInt32);
+        }
+    } else if (UNLIKELY(std::isnan(value))) {
+        return Value(NanInit);
+    }
+    return Value(EncodeAsDouble, value);
+}
+
 ALWAYS_INLINE Value::Value(PreferDoubleTag, double d)
 {
     uint64_t bits = bitwise_cast<uint64_t>(d);

@@ -312,7 +312,7 @@ struct TypedArrayHelper {
 
     NEVER_INLINE static Value readFloat16Value(uint8_t* rawBytes)
     {
-        return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(rawBytes)));
+        return Value::fromExternalDouble(convertFloat16ToFloat64(readRawBytesAs<uint16_t>(rawBytes)));
     }
 
     template <bool inlineFloatRead = false, bool indexed = false>
@@ -337,17 +337,17 @@ struct TypedArrayHelper {
             if (inlineFloatRead) {
                 return readFloat16Value(elementAddress<indexed, 1>(rawBytes, index));
             }
-            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(readRawBytesAs<uint16_t>(elementAddress<indexed, 1>(rawBytes, index))));
+            return Value::fromExternalDouble(convertFloat16ToFloat64(readRawBytesAs<uint16_t>(elementAddress<indexed, 1>(rawBytes, index))));
         case TypedArrayType::Float32:
             if (inlineFloatRead) {
-                return Value(Value::DoubleToIntConvertibleTestNeeds, bitwise_cast<float>(readFloat32BitsInline(elementAddress<indexed, 2>(rawBytes, index))));
+                return Value::fromExternalDouble(bitwise_cast<float>(readFloat32BitsInline(elementAddress<indexed, 2>(rawBytes, index))));
             }
-            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(elementAddress<indexed, 2>(rawBytes, index)));
+            return Value::fromExternalDouble(readFloat32(elementAddress<indexed, 2>(rawBytes, index)));
         case TypedArrayType::Float64:
             if (inlineFloatRead) {
-                return Value(Value::DoubleToIntConvertibleTestNeeds, bitwise_cast<double>(readFloat64BitsInline(elementAddress<indexed, 3>(rawBytes, index))));
+                return Value::fromExternalDouble(bitwise_cast<double>(readFloat64BitsInline(elementAddress<indexed, 3>(rawBytes, index))));
             }
-            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat64(elementAddress<indexed, 3>(rawBytes, index)));
+            return Value::fromExternalDouble(readFloat64(elementAddress<indexed, 3>(rawBytes, index)));
         case TypedArrayType::BigInt64:
             return Value(new BigInt(readInt64(elementAddress<indexed, 3>(rawBytes, index))));
         case TypedArrayType::BigUint64:

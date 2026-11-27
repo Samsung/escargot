@@ -685,6 +685,76 @@ TEST(ValueRef, Basic1)
     });
 }
 
+static void expectCanonicalNaN(ValueRef* value)
+{
+    const double canonical = std::numeric_limits<double>::quiet_NaN();
+    ASSERT_TRUE(value->isNumber());
+    double number = value->asNumber();
+    EXPECT_EQ(0, memcmp(&canonical, &number, sizeof(number)));
+}
+
+TEST(ValueRef, CanonicalizesExternalNaNs)
+{
+    const double canonical = std::numeric_limits<double>::quiet_NaN();
+    for (auto* value : { ValueRef::create(-std::numeric_limits<float>::quiet_NaN()), ValueRef::create(-canonical) }) {
+        expectCanonicalNaN(value);
+    }
+}
+
+TEST(ValueRef, PreservesExternalNumbers)
+{
+    const double infinity = std::numeric_limits<double>::infinity();
+    for (double input : { 0.0, -0.0, -1.25, -2147483649.0, -2147483648.0, 2147483647.0, 2147483648.0,
+                          std::numeric_limits<double>::denorm_min(), std::numeric_limits<double>::max(), -infinity, infinity }) {
+        SCOPED_TRACE(input);
+        auto* value = ValueRef::create(input);
+        ASSERT_TRUE(value->isNumber());
+        double number = value->asNumber();
+        EXPECT_EQ(0, memcmp(&input, &number, sizeof(number)));
+    }
+}
+
+TEST(TypedArray, NormalizesFloatReadsAndPreservesCopyBytes)
+{
+    const char source[] = R"JS(
+(() => {
+    const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+    const output = new DataView(new ArrayBuffer(8));
+    function bits(number) {
+        output.setFloat64(0, number);
+        return output.getBigUint64(0);
+    }
+    const canonical = bits(NaN);
+    const buffers = [ArrayBuffer];
+    if (typeof SharedArrayBuffer === "function") buffers.push(SharedArrayBuffer);
+    for (const Buffer of buffers) {
+        for (const [Floats, getFloat] of [[Float16Array, "getFloat16"], [Float32Array, "getFloat32"], [Float64Array, "getFloat64"]]) {
+            const size = Floats.BYTES_PER_ELEMENT;
+            const src = new Floats(new Buffer(size));
+            src[0] = NaN;
+            const bytes = new Uint8Array(src.buffer);
+            bytes[littleEndian ? size - 1 : 0] ^= 0x80;
+            if (bits(src[0]) !== canonical) throw Error(Floats.name + " indexed read");
+
+            const copy = new Floats(1);
+            copy.set(src);
+            if (!new Uint8Array(copy.buffer).every((v, i) => v === bytes[i])) throw Error(Floats.name + " set");
+
+            const offset = Buffer === ArrayBuffer ? 1 : 0;
+            const view = new DataView(new Buffer(size + offset));
+            for (const little of [false, true]) {
+                new Uint8Array(view.buffer, offset).set(little === littleEndian ? bytes : bytes.slice().reverse());
+                if (bits(view[getFloat](offset, little)) !== canonical) throw Error(getFloat + " endian " + little);
+            }
+        }
+    }
+    return true;
+})()
+)JS";
+    EXPECT_EQ("true", evalScript(g_context.get(), StringRef::createFromASCII(source),
+                                 StringRef::createFromASCII("float-buffer-reads.js"), false));
+}
+
 TEST(ValueRef, Basic2)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
@@ -3353,6 +3423,19 @@ TEST(PromiseRejectCallback, Basic1)
     });
 }
 
+TEST(Serializer, CanonicalizesExternalNaN)
+{
+    std::string record;
+    ASSERT_TRUE(SerializerRef::serializeInto(ValueRef::create(0), record));
+    const double input = -std::numeric_limits<double>::quiet_NaN();
+    ASSERT_EQ(1 + sizeof(input), record.size());
+    memcpy(&record[1], &input, sizeof(input));
+    size_t offset = 0;
+    auto* restored = SerializerRef::deserializeFrom(g_context.get(), record.data(), record.size(), offset);
+    EXPECT_EQ(record.size(), offset);
+    expectCanonicalNaN(restored);
+}
+
 TEST(Serializer, Basic1)
 {
     std::string obuf;
@@ -4184,6 +4267,25 @@ TEST(Object, PrototypeIterationPreservesExoticDispatch)
 }
 
 #if defined(ENABLE_WASM)
+TEST(WebAssembly, NormalizesFloatingPointGlobals)
+{
+    // The module exports one f32 and one f64 global initialized to negative quiet NaN.
+    const char source[] = R"JS(
+    new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0,
+        6, 21, 2,
+        0x7d, 0, 0x43, 0, 0, 0xc0, 0xff, 0x0b,
+        0x7c, 0, 0x44, 0, 0, 0, 0, 0, 0, 0xf8, 0xff, 0x0b,
+        7, 9, 2, 1, 102, 3, 0, 1, 100, 3, 1
+    ]))).exports
+)JS";
+    for (const char* member : { ".f.value", ".d.value" }) {
+        SCOPED_TRACE(member);
+        std::string expression = std::string(source) + member;
+        expectCanonicalNaN(eval(g_context.get(), StringRef::createFromASCII(expression.c_str())));
+    }
+}
+
 TEST(WebAssembly, RejectNonFunctionReferences)
 {
     const char source[] = R"JS(

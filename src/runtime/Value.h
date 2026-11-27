@@ -332,6 +332,9 @@ public:
     // Biased toward non-integral doubles; folds int32 and canonicalizes NaNs.
     enum PreferDoubleTag { PreferDouble };
     explicit Value(PreferDoubleTag, double);
+    // External floating-point data can carry arbitrary NaN payloads. Normalize
+    // them before JS arithmetic can propagate them into another boxed value.
+    static Value fromExternalDouble(double value);
     // The result must be in [-1, 1] or NaN; folds 0 and +/-1 to int32.
     enum DoubleInUnitRangeTag { DoubleInUnitRange };
     explicit Value(DoubleInUnitRangeTag, double);
